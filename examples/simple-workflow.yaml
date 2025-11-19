@@ -1,0 +1,27 @@
+workflow:
+  name: "simple-data-analysis"
+  version: "1.0"
+
+  variables:
+    question: "What are the key trends in this data?"
+
+  prompts:
+    analyze:
+      content: |
+        Analyze the data and answer: {question}
+      variables:
+        - question
+
+  agents:
+    - id: "analyzer"
+      type: "sequential"
+      model: "gemini-2.0-flash-exp"
+      temperature: 0.7
+      tools:
+        - "code_execution"
+
+      subagents:
+        - id: "main"
+          prompt_ref: "analyze"
+
+  connections: []

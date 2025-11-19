@@ -1,0 +1,19 @@
+[project]
+name = "adkflow-backend"
+version = "0.1.0"
+description = "Backend API for ADKFlow - Visual workflow builder for Google ADK agents"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "pydantic>=2.0",
+    "pyyaml>=6.0",
+    "python-multipart>=0.0.6",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_backend"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,177 @@
+workflow:
+  name: "code-review-assistant"
+  version: "1.0"
+
+  # Variables can be overridden at runtime with --var flag
+  variables:
+    repository_path:
+      type: string
+      default: "./src"
+      description: "Path to the code repository or directory to review"
+
+    language:
+      type: string
+      default: "python"
+      description: "Primary programming language"
+
+    focus_areas:
+      type: string
+      default: "security, performance, best practices"
+      description: "Comma-separated list of review focus areas"
+
+  # Prompt definitions with markdown support and variable substitution
+  prompts:
+    read_codebase:
+      content: |
+        # Codebase Analysis
+
+        You are a senior code reviewer. Please analyze the codebase at:
+        **Location**: {repository_path}
+        **Language**: {language}
+
+        Tasks:
+        1. List all files and their purposes
+        2. Identify the main components and modules
+        3. Note any immediately obvious issues
+
+        Provide a structured overview of the codebase.
+      variables:
+        - repository_path
+        - language
+
+    security_review:
+      content: |
+        # Security Code Review
+
+        Focus on security aspects for {language} code.
+
+        Check for:
+        - SQL injection vulnerabilities
+        - XSS vulnerabilities
+        - Authentication/authorization issues
+        - Sensitive data exposure
+        - Input validation problems
+        - Dependency vulnerabilities
+
+        Provide specific line numbers and severity ratings (Critical, High, Medium, Low).
+      variables:
+        - language
+
+    performance_review:
+      content: |
+        # Performance Analysis
+
+        Analyze the code for performance issues:
+
+        - Inefficient algorithms (O(n²) or worse)
+        - Memory leaks
+        - Unnecessary computations
+        - Database query optimization
+        - Caching opportunities
+        - Resource management
+
+        Suggest concrete optimizations with code examples.
+      variables: []
+
+    best_practices_review:
+      content: |
+        # Best Practices Review
+
+        Review code against {language} best practices:
+
+        Focus areas: {focus_areas}
+
+        Check for:
+        - Code organization and structure
+        - Naming conventions
+        - Documentation and comments
+        - Error handling
+        - Test coverage
+        - Design patterns usage
+
+        Provide actionable recommendations.
+      variables:
+        - language
+        - focus_areas
+
+    generate_report:
+      content: |
+        # Code Review Report Generation
+
+        Synthesize all findings from the previous reviews into a comprehensive report.
+
+        Structure:
+        1. **Executive Summary** - High-level overview
+        2. **Critical Issues** - Must-fix items
+        3. **Security Findings** - Detailed security analysis
+        4. **Performance Recommendations** - Optimization opportunities
+        5. **Best Practices** - Code quality improvements
+        6. **Action Items** - Prioritized task list
+
+        Format the report in markdown with clear sections and bullet points.
+      variables: []
+
+  # Agent definitions
+  agents:
+    # Main code review agent with sequential subagents
+    - id: "code_reviewer"
+      type: "sequential"
+      model: "gemini-2.0-flash-exp"
+      temperature: 0.3
+      tools:
+        - "file_reader"
+        - "code_execution"
+
+      subagents:
+        # First subagent: Read and understand the codebase
+        - id: "codebase_analyzer"
+          prompt_ref: "read_codebase"
+          tools:
+            - "file_reader"
+
+        # Parallel review subagents (will be executed concurrently in future)
+        - id: "security_reviewer"
+          prompt_ref: "security_review"
+          tools:
+            - "file_reader"
+            - "code_execution"
+
+        - id: "performance_reviewer"
+          prompt_ref: "performance_review"
+          tools:
+            - "file_reader"
+            - "code_execution"
+
+        - id: "practices_reviewer"
+          prompt_ref: "best_practices_review"
+          tools:
+            - "file_reader"
+
+        # Final subagent: Generate comprehensive report
+        - id: "report_generator"
+          prompt_ref: "generate_report"
+          tools:
+            - "file_writer"
+
+    # Optional: Second agent for automated fixes (parallel execution)
+    - id: "auto_fixer"
+      type: "parallel"
+      model: "gemini-2.0-flash-exp"
+      temperature: 0.2
+      tools:
+        - "file_reader"
+        - "file_writer"
+        - "code_execution"
+
+      subagents:
+        - id: "fix_security"
+          prompt_ref: "security_review"
+
+        - id: "fix_performance"
+          prompt_ref: "performance_review"
+
+  # Connections between agents (optional for multi-agent workflows)
+  connections:
+    - from: "code_reviewer.report_generator"
+      to: "auto_fixer.fix_security"
+      type: "sequential"
