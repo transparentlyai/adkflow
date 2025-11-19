@@ -59,7 +59,7 @@ export default function SaveConfirmDialog({
             onClick={onDontSave}
             className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-md transition-colors"
           >
-            Don't Save
+            Don&apos;t Save
           </button>
           <button
             onClick={onSaveAndContinue}

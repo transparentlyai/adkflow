@@ -81,6 +81,53 @@ class ProjectSaveResponse(BaseModel):
     message: str
 
 
+class PromptCreateRequest(BaseModel):
+    """Request model for creating a prompt file."""
+
+    project_path: str
+    prompt_name: str
+
+
+class PromptCreateResponse(BaseModel):
+    """Response model for prompt file creation."""
+
+    success: bool
+    file_path: str
+    absolute_path: str
+    message: str
+
+
+class DirectoryEntry(BaseModel):
+    """Model for a directory entry."""
+
+    name: str
+    path: str
+    is_directory: bool
+
+
+class DirectoryListResponse(BaseModel):
+    """Response model for directory listing."""
+
+    current_path: str
+    parent_path: str | None
+    entries: list[DirectoryEntry]
+
+
+class DirectoryCreateRequest(BaseModel):
+    """Request model for directory creation."""
+
+    path: str
+    name: str
+
+
+class DirectoryCreateResponse(BaseModel):
+    """Response model for directory creation."""
+
+    success: bool
+    created_path: str
+    message: str
+
+
 @router.post("/workflows/validate", response_model=ValidationResponse)
 async def validate_workflow(workflow: WorkflowModel) -> ValidationResponse:
     """
@@ -352,4 +399,235 @@ async def save_project(request: ProjectSaveRequest) -> ProjectSaveResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save project: {str(e)}"
+        )
+
+
+@router.post("/project/prompt/create", response_model=PromptCreateResponse)
+async def create_prompt_file(request: PromptCreateRequest) -> PromptCreateResponse:
+    """
+    Create a new prompt markdown file in the project.
+
+    Args:
+        request: Prompt creation request with project path and prompt name
+
+    Returns:
+        PromptCreateResponse with file path
+
+    Raises:
+        HTTPException: If file creation fails
+    """
+    try:
+        # Validate and normalize project path
+        project_path = Path(request.project_path).resolve()
+
+        # Sanitize prompt name for filesystem
+        import re
+        safe_name = re.sub(r'[^\w\-]', '-', request.prompt_name.lower())
+        safe_name = re.sub(r'-+', '-', safe_name).strip('-')
+
+        if not safe_name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid prompt name"
+            )
+
+        # Create prompts directory
+        prompts_dir = project_path / "prompts"
+        prompts_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create prompt file
+        filename = f"{safe_name}.prompt.md"
+        prompt_file = prompts_dir / filename
+
+        # Check if file already exists
+        if prompt_file.exists():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Prompt file '{filename}' already exists"
+            )
+
+        # Create empty file
+        prompt_file.touch()
+
+        # Return relative path from project root
+        relative_path = f"prompts/{filename}"
+
+        return PromptCreateResponse(
+            success=True,
+            file_path=relative_path,
+            absolute_path=str(prompt_file),
+            message=f"Prompt file created: {filename}"
+        )
+
+    except HTTPException:
+        raise
+    except PermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Permission denied: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create prompt file: {str(e)}"
+        )
+
+
+@router.get("/filesystem/list", response_model=DirectoryListResponse)
+async def list_directory(path: str = Query("/", description="Directory path to list")) -> DirectoryListResponse:
+    """
+    List contents of a directory on the server filesystem.
+
+    Args:
+        path: Directory path to list (default: root)
+
+    Returns:
+        DirectoryListResponse with directory contents
+
+    Raises:
+        HTTPException: If path is invalid or inaccessible
+    """
+    try:
+        # Expand user home directory
+        if path.startswith("~"):
+            path = os.path.expanduser(path)
+
+        # Resolve to absolute path
+        current_path = Path(path).resolve()
+
+        # Security: Prevent access outside allowed directories
+        # For now, we'll allow any path but you may want to restrict this
+        if not current_path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Path does not exist: {path}"
+            )
+
+        if not current_path.is_dir():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Path is not a directory: {path}"
+            )
+
+        # Get parent path
+        parent_path = str(current_path.parent) if current_path != current_path.parent else None
+
+        # List directory contents
+        entries = []
+        try:
+            for item in sorted(current_path.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower())):
+                # Skip hidden files/directories (starting with .)
+                if item.name.startswith("."):
+                    continue
+
+                entries.append(DirectoryEntry(
+                    name=item.name,
+                    path=str(item),
+                    is_directory=item.is_dir()
+                ))
+        except PermissionError:
+            # If we can't read the directory, return empty list
+            pass
+
+        return DirectoryListResponse(
+            current_path=str(current_path),
+            parent_path=parent_path,
+            entries=entries
+        )
+
+    except HTTPException:
+        raise
+    except PermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Permission denied: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list directory: {str(e)}"
+        )
+
+
+@router.post("/filesystem/mkdir", response_model=DirectoryCreateResponse)
+async def create_directory(request: DirectoryCreateRequest) -> DirectoryCreateResponse:
+    """
+    Create a new directory on the server filesystem.
+
+    Args:
+        request: Directory creation request with parent path and directory name
+
+    Returns:
+        DirectoryCreateResponse with created directory path
+
+    Raises:
+        HTTPException: If creation fails or directory already exists
+    """
+    try:
+        # Expand user home directory if needed
+        parent_path = request.path
+        if parent_path.startswith("~"):
+            parent_path = os.path.expanduser(parent_path)
+
+        # Resolve to absolute path
+        parent_dir = Path(parent_path).resolve()
+
+        # Validate parent directory exists
+        if not parent_dir.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Parent directory does not exist: {request.path}"
+            )
+
+        if not parent_dir.is_dir():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Path is not a directory: {request.path}"
+            )
+
+        # Sanitize directory name to prevent path traversal
+        import re
+        safe_name = request.name.strip()
+
+        # Check for invalid characters and path traversal attempts
+        if not safe_name or safe_name in [".", ".."]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid directory name"
+            )
+
+        if "/" in safe_name or "\\" in safe_name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Directory name cannot contain path separators"
+            )
+
+        # Create the new directory
+        new_dir = parent_dir / safe_name
+
+        if new_dir.exists():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Directory '{safe_name}' already exists"
+            )
+
+        new_dir.mkdir(parents=False, exist_ok=False)
+
+        return DirectoryCreateResponse(
+            success=True,
+            created_path=str(new_dir),
+            message=f"Directory '{safe_name}' created successfully"
+        )
+
+    except HTTPException:
+        raise
+    except PermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Permission denied: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create directory: {str(e)}"
         )

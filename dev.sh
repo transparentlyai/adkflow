@@ -105,7 +105,7 @@ fi
 # Start frontend
 echo "🎨 Starting frontend server..."
 cd "$PROJECT_DIR"
-FRONTEND_PORT=$FRONTEND_PORT ./start-frontend.sh > /tmp/adkflow-frontend.log 2>&1 &
+NEXT_PUBLIC_API_URL="http://localhost:$BACKEND_PORT" FRONTEND_PORT=$FRONTEND_PORT ./start-frontend.sh > /tmp/adkflow-frontend.log 2>&1 &
 FRONTEND_PID=$!
 
 # Wait a bit for frontend to start

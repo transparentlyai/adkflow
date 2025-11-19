@@ -17,8 +17,8 @@ class PromptModel(BaseModel):
     """Prompt template model."""
 
     id: str = Field(..., description="Unique prompt identifier")
-    content: str = Field(..., description="Prompt template content")
-    variables: list[str] = Field(default_factory=list, description="List of variable names used in prompt")
+    name: str = Field(..., description="Prompt name")
+    file_path: str = Field(..., description="Relative path to .prompt.md file from project root")
 
 
 class SubagentModel(BaseModel):

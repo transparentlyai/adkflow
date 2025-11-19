@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, RefObject } from "react";
-import type { DrawflowCanvasRef } from "@/components/DrawflowCanvas";
+import type { ReactFlowCanvasRef } from "@/components/ReactFlowCanvas";
 
 interface ToolbarProps {
-  canvasRef: RefObject<DrawflowCanvasRef>;
+  canvasRef: RefObject<ReactFlowCanvasRef>;
   workflowName: string;
   onSaveProject?: () => void;
   onLoadProject?: () => void;
+  onAddPrompt?: () => void;  // New: Handler to show prompt name dialog
   hasProjectPath?: boolean;
 }
 
@@ -16,20 +17,24 @@ export default function Toolbar({
   workflowName,
   onSaveProject,
   onLoadProject,
+  onAddPrompt,
   hasProjectPath = false,
 }: ToolbarProps) {
   const [isSaving, setIsSaving] = useState(false);
 
   const handleAddAgent = () => {
+    if (!hasProjectPath) return;
     canvasRef.current?.addAgentNode();
   };
 
   const handleAddSubagent = () => {
+    if (!hasProjectPath) return;
     canvasRef.current?.addSubagentNode();
   };
 
   const handleAddPrompt = () => {
-    canvasRef.current?.addPromptNode();
+    if (!hasProjectPath || !onAddPrompt) return;
+    onAddPrompt(); // Show the prompt name dialog
   };
 
   const handleClear = () => {
@@ -69,21 +74,27 @@ export default function Toolbar({
           <div className="space-y-2">
             <button
               onClick={handleAddAgent}
-              className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 font-medium"
+              disabled={!hasProjectPath}
+              className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              title={!hasProjectPath ? "Create or load a project first" : ""}
             >
               <span className="text-xl">+</span>
               <span>Agent</span>
             </button>
             <button
               onClick={handleAddSubagent}
-              className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2 font-medium"
+              disabled={!hasProjectPath}
+              className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              title={!hasProjectPath ? "Create or load a project first" : ""}
             >
               <span className="text-xl">+</span>
               <span>Subagent</span>
             </button>
             <button
               onClick={handleAddPrompt}
-              className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 font-medium"
+              disabled={!hasProjectPath}
+              className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              title={!hasProjectPath ? "Create or load a project first" : ""}
             >
               <span className="text-xl">+</span>
               <span>Prompt</span>

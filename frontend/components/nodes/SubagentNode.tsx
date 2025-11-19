@@ -1,67 +1,95 @@
-/**
- * SubagentNode Component
- *
- * Returns HTML string template for Subagent nodes in Drawflow
- */
+"use client";
 
+import { memo } from "react";
+import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { Subagent } from "@/lib/types";
 
-export interface SubagentNodeProps {
+export interface SubagentNodeData {
   subagent: Subagent;
 }
 
 /**
- * Generate HTML template for Subagent node
- * This returns a string that Drawflow will render as the node content
+ * SubagentNode Component
+ *
+ * React Flow custom node for Subagent type.
+ * Can be used standalone or as a child of an Agent node.
  */
-export function getSubagentNodeHTML(subagent: Subagent): string {
-  const modelDisplay = subagent.model || "No model";
+const SubagentNode = memo(({ data, selected }: NodeProps) => {
+  const { subagent } = data as unknown as SubagentNodeData;
   const toolsCount = subagent.tools?.length || 0;
 
-  return `
-    <div class="subagent-node">
-      <div class="node-header bg-purple-600">
-        <div class="node-title">${subagent.name}</div>
-        <div class="node-subtitle">Subagent</div>
+  return (
+    <div
+      className={`bg-white rounded-lg shadow-lg min-w-[250px] max-w-[300px] transition-all ${
+        selected ? "ring-2 ring-purple-500 shadow-xl" : ""
+      }`}
+    >
+      {/* Input Handle */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="w-3 h-3 bg-purple-500 border-2 border-white"
+      />
+
+      {/* Header */}
+      <div className="bg-purple-600 text-white p-3 rounded-t-lg">
+        <div className="font-semibold text-base">{subagent.name}</div>
+        <div className="text-xs opacity-90">Subagent</div>
       </div>
-      <div class="node-body">
-        <div class="node-field">
-          <span class="field-label">Model:</span>
-          <span class="field-value">${modelDisplay}</span>
+
+      {/* Body */}
+      <div className="p-3 text-sm space-y-2">
+        <div>
+          <span className="font-semibold text-gray-700">Model: </span>
+          <span className="text-gray-900">{subagent.model || "No model"}</span>
         </div>
-        ${toolsCount > 0 ? `
-          <div class="node-field">
-            <span class="field-label">Tools:</span>
-            <span class="field-value">${toolsCount} tool${toolsCount !== 1 ? 's' : ''}</span>
+
+        {toolsCount > 0 && (
+          <div>
+            <span className="font-semibold text-gray-700">Tools: </span>
+            <span className="text-gray-900">
+              {toolsCount} tool{toolsCount !== 1 ? "s" : ""}
+            </span>
           </div>
-        ` : ''}
-        ${subagent.system_prompt ? `
-          <div class="node-field">
-            <span class="field-label">System Prompt:</span>
-            <div class="field-description truncate">${subagent.system_prompt.substring(0, 50)}${subagent.system_prompt.length > 50 ? '...' : ''}</div>
+        )}
+
+        {subagent.description && (
+          <div className="mt-2 pt-2 border-t border-gray-200">
+            <div className="text-xs text-gray-600 leading-relaxed">
+              {subagent.description}
+            </div>
           </div>
-        ` : ''}
-        ${subagent.description ? `
-          <div class="node-field">
-            <span class="field-label">Description:</span>
-            <div class="field-description">${subagent.description}</div>
-          </div>
-        ` : ''}
+        )}
       </div>
-      <div class="node-id">ID: ${subagent.id}</div>
+
+      {/* Footer */}
+      <div className="bg-gray-50 px-3 py-2 rounded-b-lg border-t border-gray-200">
+        <code className="text-xs text-gray-500 font-mono">{subagent.id}</code>
+      </div>
+
+      {/* Output Handle */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="w-3 h-3 bg-green-500 border-2 border-white"
+      />
     </div>
-  `;
-}
+  );
+});
+
+SubagentNode.displayName = "SubagentNode";
+
+export default SubagentNode;
 
 /**
- * Get default Subagent data for new nodes
+ * Default subagent data for new nodes
  */
-export function getDefaultSubagentData(): Partial<Subagent> {
+export function getDefaultSubagentData(): Omit<Subagent, "id"> {
   return {
     name: "New Subagent",
     model: "gemini-2.0-flash-exp",
-    tools: [],
     system_prompt: "",
+    tools: [],
     description: "",
   };
 }

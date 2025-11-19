@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import PathPicker from "@/components/PathPicker";
 
 interface ProjectDialogProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export default function ProjectDialog({
   const [mode, setMode] = useState<"create" | "load">("create");
   const [projectPath, setProjectPath] = useState("");
   const [error, setError] = useState("");
+  const [isPathPickerOpen, setIsPathPickerOpen] = useState(false);
 
   if (!isOpen) return null;
 
@@ -27,7 +29,7 @@ export default function ProjectDialog({
 
     // Validate path
     if (!projectPath.trim()) {
-      setError("Please enter a project path");
+      setError("Please select a project path");
       return;
     }
 
@@ -42,6 +44,19 @@ export default function ProjectDialog({
   const handleModeChange = (newMode: "create" | "load") => {
     setMode(newMode);
     setError("");
+  };
+
+  const handleOpenPathPicker = () => {
+    setIsPathPickerOpen(true);
+  };
+
+  const handlePathSelected = (path: string) => {
+    setProjectPath(path);
+    setIsPathPickerOpen(false);
+  };
+
+  const handlePathPickerCancel = () => {
+    setIsPathPickerOpen(false);
   };
 
   return (
@@ -86,28 +101,26 @@ export default function ProjectDialog({
         {/* Form */}
         <form onSubmit={handleSubmit} className="px-6 py-4">
           <div className="mb-4">
-            <label
-              htmlFor="projectPath"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Project Path
             </label>
-            <input
-              type="text"
-              id="projectPath"
-              value={projectPath}
-              onChange={(e) => setProjectPath(e.target.value)}
-              placeholder={
-                mode === "create"
-                  ? "/home/user/workflows/my-project"
-                  : "/home/user/workflows/existing-project"
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
-            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleOpenPathPicker}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors text-left"
+              >
+                {projectPath ? (
+                  <span className="font-mono text-sm text-gray-900">{projectPath}</span>
+                ) : (
+                  <span className="text-gray-400 text-sm">Click to browse...</span>
+                )}
+              </button>
+            </div>
             <p className="mt-1 text-xs text-gray-500">
               {mode === "create"
-                ? "Full path where the new project will be created"
-                : "Full path to the existing project directory"}
+                ? "Directory where the new project will be created"
+                : "Directory containing the existing project"}
             </p>
           </div>
 
@@ -160,6 +173,16 @@ export default function ProjectDialog({
           </div>
         </form>
       </div>
+
+      {/* Path Picker Modal */}
+      <PathPicker
+        isOpen={isPathPickerOpen}
+        initialPath="~"
+        onSelect={handlePathSelected}
+        onCancel={handlePathPickerCancel}
+        title={mode === "create" ? "Select Directory for New Project" : "Select Existing Project Directory"}
+        description={mode === "create" ? "Choose where to create your new workflow project" : "Choose the directory containing workflow.yaml"}
+      />
     </div>
   );
 }

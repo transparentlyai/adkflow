@@ -1,19 +1,21 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import Toolbar from "@/components/Toolbar";
-import DrawflowCanvas, { DrawflowCanvasRef } from "@/components/DrawflowCanvas";
+import ReactFlowCanvas, { ReactFlowCanvasRef } from "@/components/ReactFlowCanvas";
 import PromptEditorModal, { PromptData } from "@/components/PromptEditorModal";
 import ProjectDialog from "@/components/ProjectDialog";
 import SaveConfirmDialog from "@/components/SaveConfirmDialog";
-import { loadProject, saveProject } from "@/lib/api";
-import { workflowToDrawflow } from "@/lib/workflowHelpers";
+import PromptNameDialog from "@/components/PromptNameDialog";
+import { loadProject, saveProject, createPrompt } from "@/lib/api";
+import { reactFlowToWorkflow } from "@/lib/workflowHelpers";
 import type { Workflow } from "@/lib/types";
+import type { Node, Edge } from "@xyflow/react";
 
 export default function Home() {
   const [workflowName, setWorkflowName] = useState("Untitled Workflow");
-  const [currentWorkflow, setCurrentWorkflow] = useState<any>(null);
-  const canvasRef = useRef<DrawflowCanvasRef>(null);
+  const [currentWorkflow, setCurrentWorkflow] = useState<{ nodes: Node[]; edges: Edge[] } | null>(null);
+  const canvasRef = useRef<ReactFlowCanvasRef>(null);
 
   // Project state
   const [currentProjectPath, setCurrentProjectPath] = useState<string | null>(null);
@@ -25,14 +27,13 @@ export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPrompt, setCurrentPrompt] = useState<PromptData | null>(null);
 
-  const handleWorkflowChange = (workflow: any) => {
-    setCurrentWorkflow(workflow);
-    setHasUnsavedChanges(true);
-  };
+  // Prompt name dialog state
+  const [isPromptNameDialogOpen, setIsPromptNameDialogOpen] = useState(false);
 
-  const handleWorkflowLoaded = (workflow: Workflow) => {
-    setWorkflowName(workflow.name);
-  };
+  const handleWorkflowChange = useCallback((data: { nodes: Node[]; edges: Edge[] }) => {
+    setCurrentWorkflow(data);
+    setHasUnsavedChanges(true);
+  }, []);
 
   // Project Management Handlers
   const handleCreateNewProject = async (projectPath: string) => {
@@ -68,13 +69,9 @@ export default function Home() {
         setIsProjectDialogOpen(false);
         setHasUnsavedChanges(false);
 
-        // Convert workflow to drawflow format and load into canvas
-        // const drawflowData = workflowToDrawflow(response.workflow);
-        // if (canvasRef.current) {
-        //   canvasRef.current.importFromWorkflow(drawflowData);
-        // }
-
-        console.log("Loaded workflow:", response.workflow);
+        if (canvasRef.current && response.workflow) {
+          canvasRef.current.importFromWorkflow(response.workflow);
+        }
       }
     } catch (error) {
       console.error("Error loading project:", error);
@@ -90,28 +87,23 @@ export default function Home() {
 
     try {
       // Get current workflow from canvas
-      const drawflowData = canvasRef.current?.getDrawflowData();
-      if (!drawflowData) {
+      const reactFlowData = canvasRef.current?.getDrawflowData();
+      if (!reactFlowData) {
         alert("No workflow data to save.");
         return;
       }
 
-      // Convert drawflow data to workflow format
-      // For now, we'll use a simplified workflow structure
-      const workflow: Workflow = {
-        name: workflowName,
-        description: "Workflow created with ADKFlow",
-        agents: [],
-        prompts: [],
-        connections: [],
-        metadata: { drawflow: drawflowData },
-      };
+      // Convert React Flow data to workflow format
+      const workflow = reactFlowToWorkflow(
+        reactFlowData.nodes,
+        reactFlowData.edges,
+        workflowName
+      );
 
       const response = await saveProject(currentProjectPath, workflow);
 
       if (response.success) {
         setHasUnsavedChanges(false);
-        console.log("Project saved successfully:", response.message);
       }
     } catch (error) {
       console.error("Error saving project:", error);
@@ -151,6 +143,39 @@ export default function Home() {
     setIsSaveConfirmOpen(false);
   };
 
+  const handleShowPromptNameDialog = () => {
+    setIsPromptNameDialogOpen(true);
+  };
+
+  const handleCreatePrompt = async (promptName: string) => {
+    if (!currentProjectPath) {
+      alert("No project loaded");
+      return;
+    }
+
+    try {
+      // Call backend to create the prompt file
+      const response = await createPrompt(currentProjectPath, promptName);
+
+      // Add prompt node to canvas with file path
+      if (canvasRef.current) {
+        // TODO: Update addPromptNode to accept prompt data
+        canvasRef.current.addPromptNode();
+      }
+
+      setIsPromptNameDialogOpen(false);
+      setHasUnsavedChanges(true);
+
+    } catch (error) {
+      console.error("Failed to create prompt:", error);
+      alert("Failed to create prompt: " + (error as Error).message);
+    }
+  };
+
+  const handleCancelPromptCreation = () => {
+    setIsPromptNameDialogOpen(false);
+  };
+
   const handleOpenPromptEditor = (promptData: PromptData) => {
     setCurrentPrompt(promptData);
     setIsModalOpen(true);
@@ -162,37 +187,9 @@ export default function Home() {
   };
 
   const handleSavePrompt = (updatedPrompt: PromptData) => {
-    // Update the prompt in the Drawflow canvas
-    if (!canvasRef.current) return;
-
-    const drawflowData = canvasRef.current.getDrawflowData();
-    if (!drawflowData || !drawflowData.drawflow || !drawflowData.drawflow.Home) return;
-
-    const nodes = drawflowData.drawflow.Home.data;
-
-    // Find and update the prompt node
-    for (const nodeId in nodes) {
-      const node = nodes[nodeId];
-      if (node.data && node.data.id === updatedPrompt.id && node.data.type === 'prompt') {
-        // Update the node data
-        node.data.text = updatedPrompt.content;
-        node.data.variables = updatedPrompt.variables;
-
-        // Regenerate the HTML for the node
-        const { getPromptNodeHTML } = require("@/components/nodes/PromptNode");
-        node.html = getPromptNodeHTML({
-          id: node.data.id,
-          text: updatedPrompt.content,
-          description: node.data.description,
-        });
-
-        console.log("Prompt updated:", updatedPrompt);
-        break;
-      }
-    }
-
-    // Trigger workflow change notification
-    handleWorkflowChange(drawflowData);
+    // With file-based prompts, the content is saved to files
+    // React Flow will automatically re-render when node data changes
+    setHasUnsavedChanges(true);
   };
 
   return (
@@ -237,16 +234,19 @@ export default function Home() {
           workflowName={workflowName}
           onSaveProject={handleSaveCurrentProject}
           onLoadProject={handleLoadProject}
+          onAddPrompt={handleShowPromptNameDialog}
           hasProjectPath={!!currentProjectPath}
         />
 
         {/* Canvas Area */}
         <main className="flex-1 relative">
           <div className="absolute inset-0">
-            <DrawflowCanvas
+            <ReactFlowCanvas
               ref={canvasRef}
               onWorkflowChange={handleWorkflowChange}
-              onOpenPromptEditor={handleOpenPromptEditor}
+              onOpenPromptEditor={(promptId: string) => {
+                // TODO: Load prompt file content and open editor
+              }}
             />
           </div>
         </main>
@@ -274,6 +274,13 @@ export default function Home() {
         onSaveAndContinue={handleSaveAndContinue}
         onDontSave={handleDontSave}
         onCancel={handleCancelNewProject}
+      />
+
+      {/* Prompt Name Dialog */}
+      <PromptNameDialog
+        isOpen={isPromptNameDialogOpen}
+        onSubmit={handleCreatePrompt}
+        onCancel={handleCancelPromptCreation}
       />
     </div>
   );

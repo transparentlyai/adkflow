@@ -4,9 +4,14 @@ import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { extractVariables } from "@/lib/variableExtractor";
 
-// Dynamically import MDEditor to avoid SSR issues
+// Dynamically import MDEditor and MarkdownPreview to avoid SSR issues
 const MDEditor = dynamic(
   () => import("@uiw/react-md-editor").then((mod) => mod.default),
+  { ssr: false }
+);
+
+const MarkdownPreview = dynamic(
+  () => import("@uiw/react-markdown-preview"),
   { ssr: false }
 );
 
@@ -177,7 +182,7 @@ export default function PromptEditorModal({
               </h3>
             </div>
             <div className="flex-1 overflow-auto p-6">
-              <MDEditor.Markdown
+              <MarkdownPreview
                 source={content}
                 className="prose max-w-none"
               />
