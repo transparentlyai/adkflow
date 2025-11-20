@@ -2,7 +2,7 @@
 
 import { memo, useState, useRef, useEffect } from "react";
 import { Handle, Position, type NodeProps, useReactFlow } from "@xyflow/react";
-import type { LoopAgent } from "@/lib/types";
+import type { Agent, LoopAgent } from "@/lib/types";
 
 export interface LoopAgentNodeData {
   loopAgent: LoopAgent;
@@ -11,7 +11,7 @@ export interface LoopAgentNodeData {
 const LoopAgentNode = memo(({ data, id, selected }: NodeProps) => {
   const { loopAgent } = data as unknown as LoopAgentNodeData;
   const toolsCount = loopAgent.tools?.length || 0;
-  const agentsCount = loopAgent.agents?.length || 0;
+  const agentsCount = loopAgent.subagents?.length || 0;
   const { setNodes } = useReactFlow();
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(loopAgent.name);
@@ -143,14 +143,14 @@ LoopAgentNode.displayName = "LoopAgentNode";
 
 export default LoopAgentNode;
 
-export function getDefaultLoopAgentData(): Omit<LoopAgent, "id"> {
+export function getDefaultLoopAgentData(): Omit<Agent, "id"> {
   return {
     name: "New Loop Agent",
-    type: "loopAgent",
+    type: "loop",
     model: "gemini-2.0-flash-exp",
-    system_prompt: "",
+    temperature: 0.7,
     tools: [],
-    agents: [],
+    subagents: [],
     description: "",
   };
 }

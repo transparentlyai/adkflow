@@ -2,7 +2,7 @@
 
 import { memo, useState, useRef, useEffect } from "react";
 import { Handle, Position, type NodeProps, useReactFlow } from "@xyflow/react";
-import type { LLMAgent } from "@/lib/types";
+import type { Agent, LLMAgent } from "@/lib/types";
 
 export interface LLMAgentNodeData {
   llmAgent: LLMAgent;
@@ -11,7 +11,7 @@ export interface LLMAgentNodeData {
 const LLMAgentNode = memo(({ data, id, selected }: NodeProps) => {
   const { llmAgent } = data as unknown as LLMAgentNodeData;
   const toolsCount = llmAgent.tools?.length || 0;
-  const agentsCount = llmAgent.agents?.length || 0;
+  const agentsCount = llmAgent.subagents?.length || 0;
   const { setNodes } = useReactFlow();
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(llmAgent.name);
@@ -143,14 +143,14 @@ LLMAgentNode.displayName = "LLMAgentNode";
 
 export default LLMAgentNode;
 
-export function getDefaultLLMAgentData(): Omit<LLMAgent, "id"> {
+export function getDefaultLLMAgentData(): Omit<Agent, "id"> {
   return {
     name: "New LLM Agent",
-    type: "llmAgent",
+    type: "llm",
     model: "gemini-2.0-flash-exp",
-    system_prompt: "",
+    temperature: 0.7,
     tools: [],
-    agents: [],
+    subagents: [],
     description: "",
   };
 }

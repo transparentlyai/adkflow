@@ -2,7 +2,7 @@
 
 import { memo, useState, useRef, useEffect } from "react";
 import { Handle, Position, type NodeProps, useReactFlow } from "@xyflow/react";
-import type { SequentialAgent } from "@/lib/types";
+import type { Agent, SequentialAgent } from "@/lib/types";
 
 export interface SequentialAgentNodeData {
   sequentialAgent: SequentialAgent;
@@ -11,7 +11,7 @@ export interface SequentialAgentNodeData {
 const SequentialAgentNode = memo(({ data, id, selected }: NodeProps) => {
   const { sequentialAgent } = data as unknown as SequentialAgentNodeData;
   const toolsCount = sequentialAgent.tools?.length || 0;
-  const agentsCount = sequentialAgent.agents?.length || 0;
+  const agentsCount = sequentialAgent.subagents?.length || 0;
   const { setNodes } = useReactFlow();
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(sequentialAgent.name);
@@ -143,14 +143,14 @@ SequentialAgentNode.displayName = "SequentialAgentNode";
 
 export default SequentialAgentNode;
 
-export function getDefaultSequentialAgentData(): Omit<SequentialAgent, "id"> {
+export function getDefaultSequentialAgentData(): Omit<Agent, "id"> {
   return {
     name: "New Sequential Agent",
-    type: "sequentialAgent",
+    type: "sequential",
     model: "gemini-2.0-flash-exp",
-    system_prompt: "",
+    temperature: 0.7,
     tools: [],
-    agents: [],
+    subagents: [],
     description: "",
   };
 }

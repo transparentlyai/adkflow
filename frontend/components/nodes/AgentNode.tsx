@@ -144,9 +144,11 @@ export default AgentNode;
 export function getDefaultAgentData(): Omit<Agent, "id"> {
   return {
     name: "New Agent",
+    type: "sequential",
     model: "gemini-2.0-flash-exp",
-    system_prompt: "",
+    temperature: 0.7,
     tools: [],
+    subagents: [],
     description: "",
   };
 }

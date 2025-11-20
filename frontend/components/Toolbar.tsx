@@ -8,7 +8,8 @@ interface ToolbarProps {
   workflowName: string;
   onSaveProject?: () => void;
   onLoadProject?: () => void;
-  onAddPrompt?: () => void;  // New: Handler to show prompt name dialog
+  onAddPrompt?: () => void;  // Handler to show prompt name dialog
+  onAddContext?: () => void;  // Handler to show context name dialog
   hasProjectPath?: boolean;
 }
 
@@ -18,6 +19,7 @@ export default function Toolbar({
   onSaveProject,
   onLoadProject,
   onAddPrompt,
+  onAddContext,
   hasProjectPath = false,
 }: ToolbarProps) {
   const [isSaving, setIsSaving] = useState(false);
@@ -50,6 +52,36 @@ export default function Toolbar({
   const handleAddPrompt = () => {
     if (!hasProjectPath || !onAddPrompt) return;
     onAddPrompt(); // Show the prompt name dialog
+  };
+
+  const handleAddContext = () => {
+    if (!hasProjectPath || !onAddContext) return;
+    onAddContext(); // Show the context name dialog
+  };
+
+  const handleAddInputProbe = () => {
+    if (!hasProjectPath) return;
+    canvasRef.current?.addInputProbeNode();
+  };
+
+  const handleAddOutputProbe = () => {
+    if (!hasProjectPath) return;
+    canvasRef.current?.addOutputProbeNode();
+  };
+
+  const handleAddTool = () => {
+    if (!hasProjectPath) return;
+    canvasRef.current?.addToolNode();
+  };
+
+  const handleAddAgentTool = () => {
+    if (!hasProjectPath) return;
+    canvasRef.current?.addAgentToolNode();
+  };
+
+  const handleAddVariable = () => {
+    if (!hasProjectPath) return;
+    canvasRef.current?.addVariableNode();
   };
 
   const handleClear = () => {
@@ -87,6 +119,17 @@ export default function Toolbar({
             Add Nodes
           </h3>
           <div className="space-y-1.5">
+            <button
+              onClick={handleAddVariable}
+              disabled={!hasProjectPath}
+              className="w-full px-3 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              title={!hasProjectPath ? "Create or load a project first" : "Add Variable"}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+              </svg>
+              <span>Variable</span>
+            </button>
             <button
               onClick={handleAddSequentialAgent}
               disabled={!hasProjectPath}
@@ -152,6 +195,61 @@ export default function Toolbar({
                 <path strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
               </svg>
               <span>Prompt</span>
+            </button>
+            <button
+              onClick={handleAddContext}
+              disabled={!hasProjectPath}
+              className="w-full px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              title={!hasProjectPath ? "Create or load a project first" : "Add Context"}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              <span>Context</span>
+            </button>
+            <button
+              onClick={handleAddInputProbe}
+              disabled={!hasProjectPath}
+              className="w-full px-3 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              title={!hasProjectPath ? "Create or load a project first" : "Add Input Probe"}
+            >
+              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" />
+              </svg>
+              <span>Input Probe</span>
+            </button>
+            <button
+              onClick={handleAddOutputProbe}
+              disabled={!hasProjectPath}
+              className="w-full px-3 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              title={!hasProjectPath ? "Create or load a project first" : "Add Output Probe"}
+            >
+              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" />
+              </svg>
+              <span>Output Probe</span>
+            </button>
+            <button
+              onClick={handleAddTool}
+              disabled={!hasProjectPath}
+              className="w-full px-3 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              title={!hasProjectPath ? "Create or load a project first" : "Add Tool"}
+            >
+              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" />
+              </svg>
+              <span>Tool</span>
+            </button>
+            <button
+              onClick={handleAddAgentTool}
+              disabled={!hasProjectPath}
+              className="w-full px-3 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              title={!hasProjectPath ? "Create or load a project first" : "Add Agent Tool"}
+            >
+              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                <rect x="4" y="4" width="16" height="16" rx="2" />
+              </svg>
+              <span>Agent Tool</span>
             </button>
           </div>
         </div>

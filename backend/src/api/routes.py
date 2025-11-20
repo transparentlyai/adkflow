@@ -4,44 +4,11 @@ import os
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, status, Query
 from pydantic import BaseModel, ValidationError
-import yaml
 
-from backend.src.models.workflow import WorkflowModel
-from backend.src.services.yaml_converter import to_yaml, from_yaml
+from backend.src.models.workflow import ReactFlowJSON
 
 
 router = APIRouter(prefix="/api")
-
-
-class ValidationResponse(BaseModel):
-    """Response model for workflow validation."""
-
-    valid: bool
-    errors: list[str] = []
-
-
-class ExportRequest(BaseModel):
-    """Request model for workflow export."""
-
-    workflow: WorkflowModel
-
-
-class ExportResponse(BaseModel):
-    """Response model for workflow export."""
-
-    yaml: str
-
-
-class ImportRequest(BaseModel):
-    """Request model for workflow import."""
-
-    yaml: str
-
-
-class ImportResponse(BaseModel):
-    """Response model for workflow import."""
-
-    workflow: WorkflowModel
 
 
 class ToolInfo(BaseModel):
@@ -62,7 +29,7 @@ class ProjectLoadResponse(BaseModel):
     """Response model for project load."""
 
     exists: bool
-    workflow: WorkflowModel | None = None
+    flow: ReactFlowJSON | None = None
     path: str
 
 
@@ -70,7 +37,7 @@ class ProjectSaveRequest(BaseModel):
     """Request model for project save."""
 
     path: str
-    workflow: WorkflowModel
+    flow: ReactFlowJSON
 
 
 class ProjectSaveResponse(BaseModel):
@@ -86,6 +53,13 @@ class PromptCreateRequest(BaseModel):
 
     project_path: str
     prompt_name: str
+
+
+class ContextCreateRequest(BaseModel):
+    """Request model for creating a context file."""
+
+    project_path: str
+    context_name: str
 
 
 class PromptCreateResponse(BaseModel):
@@ -157,109 +131,6 @@ class DirectoryCreateResponse(BaseModel):
     success: bool
     created_path: str
     message: str
-
-
-@router.post("/workflows/validate", response_model=ValidationResponse)
-async def validate_workflow(workflow: WorkflowModel) -> ValidationResponse:
-    """
-    Validate a workflow configuration.
-
-    Args:
-        workflow: Workflow model to validate
-
-    Returns:
-        ValidationResponse with validation results
-    """
-    try:
-        # Pydantic validation happens automatically
-        # Additional custom validation can be added here
-        errors = []
-
-        # Validate prompt references in subagents
-        prompt_ids = {prompt.id for prompt in workflow.prompts}
-        for agent in workflow.agents:
-            for subagent in agent.subagents:
-                if subagent.prompt_ref not in prompt_ids:
-                    errors.append(
-                        f"Subagent '{subagent.id}' references non-existent prompt '{subagent.prompt_ref}'"
-                    )
-
-        # Validate connections reference valid agents
-        agent_ids = {agent.id for agent in workflow.agents}
-        for conn in workflow.connections:
-            from_agent = conn.from_path.split(".")[0]
-            to_agent = conn.to_path.split(".")[0]
-
-            if from_agent not in agent_ids:
-                errors.append(f"Connection references non-existent source agent '{from_agent}'")
-            if to_agent not in agent_ids:
-                errors.append(f"Connection references non-existent target agent '{to_agent}'")
-
-        return ValidationResponse(valid=len(errors) == 0, errors=errors)
-
-    except ValidationError as e:
-        return ValidationResponse(
-            valid=False,
-            errors=[str(err) for err in e.errors()]
-        )
-
-
-@router.post("/workflows/export", response_model=ExportResponse)
-async def export_workflow(request: ExportRequest) -> ExportResponse:
-    """
-    Convert workflow to YAML format.
-
-    Args:
-        request: Export request containing workflow
-
-    Returns:
-        ExportResponse with YAML string
-
-    Raises:
-        HTTPException: If conversion fails
-    """
-    try:
-        yaml_str = to_yaml(request.workflow)
-        return ExportResponse(yaml=yaml_str)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to export workflow: {str(e)}"
-        )
-
-
-@router.post("/workflows/import", response_model=ImportResponse)
-async def import_workflow(request: ImportRequest) -> ImportResponse:
-    """
-    Parse YAML into workflow model.
-
-    Args:
-        request: Import request containing YAML string
-
-    Returns:
-        ImportResponse with parsed workflow
-
-    Raises:
-        HTTPException: If parsing or validation fails
-    """
-    try:
-        workflow = from_yaml(request.yaml)
-        return ImportResponse(workflow=workflow)
-    except yaml.YAMLError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid YAML format: {str(e)}"
-        )
-    except ValidationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Validation failed: {str(e)}"
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to import workflow: {str(e)}"
-        )
 
 
 @router.get("/tools", response_model=ToolsResponse)
@@ -337,7 +208,7 @@ async def load_project(path: str = Query(..., description="Full path to project 
         path: Full path to the project directory
 
     Returns:
-        ProjectLoadResponse with workflow if exists
+        ProjectLoadResponse with React Flow data if exists
 
     Raises:
         HTTPException: If path is invalid or read fails
@@ -345,38 +216,39 @@ async def load_project(path: str = Query(..., description="Full path to project 
     try:
         # Validate and normalize path
         project_path = Path(path).resolve()
-        workflow_file = project_path / "workflow.yaml"
+        flow_file = project_path / "flow.json"
 
-        # Check if workflow file exists
-        if not workflow_file.exists():
+        # Check if flow file exists
+        if not flow_file.exists():
             return ProjectLoadResponse(
                 exists=False,
-                workflow=None,
+                flow=None,
                 path=str(project_path)
             )
 
-        # Read and parse workflow
+        # Read and parse React Flow JSON
         try:
-            with open(workflow_file, 'r', encoding='utf-8') as f:
-                yaml_content = f.read()
+            with open(flow_file, 'r', encoding='utf-8') as f:
+                import json
+                flow_data = json.load(f)
 
-            workflow = from_yaml(yaml_content)
+            flow = ReactFlowJSON(**flow_data)
 
             return ProjectLoadResponse(
                 exists=True,
-                workflow=workflow,
+                flow=flow,
                 path=str(project_path)
             )
 
-        except yaml.YAMLError as e:
+        except json.JSONDecodeError as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid YAML in workflow file: {str(e)}"
+                detail=f"Invalid JSON in flow file: {str(e)}"
             )
         except ValidationError as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid workflow format: {str(e)}"
+                detail=f"Invalid flow format: {str(e)}"
             )
 
     except Exception as e:
@@ -392,7 +264,7 @@ async def save_project(request: ProjectSaveRequest) -> ProjectSaveResponse:
     Save a project to the filesystem.
 
     Args:
-        request: Project save request with path and workflow
+        request: Project save request with path and React Flow data
 
     Returns:
         ProjectSaveResponse with success status
@@ -407,18 +279,19 @@ async def save_project(request: ProjectSaveRequest) -> ProjectSaveResponse:
         # Create directory if it doesn't exist
         project_path.mkdir(parents=True, exist_ok=True)
 
-        # Convert workflow to YAML
-        yaml_content = to_yaml(request.workflow)
+        # Convert React Flow to JSON
+        import json
+        flow_json = request.flow.model_dump(exclude_none=True)
 
         # Write to file
-        workflow_file = project_path / "workflow.yaml"
-        with open(workflow_file, 'w', encoding='utf-8') as f:
-            f.write(yaml_content)
+        flow_file = project_path / "flow.json"
+        with open(flow_file, 'w', encoding='utf-8') as f:
+            json.dump(flow_json, f, indent=2)
 
         return ProjectSaveResponse(
             success=True,
             path=str(project_path),
-            message=f"Project saved successfully to {workflow_file}"
+            message=f"Project saved successfully to {flow_file}"
         )
 
     except PermissionError as e:
@@ -501,6 +374,77 @@ async def create_prompt_file(request: PromptCreateRequest) -> PromptCreateRespon
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create prompt file: {str(e)}"
+        )
+
+
+@router.post("/project/context/create", response_model=PromptCreateResponse)
+async def create_context_file(request: ContextCreateRequest) -> PromptCreateResponse:
+    """
+    Create a new context markdown file in the project.
+
+    Args:
+        request: Context creation request with project path and context name
+
+    Returns:
+        PromptCreateResponse with file path
+
+    Raises:
+        HTTPException: If file creation fails
+    """
+    try:
+        # Validate and normalize project path
+        project_path = Path(request.project_path).resolve()
+
+        # Sanitize context name for filesystem
+        import re
+        safe_name = re.sub(r'[^\w\-]', '-', request.context_name.lower())
+        safe_name = re.sub(r'-+', '-', safe_name).strip('-')
+
+        if not safe_name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid context name"
+            )
+
+        # Create contexts directory
+        contexts_dir = project_path / "contexts"
+        contexts_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create context file
+        filename = f"{safe_name}.context.md"
+        context_file = contexts_dir / filename
+
+        # Check if file already exists
+        if context_file.exists():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Context file '{filename}' already exists"
+            )
+
+        # Create empty file
+        context_file.touch()
+
+        # Return relative path from project root
+        relative_path = f"contexts/{filename}"
+
+        return PromptCreateResponse(
+            success=True,
+            file_path=relative_path,
+            absolute_path=str(context_file),
+            message=f"Context file created: {filename}"
+        )
+
+    except HTTPException:
+        raise
+    except PermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Permission denied: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create context file: {str(e)}"
         )
 
 

@@ -2,7 +2,7 @@
 
 import { memo, useState, useRef, useEffect } from "react";
 import { Handle, Position, type NodeProps, useReactFlow } from "@xyflow/react";
-import type { ParallelAgent } from "@/lib/types";
+import type { Agent, ParallelAgent } from "@/lib/types";
 
 export interface ParallelAgentNodeData {
   parallelAgent: ParallelAgent;
@@ -11,7 +11,7 @@ export interface ParallelAgentNodeData {
 const ParallelAgentNode = memo(({ data, id, selected }: NodeProps) => {
   const { parallelAgent } = data as unknown as ParallelAgentNodeData;
   const toolsCount = parallelAgent.tools?.length || 0;
-  const agentsCount = parallelAgent.agents?.length || 0;
+  const agentsCount = parallelAgent.subagents?.length || 0;
   const { setNodes } = useReactFlow();
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(parallelAgent.name);
@@ -143,14 +143,14 @@ ParallelAgentNode.displayName = "ParallelAgentNode";
 
 export default ParallelAgentNode;
 
-export function getDefaultParallelAgentData(): Omit<ParallelAgent, "id"> {
+export function getDefaultParallelAgentData(): Omit<Agent, "id"> {
   return {
     name: "New Parallel Agent",
-    type: "parallelAgent",
+    type: "parallel",
     model: "gemini-2.0-flash-exp",
-    system_prompt: "",
+    temperature: 0.7,
     tools: [],
-    agents: [],
+    subagents: [],
     description: "",
   };
 }

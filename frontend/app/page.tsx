@@ -7,15 +7,13 @@ import PromptEditorModal, { PromptData } from "@/components/PromptEditorModal";
 import ProjectDialog from "@/components/ProjectDialog";
 import SaveConfirmDialog from "@/components/SaveConfirmDialog";
 import PromptNameDialog from "@/components/PromptNameDialog";
-import { loadProject, saveProject, createPrompt, readPrompt, savePrompt } from "@/lib/api";
-import { reactFlowToWorkflow } from "@/lib/workflowHelpers";
+import { loadProject, saveProject, createPrompt, createContext, readPrompt, savePrompt } from "@/lib/api";
 import { loadSession, saveSession } from "@/lib/sessionStorage";
-import type { Workflow } from "@/lib/types";
 import type { Node, Edge } from "@xyflow/react";
 
 export default function Home() {
   const [workflowName, setWorkflowName] = useState("Untitled Workflow");
-  const [currentWorkflow, setCurrentWorkflow] = useState<{ nodes: Node[]; edges: Edge[] } | null>(null);
+  const [currentWorkflow, setCurrentWorkflow] = useState<{ nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } } | null>(null);
   const canvasRef = useRef<ReactFlowCanvasRef>(null);
   const [isSessionLoaded, setIsSessionLoaded] = useState(false);
 
@@ -33,6 +31,13 @@ export default function Home() {
   // Prompt name dialog state
   const [isPromptNameDialogOpen, setIsPromptNameDialogOpen] = useState(false);
 
+  // Context editor state
+  const [isContextModalOpen, setIsContextModalOpen] = useState(false);
+  const [currentContext, setCurrentContext] = useState<PromptData | null>(null);
+
+  // Context name dialog state
+  const [isContextNameDialogOpen, setIsContextNameDialogOpen] = useState(false);
+
   // Load session on mount
   useEffect(() => {
     const session = loadSession();
@@ -41,12 +46,12 @@ export default function Home() {
       setWorkflowName(session.workflowName || "Untitled Workflow");
       setHasUnsavedChanges(session.hasUnsavedChanges || false);
 
-      // Restore workflow to canvas
+      // Restore flow to canvas
       if (session.workflow) {
         // We need to wait for the canvas to be ready
         setTimeout(() => {
           if (canvasRef.current && session.workflow) {
-            canvasRef.current.restoreFromSession(session.workflow);
+            canvasRef.current.restoreFlow(session.workflow);
             setCurrentWorkflow(session.workflow);
           }
         }, 50);
@@ -72,7 +77,9 @@ export default function Home() {
   }, [isSessionLoaded, currentProjectPath, workflowName, currentWorkflow, hasUnsavedChanges]);
 
   const handleWorkflowChange = useCallback((data: { nodes: Node[]; edges: Edge[] }) => {
-    setCurrentWorkflow(data);
+    // Add default viewport
+    const flowData = { ...data, viewport: { x: 0, y: 0, zoom: 1 } };
+    setCurrentWorkflow(flowData);
     setHasUnsavedChanges(true);
   }, []);
 
@@ -99,19 +106,19 @@ export default function Home() {
       const response = await loadProject(projectPath);
 
       if (!response.exists) {
-        alert(`No workflow found at ${projectPath}. Would you like to create a new project there instead?`);
+        alert(`No flow found at ${projectPath}. Would you like to create a new project there instead?`);
         return;
       }
 
-      if (response.workflow) {
-        // Load workflow into canvas
+      if (response.flow) {
+        // Load flow into canvas
         setCurrentProjectPath(projectPath);
-        setWorkflowName(response.workflow.name || "Untitled Workflow");
+        setWorkflowName("Untitled Workflow");
         setIsProjectDialogOpen(false);
         setHasUnsavedChanges(false);
 
-        if (canvasRef.current && response.workflow) {
-          canvasRef.current.importFromWorkflow(response.workflow);
+        if (canvasRef.current) {
+          canvasRef.current.restoreFlow(response.flow);
         }
       }
     } catch (error) {
@@ -127,21 +134,14 @@ export default function Home() {
     }
 
     try {
-      // Get current workflow from canvas
-      const reactFlowData = canvasRef.current?.getDrawflowData();
-      if (!reactFlowData) {
-        alert("No workflow data to save.");
+      // Get current flow from canvas using React Flow's native toObject
+      const flow = canvasRef.current?.saveFlow();
+      if (!flow) {
+        alert("No flow data to save.");
         return;
       }
 
-      // Convert React Flow data to workflow format
-      const workflow = reactFlowToWorkflow(
-        reactFlowData.nodes,
-        reactFlowData.edges,
-        workflowName
-      );
-
-      const response = await saveProject(currentProjectPath, workflow);
+      const response = await saveProject(currentProjectPath, flow);
 
       if (response.success) {
         setHasUnsavedChanges(false);
@@ -220,7 +220,7 @@ export default function Home() {
     setIsPromptNameDialogOpen(false);
   };
 
-  const handleOpenPromptEditor = async (promptId: string, filePath: string) => {
+  const handleOpenPromptEditor = async (promptId: string, promptName: string, filePath: string) => {
     if (!currentProjectPath) {
       alert("No project loaded");
       return;
@@ -232,6 +232,7 @@ export default function Home() {
 
       const promptData: PromptData = {
         id: promptId,
+        name: promptName,
         content: response.content,
         filePath: filePath,
       };
@@ -259,10 +260,11 @@ export default function Home() {
       // Save prompt content to file
       await savePrompt(currentProjectPath, updatedPrompt.filePath, updatedPrompt.content);
 
-      // Update the prompt node in the canvas (if needed - currently just marks unsaved)
+      // Update the prompt node in the canvas with new name and content
       if (canvasRef.current) {
         canvasRef.current.updatePromptNode(
           updatedPrompt.id,
+          updatedPrompt.name,
           updatedPrompt.content,
           updatedPrompt.filePath
         );
@@ -272,6 +274,99 @@ export default function Home() {
     } catch (error) {
       console.error("Failed to save prompt:", error);
       alert("Failed to save prompt: " + (error as Error).message);
+    }
+  };
+
+  // Context Handlers
+  const handleShowContextNameDialog = () => {
+    setIsContextNameDialogOpen(true);
+  };
+
+  const handleCreateContext = async (contextName: string) => {
+    if (!currentProjectPath) {
+      alert("No project loaded");
+      return;
+    }
+
+    try {
+      // Call backend to create the context file
+      const response = await createContext(currentProjectPath, contextName);
+
+      // Add context node to canvas with the file path and name
+      if (canvasRef.current) {
+        canvasRef.current.addContextNode({
+          name: contextName,
+          file_path: response.file_path,
+        });
+      }
+
+      setIsContextNameDialogOpen(false);
+      setHasUnsavedChanges(true);
+
+    } catch (error) {
+      console.error("Failed to create context:", error);
+      alert("Failed to create context: " + (error as Error).message);
+    }
+  };
+
+  const handleCancelContextCreation = () => {
+    setIsContextNameDialogOpen(false);
+  };
+
+  const handleOpenContextEditor = async (contextId: string, contextName: string, filePath: string) => {
+    if (!currentProjectPath) {
+      alert("No project loaded");
+      return;
+    }
+
+    try {
+      // Load context content from file (using readPrompt since it's the same format)
+      const response = await readPrompt(currentProjectPath, filePath);
+
+      const contextData: PromptData = {
+        id: contextId,
+        name: contextName,
+        content: response.content,
+        filePath: filePath,
+      };
+
+      setCurrentContext(contextData);
+      setIsContextModalOpen(true);
+    } catch (error) {
+      console.error("Failed to load context:", error);
+      alert("Failed to load context: " + (error as Error).message);
+    }
+  };
+
+  const handleCloseContextModal = () => {
+    setIsContextModalOpen(false);
+    setCurrentContext(null);
+  };
+
+  const handleSaveContext = async (updatedContext: PromptData) => {
+    if (!currentProjectPath) {
+      alert("No project loaded");
+      return;
+    }
+
+    try {
+      // Save context content to file (using savePrompt since it's the same format)
+      await savePrompt(currentProjectPath, updatedContext.filePath, updatedContext.content);
+
+      // Update the context node in the canvas with new name and content
+      if (canvasRef.current) {
+        canvasRef.current.updateContextNode(
+          updatedContext.id,
+          updatedContext.name,
+          updatedContext.content,
+          updatedContext.filePath
+        );
+      }
+
+      setHasUnsavedChanges(true);
+    } catch (error) {
+      console.error("Failed to save context:", error);
+      alert("Failed to save context: " + (error as Error).message);
     }
   };
 
@@ -318,6 +413,7 @@ export default function Home() {
           onSaveProject={handleSaveCurrentProject}
           onLoadProject={handleLoadProject}
           onAddPrompt={handleShowPromptNameDialog}
+          onAddContext={handleShowContextNameDialog}
           hasProjectPath={!!currentProjectPath}
         />
 
@@ -328,6 +424,7 @@ export default function Home() {
               ref={canvasRef}
               onWorkflowChange={handleWorkflowChange}
               onOpenPromptEditor={handleOpenPromptEditor}
+              onOpenContextEditor={handleOpenContextEditor}
             />
           </div>
         </main>
@@ -339,6 +436,15 @@ export default function Home() {
         onClose={handleCloseModal}
         promptData={currentPrompt}
         onSave={handleSavePrompt}
+      />
+
+      {/* Context Editor Modal */}
+      <PromptEditorModal
+        isOpen={isContextModalOpen}
+        onClose={handleCloseContextModal}
+        promptData={currentContext}
+        onSave={handleSaveContext}
+        type="context"
       />
 
       {/* Project Dialog */}
@@ -363,6 +469,14 @@ export default function Home() {
         isOpen={isPromptNameDialogOpen}
         onSubmit={handleCreatePrompt}
         onCancel={handleCancelPromptCreation}
+      />
+
+      {/* Context Name Dialog */}
+      <PromptNameDialog
+        isOpen={isContextNameDialogOpen}
+        onSubmit={handleCreateContext}
+        onCancel={handleCancelContextCreation}
+        type="context"
       />
     </div>
   );

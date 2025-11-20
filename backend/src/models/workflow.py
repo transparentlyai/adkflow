@@ -4,57 +4,41 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 
-class WorkflowVariable(BaseModel):
-    """Variable definition in a workflow."""
+class Viewport(BaseModel):
+    """Viewport state for React Flow."""
 
-    name: str = Field(..., description="Variable name")
-    type: str = Field(..., description="Variable type (string, number, boolean, etc.)")
-    default: Optional[Any] = Field(None, description="Default value")
-    description: Optional[str] = Field(None, description="Variable description")
-
-
-class PromptModel(BaseModel):
-    """Prompt template model."""
-
-    id: str = Field(..., description="Unique prompt identifier")
-    name: str = Field(..., description="Prompt name")
-    file_path: str = Field(..., description="Relative path to .prompt.md file from project root")
+    x: float = Field(default=0, description="X coordinate of viewport")
+    y: float = Field(default=0, description="Y coordinate of viewport")
+    zoom: float = Field(default=1, description="Zoom level")
 
 
-class SubagentModel(BaseModel):
-    """Subagent configuration model."""
+class ReactFlowNode(BaseModel):
+    """React Flow node model."""
 
-    id: str = Field(..., description="Unique subagent identifier")
-    prompt_ref: str = Field(..., description="Reference to prompt ID")
-    tools: list[str] = Field(default_factory=list, description="List of tool names available to subagent")
-
-
-class AgentModel(BaseModel):
-    """Agent configuration model."""
-
-    id: str = Field(..., description="Unique agent identifier")
-    type: str = Field(..., description="Agent type (e.g., 'llm', 'workflow', 'tool')")
-    model: Optional[str] = Field(None, description="LLM model name (e.g., 'gemini-2.0-flash-exp')")
-    temperature: Optional[float] = Field(None, description="LLM temperature setting")
-    tools: list[str] = Field(default_factory=list, description="List of tool names available to agent")
-    subagents: list[SubagentModel] = Field(default_factory=list, description="List of subagents")
+    id: str = Field(..., description="Unique node identifier")
+    type: str = Field(..., description="Node type")
+    position: dict[str, float] = Field(..., description="Node position (x, y)")
+    data: dict[str, Any] = Field(..., description="Node data")
+    selected: Optional[bool] = Field(None, description="Whether node is selected")
+    dragging: Optional[bool] = Field(None, description="Whether node is being dragged")
 
 
-class WorkflowConnection(BaseModel):
-    """Connection between workflow components."""
+class ReactFlowEdge(BaseModel):
+    """React Flow edge model."""
 
-    from_path: str = Field(..., description="Source path (e.g., 'agent1.output')")
-    to_path: str = Field(..., description="Target path (e.g., 'agent2.input')")
+    id: str = Field(..., description="Unique edge identifier")
+    source: str = Field(..., description="Source node ID")
+    target: str = Field(..., description="Target node ID")
+    sourceHandle: Optional[str] = Field(None, description="Source handle ID")
+    targetHandle: Optional[str] = Field(None, description="Target handle ID")
+    selected: Optional[bool] = Field(None, description="Whether edge is selected")
+    animated: Optional[bool] = Field(None, description="Whether edge is animated")
+    style: Optional[dict[str, Any]] = Field(None, description="Edge style")
 
 
-class WorkflowModel(BaseModel):
-    """Complete workflow model."""
+class ReactFlowJSON(BaseModel):
+    """React Flow JSON object for saving/loading flows."""
 
-    name: str = Field(..., description="Workflow name")
-    description: Optional[str] = Field(None, description="Workflow description")
-    version: str = Field(default="1.0.0", description="Workflow version")
-    variables: dict[str, WorkflowVariable] = Field(default_factory=dict, description="Workflow variables")
-    prompts: list[PromptModel] = Field(default_factory=list, description="Prompt templates")
-    agents: list[AgentModel] = Field(default_factory=list, description="Agent configurations")
-    connections: list[WorkflowConnection] = Field(default_factory=list, description="Connections between agents")
-    metadata: Optional[dict[str, Any]] = Field(None, description="Additional metadata")
+    nodes: list[ReactFlowNode] = Field(default_factory=list, description="Flow nodes")
+    edges: list[ReactFlowEdge] = Field(default_factory=list, description="Flow edges")
+    viewport: Viewport = Field(default_factory=Viewport, description="Viewport state")

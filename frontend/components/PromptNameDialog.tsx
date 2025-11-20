@@ -6,15 +6,39 @@ interface PromptNameDialogProps {
   isOpen: boolean;
   onSubmit: (promptName: string) => void;
   onCancel: () => void;
+  type?: "prompt" | "context";
 }
 
 export default function PromptNameDialog({
   isOpen,
   onSubmit,
   onCancel,
+  type = "prompt",
 }: PromptNameDialogProps) {
   const [promptName, setPromptName] = useState("");
   const [error, setError] = useState("");
+
+  // Labels based on type
+  const labels = {
+    prompt: {
+      title: "Create New Prompt",
+      description: "Enter a name for the prompt file",
+      inputLabel: "Prompt Name",
+      placeholder: "e.g., Customer Greeting, System Instructions",
+      fileExtension: ".prompt.md",
+      button: "Create Prompt",
+      errorMessage: "Please enter a prompt name",
+    },
+    context: {
+      title: "Create New Static Context",
+      description: "Enter a name for the context file",
+      inputLabel: "Context Name",
+      placeholder: "e.g., API Documentation, Product Catalog",
+      fileExtension: ".context.md",
+      button: "Create Context",
+      errorMessage: "Please enter a context name",
+    },
+  };
 
   if (!isOpen) return null;
 
@@ -24,7 +48,7 @@ export default function PromptNameDialog({
 
     // Validate prompt name
     if (!promptName.trim()) {
-      setError("Please enter a prompt name");
+      setError(labels[type].errorMessage);
       return;
     }
 
@@ -44,10 +68,10 @@ export default function PromptNameDialog({
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-900">
-            Create New Prompt
+            {labels[type].title}
           </h2>
           <p className="text-sm text-gray-600 mt-1">
-            Enter a name for the prompt file
+            {labels[type].description}
           </p>
         </div>
 
@@ -58,19 +82,19 @@ export default function PromptNameDialog({
               htmlFor="promptName"
               className="block text-sm font-medium text-gray-700 mb-2"
             >
-              Prompt Name
+              {labels[type].inputLabel}
             </label>
             <input
               type="text"
               id="promptName"
               value={promptName}
               onChange={(e) => setPromptName(e.target.value)}
-              placeholder="e.g., Customer Greeting, System Instructions"
+              placeholder={labels[type].placeholder}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
               autoFocus
             />
             <p className="mt-1 text-xs text-gray-500">
-              File will be saved as: <span className="font-mono">{promptName ? promptName.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-') : 'prompt-name'}.prompt.md</span>
+              File will be saved as: <span className="font-mono">{promptName ? promptName.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-') : type === 'prompt' ? 'prompt-name' : 'context-name'}{labels[type].fileExtension}</span>
             </p>
           </div>
 
@@ -93,7 +117,7 @@ export default function PromptNameDialog({
               type="submit"
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors"
             >
-              Create Prompt
+              {labels[type].button}
             </button>
           </div>
         </form>
