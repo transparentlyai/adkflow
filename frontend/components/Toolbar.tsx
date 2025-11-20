@@ -84,6 +84,11 @@ export default function Toolbar({
     canvasRef.current?.addVariableNode();
   };
 
+  const onDragStart = (event: React.DragEvent, nodeType: string) => {
+    event.dataTransfer.setData('application/reactflow', nodeType);
+    event.dataTransfer.effectAllowed = 'move';
+  };
+
   const handleClear = () => {
     if (confirm("Are you sure you want to clear the canvas? This cannot be undone.")) {
       canvasRef.current?.clearCanvas();
@@ -121,9 +126,11 @@ export default function Toolbar({
           <div className="space-y-1.5">
             <button
               onClick={handleAddVariable}
+              onDragStart={(e) => onDragStart(e, 'variable')}
+              draggable={hasProjectPath}
               disabled={!hasProjectPath}
-              className="w-full px-3 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
-              title={!hasProjectPath ? "Create or load a project first" : "Add Variable"}
+              className="w-full px-3 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed cursor-grab active:cursor-grabbing"
+              title={!hasProjectPath ? "Create or load a project first" : "Drag to canvas or click to add Variable"}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
@@ -132,9 +139,11 @@ export default function Toolbar({
             </button>
             <button
               onClick={handleAddSequentialAgent}
+              onDragStart={(e) => onDragStart(e, 'sequentialAgent')}
+              draggable={hasProjectPath}
               disabled={!hasProjectPath}
-              className="w-full px-3 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
-              title={!hasProjectPath ? "Create or load a project first" : "Add Sequential Agent"}
+              className="w-full px-3 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed cursor-grab active:cursor-grabbing"
+              title={!hasProjectPath ? "Create or load a project first" : "Drag to canvas or click to add Sequential Agent"}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
@@ -143,9 +152,11 @@ export default function Toolbar({
             </button>
             <button
               onClick={handleAddParallelAgent}
+              onDragStart={(e) => onDragStart(e, 'parallelAgent')}
+              draggable={hasProjectPath}
               disabled={!hasProjectPath}
-              className="w-full px-3 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
-              title={!hasProjectPath ? "Create or load a project first" : "Add Parallel Agent"}
+              className="w-full px-3 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed cursor-grab active:cursor-grabbing"
+              title={!hasProjectPath ? "Create or load a project first" : "Drag to canvas or click to add Parallel Agent"}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeWidth="2" d="M8 7v10M12 7v10M16 7v10"/>
@@ -154,9 +165,11 @@ export default function Toolbar({
             </button>
             <button
               onClick={handleAddLLMAgent}
+              onDragStart={(e) => onDragStart(e, 'llmAgent')}
+              draggable={hasProjectPath}
               disabled={!hasProjectPath}
-              className="w-full px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
-              title={!hasProjectPath ? "Create or load a project first" : "Add LLM Agent"}
+              className="w-full px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed cursor-grab active:cursor-grabbing"
+              title={!hasProjectPath ? "Create or load a project first" : "Drag to canvas or click to add LLM Agent"}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
@@ -165,9 +178,11 @@ export default function Toolbar({
             </button>
             <button
               onClick={handleAddLoopAgent}
+              onDragStart={(e) => onDragStart(e, 'loopAgent')}
+              draggable={hasProjectPath}
               disabled={!hasProjectPath}
-              className="w-full px-3 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
-              title={!hasProjectPath ? "Create or load a project first" : "Add Loop Agent"}
+              className="w-full px-3 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed cursor-grab active:cursor-grabbing"
+              title={!hasProjectPath ? "Create or load a project first" : "Drag to canvas or click to add Loop Agent"}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -176,9 +191,11 @@ export default function Toolbar({
             </button>
             <button
               onClick={handleAddAgent}
+              onDragStart={(e) => onDragStart(e, 'agent')}
+              draggable={hasProjectPath}
               disabled={!hasProjectPath}
-              className="w-full px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
-              title={!hasProjectPath ? "Create or load a project first" : "Add Agent"}
+              className="w-full px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed cursor-grab active:cursor-grabbing"
+              title={!hasProjectPath ? "Create or load a project first" : "Drag to canvas or click to add Agent"}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth="2"/>
@@ -189,7 +206,7 @@ export default function Toolbar({
               onClick={handleAddPrompt}
               disabled={!hasProjectPath}
               className="w-full px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
-              title={!hasProjectPath ? "Create or load a project first" : "Add Prompt"}
+              title={!hasProjectPath ? "Create or load a project first" : "Click to add Prompt (drag not supported)"}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -200,7 +217,7 @@ export default function Toolbar({
               onClick={handleAddContext}
               disabled={!hasProjectPath}
               className="w-full px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
-              title={!hasProjectPath ? "Create or load a project first" : "Add Context"}
+              title={!hasProjectPath ? "Create or load a project first" : "Click to add Context (drag not supported)"}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -209,9 +226,11 @@ export default function Toolbar({
             </button>
             <button
               onClick={handleAddInputProbe}
+              onDragStart={(e) => onDragStart(e, 'inputProbe')}
+              draggable={hasProjectPath}
               disabled={!hasProjectPath}
-              className="w-full px-3 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
-              title={!hasProjectPath ? "Create or load a project first" : "Add Input Probe"}
+              className="w-full px-3 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed cursor-grab active:cursor-grabbing"
+              title={!hasProjectPath ? "Create or load a project first" : "Drag to canvas or click to add Input Probe"}
             >
               <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="10" />
@@ -220,9 +239,11 @@ export default function Toolbar({
             </button>
             <button
               onClick={handleAddOutputProbe}
+              onDragStart={(e) => onDragStart(e, 'outputProbe')}
+              draggable={hasProjectPath}
               disabled={!hasProjectPath}
-              className="w-full px-3 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
-              title={!hasProjectPath ? "Create or load a project first" : "Add Output Probe"}
+              className="w-full px-3 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed cursor-grab active:cursor-grabbing"
+              title={!hasProjectPath ? "Create or load a project first" : "Drag to canvas or click to add Output Probe"}
             >
               <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="10" />
@@ -231,9 +252,11 @@ export default function Toolbar({
             </button>
             <button
               onClick={handleAddTool}
+              onDragStart={(e) => onDragStart(e, 'tool')}
+              draggable={hasProjectPath}
               disabled={!hasProjectPath}
-              className="w-full px-3 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
-              title={!hasProjectPath ? "Create or load a project first" : "Add Tool"}
+              className="w-full px-3 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed cursor-grab active:cursor-grabbing"
+              title={!hasProjectPath ? "Create or load a project first" : "Drag to canvas or click to add Tool"}
             >
               <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="10" />
@@ -242,9 +265,11 @@ export default function Toolbar({
             </button>
             <button
               onClick={handleAddAgentTool}
+              onDragStart={(e) => onDragStart(e, 'agentTool')}
+              draggable={hasProjectPath}
               disabled={!hasProjectPath}
-              className="w-full px-3 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
-              title={!hasProjectPath ? "Create or load a project first" : "Add Agent Tool"}
+              className="w-full px-3 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed cursor-grab active:cursor-grabbing"
+              title={!hasProjectPath ? "Create or load a project first" : "Drag to canvas or click to add Agent Tool"}
             >
               <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
                 <rect x="4" y="4" width="16" height="16" rx="2" />

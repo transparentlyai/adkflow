@@ -9,6 +9,7 @@ import {
 } from "react";
 import {
   ReactFlow,
+  ReactFlowProvider,
   Background,
   Controls,
   MiniMap,
@@ -73,21 +74,23 @@ interface ReactFlowCanvasProps {
   onWorkflowChange?: (data: { nodes: Node[]; edges: Edge[] }) => void;
   onOpenPromptEditor?: (promptId: string, promptName: string, filePath: string) => void;
   onOpenContextEditor?: (contextId: string, contextName: string, filePath: string) => void;
+  onRequestPromptCreation?: (position: { x: number; y: number }) => void;
+  onRequestContextCreation?: (position: { x: number; y: number }) => void;
 }
 
 export interface ReactFlowCanvasRef {
-  addSequentialAgentNode: () => void;
-  addParallelAgentNode: () => void;
-  addLLMAgentNode: () => void;
-  addLoopAgentNode: () => void;
-  addAgentNode: () => void;
-  addPromptNode: (promptData?: { name: string; file_path: string }) => void;
-  addContextNode: (contextData?: { name: string; file_path: string }) => void;
-  addInputProbeNode: () => void;
-  addOutputProbeNode: () => void;
-  addToolNode: () => void;
-  addAgentToolNode: () => void;
-  addVariableNode: () => void;
+  addSequentialAgentNode: (position?: { x: number; y: number }) => void;
+  addParallelAgentNode: (position?: { x: number; y: number }) => void;
+  addLLMAgentNode: (position?: { x: number; y: number }) => void;
+  addLoopAgentNode: (position?: { x: number; y: number }) => void;
+  addAgentNode: (position?: { x: number; y: number }) => void;
+  addPromptNode: (promptData?: { name: string; file_path: string }, position?: { x: number; y: number }) => void;
+  addContextNode: (contextData?: { name: string; file_path: string }, position?: { x: number; y: number }) => void;
+  addInputProbeNode: (position?: { x: number; y: number }) => void;
+  addOutputProbeNode: (position?: { x: number; y: number }) => void;
+  addToolNode: (position?: { x: number; y: number }) => void;
+  addAgentToolNode: (position?: { x: number; y: number }) => void;
+  addVariableNode: (position?: { x: number; y: number }) => void;
   updatePromptNode: (promptId: string, name: string, content: string, filePath: string) => void;
   updateContextNode: (contextId: string, name: string, content: string, filePath: string) => void;
   clearCanvas: () => void;
@@ -96,16 +99,17 @@ export interface ReactFlowCanvasRef {
 }
 
 /**
- * ReactFlowCanvas Component
+ * ReactFlowCanvas Component (Inner)
  *
  * Main canvas component using React Flow for visual workflow editing.
  * Replaces the Drawflow-based canvas with native React Flow implementation.
  */
-const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
-  ({ onWorkflowChange, onOpenPromptEditor, onOpenContextEditor }, ref) => {
+const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
+  ({ onWorkflowChange, onOpenPromptEditor, onOpenContextEditor, onRequestPromptCreation, onRequestContextCreation }, ref) => {
     const [nodes, setNodes] = useState<Node[]>([]);
     const [edges, setEdges] = useState<Edge[]>([]);
     const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
+    const { screenToFlowPosition } = useReactFlow();
 
     // Node position tracking for new nodes
     const [sequentialAgentPosition, setSequentialAgentPosition] = useState({ x: 150, y: 100 });
@@ -219,7 +223,7 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
     /**
      * Add a Sequential Agent node to the canvas
      */
-    const addSequentialAgentNode = useCallback(() => {
+    const addSequentialAgentNode = useCallback((position?: { x: number; y: number }) => {
       const sequentialAgentId = generateNodeId("sequentialAgent");
       const sequentialAgent: SequentialAgent = {
         id: sequentialAgentId,
@@ -229,18 +233,20 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
       const newNode: Node = {
         id: sequentialAgentId,
         type: "sequentialAgent",
-        position: sequentialAgentPosition,
+        position: position || sequentialAgentPosition,
         data: { sequentialAgent },
       };
 
       setNodes((nds) => [...nds, newNode]);
-      setSequentialAgentPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      if (!position) {
+        setSequentialAgentPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      }
     }, [sequentialAgentPosition]);
 
     /**
      * Add a Parallel Agent node to the canvas
      */
-    const addParallelAgentNode = useCallback(() => {
+    const addParallelAgentNode = useCallback((position?: { x: number; y: number }) => {
       const parallelAgentId = generateNodeId("parallelAgent");
       const parallelAgent: ParallelAgent = {
         id: parallelAgentId,
@@ -250,18 +256,20 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
       const newNode: Node = {
         id: parallelAgentId,
         type: "parallelAgent",
-        position: parallelAgentPosition,
+        position: position || parallelAgentPosition,
         data: { parallelAgent },
       };
 
       setNodes((nds) => [...nds, newNode]);
-      setParallelAgentPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      if (!position) {
+        setParallelAgentPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      }
     }, [parallelAgentPosition]);
 
     /**
      * Add an LLM Agent node to the canvas
      */
-    const addLLMAgentNode = useCallback(() => {
+    const addLLMAgentNode = useCallback((position?: { x: number; y: number }) => {
       const llmAgentId = generateNodeId("llmAgent");
       const llmAgent: LLMAgent = {
         id: llmAgentId,
@@ -271,18 +279,20 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
       const newNode: Node = {
         id: llmAgentId,
         type: "llmAgent",
-        position: llmAgentPosition,
+        position: position || llmAgentPosition,
         data: { llmAgent },
       };
 
       setNodes((nds) => [...nds, newNode]);
-      setLLMAgentPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      if (!position) {
+        setLLMAgentPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      }
     }, [llmAgentPosition]);
 
     /**
      * Add a Loop Agent node to the canvas
      */
-    const addLoopAgentNode = useCallback(() => {
+    const addLoopAgentNode = useCallback((position?: { x: number; y: number }) => {
       const loopAgentId = generateNodeId("loopAgent");
       const loopAgent: LoopAgent = {
         id: loopAgentId,
@@ -303,7 +313,7 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
     /**
      * Add an Agent node to the canvas
      */
-    const addAgentNode = useCallback(() => {
+    const addAgentNode = useCallback((position?: { x: number; y: number }) => {
       const agentId = generateNodeId("agent");
       const agent: Agent = {
         id: agentId,
@@ -313,18 +323,20 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
       const newNode: Node = {
         id: agentId,
         type: "agent",
-        position: agentPosition,
+        position: position || agentPosition,
         data: { agent },
       };
 
       setNodes((nds) => [...nds, newNode]);
-      setAgentPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      if (!position) {
+        setAgentPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      }
     }, [agentPosition]);
 
     /**
      * Add a Prompt node to the canvas
      */
-    const addPromptNode = useCallback((promptData?: { name: string; file_path: string }) => {
+    const addPromptNode = useCallback((promptData?: { name: string; file_path: string }, position?: { x: number; y: number }) => {
       const promptId = generateNodeId("prompt");
       const prompt: Prompt = {
         id: promptId,
@@ -334,7 +346,7 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
       const newNode: Node = {
         id: promptId,
         type: "prompt",
-        position: promptPosition,
+        position: position || promptPosition,
         data: {
           prompt,
           onEdit: () => {
@@ -346,13 +358,15 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
       };
 
       setNodes((nds) => [...nds, newNode]);
-      setPromptPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      if (!position) {
+        setPromptPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      }
     }, [promptPosition, onOpenPromptEditor]);
 
     /**
      * Add a Context node to the canvas
      */
-    const addContextNode = useCallback((contextData?: { name: string; file_path: string }) => {
+    const addContextNode = useCallback((contextData?: { name: string; file_path: string }, position?: { x: number; y: number }) => {
       const contextId = generateNodeId("context");
       const context: Prompt = {
         id: contextId,
@@ -362,7 +376,7 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
       const newNode: Node = {
         id: contextId,
         type: "context",
-        position: contextPosition,
+        position: position || contextPosition,
         data: {
           prompt: context,
           onEdit: () => {
@@ -374,93 +388,183 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
       };
 
       setNodes((nds) => [...nds, newNode]);
-      setContextPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      if (!position) {
+        setContextPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      }
     }, [contextPosition, onOpenContextEditor]);
 
     /**
      * Add an Input Probe node to the canvas
      */
-    const addInputProbeNode = useCallback(() => {
+    const addInputProbeNode = useCallback((position?: { x: number; y: number }) => {
       const inputProbeId = generateNodeId("inputProbe");
 
       const newNode: Node = {
         id: inputProbeId,
         type: "inputProbe",
-        position: inputProbePosition,
+        position: position || inputProbePosition,
         data: getDefaultInputProbeData(),
       };
 
       setNodes((nds) => [...nds, newNode]);
-      setInputProbePosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      if (!position) {
+        setInputProbePosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      }
     }, [inputProbePosition]);
 
     /**
      * Add an Output Probe node to the canvas
      */
-    const addOutputProbeNode = useCallback(() => {
+    const addOutputProbeNode = useCallback((position?: { x: number; y: number }) => {
       const outputProbeId = generateNodeId("outputProbe");
 
       const newNode: Node = {
         id: outputProbeId,
         type: "outputProbe",
-        position: outputProbePosition,
+        position: position || outputProbePosition,
         data: getDefaultOutputProbeData(),
       };
 
       setNodes((nds) => [...nds, newNode]);
-      setOutputProbePosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      if (!position) {
+        setOutputProbePosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      }
     }, [outputProbePosition]);
 
     /**
      * Add a Tool node to the canvas
      */
-    const addToolNode = useCallback(() => {
+    const addToolNode = useCallback((position?: { x: number; y: number }) => {
       const toolId = generateNodeId("tool");
 
       const newNode: Node = {
         id: toolId,
         type: "tool",
-        position: toolPosition,
+        position: position || toolPosition,
         data: getDefaultToolData(),
       };
 
       setNodes((nds) => [...nds, newNode]);
-      setToolPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      if (!position) {
+        setToolPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      }
     }, [toolPosition]);
 
     /**
      * Add an Agent Tool node to the canvas
      */
-    const addAgentToolNode = useCallback(() => {
+    const addAgentToolNode = useCallback((position?: { x: number; y: number }) => {
       const agentToolId = generateNodeId("agentTool");
 
       const newNode: Node = {
         id: agentToolId,
         type: "agentTool",
-        position: agentToolPosition,
+        position: position || agentToolPosition,
         data: getDefaultAgentToolData(),
       };
 
       setNodes((nds) => [...nds, newNode]);
-      setAgentToolPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      if (!position) {
+        setAgentToolPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      }
     }, [agentToolPosition]);
 
     /**
      * Add a Variable node to the canvas
      */
-    const addVariableNode = useCallback(() => {
+    const addVariableNode = useCallback((position?: { x: number; y: number }) => {
       const variableId = generateNodeId("variable");
 
       const newNode: Node = {
         id: variableId,
         type: "variable",
-        position: variablePosition,
+        position: position || variablePosition,
         data: getDefaultVariableData(),
       };
 
       setNodes((nds) => [...nds, newNode]);
-      setVariablePosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      if (!position) {
+        setVariablePosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      }
     }, [variablePosition]);
+
+    /**
+     * Drag and drop handlers for adding nodes from toolbar
+     */
+    const onDragOver = useCallback((event: React.DragEvent) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+    }, []);
+
+    const onDrop = useCallback((event: React.DragEvent) => {
+      event.preventDefault();
+
+      const type = event.dataTransfer.getData('application/reactflow');
+      if (!type) return;
+
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+
+      // Handle nodes that require dialogs
+      if (type === 'prompt' && onRequestPromptCreation) {
+        onRequestPromptCreation(position);
+        return;
+      }
+      if (type === 'context' && onRequestContextCreation) {
+        onRequestContextCreation(position);
+        return;
+      }
+
+      // Handle regular nodes
+      switch (type) {
+        case 'variable':
+          addVariableNode(position);
+          break;
+        case 'sequentialAgent':
+          addSequentialAgentNode(position);
+          break;
+        case 'parallelAgent':
+          addParallelAgentNode(position);
+          break;
+        case 'llmAgent':
+          addLLMAgentNode(position);
+          break;
+        case 'loopAgent':
+          addLoopAgentNode(position);
+          break;
+        case 'agent':
+          addAgentNode(position);
+          break;
+        case 'inputProbe':
+          addInputProbeNode(position);
+          break;
+        case 'outputProbe':
+          addOutputProbeNode(position);
+          break;
+        case 'tool':
+          addToolNode(position);
+          break;
+        case 'agentTool':
+          addAgentToolNode(position);
+          break;
+      }
+    }, [
+      screenToFlowPosition,
+      onRequestPromptCreation,
+      onRequestContextCreation,
+      addVariableNode,
+      addSequentialAgentNode,
+      addParallelAgentNode,
+      addLLMAgentNode,
+      addLoopAgentNode,
+      addAgentNode,
+      addInputProbeNode,
+      addOutputProbeNode,
+      addToolNode,
+      addAgentToolNode,
+    ]);
 
     /**
      * Update a Prompt node's data
@@ -628,6 +732,8 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onInit={setRfInstance}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
           nodeTypes={nodeTypes}
           colorMode="light"
           fitView
@@ -679,6 +785,23 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
           />
         </ReactFlow>
       </div>
+    );
+  }
+);
+
+ReactFlowCanvasInner.displayName = "ReactFlowCanvasInner";
+
+/**
+ * ReactFlowCanvas Component (Wrapper)
+ *
+ * Wraps ReactFlowCanvasInner with ReactFlowProvider to enable useReactFlow hook
+ */
+const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
+  (props, ref) => {
+    return (
+      <ReactFlowProvider>
+        <ReactFlowCanvasInner {...props} ref={ref} />
+      </ReactFlowProvider>
     );
   }
 );

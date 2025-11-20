@@ -30,6 +30,7 @@ export default function Home() {
 
   // Prompt name dialog state
   const [isPromptNameDialogOpen, setIsPromptNameDialogOpen] = useState(false);
+  const [pendingPromptPosition, setPendingPromptPosition] = useState<{ x: number; y: number } | undefined>(undefined);
 
   // Context editor state
   const [isContextModalOpen, setIsContextModalOpen] = useState(false);
@@ -37,6 +38,7 @@ export default function Home() {
 
   // Context name dialog state
   const [isContextNameDialogOpen, setIsContextNameDialogOpen] = useState(false);
+  const [pendingContextPosition, setPendingContextPosition] = useState<{ x: number; y: number } | undefined>(undefined);
 
   // Load session on mount
   useEffect(() => {
@@ -186,8 +188,14 @@ export default function Home() {
   };
 
   const handleShowPromptNameDialog = () => {
+    setPendingPromptPosition(undefined);
     setIsPromptNameDialogOpen(true);
   };
+
+  const handleRequestPromptCreation = useCallback((position: { x: number; y: number }) => {
+    setPendingPromptPosition(position);
+    setIsPromptNameDialogOpen(true);
+  }, []);
 
   const handleCreatePrompt = async (promptName: string) => {
     if (!currentProjectPath) {
@@ -204,10 +212,11 @@ export default function Home() {
         canvasRef.current.addPromptNode({
           name: promptName,
           file_path: response.file_path,
-        });
+        }, pendingPromptPosition);
       }
 
       setIsPromptNameDialogOpen(false);
+      setPendingPromptPosition(undefined);
       setHasUnsavedChanges(true);
 
     } catch (error) {
@@ -218,6 +227,7 @@ export default function Home() {
 
   const handleCancelPromptCreation = () => {
     setIsPromptNameDialogOpen(false);
+    setPendingPromptPosition(undefined);
   };
 
   const handleOpenPromptEditor = async (promptId: string, promptName: string, filePath: string) => {
@@ -279,8 +289,14 @@ export default function Home() {
 
   // Context Handlers
   const handleShowContextNameDialog = () => {
+    setPendingContextPosition(undefined);
     setIsContextNameDialogOpen(true);
   };
+
+  const handleRequestContextCreation = useCallback((position: { x: number; y: number }) => {
+    setPendingContextPosition(position);
+    setIsContextNameDialogOpen(true);
+  }, []);
 
   const handleCreateContext = async (contextName: string) => {
     if (!currentProjectPath) {
@@ -297,10 +313,11 @@ export default function Home() {
         canvasRef.current.addContextNode({
           name: contextName,
           file_path: response.file_path,
-        });
+        }, pendingContextPosition);
       }
 
       setIsContextNameDialogOpen(false);
+      setPendingContextPosition(undefined);
       setHasUnsavedChanges(true);
 
     } catch (error) {
@@ -311,6 +328,7 @@ export default function Home() {
 
   const handleCancelContextCreation = () => {
     setIsContextNameDialogOpen(false);
+    setPendingContextPosition(undefined);
   };
 
   const handleOpenContextEditor = async (contextId: string, contextName: string, filePath: string) => {
@@ -425,6 +443,8 @@ export default function Home() {
               onWorkflowChange={handleWorkflowChange}
               onOpenPromptEditor={handleOpenPromptEditor}
               onOpenContextEditor={handleOpenContextEditor}
+              onRequestPromptCreation={handleRequestPromptCreation}
+              onRequestContextCreation={handleRequestContextCreation}
             />
           </div>
         </main>
