@@ -22,6 +22,7 @@ export default function Home() {
   // Project state
   const [currentProjectPath, setCurrentProjectPath] = useState<string | null>(null);
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
+  const [projectDialogMode, setProjectDialogMode] = useState<"create" | "load">("create");
   const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
@@ -152,6 +153,7 @@ export default function Home() {
   };
 
   const handleNewProject = () => {
+    setProjectDialogMode("create");
     if (hasUnsavedChanges) {
       setIsSaveConfirmOpen(true);
     } else {
@@ -160,6 +162,7 @@ export default function Home() {
   };
 
   const handleLoadProject = () => {
+    setProjectDialogMode("load");
     if (hasUnsavedChanges) {
       setIsSaveConfirmOpen(true);
     } else {
@@ -343,6 +346,7 @@ export default function Home() {
         isOpen={isProjectDialogOpen}
         onCreateNew={handleCreateNewProject}
         onLoadExisting={handleLoadExistingProject}
+        initialMode={projectDialogMode}
       />
 
       {/* Save Confirm Dialog */}

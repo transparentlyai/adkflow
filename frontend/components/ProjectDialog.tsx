@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PathPicker from "@/components/PathPicker";
 
 interface ProjectDialogProps {
@@ -8,6 +8,7 @@ interface ProjectDialogProps {
   onCreateNew: (projectPath: string) => void;
   onLoadExisting: (projectPath: string) => void;
   onClose?: () => void;
+  initialMode?: "create" | "load";
 }
 
 export default function ProjectDialog({
@@ -15,11 +16,18 @@ export default function ProjectDialog({
   onCreateNew,
   onLoadExisting,
   onClose,
+  initialMode = "create",
 }: ProjectDialogProps) {
-  const [mode, setMode] = useState<"create" | "load">("create");
+  const [mode, setMode] = useState<"create" | "load">(initialMode);
   const [projectPath, setProjectPath] = useState("");
   const [error, setError] = useState("");
   const [isPathPickerOpen, setIsPathPickerOpen] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode);
+    }
+  }, [isOpen, initialMode]);
 
   if (!isOpen) return null;
 

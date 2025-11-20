@@ -8,12 +8,6 @@ export interface MasterAgentNodeData {
   masterAgent: MasterAgent;
 }
 
-/**
- * MasterAgentNode Component
- *
- * React Flow custom node for MasterAgent type.
- * Displays master agent information and can contain agents as child nodes.
- */
 const MasterAgentNode = memo(({ data, selected }: NodeProps) => {
   const { masterAgent } = data as unknown as MasterAgentNodeData;
   const toolsCount = masterAgent.tools?.length || 0;
@@ -90,12 +84,10 @@ MasterAgentNode.displayName = "MasterAgentNode";
 
 export default MasterAgentNode;
 
-/**
- * Default master agent data for new nodes
- */
 export function getDefaultMasterAgentData(): Omit<MasterAgent, "id"> {
   return {
     name: "New Master Agent",
+    type: "masterAgent", // Added type property
     model: "gemini-2.0-flash-exp",
     system_prompt: "",
     tools: [],
