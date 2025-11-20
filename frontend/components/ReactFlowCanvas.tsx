@@ -23,19 +23,28 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import MasterAgentNode from "./nodes/MasterAgentNode";
+import SequentialAgentNode from "./nodes/SequentialAgentNode";
+import ParallelAgentNode from "./nodes/ParallelAgentNode";
+import LLMAgentNode from "./nodes/LLMAgentNode";
+import LoopAgentNode from "./nodes/LoopAgentNode";
 import AgentNode from "./nodes/AgentNode";
 import PromptNode from "./nodes/PromptNode";
 
 import { generateNodeId, workflowToReactFlow } from "@/lib/workflowHelpers";
-import { getDefaultMasterAgentData } from "./nodes/MasterAgentNode";
+import { getDefaultSequentialAgentData } from "./nodes/SequentialAgentNode";
+import { getDefaultParallelAgentData } from "./nodes/ParallelAgentNode";
+import { getDefaultLLMAgentData } from "./nodes/LLMAgentNode";
+import { getDefaultLoopAgentData } from "./nodes/LoopAgentNode";
 import { getDefaultAgentData } from "./nodes/AgentNode";
 import { getDefaultPromptData } from "./nodes/PromptNode";
-import type { MasterAgent, Agent, Prompt, Workflow } from "@/lib/types";
+import type { SequentialAgent, ParallelAgent, LLMAgent, LoopAgent, Agent, Prompt, Workflow } from "@/lib/types";
 
 // Register custom node types
 const nodeTypes = {
-  masterAgent: MasterAgentNode,
+  sequentialAgent: SequentialAgentNode,
+  parallelAgent: ParallelAgentNode,
+  llmAgent: LLMAgentNode,
+  loopAgent: LoopAgentNode,
   agent: AgentNode,
   prompt: PromptNode,
 } as any; // eslint-disable-line
@@ -46,7 +55,10 @@ interface ReactFlowCanvasProps {
 }
 
 export interface ReactFlowCanvasRef {
-  addMasterAgentNode: () => void;
+  addSequentialAgentNode: () => void;
+  addParallelAgentNode: () => void;
+  addLLMAgentNode: () => void;
+  addLoopAgentNode: () => void;
   addAgentNode: () => void;
   addPromptNode: (promptData?: { name: string; file_path: string }) => void;
   updatePromptNode: (promptId: string, content: string, filePath: string) => void;
@@ -69,9 +81,12 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
     const [edges, setEdges] = useState<Edge[]>([]);
 
     // Node position tracking for new nodes
-    const [masterAgentPosition, setMasterAgentPosition] = useState({ x: 150, y: 100 });
-    const [agentPosition, setAgentPosition] = useState({ x: 150, y: 250 });
-    const [promptPosition, setPromptPosition] = useState({ x: 150, y: 400 });
+    const [sequentialAgentPosition, setSequentialAgentPosition] = useState({ x: 150, y: 100 });
+    const [parallelAgentPosition, setParallelAgentPosition] = useState({ x: 150, y: 150 });
+    const [llmAgentPosition, setLLMAgentPosition] = useState({ x: 150, y: 200 });
+    const [loopAgentPosition, setLoopAgentPosition] = useState({ x: 150, y: 250 });
+    const [agentPosition, setAgentPosition] = useState({ x: 150, y: 300 });
+    const [promptPosition, setPromptPosition] = useState({ x: 150, y: 350 });
 
     const spacing = 350;
 
@@ -114,32 +129,49 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
             return;
           }
 
-          // Find selected nodes
+          // Find selected nodes and edges
           const selectedNodes = nodes.filter((node) => node.selected);
-          if (selectedNodes.length === 0) return;
+          const selectedEdges = edges.filter((edge) => edge.selected);
+
+          if (selectedNodes.length === 0 && selectedEdges.length === 0) return;
 
           event.preventDefault();
 
           // Confirm deletion
           const nodeCount = selectedNodes.length;
-          const message = nodeCount === 1
-            ? "Are you sure you want to delete this node?"
-            : `Are you sure you want to delete ${nodeCount} nodes?`;
+          const edgeCount = selectedEdges.length;
+
+          let message = "";
+          if (nodeCount > 0 && edgeCount > 0) {
+            message = `Are you sure you want to delete ${nodeCount} node${nodeCount !== 1 ? "s" : ""} and ${edgeCount} connection${edgeCount !== 1 ? "s" : ""}?`;
+          } else if (nodeCount > 0) {
+            message = nodeCount === 1
+              ? "Are you sure you want to delete this node?"
+              : `Are you sure you want to delete ${nodeCount} nodes?`;
+          } else {
+            message = edgeCount === 1
+              ? "Are you sure you want to delete this connection?"
+              : `Are you sure you want to delete ${edgeCount} connections?`;
+          }
 
           if (!confirm(message)) {
             return;
           }
 
-          // Get IDs of nodes to delete
+          // Get IDs of nodes and edges to delete
           const nodeIdsToDelete = selectedNodes.map((node) => node.id);
+          const edgeIdsToDelete = selectedEdges.map((edge) => edge.id);
 
           // Remove selected nodes
-          setNodes((nds) => nds.filter((node) => !nodeIdsToDelete.includes(node.id)));
+          if (nodeIdsToDelete.length > 0) {
+            setNodes((nds) => nds.filter((node) => !nodeIdsToDelete.includes(node.id)));
+          }
 
-          // Remove edges connected to deleted nodes
+          // Remove selected edges and edges connected to deleted nodes
           setEdges((eds) =>
             eds.filter(
               (edge) =>
+                !edgeIdsToDelete.includes(edge.id) &&
                 !nodeIdsToDelete.includes(edge.source) &&
                 !nodeIdsToDelete.includes(edge.target)
             )
@@ -149,28 +181,91 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
 
       window.addEventListener("keydown", handleKeyDown);
       return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [nodes]);
+    }, [nodes, edges]);
 
     /**
-     * Add a Master Agent node to the canvas
+     * Add a Sequential Agent node to the canvas
      */
-    const addMasterAgentNode = useCallback(() => {
-      const masterAgentId = generateNodeId("masterAgent");
-      const masterAgent: MasterAgent = {
-        id: masterAgentId,
-        ...getDefaultMasterAgentData(),
+    const addSequentialAgentNode = useCallback(() => {
+      const sequentialAgentId = generateNodeId("sequentialAgent");
+      const sequentialAgent: SequentialAgent = {
+        id: sequentialAgentId,
+        ...getDefaultSequentialAgentData(),
       };
 
       const newNode: Node = {
-        id: masterAgentId,
-        type: "masterAgent",
-        position: masterAgentPosition,
-        data: { masterAgent },
+        id: sequentialAgentId,
+        type: "sequentialAgent",
+        position: sequentialAgentPosition,
+        data: { sequentialAgent },
       };
 
       setNodes((nds) => [...nds, newNode]);
-      setMasterAgentPosition((pos) => ({ ...pos, x: pos.x + spacing }));
-    }, [masterAgentPosition]);
+      setSequentialAgentPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+    }, [sequentialAgentPosition]);
+
+    /**
+     * Add a Parallel Agent node to the canvas
+     */
+    const addParallelAgentNode = useCallback(() => {
+      const parallelAgentId = generateNodeId("parallelAgent");
+      const parallelAgent: ParallelAgent = {
+        id: parallelAgentId,
+        ...getDefaultParallelAgentData(),
+      };
+
+      const newNode: Node = {
+        id: parallelAgentId,
+        type: "parallelAgent",
+        position: parallelAgentPosition,
+        data: { parallelAgent },
+      };
+
+      setNodes((nds) => [...nds, newNode]);
+      setParallelAgentPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+    }, [parallelAgentPosition]);
+
+    /**
+     * Add an LLM Agent node to the canvas
+     */
+    const addLLMAgentNode = useCallback(() => {
+      const llmAgentId = generateNodeId("llmAgent");
+      const llmAgent: LLMAgent = {
+        id: llmAgentId,
+        ...getDefaultLLMAgentData(),
+      };
+
+      const newNode: Node = {
+        id: llmAgentId,
+        type: "llmAgent",
+        position: llmAgentPosition,
+        data: { llmAgent },
+      };
+
+      setNodes((nds) => [...nds, newNode]);
+      setLLMAgentPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+    }, [llmAgentPosition]);
+
+    /**
+     * Add a Loop Agent node to the canvas
+     */
+    const addLoopAgentNode = useCallback(() => {
+      const loopAgentId = generateNodeId("loopAgent");
+      const loopAgent: LoopAgent = {
+        id: loopAgentId,
+        ...getDefaultLoopAgentData(),
+      };
+
+      const newNode: Node = {
+        id: loopAgentId,
+        type: "loopAgent",
+        position: loopAgentPosition,
+        data: { loopAgent },
+      };
+
+      setNodes((nds) => [...nds, newNode]);
+      setLoopAgentPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+    }, [loopAgentPosition]);
 
     /**
      * Add an Agent node to the canvas
@@ -252,9 +347,12 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
       setNodes([]);
       setEdges([]);
       // Reset positions
-      setMasterAgentPosition({ x: 150, y: 100 });
-      setAgentPosition({ x: 150, y: 250 });
-      setPromptPosition({ x: 150, y: 400 });
+      setSequentialAgentPosition({ x: 150, y: 100 });
+      setParallelAgentPosition({ x: 150, y: 150 });
+      setLLMAgentPosition({ x: 150, y: 200 });
+      setLoopAgentPosition({ x: 150, y: 250 });
+      setAgentPosition({ x: 150, y: 300 });
+      setPromptPosition({ x: 150, y: 350 });
     }, []);
 
     /**
@@ -322,7 +420,10 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
 
     // Expose methods to parent via ref
     useImperativeHandle(ref, () => ({
-      addMasterAgentNode,
+      addSequentialAgentNode,
+      addParallelAgentNode,
+      addLLMAgentNode,
+      addLoopAgentNode,
       addAgentNode,
       addPromptNode,
       updatePromptNode,
@@ -335,6 +436,14 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
 
     return (
       <div className="w-full h-full" style={{ background: '#fafafa' }}>
+        <style>{`
+          .react-flow__edge.selected .react-flow__edge-path,
+          .react-flow__edge:focus .react-flow__edge-path,
+          .react-flow__edge:focus-visible .react-flow__edge-path {
+            stroke: #3b82f6 !important;
+            stroke-width: 3 !important;
+          }
+        `}</style>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -349,15 +458,25 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
           defaultEdgeOptions={{
             style: { strokeWidth: 2.5, stroke: '#64748b' },
             animated: false,
+            selectable: true,
           }}
+          edgesFocusable={true}
+          edgesReconnectable={false}
+          connectionLineStyle={{ strokeWidth: 2.5, stroke: '#64748b' }}
         >
           <Background color="#d1d5db" gap={16} />
           <Controls showInteractive={false} />
           <MiniMap
             nodeColor={(node) => {
               switch (node.type) {
-                case "masterAgent":
-                  return "#2563eb"; // blue-600
+                case "sequentialAgent":
+                  return "#ea580c"; // orange-600
+                case "parallelAgent":
+                  return "#0d9488"; // teal-600
+                case "llmAgent":
+                  return "#4f46e5"; // indigo-600
+                case "loopAgent":
+                  return "#db2777"; // pink-600
                 case "agent":
                   return "#9333ea"; // purple-600
                 case "prompt":

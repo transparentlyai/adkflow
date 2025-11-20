@@ -22,9 +22,24 @@ export default function Toolbar({
 }: ToolbarProps) {
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleAddMasterAgent = () => {
+  const handleAddSequentialAgent = () => {
     if (!hasProjectPath) return;
-    canvasRef.current?.addMasterAgentNode();
+    canvasRef.current?.addSequentialAgentNode();
+  };
+
+  const handleAddParallelAgent = () => {
+    if (!hasProjectPath) return;
+    canvasRef.current?.addParallelAgentNode();
+  };
+
+  const handleAddLLMAgent = () => {
+    if (!hasProjectPath) return;
+    canvasRef.current?.addLLMAgentNode();
+  };
+
+  const handleAddLoopAgent = () => {
+    if (!hasProjectPath) return;
+    canvasRef.current?.addLoopAgentNode();
   };
 
   const handleAddAgent = () => {
@@ -73,16 +88,48 @@ export default function Toolbar({
           </h3>
           <div className="space-y-1.5">
             <button
-              onClick={handleAddMasterAgent}
+              onClick={handleAddSequentialAgent}
               disabled={!hasProjectPath}
-              className="w-full px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
-              title={!hasProjectPath ? "Create or load a project first" : "Add Master Agent"}
+              className="w-full px-3 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              title={!hasProjectPath ? "Create or load a project first" : "Add Sequential Agent"}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <rect x="3" y="3" width="18" height="18" rx="2" strokeWidth="2"/>
-                <rect x="7" y="7" width="10" height="10" rx="1" strokeWidth="2"/>
+                <path strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
               </svg>
-              <span>Master Agent</span>
+              <span>Sequential Agent</span>
+            </button>
+            <button
+              onClick={handleAddParallelAgent}
+              disabled={!hasProjectPath}
+              className="w-full px-3 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              title={!hasProjectPath ? "Create or load a project first" : "Add Parallel Agent"}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeWidth="2" d="M8 7v10M12 7v10M16 7v10"/>
+              </svg>
+              <span>Parallel Agent</span>
+            </button>
+            <button
+              onClick={handleAddLLMAgent}
+              disabled={!hasProjectPath}
+              className="w-full px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              title={!hasProjectPath ? "Create or load a project first" : "Add LLM Agent"}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+              </svg>
+              <span>LLM Agent</span>
+            </button>
+            <button
+              onClick={handleAddLoopAgent}
+              disabled={!hasProjectPath}
+              className="w-full px-3 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              title={!hasProjectPath ? "Create or load a project first" : "Add Loop Agent"}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              <span>Loop Agent</span>
             </button>
             <button
               onClick={handleAddAgent}
