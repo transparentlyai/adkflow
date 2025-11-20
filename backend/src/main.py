@@ -29,6 +29,12 @@ app.add_middleware(
 app.include_router(api_router)
 
 
+@app.api_route("/", methods=["GET", "HEAD"])
+async def root() -> dict[str, str]:
+    """Root endpoint."""
+    return {"status": "ok", "service": "ADKFlow Backend API"}
+
+
 @app.get("/health")
 async def health_check() -> dict[str, str]:
     """
