@@ -27,9 +27,8 @@ const PromptNode = memo(({ data, selected }: NodeProps) => {
       {/* Prompt nodes have no input, only output */}
 
       {/* Header */}
-      <div className="bg-green-600 text-white p-3 rounded-t-lg">
-        <div className="font-semibold text-base">{prompt.name}</div>
-        <div className="text-xs opacity-90">Prompt</div>
+      <div className="bg-green-600 text-white px-3 py-1.5 rounded-t-lg">
+        <div className="font-semibold text-sm">{prompt.name}</div>
       </div>
 
       {/* Body */}
@@ -42,13 +41,14 @@ const PromptNode = memo(({ data, selected }: NodeProps) => {
         </div>
 
         {/* Edit Button */}
-        <div className="mt-3">
+        <div className="mt-2">
           <button
             onClick={(e) => {
               e.stopPropagation();
+              e.preventDefault();
               onEdit?.();
             }}
-            className="w-full bg-green-600 hover:bg-green-700 text-white text-sm py-2 px-3 rounded transition-colors"
+            className="nodrag nopan w-full bg-green-600 hover:bg-green-700 text-white text-xs py-1 px-2 rounded transition-colors"
           >
             Edit Prompt
           </button>
@@ -57,14 +57,14 @@ const PromptNode = memo(({ data, selected }: NodeProps) => {
 
       {/* Footer */}
       <div className="bg-gray-50 px-3 py-2 rounded-b-lg border-t border-gray-200">
-        <code className="text-xs text-gray-500 font-mono">{prompt.id}</code>
+        <span className="text-xs text-gray-500">Prompt</span>
       </div>
 
       {/* Output Handle */}
       <Handle
         type="source"
         position={Position.Right}
-        className="w-3 h-3 bg-green-500 border-2 border-white"
+        style={{ width: '12px', height: '12px', backgroundColor: '#22c55e', border: '2px solid white' }}
       />
     </div>
   );

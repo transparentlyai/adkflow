@@ -18,6 +18,7 @@ const MarkdownPreview = dynamic(
 export interface PromptData {
   id: string;
   content: string;
+  filePath: string;
   variables?: string[];
 }
 

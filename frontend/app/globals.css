@@ -45,3 +45,29 @@ body {
     text-wrap: balance;
   }
 }
+
+/* React Flow Controls - ensure dark icons on light background */
+.react-flow__controls-button {
+  background: white !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.react-flow__controls-button svg {
+  fill: #1e293b !important;
+  color: #1e293b !important;
+}
+
+.react-flow__controls-button:hover {
+  background: #f1f5f9 !important;
+}
+
+.react-flow__controls-button:hover svg {
+  fill: #0f172a !important;
+}
+
+/* Remove default React Flow node wrapper styling for group nodes */
+.react-flow__node-group {
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+}

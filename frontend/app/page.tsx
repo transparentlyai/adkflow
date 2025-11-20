@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import Toolbar from "@/components/Toolbar";
 import ReactFlowCanvas, { ReactFlowCanvasRef } from "@/components/ReactFlowCanvas";
 import PromptEditorModal, { PromptData } from "@/components/PromptEditorModal";
 import ProjectDialog from "@/components/ProjectDialog";
 import SaveConfirmDialog from "@/components/SaveConfirmDialog";
 import PromptNameDialog from "@/components/PromptNameDialog";
-import { loadProject, saveProject, createPrompt } from "@/lib/api";
+import { loadProject, saveProject, createPrompt, readPrompt, savePrompt } from "@/lib/api";
 import { reactFlowToWorkflow } from "@/lib/workflowHelpers";
+import { loadSession, saveSession } from "@/lib/sessionStorage";
 import type { Workflow } from "@/lib/types";
 import type { Node, Edge } from "@xyflow/react";
 
@@ -16,10 +17,11 @@ export default function Home() {
   const [workflowName, setWorkflowName] = useState("Untitled Workflow");
   const [currentWorkflow, setCurrentWorkflow] = useState<{ nodes: Node[]; edges: Edge[] } | null>(null);
   const canvasRef = useRef<ReactFlowCanvasRef>(null);
+  const [isSessionLoaded, setIsSessionLoaded] = useState(false);
 
   // Project state
   const [currentProjectPath, setCurrentProjectPath] = useState<string | null>(null);
-  const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(true);
+  const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
   const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
@@ -29,6 +31,44 @@ export default function Home() {
 
   // Prompt name dialog state
   const [isPromptNameDialogOpen, setIsPromptNameDialogOpen] = useState(false);
+
+  // Load session on mount
+  useEffect(() => {
+    const session = loadSession();
+    if (session && session.currentProjectPath) {
+      setCurrentProjectPath(session.currentProjectPath);
+      setWorkflowName(session.workflowName || "Untitled Workflow");
+      setHasUnsavedChanges(session.hasUnsavedChanges || false);
+
+      // Restore workflow to canvas
+      if (session.workflow) {
+        // We need to wait for the canvas to be ready
+        setTimeout(() => {
+          if (canvasRef.current && session.workflow) {
+            canvasRef.current.restoreFromSession(session.workflow);
+            setCurrentWorkflow(session.workflow);
+          }
+        }, 50);
+      }
+      setIsSessionLoaded(true);
+    } else {
+      // No session, show project dialog
+      setIsProjectDialogOpen(true);
+      setIsSessionLoaded(true);
+    }
+  }, []);
+
+  // Save session whenever relevant state changes
+  useEffect(() => {
+    if (isSessionLoaded && currentProjectPath) {
+      saveSession({
+        currentProjectPath,
+        workflowName,
+        workflow: currentWorkflow,
+        hasUnsavedChanges,
+      });
+    }
+  }, [isSessionLoaded, currentProjectPath, workflowName, currentWorkflow, hasUnsavedChanges]);
 
   const handleWorkflowChange = useCallback((data: { nodes: Node[]; edges: Edge[] }) => {
     setCurrentWorkflow(data);
@@ -121,7 +161,6 @@ export default function Home() {
 
   const handleLoadProject = () => {
     if (hasUnsavedChanges) {
-      // TODO: Show save confirmation before loading new project
       setIsSaveConfirmOpen(true);
     } else {
       setIsProjectDialogOpen(true);
@@ -157,10 +196,12 @@ export default function Home() {
       // Call backend to create the prompt file
       const response = await createPrompt(currentProjectPath, promptName);
 
-      // Add prompt node to canvas with file path
+      // Add prompt node to canvas with the file path and name
       if (canvasRef.current) {
-        // TODO: Update addPromptNode to accept prompt data
-        canvasRef.current.addPromptNode();
+        canvasRef.current.addPromptNode({
+          name: promptName,
+          file_path: response.file_path,
+        });
       }
 
       setIsPromptNameDialogOpen(false);
@@ -176,9 +217,28 @@ export default function Home() {
     setIsPromptNameDialogOpen(false);
   };
 
-  const handleOpenPromptEditor = (promptData: PromptData) => {
-    setCurrentPrompt(promptData);
-    setIsModalOpen(true);
+  const handleOpenPromptEditor = async (promptId: string, filePath: string) => {
+    if (!currentProjectPath) {
+      alert("No project loaded");
+      return;
+    }
+
+    try {
+      // Load prompt content from file
+      const response = await readPrompt(currentProjectPath, filePath);
+
+      const promptData: PromptData = {
+        id: promptId,
+        content: response.content,
+        filePath: filePath,
+      };
+
+      setCurrentPrompt(promptData);
+      setIsModalOpen(true);
+    } catch (error) {
+      console.error("Failed to load prompt:", error);
+      alert("Failed to load prompt: " + (error as Error).message);
+    }
   };
 
   const handleCloseModal = () => {
@@ -186,10 +246,30 @@ export default function Home() {
     setCurrentPrompt(null);
   };
 
-  const handleSavePrompt = (updatedPrompt: PromptData) => {
-    // With file-based prompts, the content is saved to files
-    // React Flow will automatically re-render when node data changes
-    setHasUnsavedChanges(true);
+  const handleSavePrompt = async (updatedPrompt: PromptData) => {
+    if (!currentProjectPath) {
+      alert("No project loaded");
+      return;
+    }
+
+    try {
+      // Save prompt content to file
+      await savePrompt(currentProjectPath, updatedPrompt.filePath, updatedPrompt.content);
+
+      // Update the prompt node in the canvas (if needed - currently just marks unsaved)
+      if (canvasRef.current) {
+        canvasRef.current.updatePromptNode(
+          updatedPrompt.id,
+          updatedPrompt.content,
+          updatedPrompt.filePath
+        );
+      }
+
+      setHasUnsavedChanges(true);
+    } catch (error) {
+      console.error("Failed to save prompt:", error);
+      alert("Failed to save prompt: " + (error as Error).message);
+    }
   };
 
   return (
@@ -244,9 +324,7 @@ export default function Home() {
             <ReactFlowCanvas
               ref={canvasRef}
               onWorkflowChange={handleWorkflowChange}
-              onOpenPromptEditor={(promptId: string) => {
-                // TODO: Load prompt file content and open editor
-              }}
+              onOpenPromptEditor={handleOpenPromptEditor}
             />
           </div>
         </main>

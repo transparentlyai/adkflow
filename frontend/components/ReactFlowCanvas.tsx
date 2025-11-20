@@ -23,37 +23,37 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
+import MasterAgentNode from "./nodes/MasterAgentNode";
 import AgentNode from "./nodes/AgentNode";
-import SubagentNode from "./nodes/SubagentNode";
 import PromptNode from "./nodes/PromptNode";
-import GroupNode from "./nodes/GroupNode";
 
 import { generateNodeId, workflowToReactFlow } from "@/lib/workflowHelpers";
+import { getDefaultMasterAgentData } from "./nodes/MasterAgentNode";
 import { getDefaultAgentData } from "./nodes/AgentNode";
-import { getDefaultSubagentData } from "./nodes/SubagentNode";
 import { getDefaultPromptData } from "./nodes/PromptNode";
-import type { Agent, Subagent, Prompt, Workflow } from "@/lib/types";
+import type { MasterAgent, Agent, Prompt, Workflow } from "@/lib/types";
 
 // Register custom node types
 const nodeTypes = {
+  masterAgent: MasterAgentNode,
   agent: AgentNode,
-  subagent: SubagentNode,
   prompt: PromptNode,
-  group: GroupNode,
 } as any; // eslint-disable-line
 
 interface ReactFlowCanvasProps {
   onWorkflowChange?: (data: { nodes: Node[]; edges: Edge[] }) => void;
-  onOpenPromptEditor?: (promptId: string) => void;
+  onOpenPromptEditor?: (promptId: string, filePath: string) => void;
 }
 
 export interface ReactFlowCanvasRef {
+  addMasterAgentNode: () => void;
   addAgentNode: () => void;
-  addSubagentNode: () => void;
-  addPromptNode: () => void;
+  addPromptNode: (promptData?: { name: string; file_path: string }) => void;
+  updatePromptNode: (promptId: string, content: string, filePath: string) => void;
   clearCanvas: () => void;
   exportToWorkflow: () => { nodes: Node[]; edges: Edge[] };
   importFromWorkflow: (workflow: Workflow) => void;
+  restoreFromSession: (data: { nodes: Node[]; edges: Edge[] }) => void;
   getDrawflowData: () => { nodes: Node[]; edges: Edge[] };
 }
 
@@ -69,8 +69,8 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
     const [edges, setEdges] = useState<Edge[]>([]);
 
     // Node position tracking for new nodes
-    const [agentPosition, setAgentPosition] = useState({ x: 150, y: 100 });
-    const [subagentPosition, setSubagentPosition] = useState({ x: 150, y: 250 });
+    const [masterAgentPosition, setMasterAgentPosition] = useState({ x: 150, y: 100 });
+    const [agentPosition, setAgentPosition] = useState({ x: 150, y: 250 });
     const [promptPosition, setPromptPosition] = useState({ x: 150, y: 400 });
 
     const spacing = 350;
@@ -103,6 +103,75 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
       }
     }, [nodes, edges, onWorkflowChange]);
 
+    // Handle keyboard shortcuts (Delete key)
+    useEffect(() => {
+      const handleKeyDown = (event: KeyboardEvent) => {
+        // Delete or Backspace key
+        if (event.key === "Delete" || event.key === "Backspace") {
+          // Check if user is not typing in an input field
+          const target = event.target as HTMLElement;
+          if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+            return;
+          }
+
+          // Find selected nodes
+          const selectedNodes = nodes.filter((node) => node.selected);
+          if (selectedNodes.length === 0) return;
+
+          event.preventDefault();
+
+          // Confirm deletion
+          const nodeCount = selectedNodes.length;
+          const message = nodeCount === 1
+            ? "Are you sure you want to delete this node?"
+            : `Are you sure you want to delete ${nodeCount} nodes?`;
+
+          if (!confirm(message)) {
+            return;
+          }
+
+          // Get IDs of nodes to delete
+          const nodeIdsToDelete = selectedNodes.map((node) => node.id);
+
+          // Remove selected nodes
+          setNodes((nds) => nds.filter((node) => !nodeIdsToDelete.includes(node.id)));
+
+          // Remove edges connected to deleted nodes
+          setEdges((eds) =>
+            eds.filter(
+              (edge) =>
+                !nodeIdsToDelete.includes(edge.source) &&
+                !nodeIdsToDelete.includes(edge.target)
+            )
+          );
+        }
+      };
+
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [nodes]);
+
+    /**
+     * Add a Master Agent node to the canvas
+     */
+    const addMasterAgentNode = useCallback(() => {
+      const masterAgentId = generateNodeId("masterAgent");
+      const masterAgent: MasterAgent = {
+        id: masterAgentId,
+        ...getDefaultMasterAgentData(),
+      };
+
+      const newNode: Node = {
+        id: masterAgentId,
+        type: "masterAgent",
+        position: masterAgentPosition,
+        data: { masterAgent },
+      };
+
+      setNodes((nds) => [...nds, newNode]);
+      setMasterAgentPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+    }, [masterAgentPosition]);
+
     /**
      * Add an Agent node to the canvas
      */
@@ -125,34 +194,13 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
     }, [agentPosition]);
 
     /**
-     * Add a Subagent node to the canvas
-     */
-    const addSubagentNode = useCallback(() => {
-      const subagentId = generateNodeId("subagent");
-      const subagent: Subagent = {
-        id: subagentId,
-        ...getDefaultSubagentData(),
-      };
-
-      const newNode: Node = {
-        id: subagentId,
-        type: "subagent",
-        position: subagentPosition,
-        data: { subagent },
-      };
-
-      setNodes((nds) => [...nds, newNode]);
-      setSubagentPosition((pos) => ({ ...pos, x: pos.x + spacing }));
-    }, [subagentPosition]);
-
-    /**
      * Add a Prompt node to the canvas
      */
-    const addPromptNode = useCallback(() => {
+    const addPromptNode = useCallback((promptData?: { name: string; file_path: string }) => {
       const promptId = generateNodeId("prompt");
       const prompt: Prompt = {
         id: promptId,
-        ...getDefaultPromptData(),
+        ...(promptData || getDefaultPromptData()),
       };
 
       const newNode: Node = {
@@ -163,7 +211,7 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
           prompt,
           onEdit: () => {
             if (onOpenPromptEditor) {
-              onOpenPromptEditor(promptId);
+              onOpenPromptEditor(promptId, prompt.file_path);
             }
           },
         },
@@ -173,6 +221,30 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
       setPromptPosition((pos) => ({ ...pos, x: pos.x + spacing }));
     }, [promptPosition, onOpenPromptEditor]);
 
+
+    /**
+     * Update a Prompt node's data
+     */
+    const updatePromptNode = useCallback((promptId: string, content: string, filePath: string) => {
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.id === promptId && node.type === "prompt" && node.data.prompt) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                prompt: {
+                  ...node.data.prompt,
+                  file_path: filePath,
+                },
+              },
+            };
+          }
+          return node;
+        })
+      );
+    }, []);
+
     /**
      * Clear the canvas
      */
@@ -180,8 +252,8 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
       setNodes([]);
       setEdges([]);
       // Reset positions
-      setAgentPosition({ x: 150, y: 100 });
-      setSubagentPosition({ x: 150, y: 250 });
+      setMasterAgentPosition({ x: 150, y: 100 });
+      setAgentPosition({ x: 150, y: 250 });
       setPromptPosition({ x: 150, y: 400 });
     }, []);
 
@@ -201,13 +273,14 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
       // Set the onEdit handler for prompt nodes
       const updatedNodes = importedNodes.map((node) => {
         if (node.type === "prompt" && node.data.prompt) {
+          const prompt = node.data.prompt as Prompt;
           return {
             ...node,
             data: {
               ...node.data,
               onEdit: () => {
                 if (onOpenPromptEditor) {
-                  onOpenPromptEditor(node.id);
+                  onOpenPromptEditor(node.id, prompt.file_path);
                 }
               },
             },
@@ -220,19 +293,48 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
       setEdges(importedEdges);
     }, [onOpenPromptEditor]);
 
+    /**
+     * Restore session data directly (already in React Flow format)
+     */
+    const restoreFromSession = useCallback((data: { nodes: Node[]; edges: Edge[] }) => {
+      // Set the onEdit handler for prompt nodes
+      const updatedNodes = data.nodes.map((node) => {
+        if (node.type === "prompt" && node.data.prompt) {
+          const prompt = node.data.prompt as Prompt;
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              onEdit: () => {
+                if (onOpenPromptEditor) {
+                  onOpenPromptEditor(node.id, prompt.file_path);
+                }
+              },
+            },
+          };
+        }
+        return node;
+      });
+
+      setNodes(updatedNodes);
+      setEdges(data.edges);
+    }, [onOpenPromptEditor]);
+
     // Expose methods to parent via ref
     useImperativeHandle(ref, () => ({
+      addMasterAgentNode,
       addAgentNode,
-      addSubagentNode,
       addPromptNode,
+      updatePromptNode,
       clearCanvas,
       exportToWorkflow,
       importFromWorkflow,
+      restoreFromSession,
       getDrawflowData: exportToWorkflow,
     }));
 
     return (
-      <div className="w-full h-full">
+      <div className="w-full h-full" style={{ background: '#fafafa' }}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -240,23 +342,26 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           nodeTypes={nodeTypes}
+          colorMode="light"
           fitView
           attributionPosition="bottom-left"
-          className="bg-gray-50"
+          style={{ background: '#fafafa' }}
+          defaultEdgeOptions={{
+            style: { strokeWidth: 2.5, stroke: '#64748b' },
+            animated: false,
+          }}
         >
-          <Background />
-          <Controls />
+          <Background color="#d1d5db" gap={16} />
+          <Controls showInteractive={false} />
           <MiniMap
             nodeColor={(node) => {
               switch (node.type) {
-                case "agent":
+                case "masterAgent":
                   return "#2563eb"; // blue-600
-                case "subagent":
+                case "agent":
                   return "#9333ea"; // purple-600
                 case "prompt":
                   return "#16a34a"; // green-600
-                case "group":
-                  return "#3b82f6"; // blue-500
                 default:
                   return "#6b7280"; // gray-500
               }

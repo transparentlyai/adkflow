@@ -97,6 +97,37 @@ class PromptCreateResponse(BaseModel):
     message: str
 
 
+class PromptReadRequest(BaseModel):
+    """Request model for reading a prompt file."""
+
+    project_path: str
+    file_path: str
+
+
+class PromptReadResponse(BaseModel):
+    """Response model for prompt file read."""
+
+    success: bool
+    content: str
+    file_path: str
+
+
+class PromptSaveRequest(BaseModel):
+    """Request model for saving a prompt file."""
+
+    project_path: str
+    file_path: str
+    content: str
+
+
+class PromptSaveResponse(BaseModel):
+    """Response model for prompt file save."""
+
+    success: bool
+    file_path: str
+    message: str
+
+
 class DirectoryEntry(BaseModel):
     """Model for a directory entry."""
 
@@ -470,6 +501,110 @@ async def create_prompt_file(request: PromptCreateRequest) -> PromptCreateRespon
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create prompt file: {str(e)}"
+        )
+
+
+@router.post("/project/prompt/read", response_model=PromptReadResponse)
+async def read_prompt_file(request: PromptReadRequest) -> PromptReadResponse:
+    """
+    Read the content of a prompt markdown file.
+
+    Args:
+        request: Prompt read request with project path and file path
+
+    Returns:
+        PromptReadResponse with file content
+
+    Raises:
+        HTTPException: If file read fails
+    """
+    try:
+        # Validate and normalize project path
+        project_path = Path(request.project_path).resolve()
+
+        # Construct full file path
+        prompt_file = project_path / request.file_path
+
+        # Validate file exists
+        if not prompt_file.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Prompt file not found: {request.file_path}"
+            )
+
+        # Read file content
+        with open(prompt_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        return PromptReadResponse(
+            success=True,
+            content=content,
+            file_path=request.file_path
+        )
+
+    except HTTPException:
+        raise
+    except PermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Permission denied: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to read prompt file: {str(e)}"
+        )
+
+
+@router.post("/project/prompt/save", response_model=PromptSaveResponse)
+async def save_prompt_file(request: PromptSaveRequest) -> PromptSaveResponse:
+    """
+    Save content to a prompt markdown file.
+
+    Args:
+        request: Prompt save request with project path, file path, and content
+
+    Returns:
+        PromptSaveResponse with success status
+
+    Raises:
+        HTTPException: If file save fails
+    """
+    try:
+        # Validate and normalize project path
+        project_path = Path(request.project_path).resolve()
+
+        # Construct full file path
+        prompt_file = project_path / request.file_path
+
+        # Validate file exists
+        if not prompt_file.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Prompt file not found: {request.file_path}"
+            )
+
+        # Write content to file
+        with open(prompt_file, 'w', encoding='utf-8') as f:
+            f.write(request.content)
+
+        return PromptSaveResponse(
+            success=True,
+            file_path=request.file_path,
+            message=f"Prompt file saved: {request.file_path}"
+        )
+
+    except HTTPException:
+        raise
+    except PermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Permission denied: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save prompt file: {str(e)}"
         )
 
 
