@@ -1,22 +1,63 @@
 "use client";
 
-import { memo } from "react";
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { memo, useState, useRef, useEffect } from "react";
+import { Handle, Position, type NodeProps, useReactFlow } from "@xyflow/react";
 import type { Agent } from "@/lib/types";
 
 export interface AgentNodeData {
   agent: Agent;
 }
 
-/**
- * AgentNode Component
- *
- * React Flow custom node for Agent type.
- * Can be used standalone or as a child of a MasterAgent node.
- */
-const AgentNode = memo(({ data, selected }: NodeProps) => {
+const AgentNode = memo(({ data, id, selected }: NodeProps) => {
   const { agent } = data as unknown as AgentNodeData;
   const toolsCount = agent.tools?.length || 0;
+  const { setNodes } = useReactFlow();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedName, setEditedName] = useState(agent.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleDoubleClick = () => {
+    setIsEditing(true);
+    setEditedName(agent.name);
+  };
+
+  const handleSave = () => {
+    if (editedName.trim()) {
+      setNodes((nodes) =>
+        nodes.map((node) =>
+          node.id === id
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  agent: {
+                    ...agent,
+                    name: editedName.trim(),
+                  },
+                },
+              }
+            : node
+        )
+      );
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSave();
+    } else if (e.key === "Escape") {
+      setEditedName(agent.name);
+      setIsEditing(false);
+    }
+  };
 
   return (
     <div
@@ -33,7 +74,24 @@ const AgentNode = memo(({ data, selected }: NodeProps) => {
 
       {/* Header */}
       <div className="bg-purple-600 text-white px-3 py-1.5 rounded-t-lg">
-        <div className="font-semibold text-sm">{agent.name}</div>
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={editedName}
+            onChange={(e) => setEditedName(e.target.value)}
+            onBlur={handleSave}
+            onKeyDown={handleKeyDown}
+            className="w-full bg-white text-gray-900 px-2 py-0.5 rounded text-sm font-semibold outline-none"
+          />
+        ) : (
+          <div
+            className="font-semibold text-sm cursor-pointer hover:opacity-80"
+            onDoubleClick={handleDoubleClick}
+          >
+            {agent.name}
+          </div>
+        )}
       </div>
 
       {/* Body */}

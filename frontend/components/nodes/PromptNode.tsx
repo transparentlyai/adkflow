@@ -1,7 +1,7 @@
 "use client";
 
-import { memo } from "react";
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { memo, useState, useRef, useEffect } from "react";
+import { Handle, Position, type NodeProps, useReactFlow } from "@xyflow/react";
 import type { Prompt } from "@/lib/types";
 
 export interface PromptNodeData {
@@ -9,14 +9,55 @@ export interface PromptNodeData {
   onEdit?: () => void;
 }
 
-/**
- * PromptNode Component
- *
- * React Flow custom node for Prompt type.
- * Displays prompt file information with an edit button.
- */
-const PromptNode = memo(({ data, selected }: NodeProps) => {
+const PromptNode = memo(({ data, id, selected }: NodeProps) => {
   const { prompt, onEdit } = data as unknown as PromptNodeData;
+  const { setNodes } = useReactFlow();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedName, setEditedName] = useState(prompt.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleDoubleClick = () => {
+    setIsEditing(true);
+    setEditedName(prompt.name);
+  };
+
+  const handleSave = () => {
+    if (editedName.trim()) {
+      setNodes((nodes) =>
+        nodes.map((node) =>
+          node.id === id
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  prompt: {
+                    ...prompt,
+                    name: editedName.trim(),
+                  },
+                },
+              }
+            : node
+        )
+      );
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSave();
+    } else if (e.key === "Escape") {
+      setEditedName(prompt.name);
+      setIsEditing(false);
+    }
+  };
 
   return (
     <div
@@ -28,7 +69,24 @@ const PromptNode = memo(({ data, selected }: NodeProps) => {
 
       {/* Header */}
       <div className="bg-green-600 text-white px-3 py-1.5 rounded-t-lg">
-        <div className="font-semibold text-sm">{prompt.name}</div>
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={editedName}
+            onChange={(e) => setEditedName(e.target.value)}
+            onBlur={handleSave}
+            onKeyDown={handleKeyDown}
+            className="w-full bg-white text-gray-900 px-2 py-0.5 rounded text-sm font-semibold outline-none"
+          />
+        ) : (
+          <div
+            className="font-semibold text-sm cursor-pointer hover:opacity-80"
+            onDoubleClick={handleDoubleClick}
+          >
+            {prompt.name}
+          </div>
+        )}
       </div>
 
       {/* Body */}
