@@ -37,6 +37,7 @@ import AgentToolNode from "./nodes/AgentToolNode";
 import VariableNode from "./nodes/VariableNode";
 
 import { generateNodeId } from "@/lib/workflowHelpers";
+import CanvasContextMenu, { type NodeTypeOption } from "./CanvasContextMenu";
 import { getDefaultGroupData } from "./nodes/GroupNode";
 import { getDefaultAgentData } from "./nodes/AgentNode";
 import { getDefaultPromptData } from "./nodes/PromptNode";
@@ -98,6 +99,9 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     const [edges, setEdges] = useState<Edge[]>([]);
     const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
     const { screenToFlowPosition } = useReactFlow();
+
+    // Context menu state
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; flowPosition: { x: number; y: number }; parentGroupId?: string } | null>(null);
 
     // Node position tracking for new nodes
     const [groupPosition, setGroupPosition] = useState({ x: 150, y: 100 });
@@ -577,6 +581,128 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       addAgentToolNode,
     ]);
 
+    // Handle right-click on canvas pane
+    const onPaneContextMenu = useCallback((event: MouseEvent | React.MouseEvent) => {
+      event.preventDefault();
+      const flowPosition = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      setContextMenu({ x: event.clientX, y: event.clientY, flowPosition });
+    }, [screenToFlowPosition]);
+
+    // Handle right-click on a node (specifically for groups)
+    const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
+      if (node.type !== 'group') return;
+
+      event.preventDefault();
+      const flowPosition = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      // Store position relative to the group
+      const relativePosition = {
+        x: flowPosition.x - node.position.x,
+        y: flowPosition.y - node.position.y,
+      };
+      setContextMenu({ x: event.clientX, y: event.clientY, flowPosition: relativePosition, parentGroupId: node.id });
+    }, [screenToFlowPosition]);
+
+    // Helper to add node with optional parent
+    const addNodeWithParent = useCallback((
+      addFn: (position?: { x: number; y: number }) => void,
+      position: { x: number; y: number },
+      parentGroupId?: string
+    ) => {
+      addFn(position);
+      if (parentGroupId) {
+        // After adding, set the parent for the most recently added node
+        setNodes((nds) => {
+          const lastNode = nds[nds.length - 1];
+          if (lastNode && lastNode.type !== 'group') {
+            const updatedNode = {
+              ...lastNode,
+              parentId: parentGroupId,
+              extent: 'parent' as const,
+            };
+            // Reorder: parents must come before children
+            const otherNodes = nds.slice(0, -1);
+            const parentIndex = otherNodes.findIndex(n => n.id === parentGroupId);
+            if (parentIndex !== -1) {
+              return [
+                ...otherNodes.slice(0, parentIndex + 1),
+                updatedNode,
+                ...otherNodes.slice(parentIndex + 1),
+              ];
+            }
+            return [...otherNodes, updatedNode];
+          }
+          return nds;
+        });
+      }
+    }, []);
+
+    // Handle context menu node selection
+    const onContextMenuSelect = useCallback((nodeType: NodeTypeOption) => {
+      if (!contextMenu) return;
+
+      const position = contextMenu.flowPosition;
+      const parentGroupId = contextMenu.parentGroupId;
+
+      // Don't allow adding groups inside groups
+      if (nodeType === 'group' && parentGroupId) {
+        setContextMenu(null);
+        return;
+      }
+
+      switch (nodeType) {
+        case 'variable':
+          addNodeWithParent(addVariableNode, position, parentGroupId);
+          break;
+        case 'group':
+          addGroupNode(position);
+          break;
+        case 'agent':
+          addNodeWithParent(addAgentNode, position, parentGroupId);
+          break;
+        case 'prompt':
+          if (onRequestPromptCreation) {
+            onRequestPromptCreation(position);
+          }
+          break;
+        case 'context':
+          if (onRequestContextCreation) {
+            onRequestContextCreation(position);
+          }
+          break;
+        case 'inputProbe':
+          addNodeWithParent(addInputProbeNode, position, parentGroupId);
+          break;
+        case 'outputProbe':
+          addNodeWithParent(addOutputProbeNode, position, parentGroupId);
+          break;
+        case 'tool':
+          addNodeWithParent(addToolNode, position, parentGroupId);
+          break;
+        case 'agentTool':
+          addNodeWithParent(addAgentToolNode, position, parentGroupId);
+          break;
+      }
+
+      setContextMenu(null);
+    }, [
+      contextMenu,
+      addNodeWithParent,
+      addVariableNode,
+      addGroupNode,
+      addAgentNode,
+      addInputProbeNode,
+      addOutputProbeNode,
+      addToolNode,
+      addAgentToolNode,
+      onRequestPromptCreation,
+      onRequestContextCreation,
+    ]);
+
+    // Close context menu
+    const closeContextMenu = useCallback(() => {
+      setContextMenu(null);
+    }, []);
+
     /**
      * Update a Prompt node's data
      */
@@ -745,6 +871,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           onInit={setRfInstance}
           onDrop={onDrop}
           onDragOver={onDragOver}
+          onPaneContextMenu={onPaneContextMenu}
+          onNodeContextMenu={onNodeContextMenu}
           nodeTypes={nodeTypes}
           colorMode="light"
           fitView
@@ -789,6 +917,15 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             maskColor="rgba(0, 0, 0, 0.1)"
           />
         </ReactFlow>
+        {contextMenu && (
+          <CanvasContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            onSelect={onContextMenuSelect}
+            onClose={closeContextMenu}
+            insideGroup={!!contextMenu.parentGroupId}
+          />
+        )}
       </div>
     );
   }

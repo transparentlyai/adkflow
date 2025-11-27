@@ -429,8 +429,6 @@ export default function Home() {
           canvasRef={canvasRef}
           onSaveProject={handleSaveCurrentProject}
           onLoadProject={handleLoadProject}
-          onAddPrompt={handleShowPromptNameDialog}
-          onAddContext={handleShowContextNameDialog}
           hasProjectPath={!!currentProjectPath}
         />
 
