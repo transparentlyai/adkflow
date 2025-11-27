@@ -427,7 +427,6 @@ export default function Home() {
         {/* Toolbar */}
         <Toolbar
           canvasRef={canvasRef}
-          workflowName={workflowName}
           onSaveProject={handleSaveCurrentProject}
           onLoadProject={handleLoadProject}
           onAddPrompt={handleShowPromptNameDialog}

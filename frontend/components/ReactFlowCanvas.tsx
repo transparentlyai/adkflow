@@ -26,10 +26,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import SequentialAgentNode from "./nodes/SequentialAgentNode";
 import GroupNode from "./nodes/GroupNode";
-import LLMAgentNode from "./nodes/LLMAgentNode";
-import LoopAgentNode from "./nodes/LoopAgentNode";
 import AgentNode from "./nodes/AgentNode";
 import PromptNode from "./nodes/PromptNode";
 import ContextNode from "./nodes/ContextNode";
@@ -40,10 +37,7 @@ import AgentToolNode from "./nodes/AgentToolNode";
 import VariableNode from "./nodes/VariableNode";
 
 import { generateNodeId } from "@/lib/workflowHelpers";
-import { getDefaultSequentialAgentData } from "./nodes/SequentialAgentNode";
 import { getDefaultGroupData } from "./nodes/GroupNode";
-import { getDefaultLLMAgentData } from "./nodes/LLMAgentNode";
-import { getDefaultLoopAgentData } from "./nodes/LoopAgentNode";
 import { getDefaultAgentData } from "./nodes/AgentNode";
 import { getDefaultPromptData } from "./nodes/PromptNode";
 import { getDefaultContextData } from "./nodes/ContextNode";
@@ -52,14 +46,11 @@ import { getDefaultOutputProbeData } from "./nodes/OutputProbeNode";
 import { getDefaultToolData } from "./nodes/ToolNode";
 import { getDefaultAgentToolData } from "./nodes/AgentToolNode";
 import { getDefaultVariableData } from "./nodes/VariableNode";
-import type { SequentialAgent, LLMAgent, LoopAgent, Agent, Prompt } from "@/lib/types";
+import type { Agent, Prompt } from "@/lib/types";
 
 // Register custom node types
 const nodeTypes = {
-  sequentialAgent: SequentialAgentNode,
   group: GroupNode,
-  llmAgent: LLMAgentNode,
-  loopAgent: LoopAgentNode,
   agent: AgentNode,
   prompt: PromptNode,
   context: ContextNode,
@@ -79,10 +70,7 @@ interface ReactFlowCanvasProps {
 }
 
 export interface ReactFlowCanvasRef {
-  addSequentialAgentNode: (position?: { x: number; y: number }) => void;
   addGroupNode: (position?: { x: number; y: number }) => void;
-  addLLMAgentNode: (position?: { x: number; y: number }) => void;
-  addLoopAgentNode: (position?: { x: number; y: number }) => void;
   addAgentNode: (position?: { x: number; y: number }) => void;
   addPromptNode: (promptData?: { name: string; file_path: string }, position?: { x: number; y: number }) => void;
   addContextNode: (contextData?: { name: string; file_path: string }, position?: { x: number; y: number }) => void;
@@ -112,11 +100,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     const { screenToFlowPosition } = useReactFlow();
 
     // Node position tracking for new nodes
-    const [sequentialAgentPosition, setSequentialAgentPosition] = useState({ x: 150, y: 100 });
-    const [groupPosition, setGroupPosition] = useState({ x: 150, y: 150 });
-    const [llmAgentPosition, setLLMAgentPosition] = useState({ x: 150, y: 200 });
-    const [loopAgentPosition, setLoopAgentPosition] = useState({ x: 150, y: 250 });
-    const [agentPosition, setAgentPosition] = useState({ x: 150, y: 300 });
+    const [groupPosition, setGroupPosition] = useState({ x: 150, y: 100 });
+    const [agentPosition, setAgentPosition] = useState({ x: 150, y: 150 });
     const [promptPosition, setPromptPosition] = useState({ x: 150, y: 350 });
     const [contextPosition, setContextPosition] = useState({ x: 150, y: 400 });
     const [inputProbePosition, setInputProbePosition] = useState({ x: 150, y: 450 });
@@ -145,7 +130,25 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
     // Handle new connections
     const onConnect = useCallback((params: Connection) => {
-      setEdges((eds) => addEdge(params, eds));
+      // Check if this is a link connection (from link handles)
+      const isLinkConnection =
+        params.sourceHandle?.startsWith('link-') &&
+        params.targetHandle?.startsWith('link-');
+
+      if (isLinkConnection) {
+        // Gray dotted edge for link connections between agents
+        const edgeWithStyle = {
+          ...params,
+          type: 'default',
+          style: { strokeWidth: 2, stroke: '#9ca3af', strokeDasharray: '5 5' },
+        };
+        setEdges((eds) => addEdge(edgeWithStyle, eds));
+      } else if (params.sourceHandle?.startsWith('link-') || params.targetHandle?.startsWith('link-')) {
+        // Prevent mixing link handles with regular handles
+        return;
+      } else {
+        setEdges((eds) => addEdge(params, eds));
+      }
     }, []);
 
     // Auto-parent/detach nodes from Group on drag stop
@@ -312,29 +315,6 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       return () => window.removeEventListener("keydown", handleKeyDown);
     }, [nodes, edges]);
 
-    /**
-     * Add a Sequential Agent node to the canvas
-     */
-    const addSequentialAgentNode = useCallback((position?: { x: number; y: number }) => {
-      const sequentialAgentId = generateNodeId("sequentialAgent");
-      const sequentialAgent: SequentialAgent = {
-        id: sequentialAgentId,
-        ...getDefaultSequentialAgentData(),
-      } as SequentialAgent;
-
-      const newNode: Node = {
-        id: sequentialAgentId,
-        type: "sequentialAgent",
-        position: position || sequentialAgentPosition,
-        data: { sequentialAgent },
-      };
-
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setSequentialAgentPosition((pos) => ({ ...pos, x: pos.x + spacing }));
-      }
-    }, [sequentialAgentPosition]);
-
     const addGroupNode = useCallback((position?: { x: number; y: number }) => {
       const groupId = generateNodeId("group");
 
@@ -352,50 +332,6 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         setGroupPosition((pos) => ({ ...pos, x: pos.x + spacing }));
       }
     }, [groupPosition]);
-
-    /**
-     * Add an LLM Agent node to the canvas
-     */
-    const addLLMAgentNode = useCallback((position?: { x: number; y: number }) => {
-      const llmAgentId = generateNodeId("llmAgent");
-      const llmAgent: LLMAgent = {
-        id: llmAgentId,
-        ...getDefaultLLMAgentData(),
-      } as LLMAgent;
-
-      const newNode: Node = {
-        id: llmAgentId,
-        type: "llmAgent",
-        position: position || llmAgentPosition,
-        data: { llmAgent },
-      };
-
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setLLMAgentPosition((pos) => ({ ...pos, x: pos.x + spacing }));
-      }
-    }, [llmAgentPosition]);
-
-    /**
-     * Add a Loop Agent node to the canvas
-     */
-    const addLoopAgentNode = useCallback((position?: { x: number; y: number }) => {
-      const loopAgentId = generateNodeId("loopAgent");
-      const loopAgent: LoopAgent = {
-        id: loopAgentId,
-        ...getDefaultLoopAgentData(),
-      } as LoopAgent;
-
-      const newNode: Node = {
-        id: loopAgentId,
-        type: "loopAgent",
-        position: loopAgentPosition,
-        data: { loopAgent },
-      };
-
-      setNodes((nds) => [...nds, newNode]);
-      setLoopAgentPosition((pos) => ({ ...pos, x: pos.x + spacing }));
-    }, [loopAgentPosition]);
 
     /**
      * Add an Agent node to the canvas
@@ -609,17 +545,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         case 'variable':
           addVariableNode(position);
           break;
-        case 'sequentialAgent':
-          addSequentialAgentNode(position);
-          break;
         case 'group':
           addGroupNode(position);
-          break;
-        case 'llmAgent':
-          addLLMAgentNode(position);
-          break;
-        case 'loopAgent':
-          addLoopAgentNode(position);
           break;
         case 'agent':
           addAgentNode(position);
@@ -642,10 +569,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       onRequestPromptCreation,
       onRequestContextCreation,
       addVariableNode,
-      addSequentialAgentNode,
       addGroupNode,
-      addLLMAgentNode,
-      addLoopAgentNode,
       addAgentNode,
       addInputProbeNode,
       addOutputProbeNode,
@@ -708,18 +632,15 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       setNodes([]);
       setEdges([]);
       // Reset positions
-      setSequentialAgentPosition({ x: 150, y: 100 });
-      setGroupPosition({ x: 150, y: 150 });
-      setLLMAgentPosition({ x: 150, y: 200 });
-      setLoopAgentPosition({ x: 150, y: 250 });
-      setAgentPosition({ x: 150, y: 300 });
-      setPromptPosition({ x: 150, y: 350 });
-      setContextPosition({ x: 150, y: 400 });
-      setInputProbePosition({ x: 150, y: 450 });
-      setOutputProbePosition({ x: 150, y: 500 });
-      setToolPosition({ x: 150, y: 550 });
-      setAgentToolPosition({ x: 150, y: 600 });
-      setVariablePosition({ x: 150, y: 650 });
+      setGroupPosition({ x: 150, y: 100 });
+      setAgentPosition({ x: 150, y: 150 });
+      setPromptPosition({ x: 150, y: 200 });
+      setContextPosition({ x: 150, y: 250 });
+      setInputProbePosition({ x: 150, y: 300 });
+      setOutputProbePosition({ x: 150, y: 350 });
+      setToolPosition({ x: 150, y: 400 });
+      setAgentToolPosition({ x: 150, y: 450 });
+      setVariablePosition({ x: 150, y: 500 });
     }, []);
 
     /**
@@ -783,10 +704,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
     // Expose methods to parent via ref
     useImperativeHandle(ref, () => ({
-      addSequentialAgentNode,
       addGroupNode,
-      addLLMAgentNode,
-      addLoopAgentNode,
       addAgentNode,
       addPromptNode,
       addContextNode,
@@ -841,14 +759,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           <MiniMap
             nodeColor={(node) => {
               switch (node.type) {
-                case "sequentialAgent":
-                  return "#ea580c"; // orange-600
                 case "group":
-                  return "#0d9488"; // teal-600
-                case "llmAgent":
-                  return "#4f46e5"; // indigo-600
-                case "loopAgent":
-                  return "#db2777"; // pink-600
+                  return "#9ca3af"; // gray-400
                 case "agent":
                   return "#9333ea"; // purple-600
                 case "prompt":

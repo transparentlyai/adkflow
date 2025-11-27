@@ -101,21 +101,21 @@ const GroupNode = memo(({ data, id, selected }: NodeProps) => {
         minWidth={200}
         minHeight={150}
         isVisible={selected}
-        lineClassName="!border-teal-500"
-        handleClassName="!w-2 !h-2 !bg-teal-500 !border-teal-500"
+        lineClassName="!border-gray-500"
+        handleClassName="!w-2 !h-2 !bg-gray-500 !border-gray-500"
       />
       <div
         className={`w-full h-full rounded-lg transition-all duration-200 ${
           isNodeDraggingInside
-            ? "border-4 border-teal-500 bg-teal-50/50"
+            ? "border-4 border-gray-500 bg-gray-100/50"
             : selected
-              ? "border-2 border-teal-500"
+              ? "border-2 border-gray-500"
               : "border-2 border-gray-300"
         }`}
         style={{ minWidth: 200, minHeight: 150 }}
       >
         <div
-          className="bg-teal-600 text-white px-3 py-2 rounded-t-md cursor-move flex items-center gap-2"
+          className="bg-gray-400 text-white px-3 py-2 rounded-t-md cursor-move flex items-center gap-2"
         >
           <svg className="w-4 h-4 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeWidth="2" d="M4 8h16M4 16h16" />
@@ -141,7 +141,7 @@ const GroupNode = memo(({ data, id, selected }: NodeProps) => {
           )}
         </div>
         {isNodeDraggingInside && (
-          <div className="p-2 text-xs text-teal-600/60 text-center italic">
+          <div className="p-2 text-xs text-gray-500/60 text-center italic">
             Drop to group
           </div>
         )}

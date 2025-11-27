@@ -65,11 +65,26 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         selected ? "ring-2 ring-purple-500 shadow-xl" : ""
       }`}
     >
-      {/* Input Handle */}
+      {/* Input Handle (left side) */}
       <Handle
         type="target"
         position={Position.Left}
+        id="input"
         style={{ width: '12px', height: '12px', backgroundColor: '#a855f7', border: '2px solid white' }}
+      />
+
+      {/* Top Link Handle - for linking agents (bidirectional) */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="link-top-in"
+        style={{ width: '10px', height: '10px', backgroundColor: '#9ca3af', border: '2px solid white' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Top}
+        id="link-top-out"
+        style={{ width: '10px', height: '10px', backgroundColor: '#9ca3af', border: '2px solid white' }}
       />
 
       {/* Header */}
@@ -124,10 +139,25 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         <span className="text-xs text-gray-500">Agent</span>
       </div>
 
-      {/* Output Handle */}
+      {/* Bottom Link Handle - for linking agents (bidirectional) */}
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        id="link-bottom-in"
+        style={{ width: '10px', height: '10px', backgroundColor: '#9ca3af', border: '2px solid white' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="link-bottom-out"
+        style={{ width: '10px', height: '10px', backgroundColor: '#9ca3af', border: '2px solid white' }}
+      />
+
+      {/* Output Handle (right side) */}
       <Handle
         type="source"
         position={Position.Right}
+        id="output"
         style={{ width: '12px', height: '12px', backgroundColor: '#22c55e', border: '2px solid white' }}
       />
     </div>
