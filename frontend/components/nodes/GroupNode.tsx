@@ -7,7 +7,7 @@ export interface GroupNodeData extends Record<string, unknown> {
   label: string;
 }
 
-const GroupNode = memo(({ data, id, selected }: NodeProps) => {
+const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
   const { label } = data as unknown as GroupNodeData;
   const { setNodes } = useReactFlow();
   const [isEditing, setIsEditing] = useState(false);
@@ -95,24 +95,33 @@ const GroupNode = memo(({ data, id, selected }: NodeProps) => {
     }
   };
 
+  const isActive = selected || dragging || isNodeDraggingInside;
+
   return (
     <>
       <NodeResizer
         minWidth={200}
         minHeight={150}
         isVisible={selected}
-        lineClassName="!border-gray-500"
-        handleClassName="!w-2 !h-2 !bg-gray-500 !border-gray-500"
+        lineClassName="!border-gray-400"
+        handleClassName="!w-2 !h-2 !bg-gray-400 !border-gray-400"
       />
       <div
-        className={`w-full h-full rounded-lg transition-all duration-200 ${
-          isNodeDraggingInside
-            ? "border-4 border-gray-500 bg-gray-100/50"
-            : selected
-              ? "border-2 border-gray-500"
-              : "border-2 border-gray-300"
-        }`}
-        style={{ minWidth: 200, minHeight: 150 }}
+        className="w-full h-full rounded-lg transition-all duration-200"
+        style={{
+          minWidth: 200,
+          minHeight: 150,
+          border: isNodeDraggingInside
+            ? '2px solid #9ca3af'
+            : isActive
+              ? '1px solid #d1d5db'
+              : 'none',
+          backgroundColor: isNodeDraggingInside
+            ? 'rgba(156, 163, 175, 0.15)'
+            : dragging
+              ? 'rgba(156, 163, 175, 0.08)'
+              : 'transparent',
+        }}
       >
         <div
           className="bg-gray-400 text-white px-3 py-2 rounded-t-md cursor-move flex items-center gap-2"

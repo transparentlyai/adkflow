@@ -723,6 +723,11 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     return (
       <div className="w-full h-full" style={{ background: '#f7f9fb' }}>
         <style>{`
+          .react-flow__node-group {
+            background: transparent !important;
+            box-shadow: none !important;
+            border: none !important;
+          }
           .react-flow__edge.selected .react-flow__edge-path,
           .react-flow__edge:focus .react-flow__edge-path,
           .react-flow__edge:focus-visible .react-flow__edge-path {
