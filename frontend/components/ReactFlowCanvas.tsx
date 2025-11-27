@@ -27,7 +27,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import SequentialAgentNode from "./nodes/SequentialAgentNode";
-import ParallelAgentGroupNode from "./nodes/ParallelAgentGroupNode";
+import GroupNode from "./nodes/GroupNode";
 import LLMAgentNode from "./nodes/LLMAgentNode";
 import LoopAgentNode from "./nodes/LoopAgentNode";
 import AgentNode from "./nodes/AgentNode";
@@ -41,7 +41,7 @@ import VariableNode from "./nodes/VariableNode";
 
 import { generateNodeId } from "@/lib/workflowHelpers";
 import { getDefaultSequentialAgentData } from "./nodes/SequentialAgentNode";
-import { getDefaultParallelAgentGroupData } from "./nodes/ParallelAgentGroupNode";
+import { getDefaultGroupData } from "./nodes/GroupNode";
 import { getDefaultLLMAgentData } from "./nodes/LLMAgentNode";
 import { getDefaultLoopAgentData } from "./nodes/LoopAgentNode";
 import { getDefaultAgentData } from "./nodes/AgentNode";
@@ -57,7 +57,7 @@ import type { SequentialAgent, LLMAgent, LoopAgent, Agent, Prompt } from "@/lib/
 // Register custom node types
 const nodeTypes = {
   sequentialAgent: SequentialAgentNode,
-  parallelAgentGroup: ParallelAgentGroupNode,
+  group: GroupNode,
   llmAgent: LLMAgentNode,
   loopAgent: LoopAgentNode,
   agent: AgentNode,
@@ -80,7 +80,7 @@ interface ReactFlowCanvasProps {
 
 export interface ReactFlowCanvasRef {
   addSequentialAgentNode: (position?: { x: number; y: number }) => void;
-  addParallelAgentGroupNode: (position?: { x: number; y: number }) => void;
+  addGroupNode: (position?: { x: number; y: number }) => void;
   addLLMAgentNode: (position?: { x: number; y: number }) => void;
   addLoopAgentNode: (position?: { x: number; y: number }) => void;
   addAgentNode: (position?: { x: number; y: number }) => void;
@@ -113,7 +113,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
     // Node position tracking for new nodes
     const [sequentialAgentPosition, setSequentialAgentPosition] = useState({ x: 150, y: 100 });
-    const [parallelAgentGroupPosition, setParallelAgentGroupPosition] = useState({ x: 150, y: 150 });
+    const [groupPosition, setGroupPosition] = useState({ x: 150, y: 150 });
     const [llmAgentPosition, setLLMAgentPosition] = useState({ x: 150, y: 200 });
     const [loopAgentPosition, setLoopAgentPosition] = useState({ x: 150, y: 250 });
     const [agentPosition, setAgentPosition] = useState({ x: 150, y: 300 });
@@ -148,10 +148,10 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       setEdges((eds) => addEdge(params, eds));
     }, []);
 
-    // Auto-parent/detach nodes from ParallelAgentGroup on drag stop
+    // Auto-parent/detach nodes from Group on drag stop
     const onNodeDragStop = useCallback(
       (_event: React.MouseEvent, draggedNode: Node) => {
-        if (draggedNode.type === "parallelAgentGroup") return;
+        if (draggedNode.type === "group") return;
 
         const currentNode = nodes.find((n) => n.id === draggedNode.id);
         if (!currentNode) return;
@@ -173,7 +173,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         const draggedCenterX = absoluteX + draggedNodeWidth / 2;
         const draggedCenterY = absoluteY + draggedNodeHeight / 2;
 
-        const groupNodes = nodes.filter((n) => n.type === "parallelAgentGroup");
+        const groupNodes = nodes.filter((n) => n.type === "group");
 
         let targetGroup: Node | null = null;
         for (const group of groupNodes) {
@@ -335,26 +335,23 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       }
     }, [sequentialAgentPosition]);
 
-    /**
-     * Add a Parallel Agent Group node to the canvas
-     */
-    const addParallelAgentGroupNode = useCallback((position?: { x: number; y: number }) => {
-      const groupId = generateNodeId("parallelAgentGroup");
+    const addGroupNode = useCallback((position?: { x: number; y: number }) => {
+      const groupId = generateNodeId("group");
 
       const newNode: Node = {
         id: groupId,
-        type: "parallelAgentGroup",
-        position: position || parallelAgentGroupPosition,
-        data: getDefaultParallelAgentGroupData(),
+        type: "group",
+        position: position || groupPosition,
+        data: getDefaultGroupData(),
         style: { width: 300, height: 200 },
       };
 
       // Group nodes must come before their children, so prepend
       setNodes((nds) => [newNode, ...nds]);
       if (!position) {
-        setParallelAgentGroupPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+        setGroupPosition((pos) => ({ ...pos, x: pos.x + spacing }));
       }
-    }, [parallelAgentGroupPosition]);
+    }, [groupPosition]);
 
     /**
      * Add an LLM Agent node to the canvas
@@ -615,8 +612,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         case 'sequentialAgent':
           addSequentialAgentNode(position);
           break;
-        case 'parallelAgentGroup':
-          addParallelAgentGroupNode(position);
+        case 'group':
+          addGroupNode(position);
           break;
         case 'llmAgent':
           addLLMAgentNode(position);
@@ -646,7 +643,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       onRequestContextCreation,
       addVariableNode,
       addSequentialAgentNode,
-      addParallelAgentGroupNode,
+      addGroupNode,
       addLLMAgentNode,
       addLoopAgentNode,
       addAgentNode,
@@ -712,7 +709,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       setEdges([]);
       // Reset positions
       setSequentialAgentPosition({ x: 150, y: 100 });
-      setParallelAgentGroupPosition({ x: 150, y: 150 });
+      setGroupPosition({ x: 150, y: 150 });
       setLLMAgentPosition({ x: 150, y: 200 });
       setLoopAgentPosition({ x: 150, y: 250 });
       setAgentPosition({ x: 150, y: 300 });
@@ -787,7 +784,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     // Expose methods to parent via ref
     useImperativeHandle(ref, () => ({
       addSequentialAgentNode,
-      addParallelAgentGroupNode,
+      addGroupNode,
       addLLMAgentNode,
       addLoopAgentNode,
       addAgentNode,
@@ -846,7 +843,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
               switch (node.type) {
                 case "sequentialAgent":
                   return "#ea580c"; // orange-600
-                case "parallelAgentGroup":
+                case "group":
                   return "#0d9488"; // teal-600
                 case "llmAgent":
                   return "#4f46e5"; // indigo-600

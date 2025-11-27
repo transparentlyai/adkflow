@@ -29,9 +29,9 @@ export default function Toolbar({
     canvasRef.current?.addSequentialAgentNode();
   };
 
-  const handleAddParallelAgentGroup = () => {
+  const handleAddGroup = () => {
     if (!hasProjectPath) return;
-    canvasRef.current?.addParallelAgentGroupNode();
+    canvasRef.current?.addGroupNode();
   };
 
   const handleAddLLMAgent = () => {
@@ -151,17 +151,17 @@ export default function Toolbar({
               <span>Sequential Agent</span>
             </button>
             <button
-              onClick={handleAddParallelAgentGroup}
-              onDragStart={(e) => onDragStart(e, 'parallelAgentGroup')}
+              onClick={handleAddGroup}
+              onDragStart={(e) => onDragStart(e, 'group')}
               draggable={hasProjectPath}
               disabled={!hasProjectPath}
               className="w-full px-3 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-colors flex items-center gap-2 text-xs font-medium disabled:bg-gray-300 disabled:cursor-not-allowed cursor-grab active:cursor-grabbing"
-              title={!hasProjectPath ? "Create or load a project first" : "Drag to canvas or click to add Parallel Agent Group"}
+              title={!hasProjectPath ? "Create or load a project first" : "Drag to canvas or click to add Group"}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeWidth="2" d="M8 7v10M12 7v10M16 7v10"/>
+                <rect x="3" y="3" width="18" height="18" rx="2" strokeWidth="2" strokeDasharray="4 2"/>
               </svg>
-              <span>Parallel Agent</span>
+              <span>Group</span>
             </button>
             <button
               onClick={handleAddLLMAgent}

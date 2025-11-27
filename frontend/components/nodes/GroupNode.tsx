@@ -3,12 +3,12 @@
 import { memo, useState, useRef, useEffect } from "react";
 import { NodeResizer, type NodeProps, useReactFlow, useStore } from "@xyflow/react";
 
-export interface ParallelAgentGroupNodeData extends Record<string, unknown> {
+export interface GroupNodeData extends Record<string, unknown> {
   label: string;
 }
 
-const ParallelAgentGroupNode = memo(({ data, id, selected }: NodeProps) => {
-  const { label } = data as unknown as ParallelAgentGroupNodeData;
+const GroupNode = memo(({ data, id, selected }: NodeProps) => {
+  const { label } = data as unknown as GroupNodeData;
   const { setNodes } = useReactFlow();
   const [isEditing, setIsEditing] = useState(false);
   const [editedLabel, setEditedLabel] = useState(label);
@@ -22,7 +22,7 @@ const ParallelAgentGroupNode = memo(({ data, id, selected }: NodeProps) => {
     const groupHeight = groupNode.measured?.height ?? (groupNode.style?.height as number) ?? 200;
 
     const draggingNodes = state.nodes.filter(
-      (n) => n.dragging && n.type !== "parallelAgentGroup"
+      (n) => n.dragging && n.type !== "group"
     );
 
     for (const draggedNode of draggingNodes) {
@@ -142,7 +142,7 @@ const ParallelAgentGroupNode = memo(({ data, id, selected }: NodeProps) => {
         </div>
         {isNodeDraggingInside && (
           <div className="p-2 text-xs text-teal-600/60 text-center italic">
-            Drop to run in parallel
+            Drop to group
           </div>
         )}
       </div>
@@ -150,12 +150,12 @@ const ParallelAgentGroupNode = memo(({ data, id, selected }: NodeProps) => {
   );
 });
 
-ParallelAgentGroupNode.displayName = "ParallelAgentGroupNode";
+GroupNode.displayName = "GroupNode";
 
-export default ParallelAgentGroupNode;
+export default GroupNode;
 
-export function getDefaultParallelAgentGroupData(): ParallelAgentGroupNodeData {
+export function getDefaultGroupData(): GroupNodeData {
   return {
-    label: "Parallel Agent",
+    label: "Group",
   };
 }
