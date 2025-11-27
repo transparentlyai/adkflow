@@ -54,7 +54,7 @@ const VariableNode = memo(({ data, id, selected }: NodeProps) => {
           selected ? "ring-2 ring-violet-400 shadow-xl" : ""
         }`}
       >
-        <div className="font-medium text-sm whitespace-nowrap nodrag">
+        <div className="font-medium text-sm whitespace-nowrap">
           {`{${name}}`}
         </div>
       </div>
@@ -66,17 +66,18 @@ const VariableNode = memo(({ data, id, selected }: NodeProps) => {
             className="absolute inset-0 bg-black bg-opacity-50"
             onClick={handleCancel}
           />
-          <div className="relative bg-white rounded-lg shadow-xl p-6 w-[500px]">
+          <div className="relative bg-white rounded-lg shadow-xl p-6" style={{ width: '1000px', maxWidth: '90vw' }}>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Variable</h3>
 
             {/* Inline inputs: name = value */}
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-3 mb-4">
               <input
                 type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+                className="px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+                style={{ width: '250px' }}
                 placeholder="Variable name"
                 autoFocus
               />

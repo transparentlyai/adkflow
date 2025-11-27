@@ -20,11 +20,11 @@ const ContextNode = memo(({ data, selected }: NodeProps) => {
     <div
       onDoubleClick={handleDoubleClick}
       title={prompt.name}
-      className={`bg-blue-600 text-white px-6 py-3 rounded-lg shadow-md cursor-pointer hover:bg-blue-700 transition-all ${
+      className={`bg-blue-600 text-white px-4 py-2 rounded-lg shadow-md cursor-pointer hover:bg-blue-700 transition-all ${
         selected ? "ring-2 ring-blue-400 shadow-xl" : ""
       }`}
     >
-      <div className="font-medium text-sm whitespace-nowrap nodrag">
+      <div className="font-medium text-sm whitespace-nowrap">
         Context
       </div>
 

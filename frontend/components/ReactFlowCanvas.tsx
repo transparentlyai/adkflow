@@ -27,7 +27,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import SequentialAgentNode from "./nodes/SequentialAgentNode";
-import ParallelAgentNode from "./nodes/ParallelAgentNode";
+import ParallelAgentGroupNode from "./nodes/ParallelAgentGroupNode";
 import LLMAgentNode from "./nodes/LLMAgentNode";
 import LoopAgentNode from "./nodes/LoopAgentNode";
 import AgentNode from "./nodes/AgentNode";
@@ -41,7 +41,7 @@ import VariableNode from "./nodes/VariableNode";
 
 import { generateNodeId } from "@/lib/workflowHelpers";
 import { getDefaultSequentialAgentData } from "./nodes/SequentialAgentNode";
-import { getDefaultParallelAgentData } from "./nodes/ParallelAgentNode";
+import { getDefaultParallelAgentGroupData } from "./nodes/ParallelAgentGroupNode";
 import { getDefaultLLMAgentData } from "./nodes/LLMAgentNode";
 import { getDefaultLoopAgentData } from "./nodes/LoopAgentNode";
 import { getDefaultAgentData } from "./nodes/AgentNode";
@@ -52,12 +52,12 @@ import { getDefaultOutputProbeData } from "./nodes/OutputProbeNode";
 import { getDefaultToolData } from "./nodes/ToolNode";
 import { getDefaultAgentToolData } from "./nodes/AgentToolNode";
 import { getDefaultVariableData } from "./nodes/VariableNode";
-import type { SequentialAgent, ParallelAgent, LLMAgent, LoopAgent, Agent, Prompt } from "@/lib/types";
+import type { SequentialAgent, LLMAgent, LoopAgent, Agent, Prompt } from "@/lib/types";
 
 // Register custom node types
 const nodeTypes = {
   sequentialAgent: SequentialAgentNode,
-  parallelAgent: ParallelAgentNode,
+  parallelAgentGroup: ParallelAgentGroupNode,
   llmAgent: LLMAgentNode,
   loopAgent: LoopAgentNode,
   agent: AgentNode,
@@ -80,7 +80,7 @@ interface ReactFlowCanvasProps {
 
 export interface ReactFlowCanvasRef {
   addSequentialAgentNode: (position?: { x: number; y: number }) => void;
-  addParallelAgentNode: (position?: { x: number; y: number }) => void;
+  addParallelAgentGroupNode: (position?: { x: number; y: number }) => void;
   addLLMAgentNode: (position?: { x: number; y: number }) => void;
   addLoopAgentNode: (position?: { x: number; y: number }) => void;
   addAgentNode: (position?: { x: number; y: number }) => void;
@@ -113,7 +113,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
     // Node position tracking for new nodes
     const [sequentialAgentPosition, setSequentialAgentPosition] = useState({ x: 150, y: 100 });
-    const [parallelAgentPosition, setParallelAgentPosition] = useState({ x: 150, y: 150 });
+    const [parallelAgentGroupPosition, setParallelAgentGroupPosition] = useState({ x: 150, y: 150 });
     const [llmAgentPosition, setLLMAgentPosition] = useState({ x: 150, y: 200 });
     const [loopAgentPosition, setLoopAgentPosition] = useState({ x: 150, y: 250 });
     const [agentPosition, setAgentPosition] = useState({ x: 150, y: 300 });
@@ -147,6 +147,98 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     const onConnect = useCallback((params: Connection) => {
       setEdges((eds) => addEdge(params, eds));
     }, []);
+
+    // Auto-parent/detach nodes from ParallelAgentGroup on drag stop
+    const onNodeDragStop = useCallback(
+      (_event: React.MouseEvent, draggedNode: Node) => {
+        if (draggedNode.type === "parallelAgentGroup") return;
+
+        const currentNode = nodes.find((n) => n.id === draggedNode.id);
+        if (!currentNode) return;
+
+        const draggedNodeWidth = currentNode.measured?.width ?? 200;
+        const draggedNodeHeight = currentNode.measured?.height ?? 100;
+
+        let absoluteX = currentNode.position.x;
+        let absoluteY = currentNode.position.y;
+
+        if (currentNode.parentId) {
+          const parentNode = nodes.find((n) => n.id === currentNode.parentId);
+          if (parentNode) {
+            absoluteX += parentNode.position.x;
+            absoluteY += parentNode.position.y;
+          }
+        }
+
+        const draggedCenterX = absoluteX + draggedNodeWidth / 2;
+        const draggedCenterY = absoluteY + draggedNodeHeight / 2;
+
+        const groupNodes = nodes.filter((n) => n.type === "parallelAgentGroup");
+
+        let targetGroup: Node | null = null;
+        for (const group of groupNodes) {
+          const groupWidth = group.measured?.width ?? (group.style?.width as number) ?? 300;
+          const groupHeight = group.measured?.height ?? (group.style?.height as number) ?? 200;
+
+          const isInside =
+            draggedCenterX >= group.position.x &&
+            draggedCenterX <= group.position.x + groupWidth &&
+            draggedCenterY >= group.position.y &&
+            draggedCenterY <= group.position.y + groupHeight;
+
+          if (isInside) {
+            targetGroup = group;
+            break;
+          }
+        }
+
+        setNodes((nds) => {
+          let updatedNodes = nds.map((node) => {
+            if (node.id !== draggedNode.id) return node;
+
+            if (targetGroup && targetGroup.id !== node.parentId) {
+              const relativeX = absoluteX - targetGroup.position.x;
+              const relativeY = absoluteY - targetGroup.position.y;
+
+              return {
+                ...node,
+                parentId: targetGroup.id,
+                extent: "parent" as const,
+                position: { x: Math.max(10, relativeX), y: Math.max(40, relativeY) },
+              };
+            } else if (!targetGroup && node.parentId) {
+              const parentNode = nds.find((n) => n.id === node.parentId);
+              const newAbsoluteX = parentNode
+                ? node.position.x + parentNode.position.x
+                : node.position.x;
+              const newAbsoluteY = parentNode
+                ? node.position.y + parentNode.position.y
+                : node.position.y;
+
+              const { parentId, extent, ...rest } = node;
+              return {
+                ...rest,
+                position: { x: newAbsoluteX, y: newAbsoluteY },
+              };
+            }
+
+            return node;
+          });
+
+          // Parent nodes must come before children in React Flow
+          updatedNodes = updatedNodes.sort((a, b) => {
+            const aHasParent = !!a.parentId;
+            const bHasParent = !!b.parentId;
+            if (aHasParent && !bHasParent) return 1;
+            if (!aHasParent && bHasParent) return -1;
+            return 0;
+          });
+
+          return updatedNodes;
+        });
+      },
+      [nodes]
+    );
 
     // Notify parent of workflow changes
     useEffect(() => {
@@ -244,27 +336,25 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     }, [sequentialAgentPosition]);
 
     /**
-     * Add a Parallel Agent node to the canvas
+     * Add a Parallel Agent Group node to the canvas
      */
-    const addParallelAgentNode = useCallback((position?: { x: number; y: number }) => {
-      const parallelAgentId = generateNodeId("parallelAgent");
-      const parallelAgent: ParallelAgent = {
-        id: parallelAgentId,
-        ...getDefaultParallelAgentData(),
-      } as ParallelAgent;
+    const addParallelAgentGroupNode = useCallback((position?: { x: number; y: number }) => {
+      const groupId = generateNodeId("parallelAgentGroup");
 
       const newNode: Node = {
-        id: parallelAgentId,
-        type: "parallelAgent",
-        position: position || parallelAgentPosition,
-        data: { parallelAgent },
+        id: groupId,
+        type: "parallelAgentGroup",
+        position: position || parallelAgentGroupPosition,
+        data: getDefaultParallelAgentGroupData(),
+        style: { width: 300, height: 200 },
       };
 
-      setNodes((nds) => [...nds, newNode]);
+      // Group nodes must come before their children, so prepend
+      setNodes((nds) => [newNode, ...nds]);
       if (!position) {
-        setParallelAgentPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+        setParallelAgentGroupPosition((pos) => ({ ...pos, x: pos.x + spacing }));
       }
-    }, [parallelAgentPosition]);
+    }, [parallelAgentGroupPosition]);
 
     /**
      * Add an LLM Agent node to the canvas
@@ -525,8 +615,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         case 'sequentialAgent':
           addSequentialAgentNode(position);
           break;
-        case 'parallelAgent':
-          addParallelAgentNode(position);
+        case 'parallelAgentGroup':
+          addParallelAgentGroupNode(position);
           break;
         case 'llmAgent':
           addLLMAgentNode(position);
@@ -556,7 +646,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       onRequestContextCreation,
       addVariableNode,
       addSequentialAgentNode,
-      addParallelAgentNode,
+      addParallelAgentGroupNode,
       addLLMAgentNode,
       addLoopAgentNode,
       addAgentNode,
@@ -622,7 +712,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       setEdges([]);
       // Reset positions
       setSequentialAgentPosition({ x: 150, y: 100 });
-      setParallelAgentPosition({ x: 150, y: 150 });
+      setParallelAgentGroupPosition({ x: 150, y: 150 });
       setLLMAgentPosition({ x: 150, y: 200 });
       setLoopAgentPosition({ x: 150, y: 250 });
       setAgentPosition({ x: 150, y: 300 });
@@ -697,7 +787,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     // Expose methods to parent via ref
     useImperativeHandle(ref, () => ({
       addSequentialAgentNode,
-      addParallelAgentNode,
+      addParallelAgentGroupNode,
       addLLMAgentNode,
       addLoopAgentNode,
       addAgentNode,
@@ -731,6 +821,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onNodeDragStop={onNodeDragStop}
           onInit={setRfInstance}
           onDrop={onDrop}
           onDragOver={onDragOver}
@@ -755,7 +846,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
               switch (node.type) {
                 case "sequentialAgent":
                   return "#ea580c"; // orange-600
-                case "parallelAgent":
+                case "parallelAgentGroup":
                   return "#0d9488"; // teal-600
                 case "llmAgent":
                   return "#4f46e5"; // indigo-600

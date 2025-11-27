@@ -20,11 +20,11 @@ const PromptNode = memo(({ data, selected }: NodeProps) => {
     <div
       onDoubleClick={handleDoubleClick}
       title={prompt.name}
-      className={`bg-green-600 text-white px-4 py-2 rounded-full shadow-md cursor-pointer hover:bg-green-700 transition-all ${
+      className={`bg-green-600 text-white px-4 py-2 rounded-lg shadow-md cursor-pointer hover:bg-green-700 transition-all ${
         selected ? "ring-2 ring-green-400 shadow-xl" : ""
       }`}
     >
-      <div className="font-medium text-sm whitespace-nowrap nodrag">
+      <div className="font-medium text-sm whitespace-nowrap">
         Prompt
       </div>
 

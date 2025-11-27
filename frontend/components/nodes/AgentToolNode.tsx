@@ -45,18 +45,12 @@ const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
       <div
         onDoubleClick={handleDoubleClick}
         title={name}
-        className={`bg-amber-600 text-white rounded-lg w-16 h-16 flex items-center justify-center shadow-md cursor-pointer hover:bg-amber-700 transition-all ${
+        className={`bg-amber-600 text-white rounded-lg w-12 h-12 flex flex-col items-center justify-center shadow-md cursor-pointer hover:bg-amber-700 transition-all ${
           selected ? "ring-2 ring-amber-400 shadow-xl" : ""
         }`}
       >
-        <div className="font-bold text-xs">AT</div>
-
-        {/* Input Handle */}
-        <Handle
-          type="target"
-          position={Position.Left}
-          style={{ width: '10px', height: '10px', backgroundColor: '#d97706', border: '2px solid white' }}
-        />
+        <div className="text-xs leading-tight">Agent</div>
+        <div className="text-xs leading-tight">Tool</div>
 
         {/* Output Handle */}
         <Handle
