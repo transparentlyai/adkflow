@@ -1,15 +1,17 @@
 "use client";
 
 import { memo, useState, useRef, useEffect } from "react";
-import { Handle, Position, type NodeProps, useReactFlow } from "@xyflow/react";
-import type { Agent } from "@/lib/types";
+import { type NodeProps, useReactFlow } from "@xyflow/react";
+import type { Agent, HandlePositions } from "@/lib/types";
+import DraggableHandle from "@/components/DraggableHandle";
 
 export interface AgentNodeData {
   agent: Agent;
+  handlePositions?: HandlePositions;
 }
 
 const AgentNode = memo(({ data, id, selected }: NodeProps) => {
-  const { agent } = data as unknown as AgentNodeData;
+  const { agent, handlePositions } = data as unknown as AgentNodeData;
   const toolsCount = agent.tools?.length || 0;
   const { setNodes } = useReactFlow();
   const [isEditing, setIsEditing] = useState(false);
@@ -59,34 +61,36 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
     }
   };
 
+  const handleStyle = { width: '12px', height: '12px', border: '2px solid white' };
+  const linkHandleStyle = { width: '10px', height: '10px', border: '2px solid white' };
+
   return (
     <div
       className={`bg-white rounded-lg shadow-lg min-w-[250px] max-w-[300px] transition-all ${
         selected ? "ring-2 ring-purple-500 shadow-xl" : ""
       }`}
     >
-      {/* Input Handle (left side) */}
-      <Handle
+      {/* Input Handle */}
+      <DraggableHandle
+        nodeId={id}
+        handleId="input"
         type="target"
-        position={Position.Left}
-        id="input"
-        style={{ width: '12px', height: '12px', backgroundColor: '#a855f7', border: '2px solid white' }}
+        defaultEdge="left"
+        defaultPercent={50}
+        handlePositions={handlePositions}
+        style={{ ...handleStyle, backgroundColor: '#a855f7' }}
       />
 
-      {/* Top Link Handle - for linking agents (bidirectional) */}
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="link-top-in"
-        title="Chain with other agents for parallel execution"
-        style={{ width: '10px', height: '10px', backgroundColor: '#9ca3af', border: '2px solid white' }}
-      />
-      <Handle
+      {/* Link Handle - Top (bidirectional) */}
+      <DraggableHandle
+        nodeId={id}
+        handleId="link-top"
         type="source"
-        position={Position.Top}
-        id="link-top-out"
+        defaultEdge="top"
+        defaultPercent={50}
+        handlePositions={handlePositions}
         title="Chain with other agents for parallel execution"
-        style={{ width: '10px', height: '10px', backgroundColor: '#9ca3af', border: '2px solid white' }}
+        style={{ ...linkHandleStyle, backgroundColor: '#9ca3af' }}
       />
 
       {/* Header */}
@@ -141,28 +145,27 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         <span className="text-xs text-gray-500">Agent</span>
       </div>
 
-      {/* Bottom Link Handle - for linking agents (bidirectional) */}
-      <Handle
+      {/* Link Handle - Bottom (bidirectional) */}
+      <DraggableHandle
+        nodeId={id}
+        handleId="link-bottom"
         type="target"
-        position={Position.Bottom}
-        id="link-bottom-in"
+        defaultEdge="bottom"
+        defaultPercent={50}
+        handlePositions={handlePositions}
         title="Chain with other agents for parallel execution"
-        style={{ width: '10px', height: '10px', backgroundColor: '#9ca3af', border: '2px solid white' }}
-      />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="link-bottom-out"
-        title="Chain with other agents for parallel execution"
-        style={{ width: '10px', height: '10px', backgroundColor: '#9ca3af', border: '2px solid white' }}
+        style={{ ...linkHandleStyle, backgroundColor: '#9ca3af' }}
       />
 
-      {/* Output Handle (right side) */}
-      <Handle
+      {/* Output Handle */}
+      <DraggableHandle
+        nodeId={id}
+        handleId="output"
         type="source"
-        position={Position.Right}
-        id="output"
-        style={{ width: '12px', height: '12px', backgroundColor: '#22c55e', border: '2px solid white' }}
+        defaultEdge="right"
+        defaultPercent={50}
+        handlePositions={handlePositions}
+        style={{ ...handleStyle, backgroundColor: '#22c55e' }}
       />
     </div>
   );
@@ -172,9 +175,6 @@ AgentNode.displayName = "AgentNode";
 
 export default AgentNode;
 
-/**
- * Default agent data for new nodes
- */
 export function getDefaultAgentData(): Omit<Agent, "id"> {
   return {
     name: "New Agent",

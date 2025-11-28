@@ -1,9 +1,17 @@
 "use client";
 
 import { memo } from "react";
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { type NodeProps } from "@xyflow/react";
+import type { HandlePositions } from "@/lib/types";
+import DraggableHandle from "@/components/DraggableHandle";
 
-const OutputProbeNode = memo(({ selected }: NodeProps) => {
+interface OutputProbeNodeData {
+  handlePositions?: HandlePositions;
+}
+
+const OutputProbeNode = memo(({ data, id, selected }: NodeProps) => {
+  const { handlePositions } = (data || {}) as OutputProbeNodeData;
+
   return (
     <div
       className={`bg-gray-700 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-md transition-all ${
@@ -13,16 +21,24 @@ const OutputProbeNode = memo(({ selected }: NodeProps) => {
       <div className="font-bold text-xs">OUT</div>
 
       {/* Input Handle */}
-      <Handle
+      <DraggableHandle
+        nodeId={id}
+        handleId="input"
         type="target"
-        position={Position.Left}
+        defaultEdge="left"
+        defaultPercent={50}
+        handlePositions={handlePositions}
         style={{ width: '10px', height: '10px', backgroundColor: '#6b7280', border: '2px solid white' }}
       />
 
       {/* Output Handle */}
-      <Handle
+      <DraggableHandle
+        nodeId={id}
+        handleId="output"
         type="source"
-        position={Position.Right}
+        defaultEdge="right"
+        defaultPercent={50}
+        handlePositions={handlePositions}
         style={{ width: '10px', height: '10px', backgroundColor: '#6b7280', border: '2px solid white' }}
       />
     </div>
@@ -33,9 +49,6 @@ OutputProbeNode.displayName = "OutputProbeNode";
 
 export default OutputProbeNode;
 
-/**
- * Default output probe data for new nodes
- */
 export function getDefaultOutputProbeData() {
   return {};
 }

@@ -1,13 +1,16 @@
 "use client";
 
 import { memo, useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Handle, Position, type NodeProps, useReactFlow } from "@xyflow/react";
+import { type NodeProps, useReactFlow } from "@xyflow/react";
 import Editor from "@monaco-editor/react";
+import type { HandlePositions } from "@/lib/types";
+import DraggableHandle from "@/components/DraggableHandle";
 
 export interface ProcessNodeData extends Record<string, unknown> {
   name: string;
   code: string;
   description?: string;
+  handlePositions?: HandlePositions;
 }
 
 const DEFAULT_CODE = `def process(input_data: dict) -> dict:
@@ -40,7 +43,7 @@ function parseFunctionSignature(code: string): { name: string; params: string; r
 }
 
 const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name, code } = data as unknown as ProcessNodeData;
+  const { name, code, handlePositions } = data as unknown as ProcessNodeData;
   const { setNodes } = useReactFlow();
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(name);
@@ -123,11 +126,14 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
         minWidth: isExpanded ? 600 : 220,
       }}
     >
-      {/* Input Handle (left side) */}
-      <Handle
+      {/* Input Handle */}
+      <DraggableHandle
+        nodeId={id}
+        handleId="input"
         type="target"
-        position={Position.Left}
-        id="input"
+        defaultEdge="left"
+        defaultPercent={50}
+        handlePositions={handlePositions}
         style={{ width: '12px', height: '12px', backgroundColor: '#10b981', border: '2px solid white' }}
       />
 
@@ -241,11 +247,14 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
         </>
       )}
 
-      {/* Output Handle (right side) */}
-      <Handle
+      {/* Output Handle */}
+      <DraggableHandle
+        nodeId={id}
+        handleId="output"
         type="source"
-        position={Position.Right}
-        id="output"
+        defaultEdge="right"
+        defaultPercent={50}
+        handlePositions={handlePositions}
         style={{ width: '12px', height: '12px', backgroundColor: '#22c55e', border: '2px solid white' }}
       />
     </div>

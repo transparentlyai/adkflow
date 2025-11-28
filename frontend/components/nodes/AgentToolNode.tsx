@@ -1,10 +1,17 @@
 "use client";
 
 import { memo, useState } from "react";
-import { Handle, Position, type NodeProps, useReactFlow } from "@xyflow/react";
+import { type NodeProps, useReactFlow } from "@xyflow/react";
+import type { HandlePositions } from "@/lib/types";
+import DraggableHandle from "@/components/DraggableHandle";
+
+interface AgentToolNodeData {
+  name?: string;
+  handlePositions?: HandlePositions;
+}
 
 const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name = "Agent Tool" } = data as { name?: string };
+  const { name = "Agent Tool", handlePositions } = data as AgentToolNodeData;
   const { setNodes } = useReactFlow();
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const [newName, setNewName] = useState(name);
@@ -53,9 +60,13 @@ const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
         <div className="text-xs leading-tight">Tool</div>
 
         {/* Output Handle */}
-        <Handle
+        <DraggableHandle
+          nodeId={id}
+          handleId="output"
           type="source"
-          position={Position.Right}
+          defaultEdge="right"
+          defaultPercent={50}
+          handlePositions={handlePositions}
           style={{ width: '10px', height: '10px', backgroundColor: '#d97706', border: '2px solid white' }}
         />
       </div>

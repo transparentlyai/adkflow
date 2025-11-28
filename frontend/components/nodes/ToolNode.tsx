@@ -3,6 +3,8 @@
 import { memo, useState, useCallback } from "react";
 import { Handle, Position, type NodeProps, useReactFlow } from "@xyflow/react";
 import Editor from "@monaco-editor/react";
+import type { HandlePositions } from "@/lib/types";
+import DraggableHandle from "@/components/DraggableHandle";
 
 const DEFAULT_CODE = `def tool(input_data: dict) -> dict:
     """
@@ -21,7 +23,7 @@ const DEFAULT_CODE = `def tool(input_data: dict) -> dict:
 `;
 
 const ToolNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name = "Tool", code = DEFAULT_CODE } = data as { name?: string; code?: string };
+  const { name = "Tool", code = DEFAULT_CODE, handlePositions } = data as { name?: string; code?: string; handlePositions?: HandlePositions };
   const { setNodes } = useReactFlow();
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -134,9 +136,13 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
       </div>
 
       {/* Output Handle */}
-      <Handle
+      <DraggableHandle
+        nodeId={id}
+        handleId="output"
         type="source"
-        position={Position.Right}
+        defaultEdge="right"
+        defaultPercent={50}
+        handlePositions={handlePositions}
         style={{ width: '12px', height: '12px', backgroundColor: '#0891b2', border: '2px solid white' }}
       />
     </div>

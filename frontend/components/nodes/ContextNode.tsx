@@ -1,17 +1,19 @@
 "use client";
 
 import { memo, useState, useCallback } from "react";
-import { Handle, Position, type NodeProps, useReactFlow } from "@xyflow/react";
+import { type NodeProps, useReactFlow } from "@xyflow/react";
 import Editor from "@monaco-editor/react";
-import type { Prompt } from "@/lib/types";
+import type { Prompt, HandlePositions } from "@/lib/types";
+import DraggableHandle from "@/components/DraggableHandle";
 
 export interface ContextNodeData {
   prompt: Prompt;
   content?: string;
+  handlePositions?: HandlePositions;
 }
 
 const ContextNode = memo(({ data, id, selected }: NodeProps) => {
-  const { prompt, content = "" } = data as unknown as ContextNodeData;
+  const { prompt, content = "", handlePositions } = data as unknown as ContextNodeData;
   const { setNodes } = useReactFlow();
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -116,9 +118,13 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
       )}
 
       {/* Output Handle */}
-      <Handle
+      <DraggableHandle
+        nodeId={id}
+        handleId="output"
         type="source"
-        position={Position.Right}
+        defaultEdge="right"
+        defaultPercent={50}
+        handlePositions={handlePositions}
         style={{ width: '12px', height: '12px', backgroundColor: '#2563eb', border: '2px solid white' }}
       />
     </div>
