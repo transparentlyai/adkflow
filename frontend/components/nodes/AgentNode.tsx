@@ -78,12 +78,14 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         type="target"
         position={Position.Top}
         id="link-top-in"
+        title="Chain with other agents for parallel execution"
         style={{ width: '10px', height: '10px', backgroundColor: '#9ca3af', border: '2px solid white' }}
       />
       <Handle
         type="source"
         position={Position.Top}
         id="link-top-out"
+        title="Chain with other agents for parallel execution"
         style={{ width: '10px', height: '10px', backgroundColor: '#9ca3af', border: '2px solid white' }}
       />
 
@@ -144,12 +146,14 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         type="target"
         position={Position.Bottom}
         id="link-bottom-in"
+        title="Chain with other agents for parallel execution"
         style={{ width: '10px', height: '10px', backgroundColor: '#9ca3af', border: '2px solid white' }}
       />
       <Handle
         type="source"
         position={Position.Bottom}
         id="link-bottom-out"
+        title="Chain with other agents for parallel execution"
         style={{ width: '10px', height: '10px', backgroundColor: '#9ca3af', border: '2px solid white' }}
       />
 

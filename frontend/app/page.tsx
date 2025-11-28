@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import Toolbar from "@/components/Toolbar";
 import ReactFlowCanvas, { ReactFlowCanvasRef } from "@/components/ReactFlowCanvas";
-import PromptEditorModal, { PromptData } from "@/components/PromptEditorModal";
+import TopMenubar from "@/components/TopMenubar";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import ProjectDialog from "@/components/ProjectDialog";
 import SaveConfirmDialog from "@/components/SaveConfirmDialog";
 import PromptNameDialog from "@/components/PromptNameDialog";
-import { loadProject, saveProject, createPrompt, createContext, readPrompt, savePrompt } from "@/lib/api";
+import { loadProject, saveProject, createPrompt, createContext } from "@/lib/api";
 import { loadSession, saveSession } from "@/lib/sessionStorage";
 import type { Node, Edge } from "@xyflow/react";
 
@@ -24,21 +24,16 @@ export default function Home() {
   const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Prompt editor state
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentPrompt, setCurrentPrompt] = useState<PromptData | null>(null);
-
   // Prompt name dialog state
   const [isPromptNameDialogOpen, setIsPromptNameDialogOpen] = useState(false);
   const [pendingPromptPosition, setPendingPromptPosition] = useState<{ x: number; y: number } | undefined>(undefined);
 
-  // Context editor state
-  const [isContextModalOpen, setIsContextModalOpen] = useState(false);
-  const [currentContext, setCurrentContext] = useState<PromptData | null>(null);
-
   // Context name dialog state
   const [isContextNameDialogOpen, setIsContextNameDialogOpen] = useState(false);
   const [pendingContextPosition, setPendingContextPosition] = useState<{ x: number; y: number } | undefined>(undefined);
+
+  // Clear canvas dialog state
+  const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
 
   // Load session on mount
   useEffect(() => {
@@ -187,11 +182,6 @@ export default function Home() {
     setIsSaveConfirmOpen(false);
   };
 
-  const handleShowPromptNameDialog = () => {
-    setPendingPromptPosition(undefined);
-    setIsPromptNameDialogOpen(true);
-  };
-
   const handleRequestPromptCreation = useCallback((position: { x: number; y: number }) => {
     setPendingPromptPosition(position);
     setIsPromptNameDialogOpen(true);
@@ -228,69 +218,6 @@ export default function Home() {
   const handleCancelPromptCreation = () => {
     setIsPromptNameDialogOpen(false);
     setPendingPromptPosition(undefined);
-  };
-
-  const handleOpenPromptEditor = async (promptId: string, promptName: string, filePath: string) => {
-    if (!currentProjectPath) {
-      alert("No project loaded");
-      return;
-    }
-
-    try {
-      // Load prompt content from file
-      const response = await readPrompt(currentProjectPath, filePath);
-
-      const promptData: PromptData = {
-        id: promptId,
-        name: promptName,
-        content: response.content,
-        filePath: filePath,
-      };
-
-      setCurrentPrompt(promptData);
-      setIsModalOpen(true);
-    } catch (error) {
-      console.error("Failed to load prompt:", error);
-      alert("Failed to load prompt: " + (error as Error).message);
-    }
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setCurrentPrompt(null);
-  };
-
-  const handleSavePrompt = async (updatedPrompt: PromptData) => {
-    if (!currentProjectPath) {
-      alert("No project loaded");
-      return;
-    }
-
-    try {
-      // Save prompt content to file
-      await savePrompt(currentProjectPath, updatedPrompt.filePath, updatedPrompt.content);
-
-      // Update the prompt node in the canvas with new name and content
-      if (canvasRef.current) {
-        canvasRef.current.updatePromptNode(
-          updatedPrompt.id,
-          updatedPrompt.name,
-          updatedPrompt.content,
-          updatedPrompt.filePath
-        );
-      }
-
-      setHasUnsavedChanges(true);
-    } catch (error) {
-      console.error("Failed to save prompt:", error);
-      alert("Failed to save prompt: " + (error as Error).message);
-    }
-  };
-
-  // Context Handlers
-  const handleShowContextNameDialog = () => {
-    setPendingContextPosition(undefined);
-    setIsContextNameDialogOpen(true);
   };
 
   const handleRequestContextCreation = useCallback((position: { x: number; y: number }) => {
@@ -331,138 +258,85 @@ export default function Home() {
     setPendingContextPosition(undefined);
   };
 
-  const handleOpenContextEditor = async (contextId: string, contextName: string, filePath: string) => {
-    if (!currentProjectPath) {
-      alert("No project loaded");
-      return;
-    }
-
-    try {
-      // Load context content from file (using readPrompt since it's the same format)
-      const response = await readPrompt(currentProjectPath, filePath);
-
-      const contextData: PromptData = {
-        id: contextId,
-        name: contextName,
-        content: response.content,
-        filePath: filePath,
-      };
-
-      setCurrentContext(contextData);
-      setIsContextModalOpen(true);
-    } catch (error) {
-      console.error("Failed to load context:", error);
-      alert("Failed to load context: " + (error as Error).message);
-    }
+  // Clear canvas handlers
+  const handleClearCanvasClick = () => {
+    setIsClearDialogOpen(true);
   };
 
-  const handleCloseContextModal = () => {
-    setIsContextModalOpen(false);
-    setCurrentContext(null);
+  const handleClearCanvasConfirm = () => {
+    canvasRef.current?.clearCanvas();
+    setIsClearDialogOpen(false);
   };
 
-  const handleSaveContext = async (updatedContext: PromptData) => {
-    if (!currentProjectPath) {
-      alert("No project loaded");
-      return;
-    }
+  const handleClearCanvasCancel = () => {
+    setIsClearDialogOpen(false);
+  };
 
-    try {
-      // Save context content to file (using savePrompt since it's the same format)
-      await savePrompt(currentProjectPath, updatedContext.filePath, updatedContext.content);
+  // Zoom handlers
+  const handleZoomIn = () => {
+    canvasRef.current?.zoomIn?.();
+  };
 
-      // Update the context node in the canvas with new name and content
-      if (canvasRef.current) {
-        canvasRef.current.updateContextNode(
-          updatedContext.id,
-          updatedContext.name,
-          updatedContext.content,
-          updatedContext.filePath
-        );
-      }
+  const handleZoomOut = () => {
+    canvasRef.current?.zoomOut?.();
+  };
 
-      setHasUnsavedChanges(true);
-    } catch (error) {
-      console.error("Failed to save context:", error);
-      alert("Failed to save context: " + (error as Error).message);
-    }
+  const handleFitView = () => {
+    canvasRef.current?.fitView?.();
   };
 
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
+      <header className="bg-background border-b border-border px-4 py-2">
         <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-primary">ADKFlow</h1>
+            <TopMenubar
+              onNewProject={handleNewProject}
+              onLoadProject={handleLoadProject}
+              onSaveProject={handleSaveCurrentProject}
+              onClearCanvas={handleClearCanvasClick}
+              onZoomIn={handleZoomIn}
+              onZoomOut={handleZoomOut}
+              onFitView={handleFitView}
+              hasProjectPath={!!currentProjectPath}
+            />
+          </div>
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-blue-600">ADKFlow</h1>
             <input
               type="text"
               value={workflowName}
               onChange={(e) => setWorkflowName(e.target.value)}
-              className="text-lg font-semibold border-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1 text-gray-900 placeholder:text-gray-400"
+              className="text-sm font-medium border-none focus:outline-none focus:ring-2 focus:ring-ring rounded px-2 py-1 bg-transparent"
               placeholder="Workflow Name"
             />
             {currentProjectPath && (
-              <span className="text-xs text-gray-400 font-mono">
+              <span className="text-xs text-muted-foreground font-mono max-w-[300px] truncate">
                 {currentProjectPath}
               </span>
             )}
-          </div>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleNewProject}
-              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-md transition-colors text-sm"
-            >
-              New Project
-            </button>
-            <div className="text-sm text-gray-500">
-              Visual Workflow Editor for Google ADK
-            </div>
+            {hasUnsavedChanges && (
+              <span className="text-xs text-orange-500 font-medium">Unsaved</span>
+            )}
           </div>
         </div>
       </header>
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Toolbar */}
-        <Toolbar
-          canvasRef={canvasRef}
-          onSaveProject={handleSaveCurrentProject}
-          onLoadProject={handleLoadProject}
-          hasProjectPath={!!currentProjectPath}
-        />
-
         {/* Canvas Area */}
         <main className="flex-1 relative">
           <div className="absolute inset-0">
             <ReactFlowCanvas
               ref={canvasRef}
               onWorkflowChange={handleWorkflowChange}
-              onOpenPromptEditor={handleOpenPromptEditor}
-              onOpenContextEditor={handleOpenContextEditor}
               onRequestPromptCreation={handleRequestPromptCreation}
               onRequestContextCreation={handleRequestContextCreation}
             />
           </div>
         </main>
       </div>
-
-      {/* Prompt Editor Modal */}
-      <PromptEditorModal
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        promptData={currentPrompt}
-        onSave={handleSavePrompt}
-      />
-
-      {/* Context Editor Modal */}
-      <PromptEditorModal
-        isOpen={isContextModalOpen}
-        onClose={handleCloseContextModal}
-        promptData={currentContext}
-        onSave={handleSaveContext}
-        type="context"
-      />
 
       {/* Project Dialog */}
       <ProjectDialog
@@ -494,6 +368,17 @@ export default function Home() {
         onSubmit={handleCreateContext}
         onCancel={handleCancelContextCreation}
         type="context"
+      />
+
+      {/* Clear Canvas Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={isClearDialogOpen}
+        title="Clear Canvas"
+        description="Are you sure you want to clear the canvas? This action cannot be undone."
+        confirmLabel="Clear"
+        variant="destructive"
+        onConfirm={handleClearCanvasConfirm}
+        onCancel={handleClearCanvasCancel}
       />
     </div>
   );

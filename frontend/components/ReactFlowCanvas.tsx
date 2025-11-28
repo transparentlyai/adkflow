@@ -35,9 +35,11 @@ import OutputProbeNode from "./nodes/OutputProbeNode";
 import ToolNode from "./nodes/ToolNode";
 import AgentToolNode from "./nodes/AgentToolNode";
 import VariableNode from "./nodes/VariableNode";
+import ProcessNode from "./nodes/ProcessNode";
 
 import { generateNodeId } from "@/lib/workflowHelpers";
 import CanvasContextMenu, { type NodeTypeOption } from "./CanvasContextMenu";
+import ConfirmDialog from "./ConfirmDialog";
 import { getDefaultGroupData } from "./nodes/GroupNode";
 import { getDefaultAgentData } from "./nodes/AgentNode";
 import { getDefaultPromptData } from "./nodes/PromptNode";
@@ -47,6 +49,7 @@ import { getDefaultOutputProbeData } from "./nodes/OutputProbeNode";
 import { getDefaultToolData } from "./nodes/ToolNode";
 import { getDefaultAgentToolData } from "./nodes/AgentToolNode";
 import { getDefaultVariableData } from "./nodes/VariableNode";
+import { getDefaultProcessData } from "./nodes/ProcessNode";
 import type { Agent, Prompt } from "@/lib/types";
 
 // Register custom node types
@@ -60,12 +63,11 @@ const nodeTypes = {
   tool: ToolNode,
   agentTool: AgentToolNode,
   variable: VariableNode,
+  process: ProcessNode,
 } as any; // eslint-disable-line
 
 interface ReactFlowCanvasProps {
   onWorkflowChange?: (data: { nodes: Node[]; edges: Edge[] }) => void;
-  onOpenPromptEditor?: (promptId: string, promptName: string, filePath: string) => void;
-  onOpenContextEditor?: (contextId: string, contextName: string, filePath: string) => void;
   onRequestPromptCreation?: (position: { x: number; y: number }) => void;
   onRequestContextCreation?: (position: { x: number; y: number }) => void;
 }
@@ -80,11 +82,13 @@ export interface ReactFlowCanvasRef {
   addToolNode: (position?: { x: number; y: number }) => void;
   addAgentToolNode: (position?: { x: number; y: number }) => void;
   addVariableNode: (position?: { x: number; y: number }) => void;
-  updatePromptNode: (promptId: string, name: string, content: string, filePath: string) => void;
-  updateContextNode: (contextId: string, name: string, content: string, filePath: string) => void;
+  addProcessNode: (position?: { x: number; y: number }) => void;
   clearCanvas: () => void;
   saveFlow: () => { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } } | null;
   restoreFlow: (flow: { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }) => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  fitView: () => void;
 }
 
 /**
@@ -94,7 +98,7 @@ export interface ReactFlowCanvasRef {
  * Replaces the Drawflow-based canvas with native React Flow implementation.
  */
 const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
-  ({ onWorkflowChange, onOpenPromptEditor, onOpenContextEditor, onRequestPromptCreation, onRequestContextCreation }, ref) => {
+  ({ onWorkflowChange, onRequestPromptCreation, onRequestContextCreation }, ref) => {
     const [nodes, setNodes] = useState<Node[]>([]);
     const [edges, setEdges] = useState<Edge[]>([]);
     const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
@@ -102,6 +106,13 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
     // Context menu state
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; flowPosition: { x: number; y: number }; parentGroupId?: string } | null>(null);
+
+    // Delete confirmation state
+    const [deleteConfirm, setDeleteConfirm] = useState<{
+      nodeIds: string[];
+      edgeIds: string[];
+      message: string;
+    } | null>(null);
 
     // Node position tracking for new nodes
     const [groupPosition, setGroupPosition] = useState({ x: 150, y: 100 });
@@ -113,6 +124,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     const [toolPosition, setToolPosition] = useState({ x: 150, y: 550 });
     const [agentToolPosition, setAgentToolPosition] = useState({ x: 150, y: 600 });
     const [variablePosition, setVariablePosition] = useState({ x: 150, y: 650 });
+    const [processPosition, setProcessPosition] = useState({ x: 150, y: 700 });
 
     const spacing = 350;
 
@@ -273,7 +285,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
           event.preventDefault();
 
-          // Confirm deletion
+          // Build confirmation message
           const nodeCount = selectedNodes.length;
           const edgeCount = selectedEdges.length;
 
@@ -290,34 +302,46 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
               : `Are you sure you want to delete ${edgeCount} connections?`;
           }
 
-          if (!confirm(message)) {
-            return;
-          }
-
-          // Get IDs of nodes and edges to delete
-          const nodeIdsToDelete = selectedNodes.map((node) => node.id);
-          const edgeIdsToDelete = selectedEdges.map((edge) => edge.id);
-
-          // Remove selected nodes
-          if (nodeIdsToDelete.length > 0) {
-            setNodes((nds) => nds.filter((node) => !nodeIdsToDelete.includes(node.id)));
-          }
-
-          // Remove selected edges and edges connected to deleted nodes
-          setEdges((eds) =>
-            eds.filter(
-              (edge) =>
-                !edgeIdsToDelete.includes(edge.id) &&
-                !nodeIdsToDelete.includes(edge.source) &&
-                !nodeIdsToDelete.includes(edge.target)
-            )
-          );
+          // Store data for confirmation dialog
+          setDeleteConfirm({
+            nodeIds: selectedNodes.map((node) => node.id),
+            edgeIds: selectedEdges.map((edge) => edge.id),
+            message,
+          });
         }
       };
 
       window.addEventListener("keydown", handleKeyDown);
       return () => window.removeEventListener("keydown", handleKeyDown);
     }, [nodes, edges]);
+
+    // Handle delete confirmation
+    const handleDeleteConfirm = useCallback(() => {
+      if (!deleteConfirm) return;
+
+      const { nodeIds, edgeIds } = deleteConfirm;
+
+      // Remove selected nodes
+      if (nodeIds.length > 0) {
+        setNodes((nds) => nds.filter((node) => !nodeIds.includes(node.id)));
+      }
+
+      // Remove selected edges and edges connected to deleted nodes
+      setEdges((eds) =>
+        eds.filter(
+          (edge) =>
+            !edgeIds.includes(edge.id) &&
+            !nodeIds.includes(edge.source) &&
+            !nodeIds.includes(edge.target)
+        )
+      );
+
+      setDeleteConfirm(null);
+    }, [deleteConfirm]);
+
+    const handleDeleteCancel = useCallback(() => {
+      setDeleteConfirm(null);
+    }, []);
 
     const addGroupNode = useCallback((position?: { x: number; y: number }) => {
       const groupId = generateNodeId("group");
@@ -376,11 +400,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         position: position || promptPosition,
         data: {
           prompt,
-          onEdit: () => {
-            if (onOpenPromptEditor) {
-              onOpenPromptEditor(promptId, prompt.name, prompt.file_path);
-            }
-          },
+          content: "",
         },
       };
 
@@ -388,7 +408,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       if (!position) {
         setPromptPosition((pos) => ({ ...pos, x: pos.x + spacing }));
       }
-    }, [promptPosition, onOpenPromptEditor]);
+    }, [promptPosition]);
 
     /**
      * Add a Context node to the canvas
@@ -406,11 +426,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         position: position || contextPosition,
         data: {
           prompt: context,
-          onEdit: () => {
-            if (onOpenContextEditor) {
-              onOpenContextEditor(contextId, context.name, context.file_path);
-            }
-          },
+          content: "",
         },
       };
 
@@ -418,7 +434,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       if (!position) {
         setContextPosition((pos) => ({ ...pos, x: pos.x + spacing }));
       }
-    }, [contextPosition, onOpenContextEditor]);
+    }, [contextPosition]);
 
     /**
      * Add an Input Probe node to the canvas
@@ -516,6 +532,25 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     }, [variablePosition]);
 
     /**
+     * Add a Process node to the canvas
+     */
+    const addProcessNode = useCallback((position?: { x: number; y: number }) => {
+      const processId = generateNodeId("process");
+
+      const newNode: Node = {
+        id: processId,
+        type: "process",
+        position: position || processPosition,
+        data: getDefaultProcessData(),
+      };
+
+      setNodes((nds) => [...nds, newNode]);
+      if (!position) {
+        setProcessPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      }
+    }, [processPosition]);
+
+    /**
      * Drag and drop handlers for adding nodes from toolbar
      */
     const onDragOver = useCallback((event: React.DragEvent) => {
@@ -567,6 +602,9 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         case 'agentTool':
           addAgentToolNode(position);
           break;
+        case 'process':
+          addProcessNode(position);
+          break;
       }
     }, [
       screenToFlowPosition,
@@ -579,6 +617,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       addOutputProbeNode,
       addToolNode,
       addAgentToolNode,
+      addProcessNode,
     ]);
 
     // Handle right-click on canvas pane
@@ -681,6 +720,9 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         case 'agentTool':
           addNodeWithParent(addAgentToolNode, position, parentGroupId);
           break;
+        case 'process':
+          addNodeWithParent(addProcessNode, position, parentGroupId);
+          break;
       }
 
       setContextMenu(null);
@@ -694,6 +736,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       addOutputProbeNode,
       addToolNode,
       addAgentToolNode,
+      addProcessNode,
       onRequestPromptCreation,
       onRequestContextCreation,
     ]);
@@ -701,54 +744,6 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     // Close context menu
     const closeContextMenu = useCallback(() => {
       setContextMenu(null);
-    }, []);
-
-    /**
-     * Update a Prompt node's data
-     */
-    const updatePromptNode = useCallback((promptId: string, name: string, content: string, filePath: string) => {
-      setNodes((nds) =>
-        nds.map((node) => {
-          if (node.id === promptId && node.type === "prompt" && node.data.prompt) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                prompt: {
-                  ...node.data.prompt,
-                  name: name,
-                  file_path: filePath,
-                },
-              },
-            };
-          }
-          return node;
-        })
-      );
-    }, []);
-
-    /**
-     * Update a Context node's data
-     */
-    const updateContextNode = useCallback((contextId: string, name: string, content: string, filePath: string) => {
-      setNodes((nds) =>
-        nds.map((node) => {
-          if (node.id === contextId && node.type === "context" && node.data.prompt) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                prompt: {
-                  ...node.data.prompt,
-                  name: name,
-                  file_path: filePath,
-                },
-              },
-            };
-          }
-          return node;
-        })
-      );
     }, []);
 
     /**
@@ -767,6 +762,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       setToolPosition({ x: 150, y: 400 });
       setAgentToolPosition({ x: 150, y: 450 });
       setVariablePosition({ x: 150, y: 500 });
+      setProcessPosition({ x: 150, y: 550 });
     }, []);
 
     /**
@@ -785,48 +781,34 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     const restoreFlow = useCallback((flow: { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }) => {
       if (!flow) return;
 
-      // Set the onEdit handler for prompt and context nodes
-      const updatedNodes = flow.nodes.map((node) => {
-        if (node.type === "prompt" && node.data.prompt) {
-          const prompt = node.data.prompt as Prompt;
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              onEdit: () => {
-                if (onOpenPromptEditor) {
-                  onOpenPromptEditor(node.id, prompt.name, prompt.file_path);
-                }
-              },
-            },
-          };
-        }
-        if (node.type === "context" && node.data.prompt) {
-          const context = node.data.prompt as Prompt;
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              onEdit: () => {
-                if (onOpenContextEditor) {
-                  onOpenContextEditor(node.id, context.name, context.file_path);
-                }
-              },
-            },
-          };
-        }
-        return node;
-      });
-
       const { x = 0, y = 0, zoom = 1 } = flow.viewport;
-      setNodes(updatedNodes);
+      setNodes(flow.nodes || []);
       setEdges(flow.edges || []);
 
       // Set viewport using the instance
       if (rfInstance) {
         rfInstance.setViewport({ x, y, zoom });
       }
-    }, [rfInstance, onOpenPromptEditor, onOpenContextEditor]);
+    }, [rfInstance]);
+
+    // Zoom methods
+    const zoomIn = useCallback(() => {
+      if (rfInstance) {
+        rfInstance.zoomIn();
+      }
+    }, [rfInstance]);
+
+    const zoomOut = useCallback(() => {
+      if (rfInstance) {
+        rfInstance.zoomOut();
+      }
+    }, [rfInstance]);
+
+    const fitViewHandler = useCallback(() => {
+      if (rfInstance) {
+        rfInstance.fitView({ padding: 0.1 });
+      }
+    }, [rfInstance]);
 
     // Expose methods to parent via ref
     useImperativeHandle(ref, () => ({
@@ -839,11 +821,13 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       addToolNode,
       addAgentToolNode,
       addVariableNode,
-      updatePromptNode,
-      updateContextNode,
+      addProcessNode,
       clearCanvas,
       saveFlow,
       restoreFlow,
+      zoomIn,
+      zoomOut,
+      fitView: fitViewHandler,
     }));
 
     return (
@@ -910,6 +894,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
                   return "#d97706"; // amber-600
                 case "variable":
                   return "#7c3aed"; // violet-600
+                case "process":
+                  return "#10b981"; // emerald-500
                 default:
                   return "#6b7280"; // gray-500
               }
@@ -926,6 +912,15 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             insideGroup={!!contextMenu.parentGroupId}
           />
         )}
+        <ConfirmDialog
+          isOpen={!!deleteConfirm}
+          title="Delete Selection"
+          description={deleteConfirm?.message || ""}
+          confirmLabel="Delete"
+          variant="destructive"
+          onConfirm={handleDeleteConfirm}
+          onCancel={handleDeleteCancel}
+        />
       </div>
     );
   }
