@@ -17,7 +17,7 @@ interface PromptNameDialogProps {
   isOpen: boolean;
   onSubmit: (promptName: string) => void;
   onCancel: () => void;
-  type?: "prompt" | "context";
+  type?: "prompt" | "context" | "tool" | "process";
 }
 
 export default function PromptNameDialog({
@@ -36,6 +36,7 @@ export default function PromptNameDialog({
       inputLabel: "Prompt Name",
       placeholder: "e.g., Customer Greeting, System Instructions",
       fileExtension: ".prompt.md",
+      directory: "prompts/",
       button: "Create Prompt",
       errorMessage: "Please enter a prompt name",
     },
@@ -45,8 +46,29 @@ export default function PromptNameDialog({
       inputLabel: "Context Name",
       placeholder: "e.g., API Documentation, Product Catalog",
       fileExtension: ".context.md",
+      directory: "static/",
       button: "Create Context",
       errorMessage: "Please enter a context name",
+    },
+    tool: {
+      title: "Create New Tool",
+      description: "Enter a name for the tool file",
+      inputLabel: "Tool Name",
+      placeholder: "e.g., Data Fetcher, Calculator",
+      fileExtension: ".py",
+      directory: "tools/",
+      button: "Create Tool",
+      errorMessage: "Please enter a tool name",
+    },
+    process: {
+      title: "Create New Process",
+      description: "Enter a name for the process file",
+      inputLabel: "Process Name",
+      placeholder: "e.g., Data Transformer, Validator",
+      fileExtension: ".py",
+      directory: "tools/",
+      button: "Create Process",
+      errorMessage: "Please enter a process name",
     },
   };
 
@@ -75,11 +97,14 @@ export default function PromptNameDialog({
     }
   };
 
+  const isPythonFile = type === "tool" || type === "process";
   const fileNamePreview = promptName
-    ? promptName.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-")
+    ? promptName.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, isPythonFile ? "_" : "-")
     : type === "prompt"
     ? "prompt-name"
-    : "context-name";
+    : type === "context"
+    ? "context-name"
+    : "tool_name";
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -102,7 +127,7 @@ export default function PromptNameDialog({
             <p className="text-xs text-muted-foreground">
               File will be saved as:{" "}
               <span className="font-mono">
-                {fileNamePreview}
+                {labels[type].directory}{fileNamePreview}
                 {labels[type].fileExtension}
               </span>
             </p>

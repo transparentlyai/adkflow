@@ -7,8 +7,10 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import ProjectDialog from "@/components/ProjectDialog";
 import SaveConfirmDialog from "@/components/SaveConfirmDialog";
 import PromptNameDialog from "@/components/PromptNameDialog";
-import { loadProject, saveProject, createPrompt, createContext } from "@/lib/api";
+import { loadProject, saveProject, createPrompt, createContext, createTool, savePrompt, readPrompt } from "@/lib/api";
+import FilePicker from "@/components/FilePicker";
 import { loadSession, saveSession } from "@/lib/sessionStorage";
+import { ProjectProvider } from "@/contexts/ProjectContext";
 import type { Node, Edge } from "@xyflow/react";
 
 export default function Home() {
@@ -32,8 +34,21 @@ export default function Home() {
   const [isContextNameDialogOpen, setIsContextNameDialogOpen] = useState(false);
   const [pendingContextPosition, setPendingContextPosition] = useState<{ x: number; y: number } | undefined>(undefined);
 
+  // Tool name dialog state
+  const [isToolNameDialogOpen, setIsToolNameDialogOpen] = useState(false);
+  const [pendingToolPosition, setPendingToolPosition] = useState<{ x: number; y: number } | undefined>(undefined);
+
+  // Process name dialog state
+  const [isProcessNameDialogOpen, setIsProcessNameDialogOpen] = useState(false);
+  const [pendingProcessPosition, setPendingProcessPosition] = useState<{ x: number; y: number } | undefined>(undefined);
+
   // Clear canvas dialog state
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
+
+  // File picker dialog state
+  const [isFilePickerOpen, setIsFilePickerOpen] = useState(false);
+  const [filePickerInitialPath, setFilePickerInitialPath] = useState<string | undefined>(undefined);
+  const [filePickerCallback, setFilePickerCallback] = useState<((newPath: string) => void) | null>(null);
 
   // Load session on mount
   useEffect(() => {
@@ -258,6 +273,78 @@ export default function Home() {
     setPendingContextPosition(undefined);
   };
 
+  const handleRequestToolCreation = useCallback((position: { x: number; y: number }) => {
+    setPendingToolPosition(position);
+    setIsToolNameDialogOpen(true);
+  }, []);
+
+  const handleCreateTool = async (toolName: string) => {
+    if (!currentProjectPath) {
+      alert("No project loaded");
+      return;
+    }
+
+    try {
+      const response = await createTool(currentProjectPath, toolName);
+
+      if (canvasRef.current) {
+        canvasRef.current.addToolNode({
+          name: toolName,
+          file_path: response.file_path,
+        }, pendingToolPosition);
+      }
+
+      setIsToolNameDialogOpen(false);
+      setPendingToolPosition(undefined);
+      setHasUnsavedChanges(true);
+
+    } catch (error) {
+      console.error("Failed to create tool:", error);
+      alert("Failed to create tool: " + (error as Error).message);
+    }
+  };
+
+  const handleCancelToolCreation = () => {
+    setIsToolNameDialogOpen(false);
+    setPendingToolPosition(undefined);
+  };
+
+  const handleRequestProcessCreation = useCallback((position: { x: number; y: number }) => {
+    setPendingProcessPosition(position);
+    setIsProcessNameDialogOpen(true);
+  }, []);
+
+  const handleCreateProcess = async (processName: string) => {
+    if (!currentProjectPath) {
+      alert("No project loaded");
+      return;
+    }
+
+    try {
+      const response = await createTool(currentProjectPath, processName);
+
+      if (canvasRef.current) {
+        canvasRef.current.addProcessNode({
+          name: processName,
+          file_path: response.file_path,
+        }, pendingProcessPosition);
+      }
+
+      setIsProcessNameDialogOpen(false);
+      setPendingProcessPosition(undefined);
+      setHasUnsavedChanges(true);
+
+    } catch (error) {
+      console.error("Failed to create process:", error);
+      alert("Failed to create process: " + (error as Error).message);
+    }
+  };
+
+  const handleCancelProcessCreation = () => {
+    setIsProcessNameDialogOpen(false);
+    setPendingProcessPosition(undefined);
+  };
+
   // Clear canvas handlers
   const handleClearCanvasClick = () => {
     setIsClearDialogOpen(true);
@@ -284,6 +371,44 @@ export default function Home() {
   const handleFitView = () => {
     canvasRef.current?.fitView?.();
   };
+
+  // File save handler for editor nodes
+  const handleSaveFile = useCallback(async (filePath: string, content: string) => {
+    if (!currentProjectPath) return;
+    await savePrompt(currentProjectPath, filePath, content);
+  }, [currentProjectPath]);
+
+  // File picker handler
+  const handleRequestFilePicker = useCallback((currentFilePath: string, onSelect: (newPath: string) => void) => {
+    setFilePickerInitialPath(currentFilePath);
+    setFilePickerCallback(() => onSelect);
+    setIsFilePickerOpen(true);
+  }, []);
+
+  const handleFilePickerSelect = useCallback(async (newPath: string) => {
+    if (filePickerCallback && currentProjectPath) {
+      // Load the content of the selected file
+      try {
+        const response = await readPrompt(currentProjectPath, newPath);
+        // The callback will update the node's file_path
+        // We pass both the path and content (content handled separately by the node)
+        filePickerCallback(newPath);
+      } catch (error) {
+        console.error("Failed to read file:", error);
+        // Still update the path even if we can't read the content
+        filePickerCallback(newPath);
+      }
+    }
+    setIsFilePickerOpen(false);
+    setFilePickerCallback(null);
+    setFilePickerInitialPath(undefined);
+  }, [filePickerCallback, currentProjectPath]);
+
+  const handleFilePickerCancel = useCallback(() => {
+    setIsFilePickerOpen(false);
+    setFilePickerCallback(null);
+    setFilePickerInitialPath(undefined);
+  }, []);
 
   return (
     <div className="flex flex-col h-screen">
@@ -328,12 +453,20 @@ export default function Home() {
         {/* Canvas Area */}
         <main className="flex-1 relative">
           <div className="absolute inset-0">
-            <ReactFlowCanvas
-              ref={canvasRef}
-              onWorkflowChange={handleWorkflowChange}
-              onRequestPromptCreation={handleRequestPromptCreation}
-              onRequestContextCreation={handleRequestContextCreation}
-            />
+            <ProjectProvider
+              projectPath={currentProjectPath}
+              onSaveFile={handleSaveFile}
+              onRequestFilePicker={handleRequestFilePicker}
+            >
+              <ReactFlowCanvas
+                ref={canvasRef}
+                onWorkflowChange={handleWorkflowChange}
+                onRequestPromptCreation={handleRequestPromptCreation}
+                onRequestContextCreation={handleRequestContextCreation}
+                onRequestToolCreation={handleRequestToolCreation}
+                onRequestProcessCreation={handleRequestProcessCreation}
+              />
+            </ProjectProvider>
           </div>
         </main>
       </div>
@@ -370,6 +503,22 @@ export default function Home() {
         type="context"
       />
 
+      {/* Tool Name Dialog */}
+      <PromptNameDialog
+        isOpen={isToolNameDialogOpen}
+        onSubmit={handleCreateTool}
+        onCancel={handleCancelToolCreation}
+        type="tool"
+      />
+
+      {/* Process Name Dialog */}
+      <PromptNameDialog
+        isOpen={isProcessNameDialogOpen}
+        onSubmit={handleCreateProcess}
+        onCancel={handleCancelProcessCreation}
+        type="process"
+      />
+
       {/* Clear Canvas Confirm Dialog */}
       <ConfirmDialog
         isOpen={isClearDialogOpen}
@@ -379,6 +528,17 @@ export default function Home() {
         variant="destructive"
         onConfirm={handleClearCanvasConfirm}
         onCancel={handleClearCanvasCancel}
+      />
+
+      {/* File Picker Dialog */}
+      <FilePicker
+        isOpen={isFilePickerOpen}
+        projectPath={currentProjectPath || ""}
+        initialPath={filePickerInitialPath}
+        onSelect={handleFilePickerSelect}
+        onCancel={handleFilePickerCancel}
+        title="Select File"
+        description="Choose a file to associate with this node"
       />
     </div>
   );

@@ -5,11 +5,14 @@ import { type NodeProps, useReactFlow } from "@xyflow/react";
 import Editor from "@monaco-editor/react";
 import type { HandlePositions } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
+import EditorMenuBar from "@/components/EditorMenuBar";
+import { useProject } from "@/contexts/ProjectContext";
 
 export interface ProcessNodeData extends Record<string, unknown> {
   name: string;
   code: string;
   description?: string;
+  file_path?: string;
   handlePositions?: HandlePositions;
 }
 
@@ -43,11 +46,13 @@ function parseFunctionSignature(code: string): { name: string; params: string; r
 }
 
 const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name, code, handlePositions } = data as unknown as ProcessNodeData;
+  const { name, code, file_path, handlePositions } = data as unknown as ProcessNodeData;
   const { setNodes } = useReactFlow();
+  const { onSaveFile, onRequestFilePicker } = useProject();
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(name);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Parse function signature from code
@@ -112,6 +117,37 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
   const toggleExpand = () => {
     setIsExpanded(!isExpanded);
   };
+
+  const handleSaveFile = useCallback(async () => {
+    if (!onSaveFile || !file_path) return;
+    setIsSaving(true);
+    try {
+      await onSaveFile(file_path, code);
+    } catch (error) {
+      console.error("Failed to save:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [onSaveFile, file_path, code]);
+
+  const handleChangeFile = useCallback(() => {
+    if (!onRequestFilePicker) return;
+    onRequestFilePicker(file_path || "", (newPath) => {
+      setNodes((nodes) =>
+        nodes.map((node) =>
+          node.id === id
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  file_path: newPath,
+                },
+              }
+            : node
+        )
+      );
+    });
+  }, [onRequestFilePicker, file_path, id, setNodes]);
 
   // Calculate lines of code for display
   const lineCount = code?.split("\n").length || 0;
@@ -202,9 +238,15 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
         </div>
       )}
 
-      {/* Expanded: Code Editor */}
+      {/* Expanded: Menu Bar & Code Editor */}
       {isExpanded && (
         <>
+          <EditorMenuBar
+            onSave={handleSaveFile}
+            onChangeFile={handleChangeFile}
+            filePath={file_path}
+            isSaving={isSaving}
+          />
           <div
             className="border-b border-gray-200 nodrag nowheel"
             style={{ height: 300 }}

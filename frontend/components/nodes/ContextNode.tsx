@@ -5,6 +5,8 @@ import { type NodeProps, useReactFlow } from "@xyflow/react";
 import Editor from "@monaco-editor/react";
 import type { Prompt, HandlePositions } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
+import EditorMenuBar from "@/components/EditorMenuBar";
+import { useProject } from "@/contexts/ProjectContext";
 
 export interface ContextNodeData {
   prompt: Prompt;
@@ -15,7 +17,9 @@ export interface ContextNodeData {
 const ContextNode = memo(({ data, id, selected }: NodeProps) => {
   const { prompt, content = "", handlePositions } = data as unknown as ContextNodeData;
   const { setNodes } = useReactFlow();
+  const { onSaveFile, onRequestFilePicker } = useProject();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleContentChange = useCallback((value: string | undefined) => {
     setNodes((nodes) =>
@@ -32,6 +36,37 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
       )
     );
   }, [id, setNodes]);
+
+  const handleSave = useCallback(async () => {
+    if (!onSaveFile || !prompt.file_path) return;
+    setIsSaving(true);
+    try {
+      await onSaveFile(prompt.file_path, content);
+    } catch (error) {
+      console.error("Failed to save:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [onSaveFile, prompt.file_path, content]);
+
+  const handleChangeFile = useCallback(() => {
+    if (!onRequestFilePicker) return;
+    onRequestFilePicker(prompt.file_path, (newPath) => {
+      setNodes((nodes) =>
+        nodes.map((node) =>
+          node.id === id
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  prompt: { ...prompt, file_path: newPath },
+                },
+              }
+            : node
+        )
+      );
+    });
+  }, [onRequestFilePicker, prompt, id, setNodes]);
 
   const toggleExpand = () => {
     setIsExpanded(!isExpanded);
@@ -72,9 +107,15 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
         </button>
       </div>
 
-      {/* Expanded: Markdown Editor */}
+      {/* Expanded: Menu Bar & Editor */}
       {isExpanded && (
         <>
+          <EditorMenuBar
+            onSave={handleSave}
+            onChangeFile={handleChangeFile}
+            filePath={prompt.file_path}
+            isSaving={isSaving}
+          />
           <div
             className="border-b border-gray-200 nodrag nowheel"
             style={{ height: 250 }}

@@ -70,6 +70,8 @@ interface ReactFlowCanvasProps {
   onWorkflowChange?: (data: { nodes: Node[]; edges: Edge[] }) => void;
   onRequestPromptCreation?: (position: { x: number; y: number }) => void;
   onRequestContextCreation?: (position: { x: number; y: number }) => void;
+  onRequestToolCreation?: (position: { x: number; y: number }) => void;
+  onRequestProcessCreation?: (position: { x: number; y: number }) => void;
 }
 
 export interface ReactFlowCanvasRef {
@@ -79,10 +81,10 @@ export interface ReactFlowCanvasRef {
   addContextNode: (contextData?: { name: string; file_path: string }, position?: { x: number; y: number }) => void;
   addInputProbeNode: (position?: { x: number; y: number }) => void;
   addOutputProbeNode: (position?: { x: number; y: number }) => void;
-  addToolNode: (position?: { x: number; y: number }) => void;
+  addToolNode: (toolData?: { name: string; file_path: string }, position?: { x: number; y: number }) => void;
   addAgentToolNode: (position?: { x: number; y: number }) => void;
   addVariableNode: (position?: { x: number; y: number }) => void;
-  addProcessNode: (position?: { x: number; y: number }) => void;
+  addProcessNode: (processData?: { name: string; file_path: string }, position?: { x: number; y: number }) => void;
   clearCanvas: () => void;
   saveFlow: () => { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } } | null;
   restoreFlow: (flow: { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }) => void;
@@ -98,7 +100,7 @@ export interface ReactFlowCanvasRef {
  * Replaces the Drawflow-based canvas with native React Flow implementation.
  */
 const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
-  ({ onWorkflowChange, onRequestPromptCreation, onRequestContextCreation }, ref) => {
+  ({ onWorkflowChange, onRequestPromptCreation, onRequestContextCreation, onRequestToolCreation, onRequestProcessCreation }, ref) => {
     const [nodes, setNodes] = useState<Node[]>([]);
     const [edges, setEdges] = useState<Edge[]>([]);
     const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
@@ -477,14 +479,14 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     /**
      * Add a Tool node to the canvas
      */
-    const addToolNode = useCallback((position?: { x: number; y: number }) => {
+    const addToolNode = useCallback((toolData?: { name: string; file_path: string }, position?: { x: number; y: number }) => {
       const toolId = generateNodeId("tool");
 
       const newNode: Node = {
         id: toolId,
         type: "tool",
         position: position || toolPosition,
-        data: getDefaultToolData(),
+        data: toolData ? { ...getDefaultToolData(), name: toolData.name, file_path: toolData.file_path } : getDefaultToolData(),
       };
 
       setNodes((nds) => [...nds, newNode]);
@@ -534,14 +536,14 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     /**
      * Add a Process node to the canvas
      */
-    const addProcessNode = useCallback((position?: { x: number; y: number }) => {
+    const addProcessNode = useCallback((processData?: { name: string; file_path: string }, position?: { x: number; y: number }) => {
       const processId = generateNodeId("process");
 
       const newNode: Node = {
         id: processId,
         type: "process",
         position: position || processPosition,
-        data: getDefaultProcessData(),
+        data: processData ? { ...getDefaultProcessData(), name: processData.name, file_path: processData.file_path } : getDefaultProcessData(),
       };
 
       setNodes((nds) => [...nds, newNode]);
@@ -578,6 +580,14 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         onRequestContextCreation(position);
         return;
       }
+      if (type === 'tool' && onRequestToolCreation) {
+        onRequestToolCreation(position);
+        return;
+      }
+      if (type === 'process' && onRequestProcessCreation) {
+        onRequestProcessCreation(position);
+        return;
+      }
 
       // Handle regular nodes
       switch (type) {
@@ -596,28 +606,22 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         case 'outputProbe':
           addOutputProbeNode(position);
           break;
-        case 'tool':
-          addToolNode(position);
-          break;
         case 'agentTool':
           addAgentToolNode(position);
-          break;
-        case 'process':
-          addProcessNode(position);
           break;
       }
     }, [
       screenToFlowPosition,
       onRequestPromptCreation,
       onRequestContextCreation,
+      onRequestToolCreation,
+      onRequestProcessCreation,
       addVariableNode,
       addGroupNode,
       addAgentNode,
       addInputProbeNode,
       addOutputProbeNode,
-      addToolNode,
       addAgentToolNode,
-      addProcessNode,
     ]);
 
     // Handle right-click on canvas pane
@@ -715,13 +719,17 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           addNodeWithParent(addOutputProbeNode, position, parentGroupId);
           break;
         case 'tool':
-          addNodeWithParent(addToolNode, position, parentGroupId);
+          if (onRequestToolCreation) {
+            onRequestToolCreation(position);
+          }
           break;
         case 'agentTool':
           addNodeWithParent(addAgentToolNode, position, parentGroupId);
           break;
         case 'process':
-          addNodeWithParent(addProcessNode, position, parentGroupId);
+          if (onRequestProcessCreation) {
+            onRequestProcessCreation(position);
+          }
           break;
       }
 
@@ -734,11 +742,11 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       addAgentNode,
       addInputProbeNode,
       addOutputProbeNode,
-      addToolNode,
       addAgentToolNode,
-      addProcessNode,
       onRequestPromptCreation,
       onRequestContextCreation,
+      onRequestToolCreation,
+      onRequestProcessCreation,
     ]);
 
     // Close context menu

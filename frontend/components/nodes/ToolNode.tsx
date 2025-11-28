@@ -5,6 +5,8 @@ import { Handle, Position, type NodeProps, useReactFlow } from "@xyflow/react";
 import Editor from "@monaco-editor/react";
 import type { HandlePositions } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
+import EditorMenuBar from "@/components/EditorMenuBar";
+import { useProject } from "@/contexts/ProjectContext";
 
 const DEFAULT_CODE = `def tool(input_data: dict) -> dict:
     """
@@ -22,10 +24,19 @@ const DEFAULT_CODE = `def tool(input_data: dict) -> dict:
     return result
 `;
 
+interface ToolNodeData {
+  name?: string;
+  code?: string;
+  file_path?: string;
+  handlePositions?: HandlePositions;
+}
+
 const ToolNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name = "Tool", code = DEFAULT_CODE, handlePositions } = data as { name?: string; code?: string; handlePositions?: HandlePositions };
+  const { name = "Tool", code = DEFAULT_CODE, file_path, handlePositions } = data as ToolNodeData;
   const { setNodes } = useReactFlow();
+  const { onSaveFile, onRequestFilePicker } = useProject();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleDoubleClick = () => {
     setIsExpanded(!isExpanded);
@@ -46,6 +57,37 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
       )
     );
   }, [id, setNodes]);
+
+  const handleSave = useCallback(async () => {
+    if (!onSaveFile || !file_path) return;
+    setIsSaving(true);
+    try {
+      await onSaveFile(file_path, code);
+    } catch (error) {
+      console.error("Failed to save:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [onSaveFile, file_path, code]);
+
+  const handleChangeFile = useCallback(() => {
+    if (!onRequestFilePicker) return;
+    onRequestFilePicker(file_path || "", (newPath) => {
+      setNodes((nodes) =>
+        nodes.map((node) =>
+          node.id === id
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  file_path: newPath,
+                },
+              }
+            : node
+        )
+      );
+    });
+  }, [onRequestFilePicker, file_path, id, setNodes]);
 
   const lineCount = code?.split("\n").length || 0;
 
@@ -93,6 +135,14 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
         </div>
         <span className="text-xs opacity-75">double-click to collapse</span>
       </div>
+
+      {/* Menu Bar */}
+      <EditorMenuBar
+        onSave={handleSave}
+        onChangeFile={handleChangeFile}
+        filePath={file_path}
+        isSaving={isSaving}
+      />
 
       {/* Code Editor */}
       <div
