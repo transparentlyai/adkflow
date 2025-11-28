@@ -6,7 +6,15 @@ import Editor from "@monaco-editor/react";
 import type { HandlePositions } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import EditorMenuBar from "@/components/EditorMenuBar";
+import ResizeHandle from "@/components/ResizeHandle";
 import { useProject } from "@/contexts/ProjectContext";
+
+const DEFAULT_WIDTH = 600;
+const DEFAULT_HEIGHT = 400;
+const MIN_WIDTH = 400;
+const MIN_HEIGHT = 300;
+const MAX_WIDTH = 1000;
+const MAX_HEIGHT = 800;
 
 export interface ProcessNodeData extends Record<string, unknown> {
   name: string;
@@ -53,7 +61,15 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
   const [editedName, setEditedName] = useState(name);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [size, setSize] = useState({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT });
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleResize = useCallback((deltaWidth: number, deltaHeight: number) => {
+    setSize(prev => ({
+      width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, prev.width + deltaWidth)),
+      height: Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, prev.height + deltaHeight)),
+    }));
+  }, []);
 
   // Parse function signature from code
   const signature = useMemo(() => parseFunctionSignature(code || ""), [code]);
@@ -151,15 +167,16 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
 
   // Calculate lines of code for display
   const lineCount = code?.split("\n").length || 0;
+  const editorHeight = size.height - 100;
 
   return (
     <div
-      className={`bg-white rounded-lg shadow-lg transition-all ${
+      className={`bg-white rounded-lg shadow-lg relative ${
         selected ? "ring-2 ring-emerald-500 shadow-xl" : ""
       }`}
       style={{
-        width: isExpanded ? 600 : 220,
-        minWidth: isExpanded ? 600 : 220,
+        width: isExpanded ? size.width : 220,
+        minWidth: isExpanded ? size.width : 220,
       }}
     >
       {/* Input Handle */}
@@ -174,7 +191,10 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
       />
 
       {/* Header */}
-      <div className={`bg-emerald-600 text-white px-3 py-1.5 flex items-center justify-between ${isExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}>
+      <div
+        className={`bg-emerald-600 text-white px-3 py-1.5 flex items-center justify-between cursor-pointer ${isExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}
+        onDoubleClick={toggleExpand}
+      >
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
@@ -192,8 +212,11 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
             />
           ) : (
             <div
-              className="font-semibold text-sm cursor-pointer hover:opacity-80 truncate"
-              onDoubleClick={handleDoubleClick}
+              className="font-semibold text-sm hover:opacity-80 truncate"
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                handleDoubleClick();
+              }}
             >
               {name}
             </div>
@@ -248,8 +271,9 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
             isSaving={isSaving}
           />
           <div
-            className="border-b border-gray-200 nodrag nowheel"
-            style={{ height: 300 }}
+            className="border-b border-gray-200 nodrag nowheel nopan"
+            style={{ height: editorHeight }}
+            onKeyDown={(e) => e.stopPropagation()}
           >
             <Editor
               height="100%"
@@ -286,6 +310,9 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
             <span className="text-xs text-gray-500">Process</span>
             <span className="text-xs text-gray-400">{lineCount} lines</span>
           </div>
+
+          {/* Resize Handle */}
+          <ResizeHandle onResize={handleResize} />
         </>
       )}
 

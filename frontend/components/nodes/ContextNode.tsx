@@ -1,12 +1,20 @@
 "use client";
 
-import { memo, useState, useCallback } from "react";
+import { memo, useState, useCallback, useRef, useEffect } from "react";
 import { type NodeProps, useReactFlow } from "@xyflow/react";
 import Editor from "@monaco-editor/react";
 import type { Prompt, HandlePositions } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import EditorMenuBar from "@/components/EditorMenuBar";
+import ResizeHandle from "@/components/ResizeHandle";
 import { useProject } from "@/contexts/ProjectContext";
+
+const DEFAULT_WIDTH = 500;
+const DEFAULT_HEIGHT = 320;
+const MIN_WIDTH = 350;
+const MIN_HEIGHT = 250;
+const MAX_WIDTH = 900;
+const MAX_HEIGHT = 700;
 
 export interface ContextNodeData {
   prompt: Prompt;
@@ -20,6 +28,58 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
   const { onSaveFile, onRequestFilePicker } = useProject();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [size, setSize] = useState({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT });
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedName, setEditedName] = useState(prompt.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleResize = useCallback((deltaWidth: number, deltaHeight: number) => {
+    setSize(prev => ({
+      width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, prev.width + deltaWidth)),
+      height: Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, prev.height + deltaHeight)),
+    }));
+  }, []);
+
+  const handleNameDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditing(true);
+    setEditedName(prompt.name);
+  };
+
+  const handleNameSave = () => {
+    if (editedName.trim()) {
+      setNodes((nodes) =>
+        nodes.map((node) =>
+          node.id === id
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  prompt: { ...prompt, name: editedName.trim() },
+                },
+              }
+            : node
+        )
+      );
+    }
+    setIsEditing(false);
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleNameSave();
+    } else if (e.key === "Escape") {
+      setEditedName(prompt.name);
+      setIsEditing(false);
+    }
+  };
 
   const handleContentChange = useCallback((value: string | undefined) => {
     setNodes((nodes) =>
@@ -73,24 +133,47 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
   };
 
   const lineCount = content?.split("\n").length || 0;
+  const editorHeight = size.height - 70;
 
   return (
     <div
-      className={`bg-white rounded-lg shadow-lg transition-all ${
+      className={`bg-white rounded-lg shadow-lg relative ${
         selected ? "ring-2 ring-blue-500 shadow-xl" : ""
       }`}
       style={{
-        width: isExpanded ? 500 : 'auto',
-        minWidth: isExpanded ? 500 : 'auto',
+        width: isExpanded ? size.width : 'auto',
+        minWidth: isExpanded ? size.width : 'auto',
       }}
     >
       {/* Header */}
-      <div className={`bg-blue-600 text-white px-3 py-1.5 flex items-center justify-between ${isExpanded ? 'rounded-t-lg' : 'rounded-lg'}`} style={{ minWidth: isExpanded ? undefined : 'auto' }}>
+      <div
+        className={`bg-blue-600 text-white px-3 py-1.5 flex items-center justify-between cursor-pointer ${isExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}
+        style={{ minWidth: isExpanded ? undefined : 'auto' }}
+        onDoubleClick={toggleExpand}
+      >
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
           </svg>
-          <span className="font-semibold text-sm">Context</span>
+          {isEditing ? (
+            <input
+              ref={inputRef}
+              type="text"
+              value={editedName}
+              onChange={(e) => setEditedName(e.target.value)}
+              onBlur={handleNameSave}
+              onKeyDown={handleNameKeyDown}
+              onClick={(e) => e.stopPropagation()}
+              className="flex-1 bg-white text-gray-900 px-2 py-0.5 rounded text-sm font-semibold outline-none min-w-0"
+            />
+          ) : (
+            <span
+              className="font-semibold text-sm truncate hover:opacity-80"
+              onDoubleClick={handleNameDoubleClick}
+            >
+              {prompt.name}
+            </span>
+          )}
         </div>
         <button
           onClick={toggleExpand}
@@ -117,8 +200,9 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
             isSaving={isSaving}
           />
           <div
-            className="border-b border-gray-200 nodrag nowheel"
-            style={{ height: 250 }}
+            className="border-b border-gray-200 nodrag nowheel nopan"
+            style={{ height: editorHeight }}
+            onKeyDown={(e) => e.stopPropagation()}
           >
             <Editor
               height="100%"
@@ -155,6 +239,9 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
             <span className="text-xs text-gray-500 truncate max-w-[200px]">{prompt.name}</span>
             <span className="text-xs text-gray-400">{lineCount} lines</span>
           </div>
+
+          {/* Resize Handle */}
+          <ResizeHandle onResize={handleResize} />
         </>
       )}
 
