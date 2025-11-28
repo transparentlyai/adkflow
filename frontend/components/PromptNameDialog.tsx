@@ -1,6 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface PromptNameDialogProps {
   isOpen: boolean;
@@ -18,7 +29,6 @@ export default function PromptNameDialog({
   const [promptName, setPromptName] = useState("");
   const [error, setError] = useState("");
 
-  // Labels based on type
   const labels = {
     prompt: {
       title: "Create New Prompt",
@@ -40,20 +50,17 @@ export default function PromptNameDialog({
     },
   };
 
-  if (!isOpen) return null;
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    // Validate prompt name
     if (!promptName.trim()) {
       setError(labels[type].errorMessage);
       return;
     }
 
     onSubmit(promptName.trim());
-    setPromptName(""); // Reset for next time
+    setPromptName("");
   };
 
   const handleCancel = () => {
@@ -62,66 +69,59 @@ export default function PromptNameDialog({
     onCancel();
   };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">
-            {labels[type].title}
-          </h2>
-          <p className="text-sm text-gray-600 mt-1">
-            {labels[type].description}
-          </p>
-        </div>
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      handleCancel();
+    }
+  };
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="px-6 py-4">
-          <div className="mb-4">
-            <label
-              htmlFor="promptName"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              {labels[type].inputLabel}
-            </label>
-            <input
-              type="text"
+  const fileNamePreview = promptName
+    ? promptName.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-")
+    : type === "prompt"
+    ? "prompt-name"
+    : "context-name";
+
+  return (
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{labels[type].title}</DialogTitle>
+          <DialogDescription>{labels[type].description}</DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="promptName">{labels[type].inputLabel}</Label>
+            <Input
               id="promptName"
               value={promptName}
               onChange={(e) => setPromptName(e.target.value)}
               placeholder={labels[type].placeholder}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
               autoFocus
             />
-            <p className="mt-1 text-xs text-gray-500">
-              File will be saved as: <span className="font-mono">{promptName ? promptName.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-') : type === 'prompt' ? 'prompt-name' : 'context-name'}{labels[type].fileExtension}</span>
+            <p className="text-xs text-muted-foreground">
+              File will be saved as:{" "}
+              <span className="font-mono">
+                {fileNamePreview}
+                {labels[type].fileExtension}
+              </span>
             </p>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm text-red-600">{error}</p>
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+              <p className="text-sm text-destructive">{error}</p>
             </div>
           )}
 
-          {/* Actions */}
-          <div className="flex gap-3 justify-end">
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="px-4 py-2 text-gray-700 hover:text-gray-900 font-medium transition-colors"
-            >
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={handleCancel}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors"
-            >
-              {labels[type].button}
-            </button>
-          </div>
+            </Button>
+            <Button type="submit">{labels[type].button}</Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

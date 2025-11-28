@@ -1,6 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import PathPicker from "@/components/PathPicker";
 
 interface ProjectDialogProps {
@@ -29,19 +37,15 @@ export default function ProjectDialog({
     }
   }, [isOpen, initialMode]);
 
-  if (!isOpen) return null;
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    // Validate path
     if (!projectPath.trim()) {
       setError("Please select a project path");
       return;
     }
 
-    // Call appropriate handler
     if (mode === "create") {
       onCreateNew(projectPath.trim());
     } else {
@@ -68,119 +72,110 @@ export default function ProjectDialog({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">
-            Welcome to ADKFlow
-          </h2>
-          <p className="text-sm text-gray-600 mt-1">
-            Create a new workflow or load an existing one
-          </p>
-        </div>
+    <>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose?.()}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Welcome to ADKFlow</DialogTitle>
+            <DialogDescription>
+              Create a new workflow or load an existing one
+            </DialogDescription>
+          </DialogHeader>
 
-        {/* Mode Tabs */}
-        <div className="flex border-b border-gray-200">
-          <button
-            type="button"
-            onClick={() => handleModeChange("create")}
-            className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${
-              mode === "create"
-                ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50"
-                : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-            }`}
-          >
-            Create New Workflow
-          </button>
-          <button
-            type="button"
-            onClick={() => handleModeChange("load")}
-            className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${
-              mode === "load"
-                ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50"
-                : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-            }`}
-          >
-            Load Existing Workflow
-          </button>
-        </div>
+          {/* Mode Tabs */}
+          <div className="flex border-b border-border -mx-6 px-6">
+            <button
+              type="button"
+              onClick={() => handleModeChange("create")}
+              className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${
+                mode === "create"
+                  ? "text-primary border-b-2 border-primary bg-accent"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+              }`}
+            >
+              Create New Workflow
+            </button>
+            <button
+              type="button"
+              onClick={() => handleModeChange("load")}
+              className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${
+                mode === "load"
+                  ? "text-primary border-b-2 border-primary bg-accent"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+              }`}
+            >
+              Load Existing Workflow
+            </button>
+          </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="px-6 py-4">
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Project Path
-            </label>
-            <div className="flex gap-2">
-              <button
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Project Path
+              </label>
+              <Button
                 type="button"
+                variant="outline"
                 onClick={handleOpenPathPicker}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors text-left"
+                className="w-full justify-start h-auto py-2 px-4"
               >
                 {projectPath ? (
-                  <span className="font-mono text-sm text-gray-900">{projectPath}</span>
+                  <span className="font-mono text-sm">{projectPath}</span>
                 ) : (
-                  <span className="text-gray-400 text-sm">Click to browse...</span>
+                  <span className="text-muted-foreground text-sm">Click to browse...</span>
                 )}
-              </button>
+              </Button>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {mode === "create"
+                  ? "Directory where the new project will be created"
+                  : "Directory containing the existing project"}
+              </p>
             </div>
-            <p className="mt-1 text-xs text-gray-500">
-              {mode === "create"
-                ? "Directory where the new project will be created"
-                : "Directory containing the existing project"}
-            </p>
-          </div>
 
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm text-red-600">{error}</p>
-            </div>
-          )}
-
-          <div className="mb-4 p-4 bg-gray-50 rounded-md">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">
-              {mode === "create" ? "What happens next:" : "What will happen:"}
-            </h4>
-            <ul className="text-xs text-gray-600 space-y-1">
-              {mode === "create" ? (
-                <>
-                  <li>• Start with a blank workflow canvas</li>
-                  <li>• Create your workflow visually</li>
-                  <li>• On save: directory will be created</li>
-                  <li>• Workflow saved as workflow.yaml</li>
-                </>
-              ) : (
-                <>
-                  <li>• Load workflow.yaml from the path</li>
-                  <li>• Display workflow in the editor</li>
-                  <li>• Edit and update as needed</li>
-                  <li>• On save: workflow.yaml will be updated</li>
-                </>
-              )}
-            </ul>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-3">
-            <button
-              type="submit"
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
-            >
-              {mode === "create" ? "Create Project" : "Load Project"}
-            </button>
-            {onClose && (
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-gray-700 hover:text-gray-900 font-medium transition-colors"
-              >
-                Cancel
-              </button>
+            {error && (
+              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                <p className="text-sm text-destructive">{error}</p>
+              </div>
             )}
-          </div>
-        </form>
-      </div>
+
+            <div className="p-4 bg-muted rounded-md">
+              <h4 className="text-sm font-medium mb-2">
+                {mode === "create" ? "What happens next:" : "What will happen:"}
+              </h4>
+              <ul className="text-xs text-muted-foreground space-y-1">
+                {mode === "create" ? (
+                  <>
+                    <li>• Start with a blank workflow canvas</li>
+                    <li>• Create your workflow visually</li>
+                    <li>• On save: directory will be created</li>
+                    <li>• Workflow saved as workflow.yaml</li>
+                  </>
+                ) : (
+                  <>
+                    <li>• Load workflow.yaml from the path</li>
+                    <li>• Display workflow in the editor</li>
+                    <li>• Edit and update as needed</li>
+                    <li>• On save: workflow.yaml will be updated</li>
+                  </>
+                )}
+              </ul>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <Button type="submit" className="flex-1">
+                {mode === "create" ? "Create Project" : "Load Project"}
+              </Button>
+              {onClose && (
+                <Button type="button" variant="ghost" onClick={onClose}>
+                  Cancel
+                </Button>
+              )}
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Path Picker Modal */}
       <PathPicker
@@ -191,6 +186,6 @@ export default function ProjectDialog({
         title={mode === "create" ? "Select Directory for New Project" : "Select Existing Project Directory"}
         description={mode === "create" ? "Choose where to create your new workflow project" : "Choose the directory containing workflow.yaml"}
       />
-    </div>
+    </>
   );
 }

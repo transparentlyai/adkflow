@@ -1,6 +1,17 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import {
+  Monitor,
+  SquareDashed,
+  FileText,
+  Database,
+  Tag,
+  Settings,
+  Terminal,
+  LogIn,
+  LogOut,
+  Code,
+} from "lucide-react";
 
 export type NodeTypeOption =
   | "variable"
@@ -11,7 +22,8 @@ export type NodeTypeOption =
   | "inputProbe"
   | "outputProbe"
   | "tool"
-  | "agentTool";
+  | "agentTool"
+  | "process";
 
 interface ContextMenuProps {
   x: number;
@@ -21,112 +33,97 @@ interface ContextMenuProps {
   insideGroup?: boolean;
 }
 
-const nodeOptions: { type: NodeTypeOption; label: string; icon: JSX.Element }[] = [
+const nodeOptions: { type: NodeTypeOption; label: string; icon: React.ReactNode }[] = [
   {
     type: "agent",
     label: "Agent",
-    icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />,
+    icon: <Monitor className="h-4 w-4" />,
   },
   {
     type: "group",
     label: "Group",
-    icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5z" strokeDasharray="4 2" />,
+    icon: <SquareDashed className="h-4 w-4" />,
   },
   {
     type: "prompt",
     label: "Prompt",
-    icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />,
+    icon: <FileText className="h-4 w-4" />,
   },
   {
     type: "context",
     label: "Context",
-    icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />,
+    icon: <Database className="h-4 w-4" />,
   },
   {
     type: "variable",
     label: "Variable",
-    icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />,
+    icon: <Tag className="h-4 w-4" />,
   },
   {
     type: "tool",
     label: "Tool",
-    icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />,
+    icon: <Settings className="h-4 w-4" />,
   },
   {
     type: "agentTool",
     label: "Agent Tool",
-    icon: <><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></>,
+    icon: <Terminal className="h-4 w-4" />,
   },
   {
     type: "inputProbe",
     label: "Input",
-    icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />,
+    icon: <LogIn className="h-4 w-4" />,
   },
   {
     type: "outputProbe",
     label: "Output",
-    icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />,
+    icon: <LogOut className="h-4 w-4" />,
+  },
+  {
+    type: "process",
+    label: "Process",
+    icon: <Code className="h-4 w-4" />,
   },
 ];
 
 export default function CanvasContextMenu({ x, y, onSelect, onClose, insideGroup = false }: ContextMenuProps) {
-  const menuRef = useRef<HTMLDivElement>(null);
   const filteredOptions = insideGroup ? nodeOptions.filter(opt => opt.type !== 'group') : nodeOptions;
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-
-    // Small delay to avoid immediate close from the triggering right-click
-    const timeoutId = setTimeout(() => {
-      document.addEventListener("mousedown", handleClickOutside, true);
-      document.addEventListener("contextmenu", handleClickOutside, true);
-    }, 0);
-
-    document.addEventListener("keydown", handleEscape);
-    window.addEventListener("blur", onClose);
-    document.addEventListener("scroll", onClose, true);
-
-    return () => {
-      clearTimeout(timeoutId);
-      document.removeEventListener("mousedown", handleClickOutside, true);
-      document.removeEventListener("contextmenu", handleClickOutside, true);
-      document.removeEventListener("keydown", handleEscape);
-      window.removeEventListener("blur", onClose);
-      document.removeEventListener("scroll", onClose, true);
-    };
-  }, [onClose]);
-
-  const adjustedX = Math.min(x, window.innerWidth - 140);
-  const adjustedY = Math.min(y, window.innerHeight - 280);
+  // Adjust position to keep menu in viewport
+  const adjustedX = Math.min(x, window.innerWidth - 160);
+  const adjustedY = Math.min(y, window.innerHeight - 320);
 
   return (
-    <div
-      ref={menuRef}
-      className="fixed z-50 bg-white/95 backdrop-blur-sm rounded-md shadow-lg border border-gray-200/80 py-1"
-      style={{ left: adjustedX, top: adjustedY }}
-    >
-      {filteredOptions.map((option) => (
-        <button
-          key={option.type}
-          onClick={() => onSelect(option.type)}
-          className="w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
-        >
-          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            {option.icon}
-          </svg>
-          <span>{option.label}</span>
-        </button>
-      ))}
-    </div>
+    <>
+      {/* Backdrop to capture clicks outside */}
+      <div
+        className="fixed inset-0 z-50"
+        onClick={onClose}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          onClose();
+        }}
+      />
+      {/* Menu */}
+      <div
+        className="fixed z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+        style={{ left: adjustedX, top: adjustedY }}
+      >
+        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+          Add Node
+        </div>
+        <div className="-mx-1 my-1 h-px bg-border" />
+        {filteredOptions.map((option) => (
+          <button
+            key={option.type}
+            onClick={() => onSelect(option.type)}
+            className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+          >
+            <span className="mr-2 text-muted-foreground">{option.icon}</span>
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </>
   );
 }
