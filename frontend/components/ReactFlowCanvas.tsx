@@ -871,13 +871,13 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           attributionPosition="bottom-left"
           style={{ background: '#f7f9fb' }}
           defaultEdgeOptions={{
-            style: { strokeWidth: 2.5, stroke: '#64748b' },
+            style: { strokeWidth: 1.5, stroke: '#64748b' },
             animated: false,
             selectable: true,
           }}
           edgesFocusable={true}
           edgesReconnectable={false}
-          connectionLineStyle={{ strokeWidth: 2.5, stroke: '#64748b' }}
+          connectionLineStyle={{ strokeWidth: 1.5, stroke: '#64748b' }}
         >
           <Background color="#64748b" gap={16} />
           <Controls showInteractive={false} />

@@ -73,7 +73,7 @@ export default function ProjectDialog({
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose?.()}>
+      <Dialog open={isOpen && !isPathPickerOpen} onOpenChange={(open) => !open && onClose?.()}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-2xl">Welcome to ADKFlow</DialogTitle>
