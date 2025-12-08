@@ -305,7 +305,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         </div>
 
         {/* Footer */}
-        <div className="bg-gray-50 px-3 py-2 rounded-b-lg border-t border-gray-200 flex items-center justify-between">
+        <div className="bg-gray-50 px-2 py-1 rounded-b-lg border-t border-gray-200 flex items-center justify-between">
           <span className="text-xs text-gray-500">Agent</span>
           <span className={`text-xs px-1.5 py-0.5 rounded ${typeBadge.color}`}>
             {typeBadge.label}
@@ -435,7 +435,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
       </div>
 
       {/* Footer */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gray-50 px-3 py-2 rounded-b-lg border-t border-gray-200 flex items-center justify-between">
+      <div className="absolute bottom-0 left-0 right-0 bg-gray-50 px-2 py-1 rounded-b-lg border-t border-gray-200 flex items-center justify-between">
         <span className="text-xs text-gray-500">Agent</span>
         <span className={`text-xs px-1.5 py-0.5 rounded ${typeBadge.color}`}>
           {typeBadge.label}
