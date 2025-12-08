@@ -119,7 +119,7 @@ const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
           defaultEdge="right"
           defaultPercent={50}
           handlePositions={handlePositions}
-          style={{ width: '10px', height: '10px', backgroundColor: '#d97706', border: '2px solid white' }}
+          style={{ width: '8px', height: '8px', backgroundColor: '#d97706', border: '2px solid white' }}
         />
       </div>
 

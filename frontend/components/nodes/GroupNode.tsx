@@ -171,7 +171,7 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
         }}
       >
         <div
-          className={`text-white px-2 py-1 rounded-t-md cursor-move flex items-center gap-1.5 transition-colors ${selected ? 'bg-gray-400' : 'bg-gray-400/60'}`}
+          className={`text-white px-2 py-0.5 rounded-t-md cursor-move flex items-center gap-1.5 transition-colors ${selected ? 'bg-gray-400' : 'bg-gray-400/60'}`}
           onContextMenu={handleHeaderContextMenu}
         >
           {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
