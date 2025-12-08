@@ -202,14 +202,14 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
     >
       {/* Header */}
       <div
-        className={`bg-green-600 text-white px-3 py-1.5 flex items-center justify-between cursor-pointer ${isExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}
+        className={`bg-green-600 text-white px-2 py-1 flex items-center justify-between cursor-pointer ${isExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}
         style={{ minWidth: isExpanded ? undefined : 'auto' }}
         onDoubleClick={toggleExpand}
         onContextMenu={handleHeaderContextMenu}
       >
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          {isNodeLocked && <Lock className="w-4 h-4 flex-shrink-0 opacity-80" />}
-          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
+          <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
           {isEditing ? (
@@ -221,11 +221,11 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
               onBlur={handleNameSave}
               onKeyDown={handleNameKeyDown}
               onClick={(e) => e.stopPropagation()}
-              className="flex-1 bg-white text-gray-900 px-2 py-0.5 rounded text-sm font-semibold outline-none min-w-0"
+              className="flex-1 bg-white text-gray-900 px-1.5 py-0.5 rounded text-xs font-medium outline-none min-w-0"
             />
           ) : (
             <span
-              className="font-semibold text-sm truncate hover:opacity-80"
+              className="font-medium text-xs truncate hover:opacity-80"
               onDoubleClick={handleNameDoubleClick}
             >
               {prompt.name}
@@ -234,10 +234,10 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
         </div>
         <button
           onClick={toggleExpand}
-          className="ml-2 p-1 hover:bg-green-700 rounded transition-colors flex-shrink-0"
+          className="ml-1.5 p-0.5 hover:bg-green-700 rounded transition-colors flex-shrink-0"
           title={isExpanded ? "Collapse" : "Expand"}
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             {isExpanded ? (
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
             ) : (

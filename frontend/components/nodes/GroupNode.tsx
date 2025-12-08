@@ -171,11 +171,11 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
         }}
       >
         <div
-          className="bg-gray-400 text-white px-3 py-2 rounded-t-md cursor-move flex items-center gap-2"
+          className={`text-white px-2 py-1 rounded-t-md cursor-move flex items-center gap-1.5 transition-colors ${selected ? 'bg-gray-400' : 'bg-gray-400/60'}`}
           onContextMenu={handleHeaderContextMenu}
         >
-          {isNodeLocked && <Lock className="w-4 h-4 flex-shrink-0 opacity-80" />}
-          <svg className="w-4 h-4 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
+          <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeWidth="2" d="M4 8h16M4 16h16" />
           </svg>
           {isEditing ? (
@@ -187,11 +187,11 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
               onBlur={handleSave}
               onKeyDown={handleKeyDown}
               onClick={(e) => e.stopPropagation()}
-              className="flex-1 bg-white text-gray-900 px-2 py-0.5 rounded text-sm font-semibold outline-none"
+              className="flex-1 bg-white text-gray-900 px-1.5 py-0.5 rounded text-xs font-medium outline-none"
             />
           ) : (
             <div
-              className="flex-1 font-semibold text-sm cursor-pointer hover:opacity-80"
+              className="flex-1 font-medium text-xs cursor-pointer hover:opacity-80"
               onDoubleClick={handleDoubleClick}
             >
               {label}
