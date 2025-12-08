@@ -12,6 +12,7 @@ import FilePicker from "@/components/FilePicker";
 import { loadSession, saveSession } from "@/lib/sessionStorage";
 import { ProjectProvider } from "@/contexts/ProjectContext";
 import type { Node, Edge } from "@xyflow/react";
+import { Lock } from "lucide-react";
 
 export default function Home() {
   const [workflowName, setWorkflowName] = useState("Untitled Workflow");
@@ -44,6 +45,9 @@ export default function Home() {
 
   // Clear canvas dialog state
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
+
+  // Canvas lock state
+  const [isCanvasLocked, setIsCanvasLocked] = useState(false);
 
   // File picker dialog state
   const [isFilePickerOpen, setIsFilePickerOpen] = useState(false);
@@ -426,6 +430,8 @@ export default function Home() {
               onZoomOut={handleZoomOut}
               onFitView={handleFitView}
               hasProjectPath={!!currentProjectPath}
+              isLocked={isCanvasLocked}
+              onToggleLock={() => setIsCanvasLocked(!isCanvasLocked)}
             />
           </div>
           <div className="flex items-center gap-4">
@@ -444,6 +450,12 @@ export default function Home() {
             {hasUnsavedChanges && (
               <span className="text-xs text-orange-500 font-medium">Unsaved</span>
             )}
+            {isCanvasLocked && (
+              <span className="flex items-center gap-1 text-xs text-blue-500 font-medium">
+                <Lock className="h-3 w-3" />
+                Locked
+              </span>
+            )}
           </div>
         </div>
       </header>
@@ -457,6 +469,7 @@ export default function Home() {
               projectPath={currentProjectPath}
               onSaveFile={handleSaveFile}
               onRequestFilePicker={handleRequestFilePicker}
+              isLocked={isCanvasLocked}
             >
               <ReactFlowCanvas
                 ref={canvasRef}
@@ -465,6 +478,8 @@ export default function Home() {
                 onRequestContextCreation={handleRequestContextCreation}
                 onRequestToolCreation={handleRequestToolCreation}
                 onRequestProcessCreation={handleRequestProcessCreation}
+                isLocked={isCanvasLocked}
+                onToggleLock={() => setIsCanvasLocked(!isCanvasLocked)}
               />
             </ProjectProvider>
           </div>

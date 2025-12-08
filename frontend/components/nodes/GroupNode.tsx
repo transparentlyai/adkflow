@@ -2,6 +2,7 @@
 
 import { memo, useState, useRef, useEffect } from "react";
 import { NodeResizer, type NodeProps, useReactFlow, useStore } from "@xyflow/react";
+import { useProject } from "@/contexts/ProjectContext";
 
 export interface GroupNodeData extends Record<string, unknown> {
   label: string;
@@ -10,6 +11,7 @@ export interface GroupNodeData extends Record<string, unknown> {
 const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
   const { label } = data as unknown as GroupNodeData;
   const { setNodes } = useReactFlow();
+  const { isLocked } = useProject();
   const [isEditing, setIsEditing] = useState(false);
   const [editedLabel, setEditedLabel] = useState(label);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -102,7 +104,7 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
       <NodeResizer
         minWidth={200}
         minHeight={150}
-        isVisible={selected}
+        isVisible={selected && !isLocked}
         lineClassName="!border-gray-400"
         handleClassName="!w-2 !h-2 !bg-gray-400 !border-gray-400"
       />

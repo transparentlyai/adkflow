@@ -19,6 +19,8 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize,
+  Lock,
+  Unlock,
 } from "lucide-react";
 
 interface TopMenubarProps {
@@ -30,6 +32,8 @@ interface TopMenubarProps {
   onZoomOut?: () => void;
   onFitView?: () => void;
   hasProjectPath: boolean;
+  isLocked?: boolean;
+  onToggleLock?: () => void;
 }
 
 export default function TopMenubar({
@@ -41,6 +45,8 @@ export default function TopMenubar({
   onZoomOut,
   onFitView,
   hasProjectPath,
+  isLocked,
+  onToggleLock,
 }: TopMenubarProps) {
   return (
     <Menubar className="border-none rounded-none shadow-none bg-transparent h-8">
@@ -108,6 +114,16 @@ export default function TopMenubar({
             <Maximize className="mr-2 h-4 w-4" />
             Fit to Screen
             <MenubarShortcut>⌘0</MenubarShortcut>
+          </MenubarItem>
+          <MenubarSeparator />
+          <MenubarItem onClick={onToggleLock} disabled={!onToggleLock}>
+            {isLocked ? (
+              <Unlock className="mr-2 h-4 w-4" />
+            ) : (
+              <Lock className="mr-2 h-4 w-4" />
+            )}
+            {isLocked ? "Unlock Canvas" : "Lock Canvas"}
+            <MenubarShortcut>⌘L</MenubarShortcut>
           </MenubarItem>
         </MenubarContent>
       </MenubarMenu>

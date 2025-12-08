@@ -6,10 +6,12 @@ interface ProjectContextValue {
   projectPath: string | null;
   onSaveFile?: (filePath: string, content: string) => Promise<void>;
   onRequestFilePicker?: (currentFilePath: string, onSelect: (newPath: string) => void) => void;
+  isLocked?: boolean;
 }
 
 const ProjectContext = createContext<ProjectContextValue>({
   projectPath: null,
+  isLocked: false,
 });
 
 interface ProjectProviderProps {
@@ -17,6 +19,7 @@ interface ProjectProviderProps {
   projectPath: string | null;
   onSaveFile?: (filePath: string, content: string) => Promise<void>;
   onRequestFilePicker?: (currentFilePath: string, onSelect: (newPath: string) => void) => void;
+  isLocked?: boolean;
 }
 
 export function ProjectProvider({
@@ -24,9 +27,10 @@ export function ProjectProvider({
   projectPath,
   onSaveFile,
   onRequestFilePicker,
+  isLocked,
 }: ProjectProviderProps) {
   return (
-    <ProjectContext.Provider value={{ projectPath, onSaveFile, onRequestFilePicker }}>
+    <ProjectContext.Provider value={{ projectPath, onSaveFile, onRequestFilePicker, isLocked }}>
       {children}
     </ProjectContext.Provider>
   );

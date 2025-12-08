@@ -72,6 +72,8 @@ interface ReactFlowCanvasProps {
   onRequestContextCreation?: (position: { x: number; y: number }) => void;
   onRequestToolCreation?: (position: { x: number; y: number }) => void;
   onRequestProcessCreation?: (position: { x: number; y: number }) => void;
+  isLocked?: boolean;
+  onToggleLock?: () => void;
 }
 
 export interface ReactFlowCanvasRef {
@@ -100,7 +102,7 @@ export interface ReactFlowCanvasRef {
  * Replaces the Drawflow-based canvas with native React Flow implementation.
  */
 const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
-  ({ onWorkflowChange, onRequestPromptCreation, onRequestContextCreation, onRequestToolCreation, onRequestProcessCreation }, ref) => {
+  ({ onWorkflowChange, onRequestPromptCreation, onRequestContextCreation, onRequestToolCreation, onRequestProcessCreation, isLocked, onToggleLock }, ref) => {
     const [nodes, setNodes] = useState<Node[]>([]);
     const [edges, setEdges] = useState<Edge[]>([]);
     const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
@@ -148,6 +150,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
     // Handle new connections
     const onConnect = useCallback((params: Connection) => {
+      if (isLocked) return;
+
       // Check if this is a link connection (from link handles)
       const isLinkConnection =
         params.sourceHandle?.startsWith('link-') &&
@@ -167,11 +171,12 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       } else {
         setEdges((eds) => addEdge(params, eds));
       }
-    }, []);
+    }, [isLocked]);
 
     // Auto-parent/detach nodes from Group on drag stop
     const onNodeDragStop = useCallback(
       (_event: React.MouseEvent, draggedNode: Node) => {
+        if (isLocked) return;
         if (draggedNode.type === "group") return;
 
         const currentNode = nodes.find((n) => n.id === draggedNode.id);
@@ -258,7 +263,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           return updatedNodes;
         });
       },
-      [nodes]
+      [nodes, isLocked]
     );
 
     // Notify parent of workflow changes
@@ -273,6 +278,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       const handleKeyDown = (event: KeyboardEvent) => {
         // Delete or Backspace key
         if (event.key === "Delete" || event.key === "Backspace") {
+          if (isLocked) return;
+
           // Check if user is not typing in an input field
           const target = event.target as HTMLElement;
           if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
@@ -315,7 +322,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
       window.addEventListener("keydown", handleKeyDown);
       return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [nodes, edges]);
+    }, [nodes, edges, isLocked]);
 
     // Handle delete confirmation
     const handleDeleteConfirm = useCallback(() => {
@@ -562,6 +569,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
     const onDrop = useCallback((event: React.DragEvent) => {
       event.preventDefault();
+      if (isLocked) return;
 
       const type = event.dataTransfer.getData('application/reactflow');
       if (!type) return;
@@ -622,6 +630,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       addInputProbeNode,
       addOutputProbeNode,
       addAgentToolNode,
+      isLocked,
     ]);
 
     // Handle right-click on canvas pane
@@ -633,6 +642,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
     // Handle right-click on a node (specifically for groups)
     const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
+      if (isLocked) return;
       if (node.type !== 'group') return;
 
       event.preventDefault();
@@ -643,7 +653,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         y: flowPosition.y - node.position.y,
       };
       setContextMenu({ x: event.clientX, y: event.clientY, flowPosition: relativePosition, parentGroupId: node.id });
-    }, [screenToFlowPosition]);
+    }, [screenToFlowPosition, isLocked]);
 
     // Helper to add node with optional parent
     const addNodeWithParent = useCallback((
@@ -789,13 +799,14 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     const restoreFlow = useCallback((flow: { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }) => {
       if (!flow) return;
 
-      const { x = 0, y = 0, zoom = 1 } = flow.viewport;
       setNodes(flow.nodes || []);
       setEdges(flow.edges || []);
 
-      // Set viewport using the instance
+      // Fit view after nodes are rendered
       if (rfInstance) {
-        rfInstance.setViewport({ x, y, zoom });
+        requestAnimationFrame(() => {
+          rfInstance.fitView({ padding: 0.1 });
+        });
       }
     }, [rfInstance]);
 
@@ -878,6 +889,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           edgesFocusable={true}
           edgesReconnectable={false}
           connectionLineStyle={{ strokeWidth: 1.5, stroke: '#64748b' }}
+          nodesDraggable={!isLocked}
+          nodesConnectable={!isLocked}
         >
           <Background color="#64748b" gap={16} />
           <Controls showInteractive={false} />
@@ -918,6 +931,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             onSelect={onContextMenuSelect}
             onClose={closeContextMenu}
             insideGroup={!!contextMenu.parentGroupId}
+            isLocked={isLocked}
+            onToggleLock={onToggleLock}
           />
         )}
         <ConfirmDialog

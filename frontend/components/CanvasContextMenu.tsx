@@ -11,6 +11,8 @@ import {
   LogIn,
   LogOut,
   Code,
+  Lock,
+  Unlock,
 } from "lucide-react";
 
 export type NodeTypeOption =
@@ -31,6 +33,8 @@ interface ContextMenuProps {
   onSelect: (nodeType: NodeTypeOption) => void;
   onClose: () => void;
   insideGroup?: boolean;
+  isLocked?: boolean;
+  onToggleLock?: () => void;
 }
 
 const nodeOptions: { type: NodeTypeOption; label: string; icon: React.ReactNode }[] = [
@@ -86,7 +90,7 @@ const nodeOptions: { type: NodeTypeOption; label: string; icon: React.ReactNode 
   },
 ];
 
-export default function CanvasContextMenu({ x, y, onSelect, onClose, insideGroup = false }: ContextMenuProps) {
+export default function CanvasContextMenu({ x, y, onSelect, onClose, insideGroup = false, isLocked, onToggleLock }: ContextMenuProps) {
   const filteredOptions = insideGroup ? nodeOptions.filter(opt => opt.type !== 'group') : nodeOptions;
 
   // Adjust position to keep menu in viewport
@@ -109,11 +113,15 @@ export default function CanvasContextMenu({ x, y, onSelect, onClose, insideGroup
         className="fixed z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
         style={{ left: adjustedX, top: adjustedY }}
       >
-        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-          Add Node
-        </div>
-        <div className="-mx-1 my-1 h-px bg-border" />
-        {filteredOptions.map((option) => (
+        {!isLocked && (
+          <>
+            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+              Add Node
+            </div>
+            <div className="-mx-1 my-1 h-px bg-border" />
+          </>
+        )}
+        {!isLocked && filteredOptions.map((option) => (
           <button
             key={option.type}
             onClick={() => onSelect(option.type)}
@@ -123,6 +131,21 @@ export default function CanvasContextMenu({ x, y, onSelect, onClose, insideGroup
             {option.label}
           </button>
         ))}
+        {!isLocked && onToggleLock && <div className="-mx-1 my-1 h-px bg-border" />}
+        {onToggleLock && (
+          <button
+            onClick={() => {
+              onToggleLock();
+              onClose();
+            }}
+            className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+          >
+            <span className="mr-2 text-muted-foreground">
+              {isLocked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+            </span>
+            {isLocked ? "Unlock Canvas" : "Lock Canvas"}
+          </button>
+        )}
       </div>
     </>
   );
