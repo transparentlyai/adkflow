@@ -1,7 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { Lock, Unlock } from "lucide-react";
+import { Lock, Unlock, Unlink } from "lucide-react";
 
 interface NodeContextMenuProps {
   x: number;
@@ -9,9 +9,10 @@ interface NodeContextMenuProps {
   isLocked: boolean;
   onToggleLock: () => void;
   onClose: () => void;
+  onDetach?: () => void;
 }
 
-export default function NodeContextMenu({ x, y, isLocked, onToggleLock, onClose }: NodeContextMenuProps) {
+export default function NodeContextMenu({ x, y, isLocked, onToggleLock, onClose, onDetach }: NodeContextMenuProps) {
   const adjustedX = Math.min(x, window.innerWidth - 160);
   const adjustedY = Math.min(y, window.innerHeight - 100);
 
@@ -41,6 +42,20 @@ export default function NodeContextMenu({ x, y, isLocked, onToggleLock, onClose 
           </span>
           {isLocked ? "Unlock Node" : "Lock Node"}
         </button>
+        {onDetach && (
+          <button
+            onClick={() => {
+              onDetach();
+              onClose();
+            }}
+            className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+          >
+            <span className="mr-2 text-muted-foreground">
+              <Unlink className="h-4 w-4" />
+            </span>
+            Detach from Group
+          </button>
+        )}
       </div>
     </>,
     document.body

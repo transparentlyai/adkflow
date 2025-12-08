@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { type NodeProps, useReactFlow } from "@xyflow/react";
+import { type NodeProps, useReactFlow, useStore } from "@xyflow/react";
 import Editor from "@monaco-editor/react";
 import type { Prompt, HandlePositions } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
@@ -34,6 +34,9 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+
+  const currentNode = useStore((state) => state.nodes.find((n) => n.id === id));
+  const parentId = currentNode?.parentId;
 
   const size = useMemo(() => expandedSize ?? { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT }, [expandedSize]);
   const [editedName, setEditedName] = useState(prompt.name);
@@ -82,6 +85,27 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
       )
     );
   }, [id, isNodeLocked, setNodes]);
+
+  const handleDetach = useCallback(() => {
+    setNodes((nodes) => {
+      const thisNode = nodes.find((n) => n.id === id);
+      const parentNode = nodes.find((n) => n.id === thisNode?.parentId);
+      if (!thisNode || !parentNode) return nodes;
+
+      return nodes.map((node) =>
+        node.id === id
+          ? {
+              ...node,
+              parentId: undefined,
+              position: {
+                x: thisNode.position.x + parentNode.position.x,
+                y: thisNode.position.y + parentNode.position.y,
+              },
+            }
+          : node
+      );
+    });
+  }, [id, setNodes]);
 
   const handleNameSave = () => {
     if (editedName.trim()) {
@@ -297,6 +321,7 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
           isLocked={!!isNodeLocked}
           onToggleLock={handleToggleNodeLock}
           onClose={() => setContextMenu(null)}
+          onDetach={parentId ? handleDetach : undefined}
         />
       )}
     </div>

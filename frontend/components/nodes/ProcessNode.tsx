@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { type NodeProps, useReactFlow } from "@xyflow/react";
+import { type NodeProps, useReactFlow, useStore } from "@xyflow/react";
 import Editor from "@monaco-editor/react";
 import type { HandlePositions } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
@@ -68,6 +68,9 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const currentNode = useStore((state) => state.nodes.find((n) => n.id === id));
+  const parentId = currentNode?.parentId;
+
   const size = useMemo(() => expandedSize ?? { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT }, [expandedSize]);
 
   const handleResize = useCallback((deltaWidth: number, deltaHeight: number) => {
@@ -115,6 +118,27 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
       )
     );
   }, [id, isNodeLocked, setNodes]);
+
+  const handleDetach = useCallback(() => {
+    setNodes((nodes) => {
+      const thisNode = nodes.find((n) => n.id === id);
+      const parentNode = nodes.find((n) => n.id === thisNode?.parentId);
+      if (!thisNode || !parentNode) return nodes;
+
+      return nodes.map((node) =>
+        node.id === id
+          ? {
+              ...node,
+              parentId: undefined,
+              position: {
+                x: thisNode.position.x + parentNode.position.x,
+                y: thisNode.position.y + parentNode.position.y,
+              },
+            }
+          : node
+      );
+    });
+  }, [id, setNodes]);
 
   const handleSave = () => {
     if (editedName.trim()) {
@@ -367,6 +391,7 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
           isLocked={!!isNodeLocked}
           onToggleLock={handleToggleNodeLock}
           onClose={() => setContextMenu(null)}
+          onDetach={parentId ? handleDetach : undefined}
         />
       )}
     </div>

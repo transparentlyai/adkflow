@@ -20,6 +20,9 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
+  const currentNode = useStore((state) => state.nodes.find((n) => n.id === id));
+  const parentId = currentNode?.parentId;
+
   const isNodeDraggingInside = useStore((state) => {
     const groupNode = state.nodes.find((n) => n.id === id);
     if (!groupNode) return false;
@@ -89,6 +92,27 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
       )
     );
   }, [id, isNodeLocked, setNodes]);
+
+  const handleDetach = useCallback(() => {
+    setNodes((nodes) => {
+      const thisNode = nodes.find((n) => n.id === id);
+      const parentNode = nodes.find((n) => n.id === thisNode?.parentId);
+      if (!thisNode || !parentNode) return nodes;
+
+      return nodes.map((node) =>
+        node.id === id
+          ? {
+              ...node,
+              parentId: undefined,
+              position: {
+                x: thisNode.position.x + parentNode.position.x,
+                y: thisNode.position.y + parentNode.position.y,
+              },
+            }
+          : node
+      );
+    });
+  }, [id, setNodes]);
 
   const handleSave = () => {
     if (editedLabel.trim()) {
@@ -188,6 +212,7 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
           isLocked={!!isNodeLocked}
           onToggleLock={handleToggleNodeLock}
           onClose={() => setContextMenu(null)}
+          onDetach={parentId ? handleDetach : undefined}
         />
       )}
     </>

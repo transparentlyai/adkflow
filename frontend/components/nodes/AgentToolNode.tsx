@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState, useCallback } from "react";
-import { type NodeProps, useReactFlow } from "@xyflow/react";
+import { type NodeProps, useReactFlow, useStore } from "@xyflow/react";
 import type { HandlePositions } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import NodeContextMenu from "@/components/NodeContextMenu";
@@ -19,6 +19,9 @@ const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const [newName, setNewName] = useState(name);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+
+  const currentNode = useStore((state) => state.nodes.find((n) => n.id === id));
+  const parentId = currentNode?.parentId;
 
   const handleDoubleClick = () => {
     if (isNodeLocked) return;
@@ -41,6 +44,27 @@ const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
       )
     );
   }, [id, isNodeLocked, setNodes]);
+
+  const handleDetach = useCallback(() => {
+    setNodes((nodes) => {
+      const thisNode = nodes.find((n) => n.id === id);
+      const parentNode = nodes.find((n) => n.id === thisNode?.parentId);
+      if (!thisNode || !parentNode) return nodes;
+
+      return nodes.map((node) =>
+        node.id === id
+          ? {
+              ...node,
+              parentId: undefined,
+              position: {
+                x: thisNode.position.x + parentNode.position.x,
+                y: thisNode.position.y + parentNode.position.y,
+              },
+            }
+          : node
+      );
+    });
+  }, [id, setNodes]);
 
   const handleRename = () => {
     if (newName.trim()) {
@@ -142,6 +166,7 @@ const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
           isLocked={!!isNodeLocked}
           onToggleLock={handleToggleNodeLock}
           onClose={() => setContextMenu(null)}
+          onDetach={parentId ? handleDetach : undefined}
         />
       )}
     </>

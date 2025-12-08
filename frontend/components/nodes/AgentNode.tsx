@@ -45,6 +45,10 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
   const edges = useStore((state) => state.edges);
   const nodes = useStore((state) => state.nodes);
 
+  // Get current node's parentId for detach functionality
+  const currentNode = useStore((state) => state.nodes.find((n) => n.id === id));
+  const parentId = currentNode?.parentId;
+
   useEffect(() => {
     if (isEditing && inputRef.current) {
       inputRef.current.focus();
@@ -128,6 +132,27 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
       )
     );
   }, [id, isNodeLocked, setNodes]);
+
+  const handleDetach = useCallback(() => {
+    setNodes((nodes) => {
+      const currentNode = nodes.find((n) => n.id === id);
+      const parentNode = nodes.find((n) => n.id === currentNode?.parentId);
+      if (!currentNode || !parentNode) return nodes;
+
+      return nodes.map((node) =>
+        node.id === id
+          ? {
+              ...node,
+              parentId: undefined,
+              position: {
+                x: currentNode.position.x + parentNode.position.x,
+                y: currentNode.position.y + parentNode.position.y,
+              },
+            }
+          : node
+      );
+    });
+  }, [id, setNodes]);
 
   const handleSave = () => {
     if (editedName.trim()) {
@@ -317,6 +342,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
             isLocked={!!isNodeLocked}
             onToggleLock={handleToggleNodeLock}
             onClose={() => setContextMenu(null)}
+            onDetach={parentId ? handleDetach : undefined}
           />
         )}
       </div>
@@ -449,6 +475,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           isLocked={!!isNodeLocked}
           onToggleLock={handleToggleNodeLock}
           onClose={() => setContextMenu(null)}
+          onDetach={parentId ? handleDetach : undefined}
         />
       )}
     </div>
