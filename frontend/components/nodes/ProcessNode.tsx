@@ -22,6 +22,7 @@ export interface ProcessNodeData extends Record<string, unknown> {
   description?: string;
   file_path?: string;
   handlePositions?: HandlePositions;
+  expandedSize?: { width: number; height: number };
 }
 
 const DEFAULT_CODE = `def process(input_data: dict) -> dict:
@@ -54,22 +55,30 @@ function parseFunctionSignature(code: string): { name: string; params: string; r
 }
 
 const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name, code, file_path, handlePositions } = data as unknown as ProcessNodeData;
+  const { name, code, file_path, handlePositions, expandedSize } = data as unknown as ProcessNodeData;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(name);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [size, setSize] = useState({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT });
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const size = useMemo(() => expandedSize ?? { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT }, [expandedSize]);
+
   const handleResize = useCallback((deltaWidth: number, deltaHeight: number) => {
-    setSize(prev => ({
-      width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, prev.width + deltaWidth)),
-      height: Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, prev.height + deltaHeight)),
-    }));
-  }, []);
+    const newSize = {
+      width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, size.width + deltaWidth)),
+      height: Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, size.height + deltaHeight)),
+    };
+    setNodes((nodes) =>
+      nodes.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, expandedSize: newSize } }
+          : node
+      )
+    );
+  }, [id, size, setNodes]);
 
   // Parse function signature from code
   const signature = useMemo(() => parseFunctionSignature(code || ""), [code]);

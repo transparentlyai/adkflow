@@ -8,15 +8,16 @@ import ResizeHandle from "@/components/ResizeHandle";
 import AgentPropertiesPanel from "@/components/AgentPropertiesPanel";
 
 const DEFAULT_WIDTH = 450;
-const DEFAULT_HEIGHT = 400;
+const DEFAULT_HEIGHT = 500;
 const MIN_WIDTH = 380;
-const MIN_HEIGHT = 300;
-const MAX_WIDTH = 700;
-const MAX_HEIGHT = 600;
+const MIN_HEIGHT = 350;
+const MAX_WIDTH = 800;
+const MAX_HEIGHT = 900;
 
 export interface AgentNodeData {
   agent: Agent;
   handlePositions?: HandlePositions;
+  expandedSize?: { width: number; height: number };
 }
 
 const TYPE_BADGES: Record<AgentType, { label: string; color: string }> = {
@@ -27,13 +28,14 @@ const TYPE_BADGES: Record<AgentType, { label: string; color: string }> = {
 };
 
 const AgentNode = memo(({ data, id, selected }: NodeProps) => {
-  const { agent, handlePositions } = data as unknown as AgentNodeData;
+  const { agent, handlePositions, expandedSize } = data as unknown as AgentNodeData;
   const { setNodes } = useReactFlow();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(agent.name);
-  const [size, setSize] = useState({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT });
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const size = useMemo(() => expandedSize ?? { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT }, [expandedSize]);
 
   // Subscribe to edges and nodes reactively
   const edges = useStore((state) => state.edges);
@@ -87,11 +89,18 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
   }, [id, edges, nodes]);
 
   const handleResize = useCallback((deltaWidth: number, deltaHeight: number) => {
-    setSize((prev) => ({
-      width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, prev.width + deltaWidth)),
-      height: Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, prev.height + deltaHeight)),
-    }));
-  }, []);
+    const newSize = {
+      width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, size.width + deltaWidth)),
+      height: Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, size.height + deltaHeight)),
+    };
+    setNodes((nodes) =>
+      nodes.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, expandedSize: newSize } }
+          : node
+      )
+    );
+  }, [id, size, setNodes]);
 
   const handleNameDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();

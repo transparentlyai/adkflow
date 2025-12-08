@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useCallback, useRef, useEffect } from "react";
+import { memo, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Handle, Position, type NodeProps, useReactFlow } from "@xyflow/react";
 import Editor from "@monaco-editor/react";
 import type { HandlePositions } from "@/lib/types";
@@ -37,16 +37,18 @@ interface ToolNodeData {
   code?: string;
   file_path?: string;
   handlePositions?: HandlePositions;
+  expandedSize?: { width: number; height: number };
 }
 
 const ToolNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name = "Tool", code = DEFAULT_CODE, file_path, handlePositions } = data as ToolNodeData;
+  const { name = "Tool", code = DEFAULT_CODE, file_path, handlePositions, expandedSize } = data as ToolNodeData;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [size, setSize] = useState({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT });
   const [isEditing, setIsEditing] = useState(false);
+
+  const size = useMemo(() => expandedSize ?? { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT }, [expandedSize]);
   const [editedName, setEditedName] = useState(name);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -58,11 +60,18 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
   }, [isEditing]);
 
   const handleResize = useCallback((deltaWidth: number, deltaHeight: number) => {
-    setSize(prev => ({
-      width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, prev.width + deltaWidth)),
-      height: Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, prev.height + deltaHeight)),
-    }));
-  }, []);
+    const newSize = {
+      width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, size.width + deltaWidth)),
+      height: Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, size.height + deltaHeight)),
+    };
+    setNodes((nodes) =>
+      nodes.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, expandedSize: newSize } }
+          : node
+      )
+    );
+  }, [id, size, setNodes]);
 
   const toggleExpand = () => {
     setIsExpanded(!isExpanded);
