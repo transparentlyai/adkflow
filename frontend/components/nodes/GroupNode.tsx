@@ -154,7 +154,7 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
         handleClassName="!w-2 !h-2 !bg-gray-400 !border-gray-400"
       />
       <div
-        className="w-full h-full rounded-lg transition-all duration-200"
+        className="w-full h-full rounded-lg transition-all duration-200 flex flex-col"
         style={{
           minWidth: 200,
           minHeight: 150,
@@ -171,7 +171,7 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
         }}
       >
         <div
-          className={`text-white px-2 py-0.5 rounded-t-md cursor-move flex items-center gap-1.5 transition-colors ${selected ? 'bg-gray-400' : 'bg-gray-400/60'}`}
+          className={`text-white px-2 py-0.5 rounded-t-md cursor-grab flex items-center gap-1.5 transition-colors ${selected ? 'bg-gray-400' : 'bg-gray-400/60'}`}
           onContextMenu={handleHeaderContextMenu}
         >
           {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
@@ -187,7 +187,7 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
               onBlur={handleSave}
               onKeyDown={handleKeyDown}
               onClick={(e) => e.stopPropagation()}
-              className="flex-1 bg-white text-gray-900 px-1.5 py-0.5 rounded text-xs font-medium outline-none"
+              className="flex-1 bg-white text-gray-900 px-1.5 py-0.5 rounded text-xs font-medium outline-none nodrag"
             />
           ) : (
             <div
@@ -198,11 +198,13 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
             </div>
           )}
         </div>
-        {isNodeDraggingInside && (
-          <div className="p-2 text-xs text-gray-500/60 text-center italic">
-            Drop to group
-          </div>
-        )}
+        <div className="flex-1 nodrag">
+          {isNodeDraggingInside && (
+            <div className="p-2 text-xs text-gray-500/60 text-center italic">
+              Drop to group
+            </div>
+          )}
+        </div>
       </div>
 
       {contextMenu && (
