@@ -11,6 +11,10 @@ from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
+from dotenv import load_dotenv
+
+# Load .env file from current directory
+load_dotenv()
 
 console = Console()
 
@@ -301,12 +305,14 @@ def start_frontend_server(
     "--backend-port",
     "-b",
     default=DEFAULT_BACKEND_PORT,
+    envvar="BACKEND_PORT",
     help=f"Backend port (default: {DEFAULT_BACKEND_PORT})",
 )
 @click.option(
     "--frontend-port",
     "-f",
     default=DEFAULT_FRONTEND_PORT,
+    envvar="FRONTEND_PORT",
     help=f"Frontend port (default: {DEFAULT_FRONTEND_PORT})",
 )
 def dev(backend_port: int, frontend_port: int):
@@ -427,12 +433,14 @@ def dev(backend_port: int, frontend_port: int):
     "--backend-port",
     "-b",
     default=DEFAULT_BACKEND_PORT,
+    envvar="BACKEND_PORT",
     help=f"Backend port (default: {DEFAULT_BACKEND_PORT})",
 )
 @click.option(
     "--frontend-port",
     "-f",
     default=DEFAULT_FRONTEND_PORT,
+    envvar="FRONTEND_PORT",
     help=f"Frontend port (default: {DEFAULT_FRONTEND_PORT})",
 )
 @click.option(
@@ -548,6 +556,7 @@ def start(backend_port: int, frontend_port: int, build: bool):
     "--port",
     "-p",
     default=DEFAULT_BACKEND_PORT,
+    envvar="BACKEND_PORT",
     help=f"Backend port (default: {DEFAULT_BACKEND_PORT})",
 )
 def backend(port: int):
@@ -608,12 +617,14 @@ def backend(port: int):
     "--port",
     "-p",
     default=DEFAULT_FRONTEND_PORT,
+    envvar="FRONTEND_PORT",
     help=f"Frontend port (default: {DEFAULT_FRONTEND_PORT})",
 )
 @click.option(
     "--backend-port",
     "-b",
     default=DEFAULT_BACKEND_PORT,
+    envvar="BACKEND_PORT",
     help=f"Backend port to connect to (default: {DEFAULT_BACKEND_PORT})",
 )
 def frontend(port: int, backend_port: int):
