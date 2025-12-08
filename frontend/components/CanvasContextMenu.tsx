@@ -23,6 +23,7 @@ export type NodeTypeOption =
   | "context"
   | "inputProbe"
   | "outputProbe"
+  | "logProbe"
   | "tool"
   | "agentTool"
   | "process";
@@ -82,6 +83,11 @@ const nodeOptions: { type: NodeTypeOption; label: string; icon: React.ReactNode 
     type: "outputProbe",
     label: "Output Probe",
     icon: <LogOut className="h-4 w-4" />,
+  },
+  {
+    type: "logProbe",
+    label: "Log Probe",
+    icon: <Terminal className="h-4 w-4" />,
   },
   {
     type: "process",

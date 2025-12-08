@@ -33,6 +33,7 @@ import PromptNode from "./nodes/PromptNode";
 import ContextNode from "./nodes/ContextNode";
 import InputProbeNode from "./nodes/InputProbeNode";
 import OutputProbeNode from "./nodes/OutputProbeNode";
+import LogProbeNode from "./nodes/LogProbeNode";
 import ToolNode from "./nodes/ToolNode";
 import AgentToolNode from "./nodes/AgentToolNode";
 import VariableNode from "./nodes/VariableNode";
@@ -47,6 +48,7 @@ import { getDefaultPromptData } from "./nodes/PromptNode";
 import { getDefaultContextData } from "./nodes/ContextNode";
 import { getDefaultInputProbeData } from "./nodes/InputProbeNode";
 import { getDefaultOutputProbeData } from "./nodes/OutputProbeNode";
+import { getDefaultLogProbeData } from "./nodes/LogProbeNode";
 import { getDefaultToolData } from "./nodes/ToolNode";
 import { getDefaultAgentToolData } from "./nodes/AgentToolNode";
 import { getDefaultVariableData } from "./nodes/VariableNode";
@@ -61,6 +63,7 @@ const nodeTypes = {
   context: ContextNode,
   inputProbe: InputProbeNode,
   outputProbe: OutputProbeNode,
+  logProbe: LogProbeNode,
   tool: ToolNode,
   agentTool: AgentToolNode,
   variable: VariableNode,
@@ -84,6 +87,7 @@ export interface ReactFlowCanvasRef {
   addContextNode: (contextData?: { name: string; file_path: string }, position?: { x: number; y: number }) => void;
   addInputProbeNode: (position?: { x: number; y: number }) => void;
   addOutputProbeNode: (position?: { x: number; y: number }) => void;
+  addLogProbeNode: (position?: { x: number; y: number }) => void;
   addToolNode: (toolData?: { name: string; file_path: string }, position?: { x: number; y: number }) => void;
   addAgentToolNode: (position?: { x: number; y: number }) => void;
   addVariableNode: (position?: { x: number; y: number }) => void;
@@ -126,7 +130,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     const [contextPosition, setContextPosition] = useState({ x: 150, y: 400 });
     const [inputProbePosition, setInputProbePosition] = useState({ x: 150, y: 450 });
     const [outputProbePosition, setOutputProbePosition] = useState({ x: 150, y: 500 });
-    const [toolPosition, setToolPosition] = useState({ x: 150, y: 550 });
+    const [logProbePosition, setLogProbePosition] = useState({ x: 150, y: 550 });
+    const [toolPosition, setToolPosition] = useState({ x: 150, y: 600 });
     const [agentToolPosition, setAgentToolPosition] = useState({ x: 150, y: 600 });
     const [variablePosition, setVariablePosition] = useState({ x: 150, y: 650 });
     const [processPosition, setProcessPosition] = useState({ x: 150, y: 700 });
@@ -498,6 +503,25 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     }, [outputProbePosition]);
 
     /**
+     * Add a Log Probe node to the canvas
+     */
+    const addLogProbeNode = useCallback((position?: { x: number; y: number }) => {
+      const logProbeId = generateNodeId("logProbe");
+
+      const newNode: Node = {
+        id: logProbeId,
+        type: "logProbe",
+        position: position || logProbePosition,
+        data: getDefaultLogProbeData(),
+      };
+
+      setNodes((nds) => [...nds, newNode]);
+      if (!position) {
+        setLogProbePosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      }
+    }, [logProbePosition]);
+
+    /**
      * Add a Tool node to the canvas
      */
     const addToolNode = useCallback((toolData?: { name: string; file_path: string }, position?: { x: number; y: number }) => {
@@ -628,6 +652,9 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         case 'outputProbe':
           addOutputProbeNode(position);
           break;
+        case 'logProbe':
+          addLogProbeNode(position);
+          break;
         case 'agentTool':
           addAgentToolNode(position);
           break;
@@ -643,6 +670,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       addAgentNode,
       addInputProbeNode,
       addOutputProbeNode,
+      addLogProbeNode,
       addAgentToolNode,
       isLocked,
     ]);
@@ -742,6 +770,9 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         case 'outputProbe':
           addNodeWithParent(addOutputProbeNode, position, parentGroupId);
           break;
+        case 'logProbe':
+          addNodeWithParent(addLogProbeNode, position, parentGroupId);
+          break;
         case 'tool':
           if (onRequestToolCreation) {
             onRequestToolCreation(position);
@@ -766,6 +797,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       addAgentNode,
       addInputProbeNode,
       addOutputProbeNode,
+      addLogProbeNode,
       addAgentToolNode,
       onRequestPromptCreation,
       onRequestContextCreation,
@@ -791,7 +823,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       setContextPosition({ x: 150, y: 250 });
       setInputProbePosition({ x: 150, y: 300 });
       setOutputProbePosition({ x: 150, y: 350 });
-      setToolPosition({ x: 150, y: 400 });
+      setLogProbePosition({ x: 150, y: 400 });
+      setToolPosition({ x: 150, y: 450 });
       setAgentToolPosition({ x: 150, y: 450 });
       setVariablePosition({ x: 150, y: 500 });
       setProcessPosition({ x: 150, y: 550 });
@@ -851,6 +884,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       addContextNode,
       addInputProbeNode,
       addOutputProbeNode,
+      addLogProbeNode,
       addToolNode,
       addAgentToolNode,
       addVariableNode,
@@ -923,6 +957,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
                 case "inputProbe":
                   return "#374151"; // gray-700
                 case "outputProbe":
+                  return "#374151"; // gray-700
+                case "logProbe":
                   return "#374151"; // gray-700
                 case "tool":
                   return "#0891b2"; // cyan-600

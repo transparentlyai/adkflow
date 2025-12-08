@@ -109,6 +109,27 @@ class PromptSaveResponse(BaseModel):
     message: str
 
 
+class FileChunkRequest(BaseModel):
+    """Request model for reading a file chunk (for large files)."""
+
+    project_path: str
+    file_path: str
+    offset: int = 0  # Starting line number (0-indexed)
+    limit: int = 500  # Number of lines to read
+    reverse: bool = True  # If True, read from end of file (default for logs)
+
+
+class FileChunkResponse(BaseModel):
+    """Response model for file chunk read."""
+
+    success: bool
+    content: str  # Chunk content (lines joined)
+    file_path: str
+    total_lines: int  # Total lines in file
+    offset: int  # Current offset (line number)
+    has_more: bool  # More content available
+
+
 class DirectoryEntry(BaseModel):
     """Model for a directory entry."""
 
@@ -576,6 +597,107 @@ async def read_prompt_file(request: PromptReadRequest) -> PromptReadResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to read prompt file: {str(e)}",
+        )
+
+
+@router.post("/project/file/chunk", response_model=FileChunkResponse)
+async def read_file_chunk(request: FileChunkRequest) -> FileChunkResponse:
+    """
+    Read a chunk of a file for paginated loading (optimized for large files).
+
+    Args:
+        request: File chunk request with project path, file path, offset, limit, and reverse flag
+
+    Returns:
+        FileChunkResponse with chunk content and pagination info
+
+    Raises:
+        HTTPException: If file read fails
+    """
+    try:
+        # Validate and normalize project path
+        project_path = Path(request.project_path).resolve()
+
+        # Construct full file path
+        file_path = project_path / request.file_path
+
+        # Validate file exists
+        if not file_path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"File not found: {request.file_path}",
+            )
+
+        # Read all lines (we need total count anyway)
+        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+            all_lines = f.readlines()
+
+        total_lines = len(all_lines)
+
+        if request.reverse:
+            # Reverse mode: read from end of file
+            # offset 0 means "last N lines", offset 500 means "500 lines before the last chunk"
+            # Calculate which lines to return (from end)
+            end_idx = total_lines - request.offset
+            start_idx = max(0, end_idx - request.limit)
+
+            if end_idx <= 0:
+                # No more lines to read
+                return FileChunkResponse(
+                    success=True,
+                    content="",
+                    file_path=request.file_path,
+                    total_lines=total_lines,
+                    offset=request.offset,
+                    has_more=False,
+                )
+
+            chunk_lines = all_lines[start_idx:end_idx]
+            # Reverse the lines so newest appears first
+            chunk_lines = list(reversed(chunk_lines))
+            has_more = start_idx > 0
+        else:
+            # Normal mode: read from start
+            start_idx = request.offset
+            end_idx = min(total_lines, start_idx + request.limit)
+
+            if start_idx >= total_lines:
+                return FileChunkResponse(
+                    success=True,
+                    content="",
+                    file_path=request.file_path,
+                    total_lines=total_lines,
+                    offset=request.offset,
+                    has_more=False,
+                )
+
+            chunk_lines = all_lines[start_idx:end_idx]
+            has_more = end_idx < total_lines
+
+        # Join lines (they already have newlines)
+        content = "".join(chunk_lines)
+        # Remove trailing newline for cleaner display
+        content = content.rstrip("\n")
+
+        return FileChunkResponse(
+            success=True,
+            content=content,
+            file_path=request.file_path,
+            total_lines=total_lines,
+            offset=request.offset,
+            has_more=has_more,
+        )
+
+    except HTTPException:
+        raise
+    except PermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=f"Permission denied: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to read file chunk: {str(e)}",
         )
 
 
