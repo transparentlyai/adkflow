@@ -46,18 +46,23 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
   }, [isEditing]);
 
   const handleResize = useCallback((deltaWidth: number, deltaHeight: number) => {
-    const newSize = {
-      width: Math.max(100, size.width + deltaWidth),
-      height: Math.max(100, size.height + deltaHeight),
-    };
     setNodes((nodes) =>
-      nodes.map((node) =>
-        node.id === id
-          ? { ...node, data: { ...node.data, expandedSize: newSize } }
-          : node
-      )
+      nodes.map((node) => {
+        if (node.id !== id) return node;
+        const currentSize = (node.data as unknown as ContextNodeData).expandedSize ?? { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT };
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            expandedSize: {
+              width: Math.max(100, currentSize.width + deltaWidth),
+              height: Math.max(100, currentSize.height + deltaHeight),
+            },
+          },
+        };
+      })
     );
-  }, [id, size, setNodes]);
+  }, [id, setNodes]);
 
   const handleNameDoubleClick = (e: React.MouseEvent) => {
     if (isNodeLocked) return;
@@ -178,9 +183,27 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
     });
   }, [onRequestFilePicker, prompt, id, setNodes]);
 
-  const toggleExpand = () => {
+  const toggleExpand = useCallback(() => {
+    setNodes((nodes) =>
+      nodes.map((node) => {
+        if (node.id !== id) return node;
+        if (isExpanded) {
+          // Going from expanded → contracted
+          return {
+            ...node,
+            extent: node.parentId ? "parent" as const : undefined,
+          };
+        } else {
+          // Going from contracted → expanded
+          return {
+            ...node,
+            extent: undefined,
+          };
+        }
+      })
+    );
     setIsExpanded(!isExpanded);
-  };
+  }, [id, isExpanded, setNodes]);
 
   const lineCount = content?.split("\n").length || 0;
   const editorHeight = size.height - 70;
@@ -306,7 +329,7 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="right"
         defaultPercent={50}
         handlePositions={handlePositions}
-        style={{ width: '12px', height: '12px', backgroundColor: '#2563eb', border: '2px solid white' }}
+        style={{ width: '10px', height: '10px', backgroundColor: '#2563eb', border: '2px solid white' }}
       />
 
       {contextMenu && (

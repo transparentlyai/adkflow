@@ -244,8 +244,9 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
                 position: { x: Math.max(10, relativeX), y: Math.max(40, relativeY) },
               };
             }
-            // Detach from group
-            else if (!targetGroup && node.parentId) {
+            // Detach from group - only if node is contracted (extent: "parent")
+            // Expanded nodes (extent: undefined) should stay attached even if visually outside
+            else if (!targetGroup && node.parentId && node.extent === "parent") {
               const parentNode = nds.find((n) => n.id === node.parentId);
               const newAbsoluteX = parentNode
                 ? node.position.x + parentNode.position.x

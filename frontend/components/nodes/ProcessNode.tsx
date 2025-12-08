@@ -72,18 +72,23 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
   const size = useMemo(() => expandedSize ?? { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT }, [expandedSize]);
 
   const handleResize = useCallback((deltaWidth: number, deltaHeight: number) => {
-    const newSize = {
-      width: Math.max(100, size.width + deltaWidth),
-      height: Math.max(100, size.height + deltaHeight),
-    };
     setNodes((nodes) =>
-      nodes.map((node) =>
-        node.id === id
-          ? { ...node, data: { ...node.data, expandedSize: newSize } }
-          : node
-      )
+      nodes.map((node) => {
+        if (node.id !== id) return node;
+        const currentSize = (node.data as ProcessNodeData).expandedSize ?? { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT };
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            expandedSize: {
+              width: Math.max(100, currentSize.width + deltaWidth),
+              height: Math.max(100, currentSize.height + deltaHeight),
+            },
+          },
+        };
+      })
     );
-  }, [id, size, setNodes]);
+  }, [id, setNodes]);
 
   // Parse function signature from code
   const signature = useMemo(() => parseFunctionSignature(code || ""), [code]);
@@ -183,23 +188,19 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
   }, [id, setNodes]);
 
   const toggleExpand = useCallback(() => {
-    const currentPosition = currentNode?.position;
-    if (!currentPosition) {
-      setIsExpanded(!isExpanded);
-      return;
-    }
-
     setNodes((nodes) =>
       nodes.map((node) => {
         if (node.id !== id) return node;
 
         const nodeData = node.data as unknown as ProcessNodeData;
+        const currentPosition = node.position;
 
         if (isExpanded) {
           // Going from expanded → contracted
           return {
             ...node,
             position: nodeData.contractedPosition ?? currentPosition,
+            extent: node.parentId ? "parent" as const : undefined,
             data: {
               ...nodeData,
               expandedPosition: currentPosition,
@@ -210,6 +211,7 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
           return {
             ...node,
             position: nodeData.expandedPosition ?? currentPosition,
+            extent: undefined,
             data: {
               ...nodeData,
               contractedPosition: currentPosition,
@@ -219,7 +221,7 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
       })
     );
     setIsExpanded(!isExpanded);
-  }, [id, isExpanded, currentNode, setNodes]);
+  }, [id, isExpanded, setNodes]);
 
   const handleSaveFile = useCallback(async () => {
     if (!onSaveFile || !file_path) return;
@@ -274,7 +276,7 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="left"
         defaultPercent={50}
         handlePositions={handlePositions}
-        style={{ width: '12px', height: '12px', backgroundColor: '#10b981', border: '2px solid white' }}
+        style={{ width: '10px', height: '10px', backgroundColor: '#10b981', border: '2px solid white' }}
       />
 
       {/* Header */}
@@ -414,7 +416,7 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="right"
         defaultPercent={50}
         handlePositions={handlePositions}
-        style={{ width: '12px', height: '12px', backgroundColor: '#22c55e', border: '2px solid white' }}
+        style={{ width: '10px', height: '10px', backgroundColor: '#22c55e', border: '2px solid white' }}
       />
 
       {contextMenu && (

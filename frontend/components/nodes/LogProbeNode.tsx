@@ -2,7 +2,8 @@
 
 import { memo, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { type NodeProps, useReactFlow, useStore } from "@xyflow/react";
-import Editor, { type OnMount } from "@monaco-editor/react";
+import Editor, { type OnMount, type BeforeMount } from "@monaco-editor/react";
+import { registerLogLanguage, LOG_LANGUAGE_ID, LOG_THEME_ID } from "@/lib/monaco";
 import type { HandlePositions } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import EditorMenuBar from "@/components/EditorMenuBar";
@@ -115,6 +116,10 @@ const LogProbeNode = memo(({ data, id, selected }: NodeProps) => {
     }
   }, [hasMore, isLoadingMore, file_path, projectPath, loadedOffset]);
 
+  const handleEditorBeforeMount: BeforeMount = useCallback((monaco) => {
+    registerLogLanguage(monaco);
+  }, []);
+
   const handleEditorMount: OnMount = useCallback((editor) => {
     editor.onDidScrollChange(() => {
       const model = editor.getModel();
@@ -134,37 +139,38 @@ const LogProbeNode = memo(({ data, id, selected }: NodeProps) => {
   }, [loadMore]);
 
   const handleResize = useCallback((deltaWidth: number, deltaHeight: number) => {
-    const newSize = {
-      width: Math.max(100, size.width + deltaWidth),
-      height: Math.max(100, size.height + deltaHeight),
-    };
     setNodes((nodes) =>
-      nodes.map((node) =>
-        node.id === id
-          ? { ...node, data: { ...node.data, expandedSize: newSize } }
-          : node
-      )
+      nodes.map((node) => {
+        if (node.id !== id) return node;
+        const currentSize = (node.data as LogProbeNodeData).expandedSize ?? { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT };
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            expandedSize: {
+              width: Math.max(100, currentSize.width + deltaWidth),
+              height: Math.max(100, currentSize.height + deltaHeight),
+            },
+          },
+        };
+      })
     );
-  }, [id, size, setNodes]);
+  }, [id, setNodes]);
 
   const toggleExpand = useCallback(() => {
-    const currentPosition = currentNode?.position;
-    if (!currentPosition) {
-      setIsExpanded(!isExpanded);
-      return;
-    }
-
     setNodes((nodes) =>
       nodes.map((node) => {
         if (node.id !== id) return node;
 
         const nodeData = node.data as unknown as LogProbeNodeData;
+        const currentPosition = node.position;
 
         if (isExpanded) {
           // Going from expanded → contracted
           return {
             ...node,
             position: nodeData.contractedPosition ?? currentPosition,
+            extent: node.parentId ? "parent" as const : undefined,
             data: {
               ...nodeData,
               expandedPosition: currentPosition,
@@ -175,6 +181,7 @@ const LogProbeNode = memo(({ data, id, selected }: NodeProps) => {
           return {
             ...node,
             position: nodeData.expandedPosition ?? currentPosition,
+            extent: undefined,
             data: {
               ...nodeData,
               contractedPosition: currentPosition,
@@ -184,7 +191,7 @@ const LogProbeNode = memo(({ data, id, selected }: NodeProps) => {
       })
     );
     setIsExpanded(!isExpanded);
-  }, [id, isExpanded, currentNode, setNodes]);
+  }, [id, isExpanded, setNodes]);
 
   const handleNameDoubleClick = (e: React.MouseEvent) => {
     if (isNodeLocked) return;
@@ -299,10 +306,10 @@ const LogProbeNode = memo(({ data, id, selected }: NodeProps) => {
           nodeId={id}
           handleId="input"
           type="target"
-          defaultEdge="left"
+          defaultEdge="bottom"
           defaultPercent={50}
           handlePositions={handlePositions}
-          style={{ width: '10px', height: '10px', backgroundColor: '#6b7280', border: '2px solid white' }}
+          style={{ width: '8px', height: '8px', backgroundColor: '#6b7280', border: '2px solid white' }}
         />
 
         {contextMenu && (
@@ -382,9 +389,10 @@ const LogProbeNode = memo(({ data, id, selected }: NodeProps) => {
         ) : (
           <Editor
             height="100%"
-            defaultLanguage="markdown"
+            defaultLanguage={LOG_LANGUAGE_ID}
             value={content}
-            theme="vs-light"
+            theme={LOG_THEME_ID}
+            beforeMount={handleEditorBeforeMount}
             onMount={handleEditorMount}
             options={{
               readOnly: true,
@@ -439,10 +447,10 @@ const LogProbeNode = memo(({ data, id, selected }: NodeProps) => {
         nodeId={id}
         handleId="input"
         type="target"
-        defaultEdge="left"
+        defaultEdge="bottom"
         defaultPercent={50}
         handlePositions={handlePositions}
-        style={{ width: '12px', height: '12px', backgroundColor: '#6b7280', border: '2px solid white' }}
+        style={{ width: '10px', height: '10px', backgroundColor: '#6b7280', border: '2px solid white' }}
       />
 
       {contextMenu && (

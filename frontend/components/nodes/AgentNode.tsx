@@ -95,18 +95,23 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
   }, [id, edges, nodes]);
 
   const handleResize = useCallback((deltaWidth: number, deltaHeight: number) => {
-    const newSize = {
-      width: Math.max(100, size.width + deltaWidth),
-      height: Math.max(100, size.height + deltaHeight),
-    };
     setNodes((nodes) =>
-      nodes.map((node) =>
-        node.id === id
-          ? { ...node, data: { ...node.data, expandedSize: newSize } }
-          : node
-      )
+      nodes.map((node) => {
+        if (node.id !== id) return node;
+        const currentSize = (node.data as unknown as AgentNodeData).expandedSize ?? { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT };
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            expandedSize: {
+              width: Math.max(100, currentSize.width + deltaWidth),
+              height: Math.max(100, currentSize.height + deltaHeight),
+            },
+          },
+        };
+      })
     );
-  }, [id, size, setNodes]);
+  }, [id, setNodes]);
 
   const handleNameDoubleClick = (e: React.MouseEvent) => {
     if (isNodeLocked) return;
@@ -184,17 +189,12 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
   };
 
   const toggleExpand = useCallback(() => {
-    const currentPosition = currentNode?.position;
-    if (!currentPosition) {
-      setIsExpanded(!isExpanded);
-      return;
-    }
-
     setNodes((nodes) =>
       nodes.map((node) => {
         if (node.id !== id) return node;
 
         const nodeData = node.data as unknown as AgentNodeData;
+        const currentPosition = node.position;
 
         if (isExpanded) {
           // Going from expanded → contracted
@@ -202,6 +202,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           return {
             ...node,
             position: nodeData.contractedPosition ?? currentPosition,
+            extent: node.parentId ? "parent" as const : undefined,
             data: {
               ...nodeData,
               expandedPosition: currentPosition,
@@ -213,6 +214,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           return {
             ...node,
             position: nodeData.expandedPosition ?? currentPosition,
+            extent: undefined,
             data: {
               ...nodeData,
               contractedPosition: currentPosition,
@@ -222,7 +224,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
       })
     );
     setIsExpanded(!isExpanded);
-  }, [id, isExpanded, currentNode, setNodes]);
+  }, [id, isExpanded, setNodes]);
 
   const handleAgentUpdate = useCallback(
     (updates: Partial<Agent>) => {
@@ -246,8 +248,8 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
     [id, agent, setNodes]
   );
 
-  const handleStyle = { width: "12px", height: "12px", border: "2px solid white" };
-  const linkHandleStyle = { width: "10px", height: "10px", border: "2px solid white" };
+  const handleStyle = { width: "10px", height: "10px", border: "2px solid white" };
+  const linkHandleStyle = { width: "8px", height: "8px", border: "2px solid white" };
 
   const typeBadge = TYPE_BADGES[agent.type] || TYPE_BADGES.llm;
 
