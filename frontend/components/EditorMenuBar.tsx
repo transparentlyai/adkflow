@@ -30,11 +30,15 @@ export default function EditorMenuBar({
         <MenubarMenu>
           <MenubarTrigger className="h-5 px-2 text-xs font-normal">File</MenubarTrigger>
           <MenubarContent>
-            <MenubarItem onClick={onSave} disabled={isSaving}>
-              {isSaving ? "Saving..." : "Save"}
-              <span className="ml-auto text-xs text-muted-foreground">⌘S</span>
-            </MenubarItem>
-            <MenubarSeparator />
+            {onSave && (
+              <>
+                <MenubarItem onClick={onSave} disabled={isSaving}>
+                  {isSaving ? "Saving..." : "Save"}
+                  <span className="ml-auto text-xs text-muted-foreground">⌘S</span>
+                </MenubarItem>
+                <MenubarSeparator />
+              </>
+            )}
             <MenubarItem onClick={onChangeFile}>
               Change File...
             </MenubarItem>
