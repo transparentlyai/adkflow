@@ -16,6 +16,8 @@ export interface AgentNodeData {
   agent: Agent;
   handlePositions?: HandlePositions;
   expandedSize?: { width: number; height: number };
+  expandedPosition?: { x: number; y: number };
+  contractedPosition?: { x: number; y: number };
   isNodeLocked?: boolean;
 }
 
@@ -27,7 +29,7 @@ const TYPE_BADGES: Record<AgentType, { label: string; color: string }> = {
 };
 
 const AgentNode = memo(({ data, id, selected }: NodeProps) => {
-  const { agent, handlePositions, expandedSize, isNodeLocked } = data as unknown as AgentNodeData;
+  const { agent, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked } = data as unknown as AgentNodeData;
   const { setNodes } = useReactFlow();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -181,9 +183,46 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
     }
   };
 
-  const toggleExpand = () => {
+  const toggleExpand = useCallback(() => {
+    const currentPosition = currentNode?.position;
+    if (!currentPosition) {
+      setIsExpanded(!isExpanded);
+      return;
+    }
+
+    setNodes((nodes) =>
+      nodes.map((node) => {
+        if (node.id !== id) return node;
+
+        const nodeData = node.data as unknown as AgentNodeData;
+
+        if (isExpanded) {
+          // Going from expanded → contracted
+          // Save current as expandedPosition, restore contractedPosition
+          return {
+            ...node,
+            position: nodeData.contractedPosition ?? currentPosition,
+            data: {
+              ...nodeData,
+              expandedPosition: currentPosition,
+            },
+          };
+        } else {
+          // Going from contracted → expanded
+          // Save current as contractedPosition, restore expandedPosition
+          return {
+            ...node,
+            position: nodeData.expandedPosition ?? currentPosition,
+            data: {
+              ...nodeData,
+              contractedPosition: currentPosition,
+            },
+          };
+        }
+      })
+    );
     setIsExpanded(!isExpanded);
-  };
+  }, [id, isExpanded, currentNode, setNodes]);
 
   const handleAgentUpdate = useCallback(
     (updates: Partial<Agent>) => {

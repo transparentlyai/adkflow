@@ -20,6 +20,8 @@ interface OutputProbeNodeData {
   file_path?: string;
   handlePositions?: HandlePositions;
   expandedSize?: { width: number; height: number };
+  expandedPosition?: { x: number; y: number };
+  contractedPosition?: { x: number; y: number };
   isNodeLocked?: boolean;
 }
 
@@ -29,6 +31,8 @@ const OutputProbeNode = memo(({ data, id, selected }: NodeProps) => {
     file_path,
     handlePositions,
     expandedSize,
+    expandedPosition,
+    contractedPosition,
     isNodeLocked,
   } = (data || {}) as OutputProbeNodeData;
 
@@ -84,9 +88,44 @@ const OutputProbeNode = memo(({ data, id, selected }: NodeProps) => {
     );
   }, [id, size, setNodes]);
 
-  const toggleExpand = () => {
+  const toggleExpand = useCallback(() => {
+    const currentPosition = currentNode?.position;
+    if (!currentPosition) {
+      setIsExpanded(!isExpanded);
+      return;
+    }
+
+    setNodes((nodes) =>
+      nodes.map((node) => {
+        if (node.id !== id) return node;
+
+        const nodeData = node.data as unknown as OutputProbeNodeData;
+
+        if (isExpanded) {
+          // Going from expanded → contracted
+          return {
+            ...node,
+            position: nodeData.contractedPosition ?? currentPosition,
+            data: {
+              ...nodeData,
+              expandedPosition: currentPosition,
+            },
+          };
+        } else {
+          // Going from contracted → expanded
+          return {
+            ...node,
+            position: nodeData.expandedPosition ?? currentPosition,
+            data: {
+              ...nodeData,
+              contractedPosition: currentPosition,
+            },
+          };
+        }
+      })
+    );
     setIsExpanded(!isExpanded);
-  };
+  }, [id, isExpanded, currentNode, setNodes]);
 
   const handleNameDoubleClick = (e: React.MouseEvent) => {
     if (isNodeLocked) return;

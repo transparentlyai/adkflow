@@ -19,11 +19,13 @@ export interface PromptNodeData {
   content?: string;
   handlePositions?: HandlePositions;
   expandedSize?: { width: number; height: number };
+  expandedPosition?: { x: number; y: number };
+  contractedPosition?: { x: number; y: number };
   isNodeLocked?: boolean;
 }
 
 const PromptNode = memo(({ data, id, selected }: NodeProps) => {
-  const { prompt, content = "", handlePositions, expandedSize, isNodeLocked } = data as unknown as PromptNodeData;
+  const { prompt, content = "", handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked } = data as unknown as PromptNodeData;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -178,9 +180,44 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
     });
   }, [onRequestFilePicker, prompt, id, setNodes]);
 
-  const toggleExpand = () => {
+  const toggleExpand = useCallback(() => {
+    const currentPosition = currentNode?.position;
+    if (!currentPosition) {
+      setIsExpanded(!isExpanded);
+      return;
+    }
+
+    setNodes((nodes) =>
+      nodes.map((node) => {
+        if (node.id !== id) return node;
+
+        const nodeData = node.data as unknown as PromptNodeData;
+
+        if (isExpanded) {
+          // Going from expanded → contracted
+          return {
+            ...node,
+            position: nodeData.contractedPosition ?? currentPosition,
+            data: {
+              ...nodeData,
+              expandedPosition: currentPosition,
+            },
+          };
+        } else {
+          // Going from contracted → expanded
+          return {
+            ...node,
+            position: nodeData.expandedPosition ?? currentPosition,
+            data: {
+              ...nodeData,
+              contractedPosition: currentPosition,
+            },
+          };
+        }
+      })
+    );
     setIsExpanded(!isExpanded);
-  };
+  }, [id, isExpanded, currentNode, setNodes]);
 
   const lineCount = content?.split("\n").length || 0;
 

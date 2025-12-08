@@ -21,6 +21,8 @@ export interface ProcessNodeData extends Record<string, unknown> {
   file_path?: string;
   handlePositions?: HandlePositions;
   expandedSize?: { width: number; height: number };
+  expandedPosition?: { x: number; y: number };
+  contractedPosition?: { x: number; y: number };
   isNodeLocked?: boolean;
 }
 
@@ -54,7 +56,7 @@ function parseFunctionSignature(code: string): { name: string; params: string; r
 }
 
 const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name, code, file_path, handlePositions, expandedSize, isNodeLocked } = data as unknown as ProcessNodeData;
+  const { name, code, file_path, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked } = data as unknown as ProcessNodeData;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const [isEditing, setIsEditing] = useState(false);
@@ -180,9 +182,44 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
     );
   }, [id, setNodes]);
 
-  const toggleExpand = () => {
+  const toggleExpand = useCallback(() => {
+    const currentPosition = currentNode?.position;
+    if (!currentPosition) {
+      setIsExpanded(!isExpanded);
+      return;
+    }
+
+    setNodes((nodes) =>
+      nodes.map((node) => {
+        if (node.id !== id) return node;
+
+        const nodeData = node.data as unknown as ProcessNodeData;
+
+        if (isExpanded) {
+          // Going from expanded → contracted
+          return {
+            ...node,
+            position: nodeData.contractedPosition ?? currentPosition,
+            data: {
+              ...nodeData,
+              expandedPosition: currentPosition,
+            },
+          };
+        } else {
+          // Going from contracted → expanded
+          return {
+            ...node,
+            position: nodeData.expandedPosition ?? currentPosition,
+            data: {
+              ...nodeData,
+              contractedPosition: currentPosition,
+            },
+          };
+        }
+      })
+    );
     setIsExpanded(!isExpanded);
-  };
+  }, [id, isExpanded, currentNode, setNodes]);
 
   const handleSaveFile = useCallback(async () => {
     if (!onSaveFile || !file_path) return;

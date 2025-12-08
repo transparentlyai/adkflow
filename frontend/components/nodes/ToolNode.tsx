@@ -36,11 +36,13 @@ interface ToolNodeData {
   file_path?: string;
   handlePositions?: HandlePositions;
   expandedSize?: { width: number; height: number };
+  expandedPosition?: { x: number; y: number };
+  contractedPosition?: { x: number; y: number };
   isNodeLocked?: boolean;
 }
 
 const ToolNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name = "Tool", code = DEFAULT_CODE, file_path, handlePositions, expandedSize, isNodeLocked } = data as ToolNodeData;
+  const { name = "Tool", code = DEFAULT_CODE, file_path, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked } = data as ToolNodeData;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -76,9 +78,44 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
     );
   }, [id, size, setNodes]);
 
-  const toggleExpand = () => {
+  const toggleExpand = useCallback(() => {
+    const currentPosition = currentNode?.position;
+    if (!currentPosition) {
+      setIsExpanded(!isExpanded);
+      return;
+    }
+
+    setNodes((nodes) =>
+      nodes.map((node) => {
+        if (node.id !== id) return node;
+
+        const nodeData = node.data as unknown as ToolNodeData;
+
+        if (isExpanded) {
+          // Going from expanded → contracted
+          return {
+            ...node,
+            position: nodeData.contractedPosition ?? currentPosition,
+            data: {
+              ...nodeData,
+              expandedPosition: currentPosition,
+            },
+          };
+        } else {
+          // Going from contracted → expanded
+          return {
+            ...node,
+            position: nodeData.expandedPosition ?? currentPosition,
+            data: {
+              ...nodeData,
+              contractedPosition: currentPosition,
+            },
+          };
+        }
+      })
+    );
     setIsExpanded(!isExpanded);
-  };
+  }, [id, isExpanded, currentNode, setNodes]);
 
   const handleNameDoubleClick = (e: React.MouseEvent) => {
     if (isNodeLocked) return;
