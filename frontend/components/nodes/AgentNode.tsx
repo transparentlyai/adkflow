@@ -11,10 +11,6 @@ import { Lock } from "lucide-react";
 
 const DEFAULT_WIDTH = 450;
 const DEFAULT_HEIGHT = 500;
-const MIN_WIDTH = 380;
-const MIN_HEIGHT = 350;
-const MAX_WIDTH = 800;
-const MAX_HEIGHT = 900;
 
 export interface AgentNodeData {
   agent: Agent;
@@ -98,8 +94,8 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
 
   const handleResize = useCallback((deltaWidth: number, deltaHeight: number) => {
     const newSize = {
-      width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, size.width + deltaWidth)),
-      height: Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, size.height + deltaHeight)),
+      width: Math.max(100, size.width + deltaWidth),
+      height: Math.max(100, size.height + deltaHeight),
     };
     setNodes((nodes) =>
       nodes.map((node) =>

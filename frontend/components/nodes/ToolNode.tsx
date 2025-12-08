@@ -13,10 +13,6 @@ import { Lock } from "lucide-react";
 
 const DEFAULT_WIDTH = 500;
 const DEFAULT_HEIGHT = 320;
-const MIN_WIDTH = 350;
-const MIN_HEIGHT = 250;
-const MAX_WIDTH = 900;
-const MAX_HEIGHT = 700;
 
 const DEFAULT_CODE = `def tool(input_data: dict) -> dict:
     """
@@ -68,8 +64,8 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
 
   const handleResize = useCallback((deltaWidth: number, deltaHeight: number) => {
     const newSize = {
-      width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, size.width + deltaWidth)),
-      height: Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, size.height + deltaHeight)),
+      width: Math.max(100, size.width + deltaWidth),
+      height: Math.max(100, size.height + deltaHeight),
     };
     setNodes((nodes) =>
       nodes.map((node) =>
@@ -354,8 +350,8 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
             lineNumbers: "on",
             scrollBeyondLastLine: false,
             folding: false,
-            lineDecorationsWidth: 0,
-            lineNumbersMinChars: 3,
+            lineDecorationsWidth: 10,
+            lineNumbersMinChars: 4,
             renderLineHighlight: "none",
             overviewRulerLanes: 0,
             hideCursorInOverviewRuler: true,

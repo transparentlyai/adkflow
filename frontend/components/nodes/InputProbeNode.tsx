@@ -14,10 +14,6 @@ import { readPrompt } from "@/lib/api";
 
 const DEFAULT_WIDTH = 400;
 const DEFAULT_HEIGHT = 280;
-const MIN_WIDTH = 300;
-const MIN_HEIGHT = 200;
-const MAX_WIDTH = 800;
-const MAX_HEIGHT = 600;
 
 interface InputProbeNodeData {
   name?: string;
@@ -76,8 +72,8 @@ const InputProbeNode = memo(({ data, id, selected }: NodeProps) => {
 
   const handleResize = useCallback((deltaWidth: number, deltaHeight: number) => {
     const newSize = {
-      width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, size.width + deltaWidth)),
-      height: Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, size.height + deltaHeight)),
+      width: Math.max(100, size.width + deltaWidth),
+      height: Math.max(100, size.height + deltaHeight),
     };
     setNodes((nodes) =>
       nodes.map((node) =>
@@ -293,8 +289,8 @@ const InputProbeNode = memo(({ data, id, selected }: NodeProps) => {
             lineNumbers: "on",
             scrollBeyondLastLine: false,
             folding: false,
-            lineDecorationsWidth: 0,
-            lineNumbersMinChars: 3,
+            lineDecorationsWidth: 10,
+            lineNumbersMinChars: 4,
             renderLineHighlight: "none",
             overviewRulerLanes: 0,
             hideCursorInOverviewRuler: true,

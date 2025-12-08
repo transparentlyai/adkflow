@@ -13,10 +13,6 @@ import { Lock } from "lucide-react";
 
 const DEFAULT_WIDTH = 600;
 const DEFAULT_HEIGHT = 400;
-const MIN_WIDTH = 400;
-const MIN_HEIGHT = 300;
-const MAX_WIDTH = 1000;
-const MAX_HEIGHT = 800;
 
 export interface ProcessNodeData extends Record<string, unknown> {
   name: string;
@@ -75,8 +71,8 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
 
   const handleResize = useCallback((deltaWidth: number, deltaHeight: number) => {
     const newSize = {
-      width: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, size.width + deltaWidth)),
-      height: Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, size.height + deltaHeight)),
+      width: Math.max(100, size.width + deltaWidth),
+      height: Math.max(100, size.height + deltaHeight),
     };
     setNodes((nodes) =>
       nodes.map((node) =>
@@ -343,8 +339,8 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
                 lineNumbers: "on",
                 scrollBeyondLastLine: false,
                 folding: false,
-                lineDecorationsWidth: 0,
-                lineNumbersMinChars: 3,
+                lineDecorationsWidth: 10,
+                lineNumbersMinChars: 4,
                 renderLineHighlight: "none",
                 overviewRulerLanes: 0,
                 hideCursorInOverviewRuler: true,

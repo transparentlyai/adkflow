@@ -112,3 +112,12 @@ body {
   border: none !important;
   background: transparent !important;
 }
+
+/* Monaco Editor - Line numbers gutter styling */
+.monaco-editor .margin {
+  background-color: #f3f4f6 !important;
+}
+
+.monaco-editor .line-numbers {
+  color: #6b7280 !important;
+}
