@@ -1,20 +1,24 @@
 "use client";
 
-import { memo, useState, useRef, useEffect } from "react";
+import { memo, useState, useRef, useEffect, useCallback } from "react";
 import { NodeResizer, type NodeProps, useReactFlow, useStore } from "@xyflow/react";
 import { useProject } from "@/contexts/ProjectContext";
+import NodeContextMenu from "@/components/NodeContextMenu";
+import { Lock } from "lucide-react";
 
 export interface GroupNodeData extends Record<string, unknown> {
   label: string;
+  isNodeLocked?: boolean;
 }
 
 const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
-  const { label } = data as unknown as GroupNodeData;
+  const { label, isNodeLocked } = data as unknown as GroupNodeData;
   const { setNodes } = useReactFlow();
   const { isLocked } = useProject();
   const [isEditing, setIsEditing] = useState(false);
   const [editedLabel, setEditedLabel] = useState(label);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   const isNodeDraggingInside = useStore((state) => {
     const groupNode = state.nodes.find((n) => n.id === id);
@@ -65,9 +69,26 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
   }, [isEditing]);
 
   const handleDoubleClick = () => {
+    if (isNodeLocked) return;
     setIsEditing(true);
     setEditedLabel(label);
   };
+
+  const handleHeaderContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleToggleNodeLock = useCallback(() => {
+    setNodes((nodes) =>
+      nodes.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, isNodeLocked: !isNodeLocked } }
+          : node
+      )
+    );
+  }, [id, isNodeLocked, setNodes]);
 
   const handleSave = () => {
     if (editedLabel.trim()) {
@@ -104,7 +125,7 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
       <NodeResizer
         minWidth={200}
         minHeight={150}
-        isVisible={selected && !isLocked}
+        isVisible={selected && !isLocked && !isNodeLocked}
         lineClassName="!border-gray-400"
         handleClassName="!w-2 !h-2 !bg-gray-400 !border-gray-400"
       />
@@ -127,7 +148,9 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
       >
         <div
           className="bg-gray-400 text-white px-3 py-2 rounded-t-md cursor-move flex items-center gap-2"
+          onContextMenu={handleHeaderContextMenu}
         >
+          {isNodeLocked && <Lock className="w-4 h-4 flex-shrink-0 opacity-80" />}
           <svg className="w-4 h-4 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeWidth="2" d="M4 8h16M4 16h16" />
           </svg>
@@ -157,6 +180,16 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
           </div>
         )}
       </div>
+
+      {contextMenu && (
+        <NodeContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          isLocked={!!isNodeLocked}
+          onToggleLock={handleToggleNodeLock}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </>
   );
 });

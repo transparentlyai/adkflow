@@ -8,6 +8,7 @@ interface AgentPropertiesPanelProps {
   connectedPromptName?: string;
   connectedToolNames?: string[];
   onUpdate: (updates: Partial<Agent>) => void;
+  disabled?: boolean;
 }
 
 type TabId = "general" | "execution" | "flow" | "schema" | "callbacks";
@@ -45,6 +46,7 @@ export default function AgentPropertiesPanel({
   connectedPromptName,
   connectedToolNames = [],
   onUpdate,
+  disabled = false,
 }: AgentPropertiesPanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>("general");
   const [customModel, setCustomModel] = useState("");
@@ -538,7 +540,7 @@ export default function AgentPropertiesPanel({
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-y-auto p-4 nodrag nowheel nopan">
+      <div className={`flex-1 overflow-y-auto p-4 nodrag nowheel nopan ${disabled ? "opacity-60 pointer-events-none" : ""}`}>
         {renderTabContent()}
       </div>
     </div>

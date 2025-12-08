@@ -8,6 +8,8 @@ import DraggableHandle from "@/components/DraggableHandle";
 import EditorMenuBar from "@/components/EditorMenuBar";
 import ResizeHandle from "@/components/ResizeHandle";
 import { useProject } from "@/contexts/ProjectContext";
+import NodeContextMenu from "@/components/NodeContextMenu";
+import { Lock } from "lucide-react";
 
 const DEFAULT_WIDTH = 500;
 const DEFAULT_HEIGHT = 320;
@@ -38,15 +40,17 @@ interface ToolNodeData {
   file_path?: string;
   handlePositions?: HandlePositions;
   expandedSize?: { width: number; height: number };
+  isNodeLocked?: boolean;
 }
 
 const ToolNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name = "Tool", code = DEFAULT_CODE, file_path, handlePositions, expandedSize } = data as ToolNodeData;
+  const { name = "Tool", code = DEFAULT_CODE, file_path, handlePositions, expandedSize, isNodeLocked } = data as ToolNodeData;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   const size = useMemo(() => expandedSize ?? { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT }, [expandedSize]);
   const [editedName, setEditedName] = useState(name);
@@ -78,10 +82,27 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
   };
 
   const handleNameDoubleClick = (e: React.MouseEvent) => {
+    if (isNodeLocked) return;
     e.stopPropagation();
     setIsEditing(true);
     setEditedName(name);
   };
+
+  const handleHeaderContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleToggleNodeLock = useCallback(() => {
+    setNodes((nodes) =>
+      nodes.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, isNodeLocked: !isNodeLocked } }
+          : node
+      )
+    );
+  }, [id, isNodeLocked, setNodes]);
 
   const handleNameSave = () => {
     if (editedName.trim()) {
@@ -166,12 +187,14 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
     return (
       <div
         onDoubleClick={toggleExpand}
+        onContextMenu={handleHeaderContextMenu}
         title="Double-click to expand"
         className={`bg-cyan-600 text-white rounded-lg shadow-md cursor-pointer hover:bg-cyan-700 px-3 py-1.5 ${
           selected ? "ring-2 ring-cyan-400 shadow-xl" : ""
         }`}
       >
         <div className="flex items-center gap-2">
+          {isNodeLocked && <Lock className="w-4 h-4 flex-shrink-0 opacity-80" />}
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -215,6 +238,16 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
           position={Position.Right}
           style={{ width: '10px', height: '10px', backgroundColor: '#0891b2', border: '2px solid white' }}
         />
+
+        {contextMenu && (
+          <NodeContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            isLocked={!!isNodeLocked}
+            onToggleLock={handleToggleNodeLock}
+            onClose={() => setContextMenu(null)}
+          />
+        )}
       </div>
     );
   }
@@ -231,8 +264,10 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
       <div
         className="bg-cyan-600 text-white px-3 py-1.5 rounded-t-lg flex items-center justify-between cursor-pointer"
         onDoubleClick={toggleExpand}
+        onContextMenu={handleHeaderContextMenu}
       >
         <div className="flex items-center gap-2 flex-1 min-w-0">
+          {isNodeLocked && <Lock className="w-4 h-4 flex-shrink-0 opacity-80" />}
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -308,6 +343,7 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
             wordWrap: "on",
             automaticLayout: true,
             padding: { top: 8, bottom: 8 },
+            readOnly: isNodeLocked,
           }}
         />
       </div>
@@ -331,6 +367,16 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
         handlePositions={handlePositions}
         style={{ width: '12px', height: '12px', backgroundColor: '#0891b2', border: '2px solid white' }}
       />
+
+      {contextMenu && (
+        <NodeContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          isLocked={!!isNodeLocked}
+          onToggleLock={handleToggleNodeLock}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 });

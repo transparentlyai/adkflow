@@ -1,20 +1,46 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo, useState, useCallback } from "react";
 import { type NodeProps, useReactFlow } from "@xyflow/react";
+import NodeContextMenu from "@/components/NodeContextMenu";
+import { Lock } from "lucide-react";
+
+interface VariableNodeData {
+  name?: string;
+  value?: string;
+  isNodeLocked?: boolean;
+}
 
 const VariableNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name = "variable", value = "" } = data as { name?: string; value?: string };
+  const { name = "variable", value = "", isNodeLocked } = data as VariableNodeData;
   const { setNodes } = useReactFlow();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [newName, setNewName] = useState(name);
   const [newValue, setNewValue] = useState(value);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   const handleDoubleClick = () => {
+    if (isNodeLocked) return;
     setNewName(name);
     setNewValue(value);
     setIsEditDialogOpen(true);
   };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleToggleNodeLock = useCallback(() => {
+    setNodes((nodes) =>
+      nodes.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, isNodeLocked: !isNodeLocked } }
+          : node
+      )
+    );
+  }, [id, isNodeLocked, setNodes]);
 
   const handleSave = () => {
     if (newName.trim()) {
@@ -49,12 +75,14 @@ const VariableNode = memo(({ data, id, selected }: NodeProps) => {
     <>
       <div
         onDoubleClick={handleDoubleClick}
+        onContextMenu={handleContextMenu}
         title={tooltipText}
         className={`bg-violet-600 text-white px-4 py-2 rounded-full shadow-md cursor-pointer hover:bg-violet-700 transition-all ${
           selected ? "ring-2 ring-violet-400 shadow-xl" : ""
         }`}
       >
-        <div className="font-medium text-sm whitespace-nowrap">
+        <div className="font-medium text-sm whitespace-nowrap flex items-center gap-1">
+          {isNodeLocked && <Lock className="w-3 h-3 opacity-80" />}
           {`{${name}}`}
         </div>
       </div>
@@ -108,6 +136,16 @@ const VariableNode = memo(({ data, id, selected }: NodeProps) => {
             </div>
           </div>
         </div>
+      )}
+
+      {contextMenu && (
+        <NodeContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          isLocked={!!isNodeLocked}
+          onToggleLock={handleToggleNodeLock}
+          onClose={() => setContextMenu(null)}
+        />
       )}
     </>
   );

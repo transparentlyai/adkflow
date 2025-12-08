@@ -8,6 +8,8 @@ import DraggableHandle from "@/components/DraggableHandle";
 import EditorMenuBar from "@/components/EditorMenuBar";
 import ResizeHandle from "@/components/ResizeHandle";
 import { useProject } from "@/contexts/ProjectContext";
+import NodeContextMenu from "@/components/NodeContextMenu";
+import { Lock } from "lucide-react";
 
 const DEFAULT_WIDTH = 500;
 const DEFAULT_HEIGHT = 320;
@@ -21,16 +23,18 @@ export interface ContextNodeData {
   content?: string;
   handlePositions?: HandlePositions;
   expandedSize?: { width: number; height: number };
+  isNodeLocked?: boolean;
 }
 
 const ContextNode = memo(({ data, id, selected }: NodeProps) => {
-  const { prompt, content = "", handlePositions, expandedSize } = data as unknown as ContextNodeData;
+  const { prompt, content = "", handlePositions, expandedSize, isNodeLocked } = data as unknown as ContextNodeData;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(prompt.name);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const size = useMemo(() => expandedSize ?? { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT }, [expandedSize]);
@@ -57,10 +61,27 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
   }, [id, size, setNodes]);
 
   const handleNameDoubleClick = (e: React.MouseEvent) => {
+    if (isNodeLocked) return;
     e.stopPropagation();
     setIsEditing(true);
     setEditedName(prompt.name);
   };
+
+  const handleHeaderContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleToggleNodeLock = useCallback(() => {
+    setNodes((nodes) =>
+      nodes.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, isNodeLocked: !isNodeLocked } }
+          : node
+      )
+    );
+  }, [id, isNodeLocked, setNodes]);
 
   const handleNameSave = () => {
     if (editedName.trim()) {
@@ -159,8 +180,10 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
         className={`bg-blue-600 text-white px-3 py-1.5 flex items-center justify-between cursor-pointer ${isExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}
         style={{ minWidth: isExpanded ? undefined : 'auto' }}
         onDoubleClick={toggleExpand}
+        onContextMenu={handleHeaderContextMenu}
       >
         <div className="flex items-center gap-2 flex-1 min-w-0">
+          {isNodeLocked && <Lock className="w-4 h-4 flex-shrink-0 opacity-80" />}
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
           </svg>
@@ -239,6 +262,7 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
                 wordWrap: "on",
                 automaticLayout: true,
                 padding: { top: 8, bottom: 8 },
+                readOnly: isNodeLocked,
               }}
             />
           </div>
@@ -264,6 +288,16 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
         handlePositions={handlePositions}
         style={{ width: '12px', height: '12px', backgroundColor: '#2563eb', border: '2px solid white' }}
       />
+
+      {contextMenu && (
+        <NodeContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          isLocked={!!isNodeLocked}
+          onToggleLock={handleToggleNodeLock}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 });

@@ -286,16 +286,18 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             return;
           }
 
-          // Find selected nodes and edges
+          // Find selected nodes and edges, excluding locked nodes
           const selectedNodes = nodes.filter((node) => node.selected);
+          const deletableNodes = selectedNodes.filter((node) => !(node.data as { isNodeLocked?: boolean })?.isNodeLocked);
+          const lockedNodeCount = selectedNodes.length - deletableNodes.length;
           const selectedEdges = edges.filter((edge) => edge.selected);
 
-          if (selectedNodes.length === 0 && selectedEdges.length === 0) return;
+          if (deletableNodes.length === 0 && selectedEdges.length === 0) return;
 
           event.preventDefault();
 
           // Build confirmation message
-          const nodeCount = selectedNodes.length;
+          const nodeCount = deletableNodes.length;
           const edgeCount = selectedEdges.length;
 
           let message = "";
@@ -311,9 +313,13 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
               : `Are you sure you want to delete ${edgeCount} connections?`;
           }
 
+          if (lockedNodeCount > 0) {
+            message += ` (${lockedNodeCount} locked node${lockedNodeCount !== 1 ? "s" : ""} will be skipped)`;
+          }
+
           // Store data for confirmation dialog
           setDeleteConfirm({
-            nodeIds: selectedNodes.map((node) => node.id),
+            nodeIds: deletableNodes.map((node) => node.id),
             edgeIds: selectedEdges.map((edge) => edge.id),
             message,
           });

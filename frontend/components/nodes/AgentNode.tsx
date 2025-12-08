@@ -6,6 +6,8 @@ import type { Agent, AgentType, HandlePositions } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import ResizeHandle from "@/components/ResizeHandle";
 import AgentPropertiesPanel from "@/components/AgentPropertiesPanel";
+import NodeContextMenu from "@/components/NodeContextMenu";
+import { Lock } from "lucide-react";
 
 const DEFAULT_WIDTH = 450;
 const DEFAULT_HEIGHT = 500;
@@ -18,6 +20,7 @@ export interface AgentNodeData {
   agent: Agent;
   handlePositions?: HandlePositions;
   expandedSize?: { width: number; height: number };
+  isNodeLocked?: boolean;
 }
 
 const TYPE_BADGES: Record<AgentType, { label: string; color: string }> = {
@@ -28,12 +31,13 @@ const TYPE_BADGES: Record<AgentType, { label: string; color: string }> = {
 };
 
 const AgentNode = memo(({ data, id, selected }: NodeProps) => {
-  const { agent, handlePositions, expandedSize } = data as unknown as AgentNodeData;
+  const { agent, handlePositions, expandedSize, isNodeLocked } = data as unknown as AgentNodeData;
   const { setNodes } = useReactFlow();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(agent.name);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   const size = useMemo(() => expandedSize ?? { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT }, [expandedSize]);
 
@@ -103,10 +107,27 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
   }, [id, size, setNodes]);
 
   const handleNameDoubleClick = (e: React.MouseEvent) => {
+    if (isNodeLocked) return;
     e.stopPropagation();
     setIsEditing(true);
     setEditedName(agent.name);
   };
+
+  const handleHeaderContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleToggleNodeLock = useCallback(() => {
+    setNodes((nodes) =>
+      nodes.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, isNodeLocked: !isNodeLocked } }
+          : node
+      )
+    );
+  }, [id, isNodeLocked, setNodes]);
 
   const handleSave = () => {
     if (editedName.trim()) {
@@ -204,7 +225,11 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         />
 
         {/* Header */}
-        <div className="bg-purple-600 text-white px-3 py-1.5 rounded-t-lg">
+        <div
+          className="bg-purple-600 text-white px-3 py-1.5 rounded-t-lg flex items-center gap-2"
+          onContextMenu={handleHeaderContextMenu}
+        >
+          {isNodeLocked && <Lock className="w-3.5 h-3.5 flex-shrink-0 opacity-80" />}
           {isEditing ? (
             <input
               ref={inputRef}
@@ -215,11 +240,11 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
               onKeyDown={handleKeyDown}
               onClick={(e) => e.stopPropagation()}
               onDoubleClick={(e) => e.stopPropagation()}
-              className="w-full bg-white text-gray-900 px-2 py-0.5 rounded text-sm font-semibold outline-none"
+              className="flex-1 bg-white text-gray-900 px-2 py-0.5 rounded text-sm font-semibold outline-none"
             />
           ) : (
             <div
-              className="font-semibold text-sm hover:opacity-80"
+              className="flex-1 font-semibold text-sm hover:opacity-80"
               onDoubleClick={handleNameDoubleClick}
             >
               {agent.name}
@@ -284,6 +309,16 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           handlePositions={handlePositions}
           style={{ ...handleStyle, backgroundColor: "#22c55e" }}
         />
+
+        {contextMenu && (
+          <NodeContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            isLocked={!!isNodeLocked}
+            onToggleLock={handleToggleNodeLock}
+            onClose={() => setContextMenu(null)}
+          />
+        )}
       </div>
     );
   }
@@ -323,8 +358,10 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
       <div
         className="bg-purple-600 text-white px-3 py-1.5 rounded-t-lg flex items-center justify-between cursor-pointer"
         onDoubleClick={toggleExpand}
+        onContextMenu={handleHeaderContextMenu}
       >
         <div className="flex items-center gap-2 flex-1 min-w-0">
+          {isNodeLocked && <Lock className="w-4 h-4 flex-shrink-0 opacity-80" />}
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
@@ -366,7 +403,8 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           agent={agent}
           connectedPromptName={connectedPromptName}
           connectedToolNames={connectedToolNames}
-          onUpdate={handleAgentUpdate}
+          onUpdate={isNodeLocked ? () => {} : handleAgentUpdate}
+          disabled={isNodeLocked}
         />
       </div>
 
@@ -403,6 +441,16 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         handlePositions={handlePositions}
         style={{ ...handleStyle, backgroundColor: "#22c55e" }}
       />
+
+      {contextMenu && (
+        <NodeContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          isLocked={!!isNodeLocked}
+          onToggleLock={handleToggleNodeLock}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 });

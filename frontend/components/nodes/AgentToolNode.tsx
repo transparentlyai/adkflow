@@ -1,25 +1,46 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo, useState, useCallback } from "react";
 import { type NodeProps, useReactFlow } from "@xyflow/react";
 import type { HandlePositions } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
+import NodeContextMenu from "@/components/NodeContextMenu";
+import { Lock } from "lucide-react";
 
 interface AgentToolNodeData {
   name?: string;
   handlePositions?: HandlePositions;
+  isNodeLocked?: boolean;
 }
 
 const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name = "Agent Tool", handlePositions } = data as AgentToolNodeData;
+  const { name = "Agent Tool", handlePositions, isNodeLocked } = data as AgentToolNodeData;
   const { setNodes } = useReactFlow();
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const [newName, setNewName] = useState(name);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   const handleDoubleClick = () => {
+    if (isNodeLocked) return;
     setNewName(name);
     setIsRenameDialogOpen(true);
   };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleToggleNodeLock = useCallback(() => {
+    setNodes((nodes) =>
+      nodes.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, isNodeLocked: !isNodeLocked } }
+          : node
+      )
+    );
+  }, [id, isNodeLocked, setNodes]);
 
   const handleRename = () => {
     if (newName.trim()) {
@@ -51,13 +72,20 @@ const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
     <>
       <div
         onDoubleClick={handleDoubleClick}
+        onContextMenu={handleContextMenu}
         title={name}
         className={`bg-amber-600 text-white rounded-lg w-12 h-12 flex flex-col items-center justify-center shadow-md cursor-pointer hover:bg-amber-700 transition-all ${
           selected ? "ring-2 ring-amber-400 shadow-xl" : ""
         }`}
       >
-        <div className="text-xs leading-tight">Agent</div>
-        <div className="text-xs leading-tight">Tool</div>
+        {isNodeLocked ? (
+          <Lock className="w-4 h-4 opacity-80" />
+        ) : (
+          <>
+            <div className="text-xs leading-tight">Agent</div>
+            <div className="text-xs leading-tight">Tool</div>
+          </>
+        )}
 
         {/* Output Handle */}
         <DraggableHandle
@@ -105,6 +133,16 @@ const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
             </div>
           </div>
         </div>
+      )}
+
+      {contextMenu && (
+        <NodeContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          isLocked={!!isNodeLocked}
+          onToggleLock={handleToggleNodeLock}
+          onClose={() => setContextMenu(null)}
+        />
       )}
     </>
   );
