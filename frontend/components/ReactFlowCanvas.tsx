@@ -17,6 +17,7 @@ import {
   applyEdgeChanges,
   addEdge,
   useReactFlow,
+  SelectionMode,
   type Node,
   type Edge,
   type NodeChange,
@@ -173,55 +174,60 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       }
     }, [isLocked]);
 
-    // Auto-parent/detach nodes from Group on drag stop
+    // Auto-parent/detach nodes from Group on drag stop (handles multi-selection)
     const onNodeDragStop = useCallback(
-      (_event: React.MouseEvent, draggedNode: Node) => {
+      (_event: React.MouseEvent, _draggedNode: Node, draggedNodes: Node[]) => {
         if (isLocked) return;
-        if (draggedNode.type === "group") return;
 
-        const currentNode = nodes.find((n) => n.id === draggedNode.id);
-        if (!currentNode) return;
-
-        const draggedNodeWidth = currentNode.measured?.width ?? 200;
-        const draggedNodeHeight = currentNode.measured?.height ?? 100;
-
-        let absoluteX = currentNode.position.x;
-        let absoluteY = currentNode.position.y;
-
-        if (currentNode.parentId) {
-          const parentNode = nodes.find((n) => n.id === currentNode.parentId);
-          if (parentNode) {
-            absoluteX += parentNode.position.x;
-            absoluteY += parentNode.position.y;
-          }
-        }
-
-        const draggedCenterX = absoluteX + draggedNodeWidth / 2;
-        const draggedCenterY = absoluteY + draggedNodeHeight / 2;
+        // Filter out group nodes - they can't be parented
+        const nodesToProcess = draggedNodes.filter((n) => n.type !== "group");
+        if (nodesToProcess.length === 0) return;
 
         const groupNodes = nodes.filter((n) => n.type === "group");
 
-        let targetGroup: Node | null = null;
-        for (const group of groupNodes) {
-          const groupWidth = group.measured?.width ?? (group.style?.width as number) ?? 300;
-          const groupHeight = group.measured?.height ?? (group.style?.height as number) ?? 200;
-
-          const isInside =
-            draggedCenterX >= group.position.x &&
-            draggedCenterX <= group.position.x + groupWidth &&
-            draggedCenterY >= group.position.y &&
-            draggedCenterY <= group.position.y + groupHeight;
-
-          if (isInside) {
-            targetGroup = group;
-            break;
-          }
-        }
-
         setNodes((nds) => {
           let updatedNodes = nds.map((node) => {
-            if (node.id !== draggedNode.id) return node;
+            // Only process nodes that were dragged
+            const draggedVersion = nodesToProcess.find((d) => d.id === node.id);
+            if (!draggedVersion) return node;
 
+            const nodeWidth = node.measured?.width ?? 200;
+            const nodeHeight = node.measured?.height ?? 100;
+
+            // Calculate absolute position
+            let absoluteX = node.position.x;
+            let absoluteY = node.position.y;
+
+            if (node.parentId) {
+              const parentNode = nds.find((n) => n.id === node.parentId);
+              if (parentNode) {
+                absoluteX += parentNode.position.x;
+                absoluteY += parentNode.position.y;
+              }
+            }
+
+            const centerX = absoluteX + nodeWidth / 2;
+            const centerY = absoluteY + nodeHeight / 2;
+
+            // Find target group for this node
+            let targetGroup: Node | null = null;
+            for (const group of groupNodes) {
+              const groupWidth = group.measured?.width ?? (group.style?.width as number) ?? 300;
+              const groupHeight = group.measured?.height ?? (group.style?.height as number) ?? 200;
+
+              const isInside =
+                centerX >= group.position.x &&
+                centerX <= group.position.x + groupWidth &&
+                centerY >= group.position.y &&
+                centerY <= group.position.y + groupHeight;
+
+              if (isInside) {
+                targetGroup = group;
+                break;
+              }
+            }
+
+            // Attach to group
             if (targetGroup && targetGroup.id !== node.parentId) {
               const relativeX = absoluteX - targetGroup.position.x;
               const relativeY = absoluteY - targetGroup.position.y;
@@ -232,7 +238,9 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
                 extent: "parent" as const,
                 position: { x: Math.max(10, relativeX), y: Math.max(40, relativeY) },
               };
-            } else if (!targetGroup && node.parentId) {
+            }
+            // Detach from group
+            else if (!targetGroup && node.parentId) {
               const parentNode = nds.find((n) => n.id === node.parentId);
               const newAbsoluteX = parentNode
                 ? node.position.x + parentNode.position.x
@@ -897,6 +905,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           connectionLineStyle={{ strokeWidth: 1.5, stroke: '#64748b' }}
           nodesDraggable={!isLocked}
           nodesConnectable={!isLocked}
+          selectionMode={SelectionMode.Partial}
         >
           <Background color="#64748b" gap={16} />
           <Controls showInteractive={false} />
