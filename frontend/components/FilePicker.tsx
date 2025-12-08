@@ -33,10 +33,7 @@ export default function FilePicker({
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadInitialDirectory = async (path: string) => {
-      setLoading(true);
-      setError("");
-
+    const loadDirectoryWithFallback = async (path: string): Promise<boolean> => {
       try {
         const response = await listDirectory(path);
         setCurrentPath(response.current_path);
@@ -60,25 +57,50 @@ export default function FilePicker({
         }
 
         setEntries(filteredEntries);
-      } catch (err) {
-        setError((err as Error).message);
-      } finally {
-        setLoading(false);
+        return true;
+      } catch {
+        return false;
       }
     };
 
-    if (isOpen && projectPath) {
+    const initializeDirectory = async () => {
+      if (!isOpen || !projectPath) return;
+
+      setLoading(true);
+      setError("");
+      setSelectedFile(null);
+
       // Start from initialPath directory or project root
-      const startPath = initialPath
+      let currentDir = initialPath
         ? initialPath.substring(0, initialPath.lastIndexOf("/")) || projectPath
         : projectPath;
-      loadInitialDirectory(startPath);
 
-      // Pre-select the current file if provided
-      if (initialPath) {
-        setSelectedFile(initialPath);
+      let success = false;
+
+      // Walk up the directory tree until we find a valid directory
+      while (currentDir && currentDir.length > 1) {
+        success = await loadDirectoryWithFallback(currentDir);
+        if (success) break;
+
+        // Go one level up
+        const parentDir = currentDir.substring(0, currentDir.lastIndexOf("/"));
+        if (parentDir === currentDir || !parentDir) break;
+        currentDir = parentDir;
       }
-    }
+
+      // Final fallback: user's home directory
+      if (!success) {
+        success = await loadDirectoryWithFallback("~");
+      }
+
+      if (!success) {
+        setError("Failed to load directory");
+      }
+
+      setLoading(false);
+    };
+
+    initializeDirectory();
   }, [isOpen, projectPath, initialPath, fileFilter]);
 
   const loadDirectory = async (path: string) => {
