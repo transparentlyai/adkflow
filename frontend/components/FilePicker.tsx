@@ -31,22 +31,15 @@ export default function FilePicker({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [manualPath, setManualPath] = useState("");
 
   useEffect(() => {
     const loadDirectoryWithFallback = async (path: string): Promise<boolean> => {
       try {
         const response = await listDirectory(path);
         setCurrentPath(response.current_path);
-
-        // Only allow navigating up to project root
-        if (response.parent_path && response.current_path !== projectPath &&
-            response.current_path.startsWith(projectPath)) {
-          setParentPath(response.parent_path);
-        } else if (response.current_path === projectPath) {
-          setParentPath(null);
-        } else {
-          setParentPath(response.parent_path);
-        }
+        setParentPath(response.parent_path);
+        setManualPath(response.current_path);
 
         // Filter entries if a filter is provided
         let filteredEntries = response.entries;
@@ -110,16 +103,8 @@ export default function FilePicker({
     try {
       const response = await listDirectory(path);
       setCurrentPath(response.current_path);
-
-      // Only allow navigating up to project root
-      if (response.parent_path && response.current_path !== projectPath &&
-          response.current_path.startsWith(projectPath)) {
-        setParentPath(response.parent_path);
-      } else if (response.current_path === projectPath) {
-        setParentPath(null);
-      } else {
-        setParentPath(response.parent_path);
-      }
+      setParentPath(response.parent_path);
+      setManualPath(response.current_path);
 
       // Filter entries if a filter is provided
       let filteredEntries = response.entries;
@@ -192,15 +177,31 @@ export default function FilePicker({
           <div className="flex items-center gap-2">
             <button
               onClick={handleGoUp}
-              disabled={!parentPath || loading || currentPath === projectPath}
+              disabled={!parentPath || loading}
               className="px-3 py-1 bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 rounded text-sm font-medium transition-colors"
               title="Go up one directory"
             >
               ↑ Up
             </button>
-            <div className="flex-1 text-sm font-mono text-gray-600 truncate">
-              /{getRelativePath(currentPath)}
-            </div>
+            <input
+              type="text"
+              value={manualPath}
+              onChange={(e) => setManualPath(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && manualPath.trim()) {
+                  loadDirectory(manualPath.trim());
+                }
+              }}
+              className="flex-1 text-sm font-mono text-gray-700 bg-white border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Enter path..."
+            />
+            <button
+              onClick={() => manualPath.trim() && loadDirectory(manualPath.trim())}
+              disabled={loading || !manualPath.trim()}
+              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-400 text-white rounded text-sm font-medium transition-colors"
+            >
+              Go
+            </button>
           </div>
         </div>
 
