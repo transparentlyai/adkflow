@@ -71,12 +71,12 @@ const nodeOptions: { type: NodeTypeOption; label: string; icon: React.ReactNode 
   },
   {
     type: "inputProbe",
-    label: "Input",
+    label: "Input Probe",
     icon: <LogIn className="h-4 w-4" />,
   },
   {
     type: "outputProbe",
-    label: "Output",
+    label: "Output Probe",
     icon: <LogOut className="h-4 w-4" />,
   },
   {
