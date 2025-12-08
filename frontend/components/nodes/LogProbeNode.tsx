@@ -286,13 +286,13 @@ const LogProbeNode = memo(({ data, id, selected }: NodeProps) => {
         onDoubleClick={toggleExpand}
         onContextMenu={handleHeaderContextMenu}
         title="Double-click to expand"
-        className={`bg-gray-700 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-md cursor-pointer hover:bg-gray-600 transition-all ${
+        className={`bg-gray-700 text-white rounded-full w-9 h-9 flex items-center justify-center shadow-md cursor-pointer hover:bg-gray-600 transition-all ${
           selected ? "ring-2 ring-gray-400 shadow-xl" : ""
         }`}
       >
         <div className="flex items-center gap-0.5">
-          {isNodeLocked && <Lock className="w-2.5 h-2.5 opacity-80" />}
-          <span className="font-bold text-xs">LOG</span>
+          {isNodeLocked && <Lock className="w-2 h-2 opacity-80" />}
+          <span className="font-bold text-[10px]">LOG</span>
         </div>
 
         <DraggableHandle
