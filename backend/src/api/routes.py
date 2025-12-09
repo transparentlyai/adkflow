@@ -566,11 +566,14 @@ async def read_prompt_file(request: PromptReadRequest) -> PromptReadResponse:
         HTTPException: If file read fails
     """
     try:
-        # Validate and normalize project path
-        project_path = Path(request.project_path).resolve()
-
-        # Construct full file path
-        prompt_file = project_path / request.file_path
+        # Check if file_path is absolute
+        file_path = Path(request.file_path)
+        if file_path.is_absolute():
+            prompt_file = file_path
+        else:
+            # Relative path - construct from project path
+            project_path = Path(request.project_path).resolve()
+            prompt_file = project_path / request.file_path
 
         # Validate file exists
         if not prompt_file.exists():
@@ -716,11 +719,14 @@ async def save_prompt_file(request: PromptSaveRequest) -> PromptSaveResponse:
         HTTPException: If file save fails
     """
     try:
-        # Validate and normalize project path
-        project_path = Path(request.project_path).resolve()
-
-        # Construct full file path
-        prompt_file = project_path / request.file_path
+        # Check if file_path is absolute
+        file_path = Path(request.file_path)
+        if file_path.is_absolute():
+            prompt_file = file_path
+        else:
+            # Relative path - construct from project path
+            project_path = Path(request.project_path).resolve()
+            prompt_file = project_path / request.file_path
 
         # Validate file exists
         if not prompt_file.exists():
