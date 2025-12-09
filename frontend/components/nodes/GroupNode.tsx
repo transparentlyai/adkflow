@@ -171,7 +171,7 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
         }}
       >
         <div
-          className={`text-white px-2 py-0.5 rounded-t-md cursor-grab flex items-center gap-1.5 transition-colors ${selected ? 'bg-gray-400' : 'bg-gray-400/60'}`}
+          className={`group-drag-handle text-white px-2 py-0.5 rounded-t-md cursor-grab flex items-center gap-1.5 transition-colors ${selected ? 'bg-gray-400' : 'bg-gray-400/60'}`}
           onContextMenu={handleHeaderContextMenu}
         >
           {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
@@ -198,7 +198,7 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
             </div>
           )}
         </div>
-        <div className="flex-1 nodrag">
+        <div className="flex-1">
           {isNodeDraggingInside && (
             <div className="p-2 text-xs text-gray-500/60 text-center italic">
               Drop to group

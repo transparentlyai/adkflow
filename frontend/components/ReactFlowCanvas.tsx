@@ -381,6 +381,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         position: position || groupPosition,
         data: getDefaultGroupData(),
         style: { width: 300, height: 200 },
+        dragHandle: ".group-drag-handle",
       };
 
       // Group nodes must come before their children, so prepend
@@ -847,7 +848,15 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     const restoreFlow = useCallback((flow: { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }) => {
       if (!flow) return;
 
-      setNodes(flow.nodes || []);
+      // Ensure group nodes have dragHandle set
+      const processedNodes = (flow.nodes || []).map((node) => {
+        if (node.type === "group") {
+          return { ...node, dragHandle: ".group-drag-handle" };
+        }
+        return node;
+      });
+
+      setNodes(processedNodes);
       setEdges(flow.edges || []);
 
       // Fit view after nodes are rendered
@@ -905,6 +914,11 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             background: transparent !important;
             box-shadow: none !important;
             border: none !important;
+            pointer-events: none !important;
+          }
+          .react-flow__node-group .group-drag-handle,
+          .react-flow__node-group .react-flow__resize-control {
+            pointer-events: auto !important;
           }
           .react-flow__edge.selected .react-flow__edge-path,
           .react-flow__edge:focus .react-flow__edge-path,
@@ -941,8 +955,10 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           nodesDraggable={!isLocked}
           nodesConnectable={!isLocked}
           selectionMode={SelectionMode.Partial}
+          snapToGrid
+          snapGrid={[8, 8]}
         >
-          <Background color="#64748b" gap={16} />
+          <Background color="#94a3b8" gap={8} />
           <Controls showInteractive={false} />
           <MiniMap
             nodeColor={(node) => {
@@ -974,6 +990,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
               }
             }}
             maskColor="rgba(0, 0, 0, 0.1)"
+            pannable
+            zoomable
           />
         </ReactFlow>
         {contextMenu && (
