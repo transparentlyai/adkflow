@@ -21,6 +21,12 @@ class ReactFlowNode(BaseModel):
     data: dict[str, Any] = Field(..., description="Node data")
     selected: Optional[bool] = Field(None, description="Whether node is selected")
     dragging: Optional[bool] = Field(None, description="Whether node is being dragged")
+    # Group/parent relationship fields
+    parentId: Optional[str] = Field(None, description="Parent group node ID")
+    extent: Optional[str] = Field(None, description="Extent constraint ('parent' for grouped nodes)")
+    # Styling and dimensions
+    style: Optional[dict[str, Any]] = Field(None, description="Node style (width, height, etc.)")
+    measured: Optional[dict[str, float]] = Field(None, description="Measured dimensions from DOM")
 
 
 class ReactFlowEdge(BaseModel):
