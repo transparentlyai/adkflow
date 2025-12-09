@@ -1,5 +1,6 @@
 """API routes for ADKFlow backend."""
 
+import json
 import os
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, status, Query
@@ -251,8 +252,6 @@ async def load_project(
         # Read and parse React Flow JSON
         try:
             with open(flow_file, "r", encoding="utf-8") as f:
-                import json
-
                 flow_data = json.load(f)
 
             flow = ReactFlowJSON(**flow_data)
@@ -299,8 +298,6 @@ async def save_project(request: ProjectSaveRequest) -> ProjectSaveResponse:
         project_path.mkdir(parents=True, exist_ok=True)
 
         # Convert React Flow to JSON
-        import json
-
         flow_json = request.flow.model_dump(exclude_none=True)
 
         # Write to file
