@@ -10,6 +10,7 @@ import ResizeHandle from "@/components/ResizeHandle";
 import { useProject } from "@/contexts/ProjectContext";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock } from "lucide-react";
+import { readPrompt } from "@/lib/api";
 
 const DEFAULT_WIDTH = 500;
 const DEFAULT_HEIGHT = 320;
@@ -27,11 +28,12 @@ export interface PromptNodeData {
 const PromptNode = memo(({ data, id, selected }: NodeProps) => {
   const { prompt, content = "", handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked } = data as unknown as PromptNodeData;
   const { setNodes } = useReactFlow();
-  const { onSaveFile, onRequestFilePicker } = useProject();
+  const { projectPath, onSaveFile, onRequestFilePicker } = useProject();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [isContentLoaded, setIsContentLoaded] = useState(false);
 
   const currentNode = useStore((state) => state.nodes.find((n) => n.id === id));
   const parentId = currentNode?.parentId;
@@ -46,6 +48,28 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
       inputRef.current.select();
     }
   }, [isEditing]);
+
+  // Load content from file when expanded and content not yet loaded
+  useEffect(() => {
+    const loadContent = async () => {
+      if (isExpanded && !isContentLoaded && prompt.file_path && projectPath) {
+        try {
+          const response = await readPrompt(projectPath, prompt.file_path);
+          setNodes((nodes) =>
+            nodes.map((node) =>
+              node.id === id
+                ? { ...node, data: { ...node.data, content: response.content } }
+                : node
+            )
+          );
+          setIsContentLoaded(true);
+        } catch (error) {
+          console.error("Failed to load prompt content:", error);
+        }
+      }
+    };
+    loadContent();
+  }, [isExpanded, isContentLoaded, prompt.file_path, projectPath, id, setNodes]);
 
   const handleResize = useCallback((deltaWidth: number, deltaHeight: number) => {
     setNodes((nodes) =>
