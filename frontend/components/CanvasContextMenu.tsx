@@ -13,6 +13,7 @@ import {
   Code,
   Lock,
   Unlock,
+  Type,
 } from "lucide-react";
 
 export type NodeTypeOption =
@@ -26,7 +27,8 @@ export type NodeTypeOption =
   | "logProbe"
   | "tool"
   | "agentTool"
-  | "process";
+  | "process"
+  | "label";
 
 interface ContextMenuProps {
   x: number;
@@ -93,6 +95,11 @@ const nodeOptions: { type: NodeTypeOption; label: string; icon: React.ReactNode 
     type: "process",
     label: "Process",
     icon: <Code className="h-4 w-4" />,
+  },
+  {
+    type: "label",
+    label: "Label",
+    icon: <Type className="h-4 w-4" />,
   },
 ];
 

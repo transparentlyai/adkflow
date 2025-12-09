@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState, useRef, useEffect, useCallback } from "react";
-import { NodeResizer, type NodeProps, useReactFlow, useStore } from "@xyflow/react";
+import { NodeResizer, type NodeProps, useReactFlow, useStore, type ResizeParams } from "@xyflow/react";
 import { useProject } from "@/contexts/ProjectContext";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock } from "lucide-react";
@@ -142,6 +142,26 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
     }
   };
 
+  const handleNodeResize = useCallback(
+    (_event: unknown, params: ResizeParams) => {
+      setNodes((nodes) =>
+        nodes.map((node) =>
+          node.id === id
+            ? {
+                ...node,
+                style: {
+                  ...node.style,
+                  width: params.width,
+                  height: params.height,
+                },
+              }
+            : node
+        )
+      );
+    },
+    [id, setNodes]
+  );
+
   const isActive = selected || dragging || isNodeDraggingInside;
 
   return (
@@ -152,6 +172,7 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
         isVisible={selected && !isLocked && !isNodeLocked}
         lineClassName="!border-gray-400"
         handleClassName="!w-2 !h-2 !bg-gray-400 !border-gray-400"
+        onResizeEnd={handleNodeResize}
       />
       <div
         className="w-full h-full rounded-lg transition-all duration-200 flex flex-col"

@@ -38,6 +38,7 @@ import ToolNode from "./nodes/ToolNode";
 import AgentToolNode from "./nodes/AgentToolNode";
 import VariableNode from "./nodes/VariableNode";
 import ProcessNode from "./nodes/ProcessNode";
+import LabelNode from "./nodes/LabelNode";
 
 import { generateNodeId } from "@/lib/workflowHelpers";
 import CanvasContextMenu, { type NodeTypeOption } from "./CanvasContextMenu";
@@ -53,6 +54,7 @@ import { getDefaultToolData } from "./nodes/ToolNode";
 import { getDefaultAgentToolData } from "./nodes/AgentToolNode";
 import { getDefaultVariableData } from "./nodes/VariableNode";
 import { getDefaultProcessData } from "./nodes/ProcessNode";
+import { getDefaultLabelData } from "./nodes/LabelNode";
 import type { Agent, Prompt } from "@/lib/types";
 
 // Register custom node types
@@ -68,6 +70,7 @@ const nodeTypes = {
   agentTool: AgentToolNode,
   variable: VariableNode,
   process: ProcessNode,
+  label: LabelNode,
 } as any; // eslint-disable-line
 
 interface ReactFlowCanvasProps {
@@ -135,6 +138,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     const [agentToolPosition, setAgentToolPosition] = useState({ x: 150, y: 600 });
     const [variablePosition, setVariablePosition] = useState({ x: 150, y: 650 });
     const [processPosition, setProcessPosition] = useState({ x: 150, y: 700 });
+    const [labelPosition, setLabelPosition] = useState({ x: 150, y: 750 });
 
     const spacing = 350;
 
@@ -600,82 +604,24 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     }, [processPosition]);
 
     /**
-     * Drag and drop handlers for adding nodes from toolbar
+     * Add a Label node to the canvas
      */
-    const onDragOver = useCallback((event: React.DragEvent) => {
-      event.preventDefault();
-      event.dataTransfer.dropEffect = 'move';
-    }, []);
+    const addLabelNode = useCallback((position?: { x: number; y: number }) => {
+      const labelId = generateNodeId("label");
 
-    const onDrop = useCallback((event: React.DragEvent) => {
-      event.preventDefault();
-      if (isLocked) return;
+      const newNode: Node = {
+        id: labelId,
+        type: "label",
+        position: position || labelPosition,
+        data: getDefaultLabelData(),
+        style: { width: 100, height: 30 },
+      };
 
-      const type = event.dataTransfer.getData('application/reactflow');
-      if (!type) return;
-
-      const position = screenToFlowPosition({
-        x: event.clientX,
-        y: event.clientY,
-      });
-
-      // Handle nodes that require dialogs
-      if (type === 'prompt' && onRequestPromptCreation) {
-        onRequestPromptCreation(position);
-        return;
+      setNodes((nds) => [...nds, newNode]);
+      if (!position) {
+        setLabelPosition((pos) => ({ ...pos, x: pos.x + spacing }));
       }
-      if (type === 'context' && onRequestContextCreation) {
-        onRequestContextCreation(position);
-        return;
-      }
-      if (type === 'tool' && onRequestToolCreation) {
-        onRequestToolCreation(position);
-        return;
-      }
-      if (type === 'process' && onRequestProcessCreation) {
-        onRequestProcessCreation(position);
-        return;
-      }
-
-      // Handle regular nodes
-      switch (type) {
-        case 'variable':
-          addVariableNode(position);
-          break;
-        case 'group':
-          addGroupNode(position);
-          break;
-        case 'agent':
-          addAgentNode(position);
-          break;
-        case 'inputProbe':
-          addInputProbeNode(position);
-          break;
-        case 'outputProbe':
-          addOutputProbeNode(position);
-          break;
-        case 'logProbe':
-          addLogProbeNode(position);
-          break;
-        case 'agentTool':
-          addAgentToolNode(position);
-          break;
-      }
-    }, [
-      screenToFlowPosition,
-      onRequestPromptCreation,
-      onRequestContextCreation,
-      onRequestToolCreation,
-      onRequestProcessCreation,
-      addVariableNode,
-      addGroupNode,
-      addAgentNode,
-      addInputProbeNode,
-      addOutputProbeNode,
-      addLogProbeNode,
-      addAgentToolNode,
-      isLocked,
-    ]);
+    }, [labelPosition]);
 
     // Handle right-click on canvas pane
     const onPaneContextMenu = useCallback((event: MouseEvent | React.MouseEvent) => {
@@ -788,6 +734,9 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             onRequestProcessCreation(position);
           }
           break;
+        case 'label':
+          addNodeWithParent(addLabelNode, position, parentGroupId);
+          break;
       }
 
       setContextMenu(null);
@@ -801,6 +750,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       addOutputProbeNode,
       addLogProbeNode,
       addAgentToolNode,
+      addLabelNode,
       onRequestPromptCreation,
       onRequestContextCreation,
       onRequestToolCreation,
@@ -935,8 +885,6 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           onConnect={onConnect}
           onNodeDragStop={onNodeDragStop}
           onInit={setRfInstance}
-          onDrop={onDrop}
-          onDragOver={onDragOver}
           onPaneContextMenu={onPaneContextMenu}
           onNodeContextMenu={onNodeContextMenu}
           nodeTypes={nodeTypes}
@@ -985,6 +933,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
                   return "#7c3aed"; // violet-600
                 case "process":
                   return "#10b981"; // emerald-500
+                case "label":
+                  return "#6b7280"; // gray-500
                 default:
                   return "#6b7280"; // gray-500
               }
