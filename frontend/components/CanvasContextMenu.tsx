@@ -20,6 +20,9 @@ import {
   Activity,
   Layout,
   List,
+  Copy,
+  Clipboard,
+  Trash2,
 } from "lucide-react";
 
 export type NodeTypeOption =
@@ -44,6 +47,11 @@ interface ContextMenuProps {
   insideGroup?: boolean;
   isLocked?: boolean;
   onToggleLock?: () => void;
+  hasSelection?: boolean;
+  hasClipboard?: boolean;
+  onCopy?: () => void;
+  onPaste?: () => void;
+  onDelete?: () => void;
 }
 
 interface NodeOption {
@@ -102,6 +110,11 @@ export default function CanvasContextMenu({
   insideGroup = false,
   isLocked,
   onToggleLock,
+  hasSelection,
+  hasClipboard,
+  onCopy,
+  onPaste,
+  onDelete,
 }: ContextMenuProps) {
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
 
@@ -131,6 +144,61 @@ export default function CanvasContextMenu({
         className="fixed z-50 min-w-[10rem] overflow-visible rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
         style={{ left: adjustedX, top: adjustedY }}
       >
+        {/* Edit actions - show when there's something to copy/paste/delete */}
+        {(hasSelection || hasClipboard) && !isLocked && (
+          <>
+            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+              Edit
+            </div>
+            {hasSelection && onCopy && (
+              <button
+                onClick={() => {
+                  onCopy();
+                  onClose();
+                }}
+                className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+              >
+                <span className="mr-2 text-muted-foreground">
+                  <Copy className="h-4 w-4" />
+                </span>
+                Copy
+                <span className="ml-auto text-xs text-muted-foreground">⌘C</span>
+              </button>
+            )}
+            {hasClipboard && onPaste && (
+              <button
+                onClick={() => {
+                  onPaste();
+                  onClose();
+                }}
+                className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+              >
+                <span className="mr-2 text-muted-foreground">
+                  <Clipboard className="h-4 w-4" />
+                </span>
+                Paste
+                <span className="ml-auto text-xs text-muted-foreground">⌘V</span>
+              </button>
+            )}
+            {hasSelection && onDelete && (
+              <button
+                onClick={() => {
+                  onDelete();
+                  onClose();
+                }}
+                className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground text-destructive hover:text-destructive"
+              >
+                <span className="mr-2">
+                  <Trash2 className="h-4 w-4" />
+                </span>
+                Delete
+                <span className="ml-auto text-xs text-muted-foreground">⌫</span>
+              </button>
+            )}
+            <div className="-mx-1 my-1 h-px bg-border" />
+          </>
+        )}
+
         {!isLocked && (
           <>
             <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
