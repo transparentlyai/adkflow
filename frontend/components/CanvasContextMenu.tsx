@@ -21,6 +21,7 @@ import {
   Layout,
   List,
   Copy,
+  Scissors,
   Clipboard,
   Trash2,
 } from "lucide-react";
@@ -50,6 +51,7 @@ interface ContextMenuProps {
   hasSelection?: boolean;
   hasClipboard?: boolean;
   onCopy?: () => void;
+  onCut?: () => void;
   onPaste?: () => void;
   onDelete?: () => void;
 }
@@ -113,6 +115,7 @@ export default function CanvasContextMenu({
   hasSelection,
   hasClipboard,
   onCopy,
+  onCut,
   onPaste,
   onDelete,
 }: ContextMenuProps) {
@@ -163,6 +166,21 @@ export default function CanvasContextMenu({
                 </span>
                 Copy
                 <span className="ml-auto text-xs text-muted-foreground">⌘C</span>
+              </button>
+            )}
+            {hasSelection && onCut && (
+              <button
+                onClick={() => {
+                  onCut();
+                  onClose();
+                }}
+                className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+              >
+                <span className="mr-2 text-muted-foreground">
+                  <Scissors className="h-4 w-4" />
+                </span>
+                Cut
+                <span className="ml-auto text-xs text-muted-foreground">⌘X</span>
               </button>
             )}
             {hasClipboard && onPaste && (

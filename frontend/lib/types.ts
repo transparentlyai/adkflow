@@ -278,3 +278,32 @@ export interface DirectoryCreateResponse {
   created_path: string;
   message: string;
 }
+
+// Tab/Page types for multi-tab support
+export interface TabMetadata {
+  id: string;
+  name: string;
+  order: number;
+}
+
+export interface TabState extends TabMetadata {
+  hasUnsavedChanges: boolean;
+  isLoading: boolean;
+}
+
+export interface TabListResponse {
+  tabs: TabMetadata[];
+}
+
+export interface TabCreateResponse {
+  tab: TabMetadata;
+}
+
+export interface TabLoadResponse {
+  flow: ReactFlowJSON;
+}
+
+export interface TabSaveResponse {
+  success: boolean;
+  message: string;
+}

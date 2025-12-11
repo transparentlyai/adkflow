@@ -11,12 +11,32 @@ import { loadProject, saveProject, createPrompt, createContext, createTool, save
 import FilePicker from "@/components/FilePicker";
 import { loadSession, saveSession } from "@/lib/sessionStorage";
 import { ProjectProvider } from "@/contexts/ProjectContext";
+import { ClipboardProvider } from "@/contexts/ClipboardContext";
+import { TabsProvider, useTabs } from "@/contexts/TabsContext";
+import TabBar from "@/components/TabBar";
 import type { Node, Edge } from "@xyflow/react";
 import { Lock } from "lucide-react";
 
-export default function Home() {
+// Main component that uses contexts
+function HomeContent() {
+  const {
+    tabs,
+    activeTabId,
+    activeTab,
+    initializeTabs,
+    createNewTab,
+    loadTabFlow,
+    saveTabFlow,
+    deleteTabById,
+    renameTabById,
+    duplicateTabById,
+    reorderTabsById,
+    setActiveTabId,
+    markTabDirty,
+    clearTabs,
+  } = useTabs();
+
   const [workflowName, setWorkflowName] = useState("Untitled Workflow");
-  const [currentWorkflow, setCurrentWorkflow] = useState<{ nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } } | null>(null);
   const canvasRef = useRef<ReactFlowCanvasRef>(null);
   const [isSessionLoaded, setIsSessionLoaded] = useState(false);
 
@@ -25,7 +45,9 @@ export default function Home() {
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
   const [projectDialogMode, setProjectDialogMode] = useState<"create" | "load">("create");
   const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Get unsaved changes from active tab
+  const hasUnsavedChanges = activeTab?.hasUnsavedChanges ?? false;
 
   // Prompt name dialog state
   const [isPromptNameDialogOpen, setIsPromptNameDialogOpen] = useState(false);
@@ -58,27 +80,28 @@ export default function Home() {
   useEffect(() => {
     const session = loadSession();
     if (session && session.currentProjectPath) {
-      setCurrentProjectPath(session.currentProjectPath);
+      const projectPath = session.currentProjectPath;
+      setCurrentProjectPath(projectPath);
       setWorkflowName(session.workflowName || "Untitled Workflow");
-      setHasUnsavedChanges(session.hasUnsavedChanges || false);
 
-      // Restore flow to canvas
-      if (session.workflow) {
-        // We need to wait for the canvas to be ready
-        setTimeout(() => {
-          if (canvasRef.current && session.workflow) {
-            canvasRef.current.restoreFlow(session.workflow);
-            setCurrentWorkflow(session.workflow);
+      // Initialize tabs and load first tab
+      (async () => {
+        const firstTab = await initializeTabs(projectPath);
+        if (firstTab && canvasRef.current) {
+          const flow = await loadTabFlow(projectPath, firstTab.id);
+          if (flow) {
+            canvasRef.current.restoreFlow(flow);
           }
-        }, 50);
-      }
+        }
+      })();
+
       setIsSessionLoaded(true);
     } else {
       // No session, show project dialog
       setIsProjectDialogOpen(true);
       setIsSessionLoaded(true);
     }
-  }, []);
+  }, [initializeTabs, loadTabFlow]);
 
   // Save session whenever relevant state changes
   useEffect(() => {
@@ -86,18 +109,17 @@ export default function Home() {
       saveSession({
         currentProjectPath,
         workflowName,
-        workflow: currentWorkflow,
+        workflow: null, // Deprecated - using tabs now
         hasUnsavedChanges,
       });
     }
-  }, [isSessionLoaded, currentProjectPath, workflowName, currentWorkflow, hasUnsavedChanges]);
+  }, [isSessionLoaded, currentProjectPath, workflowName, hasUnsavedChanges]);
 
   const handleWorkflowChange = useCallback((data: { nodes: Node[]; edges: Edge[] }) => {
-    // Add default viewport
-    const flowData = { ...data, viewport: { x: 0, y: 0, zoom: 1 } };
-    setCurrentWorkflow(flowData);
-    setHasUnsavedChanges(true);
-  }, []);
+    if (activeTabId) {
+      markTabDirty(activeTabId);
+    }
+  }, [activeTabId, markTabDirty]);
 
   // Project Management Handlers
   const handleCreateNewProject = async (projectPath: string) => {
@@ -105,7 +127,13 @@ export default function Home() {
       setCurrentProjectPath(projectPath);
       setWorkflowName("Untitled Workflow");
       setIsProjectDialogOpen(false);
-      setHasUnsavedChanges(false);
+
+      // Initialize tabs and create first tab
+      const firstTab = await initializeTabs(projectPath);
+      if (!firstTab) {
+        // No tabs exist, create the first one
+        await createNewTab(projectPath, "Flow 1");
+      }
 
       // Clear canvas
       if (canvasRef.current) {
@@ -119,24 +147,24 @@ export default function Home() {
 
   const handleLoadExistingProject = async (projectPath: string) => {
     try {
-      const response = await loadProject(projectPath);
+      // Initialize tabs for the project
+      const firstTab = await initializeTabs(projectPath);
 
-      if (!response.exists) {
-        alert(`No flow found at ${projectPath}. Would you like to create a new project there instead?`);
-        return;
-      }
-
-      if (response.flow) {
-        // Load flow into canvas
-        setCurrentProjectPath(projectPath);
-        setWorkflowName("Untitled Workflow");
-        setIsProjectDialogOpen(false);
-        setHasUnsavedChanges(false);
-
-        if (canvasRef.current) {
-          canvasRef.current.restoreFlow(response.flow);
+      if (!firstTab) {
+        alert(`No tabs found at ${projectPath}. Creating a new project instead.`);
+        // Create first tab if none exist
+        await createNewTab(projectPath, "Flow 1");
+      } else {
+        // Load the first tab's flow
+        const flow = await loadTabFlow(projectPath, firstTab.id);
+        if (flow && canvasRef.current) {
+          canvasRef.current.restoreFlow(flow);
         }
       }
+
+      setCurrentProjectPath(projectPath);
+      setWorkflowName("Untitled Workflow");
+      setIsProjectDialogOpen(false);
     } catch (error) {
       console.error("Error loading project:", error);
       alert("Failed to load project: " + (error as Error).message);
@@ -144,23 +172,23 @@ export default function Home() {
   };
 
   const handleSaveCurrentProject = async () => {
-    if (!currentProjectPath) {
-      alert("No project loaded. Please create or load a project first.");
+    if (!currentProjectPath || !activeTabId) {
+      alert("No project or tab loaded. Please create or load a project first.");
       return;
     }
 
     try {
-      // Get current flow from canvas using React Flow's native toObject
+      // Get current flow from canvas
       const flow = canvasRef.current?.saveFlow();
       if (!flow) {
         alert("No flow data to save.");
         return;
       }
 
-      const response = await saveProject(currentProjectPath, flow);
-
-      if (response.success) {
-        setHasUnsavedChanges(false);
+      // Save to active tab
+      const success = await saveTabFlow(currentProjectPath, activeTabId, flow);
+      if (!success) {
+        alert("Failed to save tab.");
       }
     } catch (error) {
       console.error("Error saving project:", error);
@@ -226,7 +254,9 @@ export default function Home() {
 
       setIsPromptNameDialogOpen(false);
       setPendingPromptPosition(undefined);
-      setHasUnsavedChanges(true);
+      if (activeTabId) {
+        markTabDirty(activeTabId);
+      }
 
     } catch (error) {
       console.error("Failed to create prompt:", error);
@@ -264,7 +294,9 @@ export default function Home() {
 
       setIsContextNameDialogOpen(false);
       setPendingContextPosition(undefined);
-      setHasUnsavedChanges(true);
+      if (activeTabId) {
+        markTabDirty(activeTabId);
+      }
 
     } catch (error) {
       console.error("Failed to create context:", error);
@@ -300,7 +332,9 @@ export default function Home() {
 
       setIsToolNameDialogOpen(false);
       setPendingToolPosition(undefined);
-      setHasUnsavedChanges(true);
+      if (activeTabId) {
+        markTabDirty(activeTabId);
+      }
 
     } catch (error) {
       console.error("Failed to create tool:", error);
@@ -336,7 +370,9 @@ export default function Home() {
 
       setIsProcessNameDialogOpen(false);
       setPendingProcessPosition(undefined);
-      setHasUnsavedChanges(true);
+      if (activeTabId) {
+        markTabDirty(activeTabId);
+      }
 
     } catch (error) {
       console.error("Failed to create process:", error);
@@ -414,6 +450,88 @@ export default function Home() {
     setFilePickerInitialPath(undefined);
   }, []);
 
+  // Tab handlers
+  const handleTabClick = useCallback(async (tabId: string) => {
+    if (!currentProjectPath) return;
+
+    // Save current tab if dirty
+    if (activeTab?.hasUnsavedChanges && canvasRef.current && activeTabId) {
+      const flow = canvasRef.current.saveFlow();
+      if (flow) {
+        await saveTabFlow(currentProjectPath, activeTabId, flow);
+      }
+    }
+
+    // Switch tab
+    setActiveTabId(tabId);
+
+    // Load new tab flow
+    const flow = await loadTabFlow(currentProjectPath, tabId);
+    if (flow && canvasRef.current) {
+      canvasRef.current.restoreFlow(flow);
+    }
+  }, [currentProjectPath, activeTab, activeTabId, saveTabFlow, loadTabFlow, setActiveTabId]);
+
+  const handleAddTab = useCallback(async () => {
+    if (!currentProjectPath) return;
+
+    // Save current tab if dirty before switching
+    if (activeTab?.hasUnsavedChanges && canvasRef.current && activeTabId) {
+      const flow = canvasRef.current.saveFlow();
+      if (flow) {
+        await saveTabFlow(currentProjectPath, activeTabId, flow);
+      }
+    }
+
+    const tab = await createNewTab(currentProjectPath, `Flow ${tabs.length + 1}`);
+    if (tab && canvasRef.current) {
+      canvasRef.current.clearCanvas();
+    }
+  }, [currentProjectPath, tabs.length, createNewTab, activeTab, activeTabId, saveTabFlow]);
+
+  // Tab delete with confirmation
+  const [isTabDeleteDialogOpen, setIsTabDeleteDialogOpen] = useState(false);
+  const [pendingDeleteTabId, setPendingDeleteTabId] = useState<string | null>(null);
+
+  const handleTabDelete = useCallback((tabId: string) => {
+    if (!currentProjectPath || tabs.length <= 1) return;
+
+    // Find the tab name for the confirmation dialog
+    setPendingDeleteTabId(tabId);
+    setIsTabDeleteDialogOpen(true);
+  }, [currentProjectPath, tabs.length]);
+
+  const handleTabDeleteConfirm = useCallback(async () => {
+    if (!currentProjectPath || !pendingDeleteTabId) return;
+
+    await deleteTabById(currentProjectPath, pendingDeleteTabId);
+    setIsTabDeleteDialogOpen(false);
+    setPendingDeleteTabId(null);
+  }, [currentProjectPath, pendingDeleteTabId, deleteTabById]);
+
+  const handleTabDeleteCancel = useCallback(() => {
+    setIsTabDeleteDialogOpen(false);
+    setPendingDeleteTabId(null);
+  }, []);
+
+  const handleTabRename = useCallback(async (tabId: string, name: string) => {
+    if (!currentProjectPath) return;
+
+    await renameTabById(currentProjectPath, tabId, name);
+  }, [currentProjectPath, renameTabById]);
+
+  const handleTabReorder = useCallback(async (tabIds: string[]) => {
+    if (!currentProjectPath) return;
+
+    await reorderTabsById(currentProjectPath, tabIds);
+  }, [currentProjectPath, reorderTabsById]);
+
+  const handleDuplicateTab = useCallback(async (tabId: string) => {
+    if (!currentProjectPath) return;
+
+    await duplicateTabById(currentProjectPath, tabId);
+  }, [currentProjectPath, duplicateTabById]);
+
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
@@ -459,6 +577,20 @@ export default function Home() {
           </div>
         </div>
       </header>
+
+      {/* Tab Bar */}
+      {currentProjectPath && tabs.length > 0 && (
+        <TabBar
+          tabs={tabs}
+          activeTabId={activeTabId}
+          onTabClick={handleTabClick}
+          onTabDelete={handleTabDelete}
+          onTabRename={handleTabRename}
+          onTabReorder={handleTabReorder}
+          onAddTab={handleAddTab}
+          onDuplicateTab={handleDuplicateTab}
+        />
+      )}
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
@@ -545,6 +677,17 @@ export default function Home() {
         onCancel={handleClearCanvasCancel}
       />
 
+      {/* Tab Delete Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={isTabDeleteDialogOpen}
+        title="Delete Tab"
+        description={`Are you sure you want to delete "${tabs.find(t => t.id === pendingDeleteTabId)?.name || 'this tab'}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleTabDeleteConfirm}
+        onCancel={handleTabDeleteCancel}
+      />
+
       {/* File Picker Dialog */}
       <FilePicker
         isOpen={isFilePickerOpen}
@@ -556,5 +699,16 @@ export default function Home() {
         description="Choose a file to associate with this node"
       />
     </div>
+  );
+}
+
+// Wrapper with providers
+export default function Home() {
+  return (
+    <ClipboardProvider>
+      <TabsProvider>
+        <HomeContent />
+      </TabsProvider>
+    </ClipboardProvider>
   );
 }

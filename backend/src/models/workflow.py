@@ -23,10 +23,16 @@ class ReactFlowNode(BaseModel):
     dragging: Optional[bool] = Field(None, description="Whether node is being dragged")
     # Group/parent relationship fields
     parentId: Optional[str] = Field(None, description="Parent group node ID")
-    extent: Optional[str] = Field(None, description="Extent constraint ('parent' for grouped nodes)")
+    extent: Optional[str] = Field(
+        None, description="Extent constraint ('parent' for grouped nodes)"
+    )
     # Styling and dimensions
-    style: Optional[dict[str, Any]] = Field(None, description="Node style (width, height, etc.)")
-    measured: Optional[dict[str, float]] = Field(None, description="Measured dimensions from DOM")
+    style: Optional[dict[str, Any]] = Field(
+        None, description="Node style (width, height, etc.)"
+    )
+    measured: Optional[dict[str, float]] = Field(
+        None, description="Measured dimensions from DOM"
+    )
 
 
 class ReactFlowEdge(BaseModel):
@@ -48,3 +54,25 @@ class ReactFlowJSON(BaseModel):
     nodes: list[ReactFlowNode] = Field(default_factory=list, description="Flow nodes")
     edges: list[ReactFlowEdge] = Field(default_factory=list, description="Flow edges")
     viewport: Viewport = Field(default_factory=Viewport, description="Viewport state")
+
+
+# Tab/Page Models for Multi-Tab Support
+
+
+class TabMetadata(BaseModel):
+    """Metadata for a single tab/page in a project."""
+
+    id: str = Field(
+        ..., description="Unique tab identifier (e.g., page_1234567890_abc123)"
+    )
+    name: str = Field(..., description="Display name of the tab")
+    order: int = Field(..., description="Sort order (0-based)")
+
+
+class ProjectManifest(BaseModel):
+    """Manifest file for multi-tab projects."""
+
+    version: str = Field(default="2.0", description="Manifest version")
+    tabs: list[TabMetadata] = Field(
+        default_factory=list, description="List of tabs in the project"
+    )

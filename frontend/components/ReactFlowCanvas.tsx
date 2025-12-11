@@ -27,6 +27,8 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
+import { useClipboard } from "@/contexts/ClipboardContext";
+
 import GroupNode from "./nodes/GroupNode";
 import AgentNode from "./nodes/AgentNode";
 import PromptNode from "./nodes/PromptNode";
@@ -81,6 +83,7 @@ interface ReactFlowCanvasProps {
   onRequestProcessCreation?: (position: { x: number; y: number }) => void;
   isLocked?: boolean;
   onToggleLock?: () => void;
+  activeTabId?: string;
 }
 
 export interface ReactFlowCanvasRef {
@@ -110,11 +113,12 @@ export interface ReactFlowCanvasRef {
  * Replaces the Drawflow-based canvas with native React Flow implementation.
  */
 const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
-  ({ onWorkflowChange, onRequestPromptCreation, onRequestContextCreation, onRequestToolCreation, onRequestProcessCreation, isLocked, onToggleLock }, ref) => {
+  ({ onWorkflowChange, onRequestPromptCreation, onRequestContextCreation, onRequestToolCreation, onRequestProcessCreation, isLocked, onToggleLock, activeTabId }, ref) => {
     const [nodes, setNodes] = useState<Node[]>([]);
     const [edges, setEdges] = useState<Edge[]>([]);
     const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
     const { screenToFlowPosition } = useReactFlow();
+    const { clipboard, copy, hasClipboard } = useClipboard();
 
     // Context menu state
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; flowPosition: { x: number; y: number }; parentGroupId?: string } | null>(null);
@@ -124,12 +128,6 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       nodeIds: string[];
       edgeIds: string[];
       message: string;
-    } | null>(null);
-
-    // Clipboard state for copy/paste
-    const [clipboard, setClipboard] = useState<{
-      nodes: Node[];
-      edges: Edge[];
     } | null>(null);
 
     // Track mouse position for paste at cursor
@@ -330,21 +328,34 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
     // Copy selected nodes and edges to clipboard
     const handleCopy = useCallback(() => {
-      const selectedNodes = nodes.filter((node) => node.selected);
+      if (!activeTabId) return;
+      copy(nodes, edges, activeTabId);
+    }, [nodes, edges, activeTabId, copy]);
+
+    // Cut selected nodes and edges (copy + delete)
+    const handleCut = useCallback(() => {
+      if (!activeTabId || isLocked) return;
+
+      // Get selected deletable nodes (exclude locked)
+      const selectedNodes = nodes.filter((n) => n.selected && !(n.data as { isNodeLocked?: boolean })?.isNodeLocked);
       if (selectedNodes.length === 0) return;
 
-      const selectedNodeIds = new Set(selectedNodes.map((n) => n.id));
+      // Copy first (copies all selected, including locked)
+      copy(nodes, edges, activeTabId);
 
-      // Only copy edges where BOTH source and target are selected
-      const selectedEdges = edges.filter(
-        (edge) => selectedNodeIds.has(edge.source) && selectedNodeIds.has(edge.target)
+      // Then delete only deletable nodes
+      const nodeIds = selectedNodes.map((n) => n.id);
+      setNodes((nds) => nds.filter((node) => !nodeIds.includes(node.id)));
+
+      // Remove edges connected to deleted nodes
+      setEdges((eds) =>
+        eds.filter(
+          (edge) =>
+            !nodeIds.includes(edge.source) &&
+            !nodeIds.includes(edge.target)
+        )
       );
-
-      setClipboard({
-        nodes: selectedNodes,
-        edges: selectedEdges,
-      });
-    }, [nodes, edges]);
+    }, [nodes, edges, activeTabId, isLocked, copy, setNodes, setEdges]);
 
     // Paste nodes and edges from clipboard at cursor position
     const handlePaste = useCallback((pastePosition?: { x: number; y: number }) => {
@@ -426,6 +437,14 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           handleCopy();
         }
 
+        // Cut: Ctrl+X or Cmd+X
+        if ((event.ctrlKey || event.metaKey) && event.key === "x") {
+          if (isLocked) return;
+          if (isTyping) return;
+          event.preventDefault();
+          handleCut();
+        }
+
         // Paste: Ctrl+V or Cmd+V
         if ((event.ctrlKey || event.metaKey) && event.key === "v") {
           if (isTyping) return;
@@ -479,7 +498,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
       window.addEventListener("keydown", handleKeyDown);
       return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [nodes, edges, isLocked, handleCopy, handlePaste]);
+    }, [nodes, edges, isLocked, handleCopy, handleCut, handlePaste]);
 
     const addGroupNode = useCallback((position?: { x: number; y: number }) => {
       const groupId = generateNodeId("group");
@@ -1073,8 +1092,9 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             isLocked={isLocked}
             onToggleLock={onToggleLock}
             hasSelection={nodes.some((n) => n.selected) || edges.some((e) => e.selected)}
-            hasClipboard={clipboard !== null && clipboard.nodes.length > 0}
+            hasClipboard={hasClipboard}
             onCopy={handleCopy}
+            onCut={handleCut}
             onPaste={() => handlePaste(contextMenu.flowPosition)}
             onDelete={() => {
               // Trigger the same delete flow as keyboard
