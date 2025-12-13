@@ -12,6 +12,11 @@ interface ReactFlowJSON {
   viewport: { x: number; y: number; zoom: number };
 }
 
+interface InitializeTabsResult {
+  firstTab: TabMetadata | null;
+  projectName: string;
+}
+
 interface TabsContextValue {
   // Tab list
   tabs: TabState[];
@@ -19,12 +24,12 @@ interface TabsContextValue {
   activeTab: TabState | null;
 
   // Initialization
-  initializeTabs: (projectPath: string) => Promise<TabMetadata | null>;
+  initializeTabs: (projectPath: string) => Promise<InitializeTabsResult | null>;
 
   // Tab operations
   createNewTab: (projectPath: string, name?: string) => Promise<TabMetadata | null>;
   loadTabFlow: (projectPath: string, tabId: string) => Promise<ReactFlowJSON | null>;
-  saveTabFlow: (projectPath: string, tabId: string, flow: ReactFlowJSON) => Promise<boolean>;
+  saveTabFlow: (projectPath: string, tabId: string, flow: ReactFlowJSON, projectName?: string) => Promise<boolean>;
   deleteTabById: (projectPath: string, tabId: string) => Promise<boolean>;
   renameTabById: (projectPath: string, tabId: string, name: string) => Promise<boolean>;
   duplicateTabById: (projectPath: string, tabId: string) => Promise<TabMetadata | null>;
@@ -50,7 +55,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
   const activeTab = tabs.find((t) => t.id === activeTabId) || null;
 
   // Initialize tabs for a project
-  const initializeTabs = useCallback(async (projectPath: string): Promise<TabMetadata | null> => {
+  const initializeTabs = useCallback(async (projectPath: string): Promise<InitializeTabsResult | null> => {
     try {
       const response = await listTabs(projectPath);
       const tabStates: TabState[] = response.tabs.map((tab) => ({
@@ -63,9 +68,9 @@ export function TabsProvider({ children }: { children: ReactNode }) {
       // Set first tab as active
       if (tabStates.length > 0) {
         setActiveTabId(tabStates[0].id);
-        return tabStates[0];
+        return { firstTab: tabStates[0], projectName: response.name };
       }
-      return null;
+      return { firstTab: null, projectName: response.name };
     } catch (error) {
       console.error("Failed to initialize tabs:", error);
       return null;
@@ -109,9 +114,9 @@ export function TabsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Save tab flow
-  const saveTabFlow = useCallback(async (projectPath: string, tabId: string, flow: ReactFlowJSON): Promise<boolean> => {
+  const saveTabFlow = useCallback(async (projectPath: string, tabId: string, flow: ReactFlowJSON, projectName?: string): Promise<boolean> => {
     try {
-      await saveTab(projectPath, tabId, flow);
+      await saveTab(projectPath, tabId, flow, projectName);
       setTabs((prev) => prev.map((t) => t.id === tabId ? { ...t, hasUnsavedChanges: false } : t));
       return true;
     } catch (error) {

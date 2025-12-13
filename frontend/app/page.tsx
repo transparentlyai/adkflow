@@ -82,15 +82,18 @@ function HomeContent() {
     if (session && session.currentProjectPath) {
       const projectPath = session.currentProjectPath;
       setCurrentProjectPath(projectPath);
-      setWorkflowName(session.workflowName || "Untitled Workflow");
 
       // Initialize tabs and load first tab
       (async () => {
-        const firstTab = await initializeTabs(projectPath);
-        if (firstTab && canvasRef.current) {
-          const flow = await loadTabFlow(projectPath, firstTab.id);
-          if (flow) {
-            canvasRef.current.restoreFlow(flow);
+        const result = await initializeTabs(projectPath);
+        if (result) {
+          // Load project name from manifest
+          setWorkflowName(result.projectName);
+          if (result.firstTab && canvasRef.current) {
+            const flow = await loadTabFlow(projectPath, result.firstTab.id);
+            if (flow) {
+              canvasRef.current.restoreFlow(flow);
+            }
           }
         }
       })();
@@ -148,22 +151,24 @@ function HomeContent() {
   const handleLoadExistingProject = async (projectPath: string) => {
     try {
       // Initialize tabs for the project
-      const firstTab = await initializeTabs(projectPath);
+      const result = await initializeTabs(projectPath);
 
-      if (!firstTab) {
+      if (!result || !result.firstTab) {
         alert(`No tabs found at ${projectPath}. Creating a new project instead.`);
         // Create first tab if none exist
         await createNewTab(projectPath, "Flow 1");
+        setWorkflowName("Untitled Workflow");
       } else {
         // Load the first tab's flow
-        const flow = await loadTabFlow(projectPath, firstTab.id);
+        const flow = await loadTabFlow(projectPath, result.firstTab.id);
         if (flow && canvasRef.current) {
           canvasRef.current.restoreFlow(flow);
         }
+        // Load project name from manifest
+        setWorkflowName(result.projectName);
       }
 
       setCurrentProjectPath(projectPath);
-      setWorkflowName("Untitled Workflow");
       setIsProjectDialogOpen(false);
     } catch (error) {
       console.error("Error loading project:", error);
@@ -185,8 +190,8 @@ function HomeContent() {
         return;
       }
 
-      // Save to active tab
-      const success = await saveTabFlow(currentProjectPath, activeTabId, flow);
+      // Save to active tab with project name
+      const success = await saveTabFlow(currentProjectPath, activeTabId, flow, workflowName);
       if (!success) {
         alert("Failed to save tab.");
       }

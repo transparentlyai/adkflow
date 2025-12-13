@@ -177,6 +177,7 @@ class TabListResponse(BaseModel):
     """Response model for listing all tabs."""
 
     tabs: list[TabMetadata]
+    name: str = "Untitled Workflow"
 
 
 class TabCreateRequest(BaseModel):
@@ -203,6 +204,7 @@ class TabSaveRequest(BaseModel):
 
     project_path: str
     flow: ReactFlowJSON
+    project_name: str | None = None
 
 
 class TabRenameRequest(BaseModel):
@@ -1016,7 +1018,7 @@ async def list_tabs(
             with open(manifest_file, "r", encoding="utf-8") as f:
                 manifest_data = json.load(f)
             manifest = ProjectManifest(**manifest_data)
-            return TabListResponse(tabs=manifest.tabs)
+            return TabListResponse(tabs=manifest.tabs, name=manifest.name)
 
         # Check for legacy flow.json and migrate
         legacy_flow_file = project_path / "flow.json"
@@ -1256,6 +1258,17 @@ async def save_tab(
         flow_json = request.flow.model_dump(exclude_none=True)
         with open(tab_file, "w", encoding="utf-8") as f:
             json.dump(flow_json, f, indent=2)
+
+        # Update project name in manifest if provided
+        if request.project_name is not None:
+            manifest_file = project_path / "manifest.json"
+            if manifest_file.exists():
+                with open(manifest_file, "r", encoding="utf-8") as f:
+                    manifest_data = json.load(f)
+                manifest = ProjectManifest(**manifest_data)
+                manifest.name = request.project_name
+                with open(manifest_file, "w", encoding="utf-8") as f:
+                    json.dump(manifest.model_dump(exclude_none=True), f, indent=2)
 
         return {"success": True, "message": f"Tab {tab_id} saved successfully"}
 

@@ -73,6 +73,7 @@ class ProjectManifest(BaseModel):
     """Manifest file for multi-tab projects."""
 
     version: str = Field(default="2.0", description="Manifest version")
+    name: str = Field(default="Untitled Workflow", description="Project display name")
     tabs: list[TabMetadata] = Field(
         default_factory=list, description="List of tabs in the project"
     )

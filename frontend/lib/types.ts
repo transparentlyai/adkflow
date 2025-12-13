@@ -293,6 +293,7 @@ export interface TabState extends TabMetadata {
 
 export interface TabListResponse {
   tabs: TabMetadata[];
+  name: string;
 }
 
 export interface TabCreateResponse {

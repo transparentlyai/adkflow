@@ -343,12 +343,13 @@ export async function loadTab(
 export async function saveTab(
   projectPath: string,
   tabId: string,
-  flow: ReactFlowJSON
+  flow: ReactFlowJSON,
+  projectName?: string
 ): Promise<TabSaveResponse> {
   try {
     const response = await apiClient.put<TabSaveResponse>(
       `/api/project/tabs/${tabId}`,
-      { project_path: projectPath, flow }
+      { project_path: projectPath, flow, project_name: projectName }
     );
     return response.data;
   } catch (error) {
