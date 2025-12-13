@@ -17,6 +17,7 @@ import {
   applyEdgeChanges,
   addEdge,
   useReactFlow,
+  useKeyPress,
   SelectionMode,
   type Node,
   type Edge,
@@ -45,6 +46,7 @@ import LabelNode from "./nodes/LabelNode";
 import { generateNodeId } from "@/lib/workflowHelpers";
 import CanvasContextMenu, { type NodeTypeOption } from "./CanvasContextMenu";
 import ConfirmDialog from "./ConfirmDialog";
+import GroupDeleteDialog from "./GroupDeleteDialog";
 import { getDefaultGroupData } from "./nodes/GroupNode";
 import { getDefaultAgentData } from "./nodes/AgentNode";
 import { getDefaultPromptData } from "./nodes/PromptNode";
@@ -128,6 +130,14 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       nodeIds: string[];
       edgeIds: string[];
       message: string;
+    } | null>(null);
+
+    // Group delete confirmation state (for groups with children)
+    const [groupDeleteConfirm, setGroupDeleteConfirm] = useState<{
+      groupIds: string[];
+      childIds: string[];
+      otherNodeIds: string[];
+      edgeIds: string[];
     } | null>(null);
 
     // Track mouse position for paste at cursor
@@ -326,6 +336,80 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       setDeleteConfirm(null);
     }, []);
 
+    // Handle group delete - delete group only (unparent children)
+    const handleGroupDeleteGroupOnly = useCallback(() => {
+      if (!groupDeleteConfirm) return;
+
+      const { groupIds, otherNodeIds, edgeIds } = groupDeleteConfirm;
+
+      setNodes((nds) => {
+        // Find group positions for converting child positions to absolute
+        const groupPositions = new Map<string, { x: number; y: number }>();
+        for (const node of nds) {
+          if (groupIds.includes(node.id)) {
+            groupPositions.set(node.id, node.position);
+          }
+        }
+
+        return nds
+          .filter((node) => !groupIds.includes(node.id) && !otherNodeIds.includes(node.id))
+          .map((node) => {
+            // Unparent children of deleted groups
+            if (node.parentId && groupIds.includes(node.parentId)) {
+              const parentPos = groupPositions.get(node.parentId);
+              return {
+                ...node,
+                parentId: undefined,
+                extent: undefined,
+                position: parentPos
+                  ? { x: node.position.x + parentPos.x, y: node.position.y + parentPos.y }
+                  : node.position,
+              };
+            }
+            return node;
+          });
+      });
+
+      // Remove selected edges and edges connected to deleted nodes (groups and other nodes, not children)
+      const deletedNodeIds = [...groupIds, ...otherNodeIds];
+      setEdges((eds) =>
+        eds.filter(
+          (edge) =>
+            !edgeIds.includes(edge.id) &&
+            !deletedNodeIds.includes(edge.source) &&
+            !deletedNodeIds.includes(edge.target)
+        )
+      );
+
+      setGroupDeleteConfirm(null);
+    }, [groupDeleteConfirm]);
+
+    // Handle group delete - delete all (group + children)
+    const handleGroupDeleteAll = useCallback(() => {
+      if (!groupDeleteConfirm) return;
+
+      const { groupIds, childIds, otherNodeIds, edgeIds } = groupDeleteConfirm;
+      const allNodeIds = [...groupIds, ...childIds, ...otherNodeIds];
+
+      setNodes((nds) => nds.filter((node) => !allNodeIds.includes(node.id)));
+
+      // Remove selected edges and edges connected to any deleted nodes
+      setEdges((eds) =>
+        eds.filter(
+          (edge) =>
+            !edgeIds.includes(edge.id) &&
+            !allNodeIds.includes(edge.source) &&
+            !allNodeIds.includes(edge.target)
+        )
+      );
+
+      setGroupDeleteConfirm(null);
+    }, [groupDeleteConfirm]);
+
+    const handleGroupDeleteCancel = useCallback(() => {
+      setGroupDeleteConfirm(null);
+    }, []);
+
     // Copy selected nodes and edges to clipboard
     const handleCopy = useCallback(() => {
       if (!activeTabId) return;
@@ -340,11 +424,25 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       const selectedNodes = nodes.filter((n) => n.selected && !(n.data as { isNodeLocked?: boolean })?.isNodeLocked);
       if (selectedNodes.length === 0) return;
 
-      // Copy first (copies all selected, including locked)
+      // Copy first (copies all selected, including locked) - clipboard auto-includes children
       copy(nodes, edges, activeTabId);
 
-      // Then delete only deletable nodes
-      const nodeIds = selectedNodes.map((n) => n.id);
+      // Expand selection to include children of selected groups
+      const selectedIds = new Set(selectedNodes.map((n) => n.id));
+      const expandedNodes = [...selectedNodes];
+
+      for (const node of nodes) {
+        if (node.parentId && selectedIds.has(node.parentId) && !selectedIds.has(node.id)) {
+          // Include child if it's not locked
+          if (!(node.data as { isNodeLocked?: boolean })?.isNodeLocked) {
+            expandedNodes.push(node);
+            selectedIds.add(node.id);
+          }
+        }
+      }
+
+      // Then delete expanded selection
+      const nodeIds = expandedNodes.map((n) => n.id);
       setNodes((nds) => nds.filter((node) => !nodeIds.includes(node.id)));
 
       // Remove edges connected to deleted nodes
@@ -369,11 +467,16 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         idMap.set(node.id, generateNodeId(prefix));
       });
 
-      // Calculate the bounding box center of copied nodes
-      const minX = Math.min(...clipboard.nodes.map((n) => n.position.x));
-      const minY = Math.min(...clipboard.nodes.map((n) => n.position.y));
-      const maxX = Math.max(...clipboard.nodes.map((n) => n.position.x));
-      const maxY = Math.max(...clipboard.nodes.map((n) => n.position.y));
+      // Identify top-level nodes (no parent or parent not in clipboard)
+      const topLevelNodes = clipboard.nodes.filter(
+        (n) => !n.parentId || !idMap.has(n.parentId)
+      );
+
+      // Calculate the bounding box center of top-level nodes only
+      const minX = Math.min(...topLevelNodes.map((n) => n.position.x));
+      const minY = Math.min(...topLevelNodes.map((n) => n.position.y));
+      const maxX = Math.max(...topLevelNodes.map((n) => n.position.x));
+      const maxY = Math.max(...topLevelNodes.map((n) => n.position.y));
       const centerX = (minX + maxX) / 2;
       const centerY = (minY + maxY) / 2;
 
@@ -392,20 +495,36 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       const offsetX = targetPosition.x - centerX;
       const offsetY = targetPosition.y - centerY;
 
-      // Create new nodes with new IDs and positions relative to cursor
-      const newNodes: Node[] = clipboard.nodes.map((node) => ({
-        ...node,
-        id: idMap.get(node.id)!,
-        position: {
-          x: node.position.x + offsetX,
-          y: node.position.y + offsetY,
-        },
-        selected: true,
-        // Clear parent if it wasn't in selection
-        parentId: node.parentId && idMap.has(node.parentId)
-          ? idMap.get(node.parentId)
-          : undefined,
-      }));
+      // Create new nodes with new IDs
+      // Only apply offset to top-level nodes; children keep their relative positions
+      const newNodes: Node[] = clipboard.nodes.map((node) => {
+        const hasParentInClipboard = node.parentId && idMap.has(node.parentId);
+        return {
+          ...node,
+          id: idMap.get(node.id)!,
+          position: hasParentInClipboard
+            ? node.position // Keep relative position for children
+            : {
+                x: node.position.x + offsetX,
+                y: node.position.y + offsetY,
+              },
+          selected: true,
+          // Preserve parent relationship and extent, or clear if parent not in selection
+          parentId: hasParentInClipboard
+            ? idMap.get(node.parentId!)
+            : undefined,
+          extent: hasParentInClipboard ? node.extent : undefined,
+        };
+      });
+
+      // Sort nodes: parents must come before children in React Flow
+      const sortedNewNodes = newNodes.sort((a, b) => {
+        const aHasParent = !!a.parentId;
+        const bHasParent = !!b.parentId;
+        if (aHasParent && !bHasParent) return 1;
+        if (!aHasParent && bHasParent) return -1;
+        return 0;
+      });
 
       // Create new edges with updated source/target IDs
       const newEdges: Edge[] = clipboard.edges.map((edge) => ({
@@ -419,86 +538,96 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       // Deselect existing nodes, add new ones
       setNodes((nds) => [
         ...nds.map((n) => ({ ...n, selected: false })),
-        ...newNodes,
+        ...sortedNewNodes,
       ]);
       setEdges((eds) => [...eds, ...newEdges]);
     }, [clipboard, isLocked, mousePosition, screenToFlowPosition]);
 
-    // Handle keyboard shortcuts (Delete, Copy, Paste)
+    // Handle delete action (used by keyboard shortcut and context menu)
+    const handleDelete = useCallback(() => {
+      if (isLocked) return;
+
+      // Find selected nodes and edges, excluding locked nodes
+      const selectedNodes = nodes.filter((node) => node.selected);
+      const deletableNodes = selectedNodes.filter((node) => !(node.data as { isNodeLocked?: boolean })?.isNodeLocked);
+      const lockedNodeCount = selectedNodes.length - deletableNodes.length;
+      const selectedEdges = edges.filter((edge) => edge.selected);
+
+      if (deletableNodes.length === 0 && selectedEdges.length === 0) return;
+
+      // Check if any selected deletable node is a group with children
+      const selectedGroupIds = deletableNodes.filter((n) => n.type === "group").map((n) => n.id);
+      const childrenOfSelectedGroups = nodes.filter((n) => n.parentId && selectedGroupIds.includes(n.parentId));
+
+      if (childrenOfSelectedGroups.length > 0) {
+        // Show group delete dialog with options
+        const otherNodeIds = deletableNodes.filter((n) => n.type !== "group").map((n) => n.id);
+        setGroupDeleteConfirm({
+          groupIds: selectedGroupIds,
+          childIds: childrenOfSelectedGroups.map((n) => n.id),
+          otherNodeIds,
+          edgeIds: selectedEdges.map((edge) => edge.id),
+        });
+      } else {
+        // Build confirmation message for regular delete
+        const nodeCount = deletableNodes.length;
+        const edgeCount = selectedEdges.length;
+
+        let message = "";
+        if (nodeCount > 0 && edgeCount > 0) {
+          message = `Are you sure you want to delete ${nodeCount} node${nodeCount !== 1 ? "s" : ""} and ${edgeCount} connection${edgeCount !== 1 ? "s" : ""}?`;
+        } else if (nodeCount > 0) {
+          message = nodeCount === 1
+            ? "Are you sure you want to delete this node?"
+            : `Are you sure you want to delete ${nodeCount} nodes?`;
+        } else {
+          message = edgeCount === 1
+            ? "Are you sure you want to delete this connection?"
+            : `Are you sure you want to delete ${edgeCount} connections?`;
+        }
+
+        if (lockedNodeCount > 0) {
+          message += ` (${lockedNodeCount} locked node${lockedNodeCount !== 1 ? "s" : ""} will be skipped)`;
+        }
+
+        // Store data for confirmation dialog
+        setDeleteConfirm({
+          nodeIds: deletableNodes.map((node) => node.id),
+          edgeIds: selectedEdges.map((edge) => edge.id),
+          message,
+        });
+      }
+    }, [nodes, edges, isLocked]);
+
+    // Keyboard shortcuts using ReactFlow's useKeyPress
+    const copyPressed = useKeyPress(["Control+c", "Meta+c"]);
+    const cutPressed = useKeyPress(["Control+x", "Meta+x"]);
+    const pastePressed = useKeyPress(["Control+v", "Meta+v"]);
+    const deletePressed = useKeyPress(["Delete", "Backspace"]);
+
     useEffect(() => {
-      const handleKeyDown = (event: KeyboardEvent) => {
-        // Check if user is typing in an input field
-        const target = event.target as HTMLElement;
-        const isTyping = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+      if (copyPressed) {
+        handleCopy();
+      }
+    }, [copyPressed, handleCopy]);
 
-        // Copy: Ctrl+C or Cmd+C
-        if ((event.ctrlKey || event.metaKey) && event.key === "c") {
-          if (isTyping) return;
-          handleCopy();
-        }
+    useEffect(() => {
+      if (cutPressed && !isLocked) {
+        handleCut();
+      }
+    }, [cutPressed, isLocked, handleCut]);
 
-        // Cut: Ctrl+X or Cmd+X
-        if ((event.ctrlKey || event.metaKey) && event.key === "x") {
-          if (isLocked) return;
-          if (isTyping) return;
-          event.preventDefault();
-          handleCut();
-        }
+    useEffect(() => {
+      if (pastePressed && !isLocked) {
+        handlePaste();
+      }
+    }, [pastePressed, isLocked, handlePaste]);
 
-        // Paste: Ctrl+V or Cmd+V
-        if ((event.ctrlKey || event.metaKey) && event.key === "v") {
-          if (isTyping) return;
-          handlePaste();
-        }
-
-        // Delete or Backspace key
-        if (event.key === "Delete" || event.key === "Backspace") {
-          if (isLocked) return;
-          if (isTyping) return;
-
-          // Find selected nodes and edges, excluding locked nodes
-          const selectedNodes = nodes.filter((node) => node.selected);
-          const deletableNodes = selectedNodes.filter((node) => !(node.data as { isNodeLocked?: boolean })?.isNodeLocked);
-          const lockedNodeCount = selectedNodes.length - deletableNodes.length;
-          const selectedEdges = edges.filter((edge) => edge.selected);
-
-          if (deletableNodes.length === 0 && selectedEdges.length === 0) return;
-
-          event.preventDefault();
-
-          // Build confirmation message
-          const nodeCount = deletableNodes.length;
-          const edgeCount = selectedEdges.length;
-
-          let message = "";
-          if (nodeCount > 0 && edgeCount > 0) {
-            message = `Are you sure you want to delete ${nodeCount} node${nodeCount !== 1 ? "s" : ""} and ${edgeCount} connection${edgeCount !== 1 ? "s" : ""}?`;
-          } else if (nodeCount > 0) {
-            message = nodeCount === 1
-              ? "Are you sure you want to delete this node?"
-              : `Are you sure you want to delete ${nodeCount} nodes?`;
-          } else {
-            message = edgeCount === 1
-              ? "Are you sure you want to delete this connection?"
-              : `Are you sure you want to delete ${edgeCount} connections?`;
-          }
-
-          if (lockedNodeCount > 0) {
-            message += ` (${lockedNodeCount} locked node${lockedNodeCount !== 1 ? "s" : ""} will be skipped)`;
-          }
-
-          // Store data for confirmation dialog
-          setDeleteConfirm({
-            nodeIds: deletableNodes.map((node) => node.id),
-            edgeIds: selectedEdges.map((edge) => edge.id),
-            message,
-          });
-        }
-      };
-
-      window.addEventListener("keydown", handleKeyDown);
-      return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [nodes, edges, isLocked, handleCopy, handleCut, handlePaste]);
+    useEffect(() => {
+      if (deletePressed && !isLocked) {
+        handleDelete();
+      }
+    }, [deletePressed, isLocked, handleDelete]);
 
     const addGroupNode = useCallback((position?: { x: number; y: number }) => {
       const groupId = generateNodeId("group");
@@ -945,10 +1074,10 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       setNodes(processedNodes);
       setEdges(flow.edges || []);
 
-      // Fit view after nodes are rendered
-      if (rfInstance) {
+      // Restore viewport after nodes are rendered
+      if (rfInstance && flow.viewport) {
         requestAnimationFrame(() => {
-          rfInstance.fitView({ padding: 0.1 });
+          rfInstance.setViewport(flow.viewport);
         });
       }
     }, [rfInstance]);
@@ -1040,9 +1169,11 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           connectionLineStyle={{ strokeWidth: 1.5, stroke: '#64748b' }}
           nodesDraggable={!isLocked}
           nodesConnectable={!isLocked}
+          elementsSelectable={!isLocked}
           selectionMode={SelectionMode.Partial}
           snapToGrid
           snapGrid={[8, 8]}
+          deleteKeyCode={null}
         >
           <Background color="#94a3b8" gap={8} />
           <Controls showInteractive={false} />
@@ -1096,42 +1227,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             onCopy={handleCopy}
             onCut={handleCut}
             onPaste={() => handlePaste(contextMenu.flowPosition)}
-            onDelete={() => {
-              // Trigger the same delete flow as keyboard
-              const selectedNodes = nodes.filter((node) => node.selected);
-              const deletableNodes = selectedNodes.filter((node) => !(node.data as { isNodeLocked?: boolean })?.isNodeLocked);
-              const lockedNodeCount = selectedNodes.length - deletableNodes.length;
-              const selectedEdges = edges.filter((edge) => edge.selected);
-
-              if (deletableNodes.length === 0 && selectedEdges.length === 0) return;
-
-              // Build confirmation message
-              const nodeCount = deletableNodes.length;
-              const edgeCount = selectedEdges.length;
-
-              let message = "";
-              if (nodeCount > 0 && edgeCount > 0) {
-                message = `Are you sure you want to delete ${nodeCount} node${nodeCount !== 1 ? "s" : ""} and ${edgeCount} connection${edgeCount !== 1 ? "s" : ""}?`;
-              } else if (nodeCount > 0) {
-                message = nodeCount === 1
-                  ? "Are you sure you want to delete this node?"
-                  : `Are you sure you want to delete ${nodeCount} nodes?`;
-              } else {
-                message = edgeCount === 1
-                  ? "Are you sure you want to delete this connection?"
-                  : `Are you sure you want to delete ${edgeCount} connections?`;
-              }
-
-              if (lockedNodeCount > 0) {
-                message += ` (${lockedNodeCount} locked node${lockedNodeCount !== 1 ? "s" : ""} will be skipped)`;
-              }
-
-              setDeleteConfirm({
-                nodeIds: deletableNodes.map((node) => node.id),
-                edgeIds: selectedEdges.map((edge) => edge.id),
-                message,
-              });
-            }}
+            onDelete={handleDelete}
           />
         )}
         <ConfirmDialog
@@ -1142,6 +1238,14 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           variant="destructive"
           onConfirm={handleDeleteConfirm}
           onCancel={handleDeleteCancel}
+        />
+        <GroupDeleteDialog
+          isOpen={!!groupDeleteConfirm}
+          groupCount={groupDeleteConfirm?.groupIds.length || 0}
+          childCount={groupDeleteConfirm?.childIds.length || 0}
+          onCancel={handleGroupDeleteCancel}
+          onDeleteGroupOnly={handleGroupDeleteGroupOnly}
+          onDeleteAll={handleGroupDeleteAll}
         />
       </div>
     );

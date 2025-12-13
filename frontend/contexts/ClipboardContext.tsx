@@ -27,14 +27,24 @@ export function ClipboardProvider({ children }: { children: ReactNode }) {
     const selectedNodes = nodes.filter((n) => n.selected);
     if (selectedNodes.length === 0) return;
 
-    // Get edges where both source and target are in selection
-    const selectedNodeIds = new Set(selectedNodes.map((n) => n.id));
+    // Expand selection to include children of selected groups
+    const selectedIds = new Set(selectedNodes.map((n) => n.id));
+    const expandedNodes = [...selectedNodes];
+
+    for (const node of nodes) {
+      if (node.parentId && selectedIds.has(node.parentId) && !selectedIds.has(node.id)) {
+        expandedNodes.push(node);
+        selectedIds.add(node.id);
+      }
+    }
+
+    // Get edges where both source and target are in expanded selection
     const selectedEdges = edges.filter(
-      (e) => selectedNodeIds.has(e.source) && selectedNodeIds.has(e.target)
+      (e) => selectedIds.has(e.source) && selectedIds.has(e.target)
     );
 
     setClipboard({
-      nodes: selectedNodes,
+      nodes: expandedNodes,
       edges: selectedEdges,
       sourceTabId,
       timestamp: Date.now(),

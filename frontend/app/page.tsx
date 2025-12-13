@@ -612,6 +612,7 @@ function HomeContent() {
                 onRequestProcessCreation={handleRequestProcessCreation}
                 isLocked={isCanvasLocked}
                 onToggleLock={() => setIsCanvasLocked(!isCanvasLocked)}
+                activeTabId={activeTabId ?? undefined}
               />
             </ProjectProvider>
           </div>
