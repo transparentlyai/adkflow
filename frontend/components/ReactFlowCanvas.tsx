@@ -1284,10 +1284,10 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             elementsSelectable={!isLocked}
             selectionMode={SelectionMode.Partial}
             snapToGrid={snapToGrid}
-            snapGrid={[8, 8]}
+            snapGrid={[16, 16]}
             deleteKeyCode={null}
           >
-            <Background color="#94a3b8" gap={8} />
+            <Background color="#94a3b8" gap={16} />
             <Controls showInteractive={false}>
               <ControlButton
                 className="lucide-btn"
