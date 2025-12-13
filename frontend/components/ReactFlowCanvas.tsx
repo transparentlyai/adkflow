@@ -7,6 +7,7 @@ import {
   useState,
   useEffect,
   useRef,
+  useMemo,
 } from "react";
 import {
   ReactFlow,
@@ -168,6 +169,15 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     const [labelPosition, setLabelPosition] = useState({ x: 150, y: 750 });
 
     const spacing = 350;
+
+    // Memoized props for ReactFlow to prevent unnecessary re-renders
+    const defaultEdgeOptions = useMemo(() => ({
+      style: { strokeWidth: 1.5, stroke: '#64748b' },
+      animated: false,
+      selectable: true,
+    }), []);
+
+    const snapGridValue = useMemo(() => [16, 16] as [number, number], []);
 
     // Handle node changes (drag, select, etc.)
     const onNodesChange = useCallback(
@@ -1271,11 +1281,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             fitView
             attributionPosition="bottom-left"
             style={{ background: '#f7f9fb' }}
-            defaultEdgeOptions={{
-              style: { strokeWidth: 1.5, stroke: '#64748b' },
-              animated: false,
-              selectable: true,
-            }}
+            defaultEdgeOptions={defaultEdgeOptions}
             edgesFocusable={true}
             edgesReconnectable={false}
             connectionLineStyle={{ strokeWidth: 1.5, stroke: '#64748b' }}
@@ -1284,8 +1290,9 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             elementsSelectable={!isLocked}
             selectionMode={SelectionMode.Partial}
             snapToGrid={snapToGrid}
-            snapGrid={[16, 16]}
+            snapGrid={snapGridValue}
             deleteKeyCode={null}
+            onlyRenderVisibleElements={true}
           >
             <Background color="#94a3b8" gap={16} />
             <Controls showInteractive={false}>
@@ -1310,7 +1317,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
                   case "group":
                     return "#9ca3af"; // gray-400
                   case "agent":
-                    return "#9333ea"; // purple-600
+                    return "#1e40af"; // blue-800 (navy)
                   case "prompt":
                     return "#16a34a"; // green-600
                   case "context":

@@ -10,6 +10,15 @@ import NodeContextMenu from "@/components/NodeContextMenu";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 import { Lock } from "lucide-react";
 
+// Shallow comparison for arrays of strings
+function arraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
 const DEFAULT_WIDTH = 450;
 const DEFAULT_HEIGHT = 500;
 
@@ -23,7 +32,7 @@ export interface AgentNodeData {
 }
 
 const TYPE_BADGES: Record<AgentType, { label: string; color: string }> = {
-  llm: { label: "LLM", color: "bg-purple-100 text-purple-700" },
+  llm: { label: "LLM", color: "bg-slate-100 text-slate-700" },
   sequential: { label: "Sequential", color: "bg-blue-100 text-blue-700" },
   parallel: { label: "Parallel", color: "bg-green-100 text-green-700" },
   loop: { label: "Loop", color: "bg-amber-100 text-amber-700" },
@@ -41,13 +50,56 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
 
   const size = useMemo(() => expandedSize ?? { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT }, [expandedSize]);
 
-  // Subscribe to edges and nodes reactively
-  const edges = useStore((state) => state.edges);
-  const nodes = useStore((state) => state.nodes);
+  // Optimized selector: only subscribe to parentId changes for this specific node
+  const parentId = useStore(
+    useCallback((state) => state.nodes.find((n) => n.id === id)?.parentId, [id])
+  );
 
-  // Get current node's parentId for detach functionality
-  const currentNode = useStore((state) => state.nodes.find((n) => n.id === id));
-  const parentId = currentNode?.parentId;
+  // Optimized selector: compute connected prompt name directly in the selector
+  // Only re-renders when the actual prompt name changes, not on every edge/node update
+  const connectedPromptName = useStore(
+    useCallback((state) => {
+      for (const edge of state.edges) {
+        if (edge.target === id) {
+          const sourceNode = state.nodes.find((n) => n.id === edge.source);
+          if (sourceNode && sourceNode.id.startsWith("prompt_")) {
+            const promptData = sourceNode.data as { prompt?: { name?: string } };
+            return promptData?.prompt?.name || "Prompt";
+          }
+        }
+      }
+      return undefined;
+    }, [id])
+  );
+
+  // Optimized selector: compute connected tool names directly
+  // Use a ref to implement shallow comparison for the array result
+  const connectedToolNamesRef = useRef<string[]>([]);
+  const connectedToolNames = useStore(
+    useCallback((state) => {
+      const toolNames: string[] = [];
+      for (const edge of state.edges) {
+        if (edge.target === id) {
+          const sourceNode = state.nodes.find((n) => n.id === edge.source);
+          if (sourceNode) {
+            if (sourceNode.id.startsWith("tool_")) {
+              const toolData = sourceNode.data as { name?: string };
+              toolNames.push(toolData?.name || "Tool");
+            } else if (sourceNode.id.startsWith("agentTool_")) {
+              const agentToolData = sourceNode.data as { name?: string };
+              toolNames.push(agentToolData?.name || "AgentTool");
+            }
+          }
+        }
+      }
+      // Only return new array if content changed (shallow comparison)
+      if (arraysEqual(connectedToolNamesRef.current, toolNames)) {
+        return connectedToolNamesRef.current;
+      }
+      connectedToolNamesRef.current = toolNames;
+      return toolNames;
+    }, [id])
+  );
 
   const handleCopy = useCallback(() => {
     setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
@@ -69,46 +121,6 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
       inputRef.current.select();
     }
   }, [isEditing]);
-
-  // Find connected prompt node
-  const connectedPromptName = useMemo(() => {
-    // Find edges from prompt nodes targeting this agent
-    // Node IDs use underscore format: prompt_123..., tool_123..., etc.
-    for (const edge of edges) {
-      if (edge.target === id) {
-        const sourceNode = nodes.find((n) => n.id === edge.source);
-        if (sourceNode && sourceNode.id.startsWith("prompt_")) {
-          const promptData = sourceNode.data as { prompt?: { name?: string } };
-          return promptData?.prompt?.name || "Prompt";
-        }
-      }
-    }
-    return undefined;
-  }, [id, edges, nodes]);
-
-  // Find connected tool nodes
-  const connectedToolNames = useMemo(() => {
-    const toolNames: string[] = [];
-
-    // Find edges from tool/agentTool nodes to this agent
-    // Node IDs use underscore format: tool_123..., agentTool_123..., etc.
-    edges.forEach((edge) => {
-      if (edge.target === id) {
-        const sourceNode = nodes.find((n) => n.id === edge.source);
-        if (sourceNode) {
-          if (sourceNode.id.startsWith("tool_")) {
-            const toolData = sourceNode.data as { name?: string };
-            toolNames.push(toolData?.name || "Tool");
-          } else if (sourceNode.id.startsWith("agentTool_")) {
-            const agentToolData = sourceNode.data as { name?: string };
-            toolNames.push(agentToolData?.name || "AgentTool");
-          }
-        }
-      }
-    });
-
-    return toolNames;
-  }, [id, edges, nodes]);
 
   const handleResize = useCallback((deltaWidth: number, deltaHeight: number) => {
     setNodes((nodes) =>
@@ -274,7 +286,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
     return (
       <div
         className={`bg-white rounded-lg shadow-lg min-w-[250px] max-w-[300px] transition-all cursor-pointer ${
-          selected ? "ring-2 ring-purple-500 shadow-xl" : ""
+          selected ? "ring-2 ring-blue-700 shadow-xl" : ""
         }`}
         onDoubleClick={toggleExpand}
         title="Double-click to configure"
@@ -287,7 +299,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           defaultEdge="left"
           defaultPercent={50}
           handlePositions={handlePositions}
-          style={{ ...handleStyle, backgroundColor: "#a855f7" }}
+          style={{ ...handleStyle, backgroundColor: "#1e40af" }}
         />
 
         {/* Link Handle - Top */}
@@ -304,7 +316,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
 
         {/* Header */}
         <div
-          className="bg-purple-600 text-white px-2 py-1 rounded-t-lg flex items-center gap-1.5"
+          className="bg-blue-800 text-white px-2 py-1 rounded-t-lg flex items-center gap-1.5"
           onContextMenu={handleHeaderContextMenu}
         >
           {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
@@ -411,7 +423,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
   return (
     <div
       className={`bg-white rounded-lg shadow-lg relative ${
-        selected ? "ring-2 ring-purple-500 shadow-xl" : ""
+        selected ? "ring-2 ring-blue-900 shadow-xl" : ""
       }`}
       style={{ width: size.width, height: size.height }}
     >
@@ -423,7 +435,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="left"
         defaultPercent={50}
         handlePositions={handlePositions}
-        style={{ ...handleStyle, backgroundColor: "#a855f7" }}
+        style={{ ...handleStyle, backgroundColor: "#1e40af" }}
       />
 
       {/* Link Handle - Top */}
@@ -440,7 +452,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
 
       {/* Header */}
       <div
-        className="bg-purple-600 text-white px-2 py-1 rounded-t-lg flex items-center justify-between cursor-pointer"
+        className="bg-blue-800 text-white px-2 py-1 rounded-t-lg flex items-center justify-between cursor-pointer"
         onDoubleClick={toggleExpand}
         onContextMenu={handleHeaderContextMenu}
       >
@@ -472,7 +484,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         </div>
         <button
           onClick={toggleExpand}
-          className="ml-1.5 p-0.5 hover:bg-purple-700 rounded transition-colors flex-shrink-0"
+          className="ml-1.5 p-0.5 hover:bg-blue-700 rounded transition-colors flex-shrink-0"
           title="Collapse"
         >
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

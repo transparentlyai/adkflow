@@ -70,9 +70,16 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
   const [size, setSize] = useState(EXPANDED_SIZE);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const currentNode = useStore((state) => state.nodes.find((n) => n.id === id));
-  const parentId = currentNode?.parentId;
-  const nodeWidth = currentNode?.measured?.width ?? (currentNode?.style?.width as number) ?? DEFAULT_WIDTH;
+  // Optimized selectors: only subscribe to specific property changes
+  const parentId = useStore(
+    useCallback((state) => state.nodes.find((n) => n.id === id)?.parentId, [id])
+  );
+  const nodeWidth = useStore(
+    useCallback((state) => {
+      const node = state.nodes.find((n) => n.id === id);
+      return node?.measured?.width ?? (node?.style?.width as number) ?? DEFAULT_WIDTH;
+    }, [id])
+  );
   const scaledFontSize = (nodeWidth / DEFAULT_WIDTH) * DEFAULT_FONT_SIZE;
 
   useEffect(() => {

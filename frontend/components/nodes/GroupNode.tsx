@@ -1,11 +1,106 @@
 "use client";
 
 import { memo, useState, useRef, useEffect, useCallback } from "react";
-import { NodeResizer, type NodeProps, useReactFlow, useStore, type ResizeParams } from "@xyflow/react";
+import { NodeResizer, type NodeProps, useReactFlow, useStore, useStoreApi, type ResizeParams } from "@xyflow/react";
 import { useProject } from "@/contexts/ProjectContext";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock } from "lucide-react";
+
+// Custom hook for throttled drag-inside detection
+// Only recomputes when nodes are actually being dragged, throttled to animation frames
+function useDragInsideDetection(groupId: string): boolean {
+  const [isInside, setIsInside] = useState(false);
+  const storeApi = useStoreApi();
+  const rafRef = useRef<number | null>(null);
+  const lastResultRef = useRef(false);
+
+  // Only subscribe to whether any non-group node is currently dragging
+  const hasAnyDragging = useStore(
+    useCallback((state) => state.nodes.some((n) => n.dragging && n.type !== "group"), [])
+  );
+
+  useEffect(() => {
+    if (!hasAnyDragging) {
+      // No nodes dragging, reset state
+      if (lastResultRef.current !== false) {
+        lastResultRef.current = false;
+        setIsInside(false);
+      }
+      return;
+    }
+
+    // Throttle computation with requestAnimationFrame
+    const checkIntersection = () => {
+      const state = storeApi.getState();
+      const groupNode = state.nodes.find((n) => n.id === groupId);
+      if (!groupNode) {
+        if (lastResultRef.current !== false) {
+          lastResultRef.current = false;
+          setIsInside(false);
+        }
+        return;
+      }
+
+      const groupWidth = groupNode.measured?.width ?? (groupNode.style?.width as number) ?? 300;
+      const groupHeight = groupNode.measured?.height ?? (groupNode.style?.height as number) ?? 200;
+
+      const draggingNodes = state.nodes.filter((n) => n.dragging && n.type !== "group");
+
+      let foundInside = false;
+      for (const draggedNode of draggingNodes) {
+        const nodeWidth = draggedNode.measured?.width ?? 200;
+        const nodeHeight = draggedNode.measured?.height ?? 100;
+
+        let absoluteX = draggedNode.position.x;
+        let absoluteY = draggedNode.position.y;
+
+        if (draggedNode.parentId) {
+          const parentNode = state.nodes.find((n) => n.id === draggedNode.parentId);
+          if (parentNode) {
+            absoluteX += parentNode.position.x;
+            absoluteY += parentNode.position.y;
+          }
+        }
+
+        const centerX = absoluteX + nodeWidth / 2;
+        const centerY = absoluteY + nodeHeight / 2;
+
+        const inside =
+          centerX >= groupNode.position.x &&
+          centerX <= groupNode.position.x + groupWidth &&
+          centerY >= groupNode.position.y &&
+          centerY <= groupNode.position.y + groupHeight;
+
+        if (inside) {
+          foundInside = true;
+          break;
+        }
+      }
+
+      // Only update state if result changed
+      if (lastResultRef.current !== foundInside) {
+        lastResultRef.current = foundInside;
+        setIsInside(foundInside);
+      }
+
+      // Schedule next check while dragging
+      if (hasAnyDragging) {
+        rafRef.current = requestAnimationFrame(checkIntersection);
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(checkIntersection);
+
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, [hasAnyDragging, groupId, storeApi]);
+
+  return isInside;
+}
 
 export interface GroupNodeData extends Record<string, unknown> {
   label: string;
@@ -22,8 +117,10 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
-  const currentNode = useStore((state) => state.nodes.find((n) => n.id === id));
-  const parentId = currentNode?.parentId;
+  // Only subscribe to parentId changes for this specific node
+  const parentId = useStore(
+    useCallback((state) => state.nodes.find((n) => n.id === id)?.parentId, [id])
+  );
 
   const handleCopy = useCallback(() => {
     setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
@@ -39,46 +136,8 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
     canvasActions?.pasteNodes();
   }, [canvasActions]);
 
-  const isNodeDraggingInside = useStore((state) => {
-    const groupNode = state.nodes.find((n) => n.id === id);
-    if (!groupNode) return false;
-
-    const groupWidth = groupNode.measured?.width ?? (groupNode.style?.width as number) ?? 300;
-    const groupHeight = groupNode.measured?.height ?? (groupNode.style?.height as number) ?? 200;
-
-    const draggingNodes = state.nodes.filter(
-      (n) => n.dragging && n.type !== "group"
-    );
-
-    for (const draggedNode of draggingNodes) {
-      const nodeWidth = draggedNode.measured?.width ?? 200;
-      const nodeHeight = draggedNode.measured?.height ?? 100;
-
-      let absoluteX = draggedNode.position.x;
-      let absoluteY = draggedNode.position.y;
-
-      if (draggedNode.parentId) {
-        const parentNode = state.nodes.find((n) => n.id === draggedNode.parentId);
-        if (parentNode) {
-          absoluteX += parentNode.position.x;
-          absoluteY += parentNode.position.y;
-        }
-      }
-
-      const centerX = absoluteX + nodeWidth / 2;
-      const centerY = absoluteY + nodeHeight / 2;
-
-      const isInside =
-        centerX >= groupNode.position.x &&
-        centerX <= groupNode.position.x + groupWidth &&
-        centerY >= groupNode.position.y &&
-        centerY <= groupNode.position.y + groupHeight;
-
-      if (isInside) return true;
-    }
-
-    return false;
-  });
+  // Use the optimized throttled hook for drag detection
+  const isNodeDraggingInside = useDragInsideDetection(id);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {

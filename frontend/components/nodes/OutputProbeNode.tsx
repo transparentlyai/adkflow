@@ -60,8 +60,10 @@ const OutputProbeNode = memo(({ data, id, selected }: NodeProps) => {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [content, setContent] = useState("");
 
-  const currentNode = useStore((state) => state.nodes.find((n) => n.id === id));
-  const parentId = currentNode?.parentId;
+  // Optimized selector: only subscribe to parentId changes for this specific node
+  const parentId = useStore(
+    useCallback((state) => state.nodes.find((n) => n.id === id)?.parentId, [id])
+  );
 
   const size = useMemo(() => expandedSize ?? { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT }, [expandedSize]);
   const [editedName, setEditedName] = useState(name);

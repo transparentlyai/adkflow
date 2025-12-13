@@ -36,8 +36,10 @@ const VariableNode = memo(({ data, id, selected }: NodeProps) => {
   const [newValue, setNewValue] = useState(value);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
-  const currentNode = useStore((state) => state.nodes.find((n) => n.id === id));
-  const parentId = currentNode?.parentId;
+  // Optimized selector: only subscribe to parentId changes for this specific node
+  const parentId = useStore(
+    useCallback((state) => state.nodes.find((n) => n.id === id)?.parentId, [id])
+  );
 
   const handleDoubleClick = () => {
     if (isNodeLocked) return;
