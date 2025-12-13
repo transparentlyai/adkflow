@@ -1279,7 +1279,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             nodeTypes={nodeTypes}
             colorMode="light"
             fitView
-            attributionPosition="bottom-left"
+            proOptions={{ hideAttribution: true }}
             style={{ background: '#f7f9fb' }}
             defaultEdgeOptions={defaultEdgeOptions}
             edgesFocusable={true}
