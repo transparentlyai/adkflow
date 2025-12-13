@@ -32,6 +32,7 @@ import "@xyflow/react/dist/style.css";
 
 import { useClipboard } from "@/contexts/ClipboardContext";
 import { CanvasActionsProvider } from "@/contexts/CanvasActionsContext";
+import { Lock, LockOpen, Grid3X3 } from "lucide-react";
 
 import GroupNode from "./nodes/GroupNode";
 import AgentNode from "./nodes/AgentNode";
@@ -1285,30 +1286,13 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
                 onClick={onToggleLock}
                 title={isLocked ? "Unlock canvas" : "Lock canvas"}
               >
-                {isLocked ? (
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <rect x="5" y="11" width="14" height="10" rx="2" strokeWidth={1.5} />
-                    <path strokeWidth={1.5} d="M8 11V7a4 4 0 018 0v4" />
-                    <circle cx="12" cy="16" r="1.5" fill="currentColor" stroke="none" />
-                  </svg>
-                ) : (
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <rect x="5" y="11" width="14" height="10" rx="2" strokeWidth={1.5} />
-                    <path strokeWidth={1.5} d="M8 11V7a4 4 0 018 0" />
-                  </svg>
-                )}
+                {isLocked ? <Lock size={12} /> : <LockOpen size={12} />}
               </ControlButton>
               <ControlButton
                 onClick={() => setSnapToGrid(!snapToGrid)}
                 title={snapToGrid ? "Disable snap to grid" : "Enable snap to grid"}
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ opacity: snapToGrid ? 1 : 0.5 }}>
-                  <rect x="3" y="3" width="18" height="18" rx="1" strokeWidth={1.5} />
-                  <line x1="3" y1="9" x2="21" y2="9" strokeWidth={1} />
-                  <line x1="3" y1="15" x2="21" y2="15" strokeWidth={1} />
-                  <line x1="9" y1="3" x2="9" y2="21" strokeWidth={1} />
-                  <line x1="15" y1="3" x2="15" y2="21" strokeWidth={1} />
-                </svg>
+                <Grid3X3 size={12} style={{ opacity: snapToGrid ? 1 : 0.4 }} />
               </ControlButton>
             </Controls>
             <MiniMap
