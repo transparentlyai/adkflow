@@ -6,6 +6,7 @@ import {
   forwardRef,
   useState,
   useEffect,
+  useRef,
 } from "react";
 import {
   ReactFlow,
@@ -142,6 +143,11 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
     // Track mouse position for paste at cursor
     const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
+
+    // Undo/redo history
+    const undoStackRef = useRef<{ nodes: Node[]; edges: Edge[] }[]>([]);
+    const redoStackRef = useRef<{ nodes: Node[]; edges: Edge[] }[]>([]);
+    const maxHistorySize = 50;
 
     // Node position tracking for new nodes
     const [groupPosition, setGroupPosition] = useState({ x: 150, y: 100 });
@@ -308,9 +314,49 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       }
     }, [nodes, edges, onWorkflowChange]);
 
+    // Save current state to undo stack before modifying operations
+    const saveSnapshot = useCallback(() => {
+      const snapshot = { nodes: [...nodes], edges: [...edges] };
+      undoStackRef.current.push(snapshot);
+      if (undoStackRef.current.length > maxHistorySize) {
+        undoStackRef.current.shift();
+      }
+      // Clear redo stack when new action is performed
+      redoStackRef.current = [];
+    }, [nodes, edges]);
+
+    // Undo last action
+    const handleUndo = useCallback(() => {
+      if (undoStackRef.current.length === 0) return;
+
+      // Save current state to redo stack
+      redoStackRef.current.push({ nodes: [...nodes], edges: [...edges] });
+
+      // Restore previous state
+      const previousState = undoStackRef.current.pop()!;
+      setNodes(previousState.nodes);
+      setEdges(previousState.edges);
+    }, [nodes, edges]);
+
+    // Redo last undone action
+    const handleRedo = useCallback(() => {
+      if (redoStackRef.current.length === 0) return;
+
+      // Save current state to undo stack
+      undoStackRef.current.push({ nodes: [...nodes], edges: [...edges] });
+
+      // Restore next state
+      const nextState = redoStackRef.current.pop()!;
+      setNodes(nextState.nodes);
+      setEdges(nextState.edges);
+    }, [nodes, edges]);
+
     // Handle delete confirmation
     const handleDeleteConfirm = useCallback(() => {
       if (!deleteConfirm) return;
+
+      // Save state for undo before modifying
+      saveSnapshot();
 
       const { nodeIds, edgeIds } = deleteConfirm;
 
@@ -330,7 +376,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       );
 
       setDeleteConfirm(null);
-    }, [deleteConfirm]);
+    }, [deleteConfirm, saveSnapshot]);
 
     const handleDeleteCancel = useCallback(() => {
       setDeleteConfirm(null);
@@ -339,6 +385,9 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     // Handle group delete - delete group only (unparent children)
     const handleGroupDeleteGroupOnly = useCallback(() => {
       if (!groupDeleteConfirm) return;
+
+      // Save state for undo before modifying
+      saveSnapshot();
 
       const { groupIds, otherNodeIds, edgeIds } = groupDeleteConfirm;
 
@@ -382,11 +431,14 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       );
 
       setGroupDeleteConfirm(null);
-    }, [groupDeleteConfirm]);
+    }, [groupDeleteConfirm, saveSnapshot]);
 
     // Handle group delete - delete all (group + children)
     const handleGroupDeleteAll = useCallback(() => {
       if (!groupDeleteConfirm) return;
+
+      // Save state for undo before modifying
+      saveSnapshot();
 
       const { groupIds, childIds, otherNodeIds, edgeIds } = groupDeleteConfirm;
       const allNodeIds = [...groupIds, ...childIds, ...otherNodeIds];
@@ -404,7 +456,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       );
 
       setGroupDeleteConfirm(null);
-    }, [groupDeleteConfirm]);
+    }, [groupDeleteConfirm, saveSnapshot]);
 
     const handleGroupDeleteCancel = useCallback(() => {
       setGroupDeleteConfirm(null);
@@ -423,6 +475,9 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       // Get selected deletable nodes (exclude locked)
       const selectedNodes = nodes.filter((n) => n.selected && !(n.data as { isNodeLocked?: boolean })?.isNodeLocked);
       if (selectedNodes.length === 0) return;
+
+      // Save state for undo before modifying
+      saveSnapshot();
 
       // Copy first (copies all selected, including locked) - clipboard auto-includes children
       copy(nodes, edges, activeTabId);
@@ -453,12 +508,15 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             !nodeIds.includes(edge.target)
         )
       );
-    }, [nodes, edges, activeTabId, isLocked, copy, setNodes, setEdges]);
+    }, [nodes, edges, activeTabId, isLocked, copy, saveSnapshot, setNodes, setEdges]);
 
     // Paste nodes and edges from clipboard at cursor position
     const handlePaste = useCallback((pastePosition?: { x: number; y: number }) => {
       if (!clipboard || clipboard.nodes.length === 0) return;
       if (isLocked) return;
+
+      // Save state for undo before modifying
+      saveSnapshot();
 
       // Create ID mapping: old ID -> new ID
       const idMap = new Map<string, string>();
@@ -541,7 +599,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         ...sortedNewNodes,
       ]);
       setEdges((eds) => [...eds, ...newEdges]);
-    }, [clipboard, isLocked, mousePosition, screenToFlowPosition]);
+    }, [clipboard, isLocked, mousePosition, screenToFlowPosition, saveSnapshot]);
 
     // Handle delete action (used by keyboard shortcut and context menu)
     const handleDelete = useCallback(() => {
@@ -628,6 +686,22 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         handleDelete();
       }
     }, [deletePressed, isLocked, handleDelete]);
+
+    // Undo/redo keyboard shortcuts
+    const undoPressed = useKeyPress(["Control+z", "Meta+z"]);
+    const redoPressed = useKeyPress(["Control+Shift+z", "Meta+Shift+z", "Control+y", "Meta+y"]);
+
+    useEffect(() => {
+      if (undoPressed && !isLocked) {
+        handleUndo();
+      }
+    }, [undoPressed, isLocked, handleUndo]);
+
+    useEffect(() => {
+      if (redoPressed && !isLocked) {
+        handleRedo();
+      }
+    }, [redoPressed, isLocked, handleRedo]);
 
     const addGroupNode = useCallback((position?: { x: number; y: number }) => {
       const groupId = generateNodeId("group");
