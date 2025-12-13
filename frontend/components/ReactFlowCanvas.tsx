@@ -1286,12 +1286,15 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
                 title={isLocked ? "Unlock canvas" : "Lock canvas"}
               >
                 {isLocked ? (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <rect x="5" y="11" width="14" height="10" rx="2" strokeWidth={1.5} />
+                    <path strokeWidth={1.5} d="M8 11V7a4 4 0 018 0v4" />
+                    <circle cx="12" cy="16" r="1.5" fill="currentColor" stroke="none" />
                   </svg>
                 ) : (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <rect x="5" y="11" width="14" height="10" rx="2" strokeWidth={1.5} />
+                    <path strokeWidth={1.5} d="M8 11V7a4 4 0 018 0" />
                   </svg>
                 )}
               </ControlButton>
@@ -1299,9 +1302,12 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
                 onClick={() => setSnapToGrid(!snapToGrid)}
                 title={snapToGrid ? "Disable snap to grid" : "Enable snap to grid"}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ opacity: snapToGrid ? 1 : 0.5 }}>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 9h16M4 15h16M9 4v16M15 4v16" />
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ opacity: snapToGrid ? 1 : 0.5 }}>
+                  <rect x="3" y="3" width="18" height="18" rx="1" strokeWidth={1.5} />
+                  <line x1="3" y1="9" x2="21" y2="9" strokeWidth={1} />
+                  <line x1="3" y1="15" x2="21" y2="15" strokeWidth={1} />
+                  <line x1="9" y1="3" x2="9" y2="21" strokeWidth={1} />
+                  <line x1="15" y1="3" x2="15" y2="21" strokeWidth={1} />
                 </svg>
               </ControlButton>
             </Controls>
