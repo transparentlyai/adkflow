@@ -146,7 +146,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
     // Track mouse position for paste at cursor
     const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
-    const [snapToGrid, setSnapToGrid] = useState(true);
+    const [snapToGrid, setSnapToGrid] = useState(false);
 
     // Undo/redo history
     const undoStackRef = useRef<{ nodes: Node[]; edges: Edge[] }[]>([]);
