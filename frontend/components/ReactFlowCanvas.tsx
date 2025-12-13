@@ -1294,7 +1294,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             deleteKeyCode={null}
             onlyRenderVisibleElements={true}
           >
-            <Background color="#94a3b8" gap={16} />
+            {snapToGrid && <Background color="#94a3b8" gap={16} />}
             <Controls showInteractive={false}>
               <ControlButton
                 className="lucide-btn"
