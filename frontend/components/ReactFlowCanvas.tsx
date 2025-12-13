@@ -1237,6 +1237,13 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             stroke: #3b82f6 !important;
             stroke-width: 3 !important;
           }
+          .react-flow__controls-button.lucide-btn svg {
+            fill: none !important;
+            stroke: currentColor !important;
+            stroke-width: 2px;
+            width: 12px;
+            height: 12px;
+          }
         `}</style>
         <CanvasActionsProvider
           value={{
@@ -1283,12 +1290,14 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             <Background color="#94a3b8" gap={8} />
             <Controls showInteractive={false}>
               <ControlButton
+                className="lucide-btn"
                 onClick={onToggleLock}
                 title={isLocked ? "Unlock canvas" : "Lock canvas"}
               >
                 {isLocked ? <Lock size={12} /> : <LockOpen size={12} />}
               </ControlButton>
               <ControlButton
+                className="lucide-btn"
                 onClick={() => setSnapToGrid(!snapToGrid)}
                 title={snapToGrid ? "Disable snap to grid" : "Enable snap to grid"}
               >
