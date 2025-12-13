@@ -323,7 +323,7 @@ Not configured (no retry configuration)
 
 ## workflow_retrieval
 
-**File**: `/home/mauro/projects/lynx/workflow/lynxtool/agent.py`
+**File**: `/home/mauro/projects/lynx/inference/lynxtool/agent.py`
 **Type**: Agent
 
 | Property | Value |
@@ -336,7 +336,7 @@ Not configured (no retry configuration)
 | tools | [query_vector_store] |
 
 ### Tools
-- `query_vector_store`: `/home/mauro/projects/lynx/workflow/lynxtool/tools.py` (factory wrapper)
+- `query_vector_store`: `/home/mauro/projects/lynx/inference/lynxtool/tools.py` (factory wrapper)
 - Base tool: `/home/mauro/projects/lynx/workflow/SRAG/retriever/tools.py`
 
 ### Planner
@@ -357,7 +357,7 @@ Not configured (no retry configuration)
 | retry_options.http_status_codes | [429, 500, 502, 503, 504] | - |
 
 ### Prompt File
-`/home/mauro/projects/lynx/workflow/lynxtool/prompts/retrieval.prompt.md`
+`/home/mauro/projects/lynx/inference/lynxtool/prompts/retrieval.prompt.md`
 
 ### Prompt Variables
 - `{query}` - User's natural language query
@@ -367,15 +367,15 @@ Not configured (no retry configuration)
 - `{clusters_map}` - Risk clusters reference
 
 ### Static Context Files
-- `/home/mauro/projects/lynx/workflow/static/metrics_map.json`
-- `/home/mauro/projects/lynx/workflow/static/factors_map.json`
-- `/home/mauro/projects/lynx/workflow/static/clusters_map.json`
+- `/home/mauro/projects/lynx/inference/lynxtool/static/metrics_map.json`
+- `/home/mauro/projects/lynx/inference/lynxtool/static/factors_map.json`
+- `/home/mauro/projects/lynx/inference/lynxtool/static/clusters_map.json`
 
 ---
 
 ## workflow_synthesis
 
-**File**: `/home/mauro/projects/lynx/workflow/lynxtool/agent.py`
+**File**: `/home/mauro/projects/lynx/inference/lynxtool/agent.py`
 **Type**: Agent
 
 | Property | Value |
@@ -388,10 +388,10 @@ Not configured (no retry configuration)
 | tools | none |
 
 ### Planner
-| Property | Value |
-|----------|-------|
-| type | BuiltInPlanner |
-| thinking_config.thinking_budget | 0 |
+| Property | Value | Env Var |
+|----------|-------|---------|
+| type | BuiltInPlanner | - |
+| thinking_config.thinking_budget | 2048 | LYNXTOOL_SYNTHESIS_THINKING_BUDGET |
 
 ### HTTP Options
 
@@ -405,7 +405,7 @@ Not configured (no retry configuration)
 | retry_options.http_status_codes | [429, 500, 502, 503, 504] | - |
 
 ### Prompt File
-`/home/mauro/projects/lynx/workflow/lynxtool/prompts/synthesis.prompt.md`
+`/home/mauro/projects/lynx/inference/lynxtool/prompts/synthesis.prompt.md`
 
 ### Prompt Variables
 - `{query}` - User's original query
@@ -413,7 +413,7 @@ Not configured (no retry configuration)
 
 ---
 
-# Specialist Agents (23 specialists × 4 agents = 92 agents)
+# Specialist Agents (23 specialists × 3 agents = 69 agents)
 
 
 ---
@@ -455,50 +455,6 @@ Not configured (no retry configuration)
 
 ### Prompt File
 `/home/mauro/projects/lynx/workflow/analysis/specialists/altmanz/prompts/retriever.prompt.md`
-
----
-
-## altmanz_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/altmanz/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("altmanz")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for altmanz | - |
-| model | gemini-2.5-pro | ALTMANZ_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | ALTMANZ_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | ALTMANZ_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | ALTMANZ_ANALYST_OUTPUT_KEY |
-| tools | [calculate_all_altman_z_scores] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_all_altman_z_scores`: `/home/mauro/projects/lynx/workflow/analysis/specialists/altmanz/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | ALTMANZ_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | ALTMANZ_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | ALTMANZ_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | ALTMANZ_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | ALTMANZ_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | ALTMANZ_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | ALTMANZ_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/altmanz/prompts/analyst.prompt.md`
 
 ---
 
@@ -629,50 +585,6 @@ Not configured (no retry configuration)
 
 ---
 
-## assets_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/assets/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("assets")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for assets | - |
-| model | gemini-2.5-pro | ASSETS_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | ASSETS_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | ASSETS_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | ASSETS_ANALYST_OUTPUT_KEY |
-| tools | [calculate_all_asset_quality_metrics] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_all_asset_quality_metrics`: `/home/mauro/projects/lynx/workflow/analysis/specialists/assets/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | ASSETS_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | ASSETS_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | ASSETS_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | ASSETS_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | ASSETS_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | ASSETS_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | ASSETS_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/assets/prompts/analyst.prompt.md`
-
----
-
 ## assets_benchmarker
 
 **File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/assets/agent.py`
@@ -797,50 +709,6 @@ Not configured (no retry configuration)
 
 ### Prompt File
 `/home/mauro/projects/lynx/workflow/analysis/specialists/benford/prompts/retriever.prompt.md`
-
----
-
-## benford_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/benford/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("benford")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for benford | - |
-| model | gemini-2.5-pro | BENFORD_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | BENFORD_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | BENFORD_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | BENFORD_ANALYST_OUTPUT_KEY |
-| tools | [run_benford_analysis_all_periods] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `run_benford_analysis_all_periods`: `/home/mauro/projects/lynx/workflow/analysis/specialists/benford/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | BENFORD_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | BENFORD_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | BENFORD_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | BENFORD_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | BENFORD_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | BENFORD_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | BENFORD_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/benford/prompts/analyst.prompt.md`
 
 ---
 
@@ -971,50 +839,6 @@ Not configured (no retry configuration)
 
 ---
 
-## business_model_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/business_model/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("business_model")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for business_model | - |
-| model | gemini-2.5-pro | BUSINESS_MODEL_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | BUSINESS_MODEL_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | BUSINESS_MODEL_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | BUSINESS_MODEL_ANALYST_OUTPUT_KEY |
-| tools | [calculate_discretionary_accruals] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_discretionary_accruals`: `/home/mauro/projects/lynx/workflow/analysis/specialists/business_model/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | BUSINESS_MODEL_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | BUSINESS_MODEL_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | BUSINESS_MODEL_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | BUSINESS_MODEL_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | BUSINESS_MODEL_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | BUSINESS_MODEL_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | BUSINESS_MODEL_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/business_model/prompts/analyst.prompt.md`
-
----
-
 ## business_model_benchmarker
 
 **File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/business_model/agent.py`
@@ -1139,50 +963,6 @@ Not configured (no retry configuration)
 
 ### Prompt File
 `/home/mauro/projects/lynx/workflow/analysis/specialists/cash/prompts/retriever.prompt.md`
-
----
-
-## cash_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/cash/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("cash")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for cash | - |
-| model | gemini-2.5-pro | CASH_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | CASH_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | CASH_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | CASH_ANALYST_OUTPUT_KEY |
-| tools | [calculate_cash_quality_metrics] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_cash_quality_metrics`: `/home/mauro/projects/lynx/workflow/analysis/specialists/cash/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | CASH_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | CASH_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | CASH_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | CASH_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | CASH_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | CASH_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | CASH_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/cash/prompts/analyst.prompt.md`
 
 ---
 
@@ -1313,50 +1093,6 @@ Not configured (no retry configuration)
 
 ---
 
-## cf_dechow_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/cf_dechow/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("cf_dechow")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for cf_dechow | - |
-| model | gemini-2.5-pro | CF_DECHOW_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | CF_DECHOW_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | CF_DECHOW_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | CF_DECHOW_ANALYST_OUTPUT_KEY |
-| tools | [calculate_accrual_quality] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_accrual_quality`: `/home/mauro/projects/lynx/workflow/analysis/specialists/cf_dechow/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | CF_DECHOW_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | CF_DECHOW_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | CF_DECHOW_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | CF_DECHOW_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | CF_DECHOW_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | CF_DECHOW_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | CF_DECHOW_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/cf_dechow/prompts/analyst.prompt.md`
-
----
-
 ## cf_dechow_benchmarker
 
 **File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/cf_dechow/agent.py`
@@ -1481,50 +1217,6 @@ Not configured (no retry configuration)
 
 ### Prompt File
 `/home/mauro/projects/lynx/workflow/analysis/specialists/cf_jones/prompts/retriever.prompt.md`
-
----
-
-## cf_jones_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/cf_jones/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("cf_jones")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for cf_jones | - |
-| model | gemini-2.5-pro | CF_JONES_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | CF_JONES_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | CF_JONES_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | CF_JONES_ANALYST_OUTPUT_KEY |
-| tools | [calculate_cf_jones_model] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_cf_jones_model`: `/home/mauro/projects/lynx/workflow/analysis/specialists/cf_jones/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | CF_JONES_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | CF_JONES_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | CF_JONES_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | CF_JONES_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | CF_JONES_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | CF_JONES_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | CF_JONES_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/cf_jones/prompts/analyst.prompt.md`
 
 ---
 
@@ -1655,50 +1347,6 @@ Not configured (no retry configuration)
 
 ---
 
-## credit_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/credit/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("credit")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for credit | - |
-| model | gemini-2.5-pro | CREDIT_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | CREDIT_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | CREDIT_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | CREDIT_ANALYST_OUTPUT_KEY |
-| tools | [calculate_all_credit_metrics] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_all_credit_metrics`: `/home/mauro/projects/lynx/workflow/analysis/specialists/credit/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | CREDIT_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | CREDIT_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | CREDIT_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | CREDIT_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | CREDIT_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | CREDIT_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | CREDIT_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/credit/prompts/analyst.prompt.md`
-
----
-
 ## credit_benchmarker
 
 **File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/credit/agent.py`
@@ -1823,50 +1471,6 @@ Not configured (no retry configuration)
 
 ### Prompt File
 `/home/mauro/projects/lynx/workflow/analysis/specialists/governance/prompts/retriever.prompt.md`
-
----
-
-## governance_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/governance/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("governance")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for governance | - |
-| model | gemini-2.5-pro | GOVERNANCE_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | GOVERNANCE_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | GOVERNANCE_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | GOVERNANCE_ANALYST_OUTPUT_KEY |
-| tools | [calculate_all_governance_metrics] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_all_governance_metrics`: `/home/mauro/projects/lynx/workflow/analysis/specialists/governance/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | GOVERNANCE_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | GOVERNANCE_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | GOVERNANCE_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | GOVERNANCE_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | GOVERNANCE_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | GOVERNANCE_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | GOVERNANCE_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/governance/prompts/analyst.prompt.md`
 
 ---
 
@@ -1997,50 +1601,6 @@ Not configured (no retry configuration)
 
 ---
 
-## growth_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/growth/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("growth")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for growth | - |
-| model | gemini-2.5-pro | GROWTH_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | GROWTH_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | GROWTH_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | GROWTH_ANALYST_OUTPUT_KEY |
-| tools | [calculate_all_growth_metrics] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_all_growth_metrics`: `/home/mauro/projects/lynx/workflow/analysis/specialists/growth/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | GROWTH_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | GROWTH_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | GROWTH_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | GROWTH_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | GROWTH_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | GROWTH_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | GROWTH_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/growth/prompts/analyst.prompt.md`
-
----
-
 ## growth_benchmarker
 
 **File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/growth/agent.py`
@@ -2165,50 +1725,6 @@ Not configured (no retry configuration)
 
 ### Prompt File
 `/home/mauro/projects/lynx/workflow/analysis/specialists/gunny/prompts/retriever.prompt.md`
-
----
-
-## gunny_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/gunny/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("gunny")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for gunny | - |
-| model | gemini-2.5-pro | GUNNY_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | GUNNY_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | GUNNY_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | GUNNY_ANALYST_OUTPUT_KEY |
-| tools | [calculate_gunny_residuals] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_gunny_residuals`: `/home/mauro/projects/lynx/workflow/analysis/specialists/gunny/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | GUNNY_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | GUNNY_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | GUNNY_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | GUNNY_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | GUNNY_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | GUNNY_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | GUNNY_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/gunny/prompts/analyst.prompt.md`
 
 ---
 
@@ -2339,50 +1855,6 @@ Not configured (no retry configuration)
 
 ---
 
-## income_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/income/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("income")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for income | - |
-| model | gemini-2.5-pro | INCOME_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | INCOME_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | INCOME_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | INCOME_ANALYST_OUTPUT_KEY |
-| tools | [calculate_all_income_metrics] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_all_income_metrics`: `/home/mauro/projects/lynx/workflow/analysis/specialists/income/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | INCOME_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | INCOME_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | INCOME_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | INCOME_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | INCOME_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | INCOME_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | INCOME_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/income/prompts/analyst.prompt.md`
-
----
-
 ## income_benchmarker
 
 **File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/income/agent.py`
@@ -2507,50 +1979,6 @@ Not configured (no retry configuration)
 
 ### Prompt File
 `/home/mauro/projects/lynx/workflow/analysis/specialists/interim/prompts/retriever.prompt.md`
-
----
-
-## interim_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/interim/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("interim")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for interim | - |
-| model | gemini-2.5-pro | INTERIM_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | INTERIM_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | INTERIM_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | INTERIM_ANALYST_OUTPUT_KEY |
-| tools | [calculate_all_interim_metrics] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_all_interim_metrics`: `/home/mauro/projects/lynx/workflow/analysis/specialists/interim/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | INTERIM_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | INTERIM_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | INTERIM_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | INTERIM_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | INTERIM_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | INTERIM_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | INTERIM_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/interim/prompts/analyst.prompt.md`
 
 ---
 
@@ -2681,50 +2109,6 @@ Not configured (no retry configuration)
 
 ---
 
-## investing_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/investing/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("investing")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for investing | - |
-| model | gemini-2.5-pro | INVESTING_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | INVESTING_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | INVESTING_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | INVESTING_ANALYST_OUTPUT_KEY |
-| tools | [calculate_all_investing_metrics] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_all_investing_metrics`: `/home/mauro/projects/lynx/workflow/analysis/specialists/investing/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | INVESTING_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | INVESTING_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | INVESTING_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | INVESTING_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | INVESTING_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | INVESTING_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | INVESTING_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/investing/prompts/analyst.prompt.md`
-
----
-
 ## investing_benchmarker
 
 **File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/investing/agent.py`
@@ -2849,50 +2233,6 @@ Not configured (no retry configuration)
 
 ### Prompt File
 `/home/mauro/projects/lynx/workflow/analysis/specialists/jones/prompts/retriever.prompt.md`
-
----
-
-## jones_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/jones/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("jones")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for jones | - |
-| model | gemini-2.5-pro | JONES_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | JONES_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | JONES_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | JONES_ANALYST_OUTPUT_KEY |
-| tools | [calculate_all_jones_model] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_all_jones_model`: `/home/mauro/projects/lynx/workflow/analysis/specialists/jones/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | JONES_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | JONES_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | JONES_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | JONES_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | JONES_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | JONES_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | JONES_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/jones/prompts/analyst.prompt.md`
 
 ---
 
@@ -3023,50 +2363,6 @@ Not configured (no retry configuration)
 
 ---
 
-## margins_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/margins/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("margins")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for margins | - |
-| model | gemini-2.5-pro | MARGINS_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | MARGINS_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | MARGINS_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | MARGINS_ANALYST_OUTPUT_KEY |
-| tools | [calculate_all_margin_metrics] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_all_margin_metrics`: `/home/mauro/projects/lynx/workflow/analysis/specialists/margins/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | MARGINS_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | MARGINS_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | MARGINS_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | MARGINS_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | MARGINS_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | MARGINS_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | MARGINS_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/margins/prompts/analyst.prompt.md`
-
----
-
 ## margins_benchmarker
 
 **File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/margins/agent.py`
@@ -3191,50 +2487,6 @@ Not configured (no retry configuration)
 
 ### Prompt File
 `/home/mauro/projects/lynx/workflow/analysis/specialists/miscellaneous/prompts/retriever.prompt.md`
-
----
-
-## miscellaneous_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/miscellaneous/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("miscellaneous")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for miscellaneous | - |
-| model | gemini-2.5-pro | MISCELLANEOUS_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | MISCELLANEOUS_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | MISCELLANEOUS_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | MISCELLANEOUS_ANALYST_OUTPUT_KEY |
-| tools | [calculate_all_miscellaneous_metrics] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_all_miscellaneous_metrics`: `/home/mauro/projects/lynx/workflow/analysis/specialists/miscellaneous/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | MISCELLANEOUS_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | MISCELLANEOUS_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | MISCELLANEOUS_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | MISCELLANEOUS_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | MISCELLANEOUS_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | MISCELLANEOUS_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | MISCELLANEOUS_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/miscellaneous/prompts/analyst.prompt.md`
 
 ---
 
@@ -3365,50 +2617,6 @@ Not configured (no retry configuration)
 
 ---
 
-## mscore_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/mscore/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("mscore")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for mscore | - |
-| model | gemini-2.5-pro | MSCORE_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | MSCORE_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | MSCORE_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | MSCORE_ANALYST_OUTPUT_KEY |
-| tools | [calculate_all_m_scores] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_all_m_scores`: `/home/mauro/projects/lynx/workflow/analysis/specialists/mscore/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | MSCORE_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | MSCORE_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | MSCORE_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | MSCORE_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | MSCORE_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | MSCORE_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | MSCORE_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/mscore/prompts/analyst.prompt.md`
-
----
-
 ## mscore_benchmarker
 
 **File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/mscore/agent.py`
@@ -3533,50 +2741,6 @@ Not configured (no retry configuration)
 
 ### Prompt File
 `/home/mauro/projects/lynx/workflow/analysis/specialists/piotroski/prompts/retriever.prompt.md`
-
----
-
-## piotroski_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/piotroski/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("piotroski")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for piotroski | - |
-| model | gemini-2.5-pro | PIOTROSKI_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | PIOTROSKI_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | PIOTROSKI_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | PIOTROSKI_ANALYST_OUTPUT_KEY |
-| tools | [calculate_all_piotroski_f_scores] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_all_piotroski_f_scores`: `/home/mauro/projects/lynx/workflow/analysis/specialists/piotroski/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | PIOTROSKI_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | PIOTROSKI_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | PIOTROSKI_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | PIOTROSKI_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | PIOTROSKI_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | PIOTROSKI_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | PIOTROSKI_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/piotroski/prompts/analyst.prompt.md`
 
 ---
 
@@ -3707,50 +2871,6 @@ Not configured (no retry configuration)
 
 ---
 
-## roychowdhury_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/roychowdhury/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("roychowdhury")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for roychowdhury | - |
-| model | gemini-2.5-pro | ROYCHOWDHURY_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | ROYCHOWDHURY_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | ROYCHOWDHURY_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | ROYCHOWDHURY_ANALYST_OUTPUT_KEY |
-| tools | [calculate_all_roychowdhury_models] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_all_roychowdhury_models`: `/home/mauro/projects/lynx/workflow/analysis/specialists/roychowdhury/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | ROYCHOWDHURY_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | ROYCHOWDHURY_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | ROYCHOWDHURY_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | ROYCHOWDHURY_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | ROYCHOWDHURY_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | ROYCHOWDHURY_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | ROYCHOWDHURY_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/roychowdhury/prompts/analyst.prompt.md`
-
----
-
 ## roychowdhury_benchmarker
 
 **File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/roychowdhury/agent.py`
@@ -3875,50 +2995,6 @@ Not configured (no retry configuration)
 
 ### Prompt File
 `/home/mauro/projects/lynx/workflow/analysis/specialists/smoothing/prompts/retriever.prompt.md`
-
----
-
-## smoothing_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/smoothing/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("smoothing")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for smoothing | - |
-| model | gemini-2.5-pro | SMOOTHING_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | SMOOTHING_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | SMOOTHING_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | SMOOTHING_ANALYST_OUTPUT_KEY |
-| tools | [calculate_all_smoothing_metrics] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_all_smoothing_metrics`: `/home/mauro/projects/lynx/workflow/analysis/specialists/smoothing/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | SMOOTHING_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | SMOOTHING_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | SMOOTHING_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | SMOOTHING_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | SMOOTHING_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | SMOOTHING_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | SMOOTHING_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/smoothing/prompts/analyst.prompt.md`
 
 ---
 
@@ -4049,50 +3125,6 @@ Not configured (no retry configuration)
 
 ---
 
-## valuation_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/valuation/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("valuation")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for valuation | - |
-| model | gemini-2.5-pro | VALUATION_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | VALUATION_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | VALUATION_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | VALUATION_ANALYST_OUTPUT_KEY |
-| tools | [calculate_all_valuation_metrics] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_all_valuation_metrics`: `/home/mauro/projects/lynx/workflow/analysis/specialists/valuation/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | VALUATION_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | VALUATION_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | VALUATION_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | VALUATION_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | VALUATION_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | VALUATION_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | VALUATION_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/valuation/prompts/analyst.prompt.md`
-
----
-
 ## valuation_benchmarker
 
 **File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/valuation/agent.py`
@@ -4217,50 +3249,6 @@ Not configured (no retry configuration)
 
 ### Prompt File
 `/home/mauro/projects/lynx/workflow/analysis/specialists/working_capital/prompts/retriever.prompt.md`
-
----
-
-## working_capital_analyst
-
-**File**: `/home/mauro/projects/lynx/workflow/analysis/specialists/working_capital/agent.py`
-**Type**: Agent
-**Factory**: `create_analyst_agent("working_capital")`
-
-| Property | Value | Env Var |
-|----------|-------|---------|
-| name | analyst | - |
-| description | Analyzes financial data for working_capital | - |
-| model | gemini-2.5-pro | WORKING_CAPITAL_ANALYST_MODEL or SPECIALISTS_COMMON_MODEL |
-| temperature | 0.0 | WORKING_CAPITAL_ANALYST_TEMPERATURE or SPECIALISTS_COMMON_TEMPERATURE |
-| max_output_tokens | 65535 | WORKING_CAPITAL_ANALYST_MAX_OUTPUT_TOKENS or SPECIALISTS_COMMON_MAX_OUTPUT_TOKENS |
-| output_key | analysed_factors | WORKING_CAPITAL_ANALYST_OUTPUT_KEY |
-| tools | [calculate_all_working_capital_metrics] | - |
-| include_contents | "none" | - |
-
-| disallow_transfer_to_parent | true | - |
-| disallow_transfer_to_peers | true | - |
-
-### Tools
-- `calculate_all_working_capital_metrics`: `/home/mauro/projects/lynx/workflow/analysis/specialists/working_capital/tools.py`
-
-### Planner
-| Property | Value | Env Var |
-|----------|-------|---------|
-| type | BuiltInPlanner | - |
-| thinking_config.thinking_budget | 8192 | WORKING_CAPITAL_ANALYST_THINKING_BUDGET or SPECIALISTS_COMMON_THINKING_BUDGET |
-
-### HTTP Options
-| Property | Value | Env Var |
-|----------|-------|---------|
-| timeout | 300000ms | WORKING_CAPITAL_RETRY_TIMEOUT or SPECIALISTS_COMMON_RETRY_TIMEOUT |
-| retry_options.initial_delay | 1.0s | WORKING_CAPITAL_RETRY_INITIAL_DELAY or SPECIALISTS_COMMON_RETRY_INITIAL_DELAY |
-| retry_options.max_delay | 60.0s | WORKING_CAPITAL_RETRY_MAX_DELAY or SPECIALISTS_COMMON_RETRY_MAX_DELAY |
-| retry_options.exp_base | 2.0 | WORKING_CAPITAL_RETRY_MULTIPLIER or SPECIALISTS_COMMON_RETRY_MULTIPLIER |
-| retry_options.attempts | 5 | WORKING_CAPITAL_RETRY_MAX_ATTEMPTS or SPECIALISTS_COMMON_RETRY_MAX_ATTEMPTS |
-| retry_options.http_status_codes | [429, 500, 502, 503, 504] | WORKING_CAPITAL_RETRY_HTTP_STATUS_CODES or SPECIALISTS_COMMON_RETRY_HTTP_STATUS_CODES |
-
-### Prompt File
-`/home/mauro/projects/lynx/workflow/analysis/specialists/working_capital/prompts/analyst.prompt.md`
 
 ---
 
@@ -5072,6 +4060,6 @@ Not configured (no retry configuration)
 | Agent Type | Factory Function | File |
 |------------|------------------|------|
 | Retriever | `create_retriever_agent(specialist_name)` | `/home/mauro/projects/lynx/workflow/analysis/generic/retriever_agent.py` |
-| Analyst | `create_analyst_agent(specialist_name, tool)` | `/home/mauro/projects/lynx/workflow/analysis/generic/analyst_agent.py` |
+| Analyst | `create_benchmarker_agent(specialist_name, tool)` | `/home/mauro/projects/lynx/workflow/analysis/generic/analyst_agent.py` |
 | Benchmarker | `create_benchmarker_agent(specialist_name)` | `/home/mauro/projects/lynx/workflow/analysis/generic/benchmarker_agent.py` |
 | Reporter | `create_reporter_agent(specialist_name)` | `/home/mauro/projects/lynx/workflow/analysis/generic/reporter_agent.py` |
