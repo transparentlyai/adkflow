@@ -10,6 +10,7 @@ import ResizeHandle from "@/components/ResizeHandle";
 import { useProject } from "@/contexts/ProjectContext";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock } from "lucide-react";
+import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 
 const DEFAULT_WIDTH = 600;
 const DEFAULT_HEIGHT = 400;
@@ -59,6 +60,21 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
   const { name, code, file_path, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked } = data as unknown as ProcessNodeData;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
+  const canvasActions = useCanvasActions();
+
+  const handleCopy = useCallback(() => {
+    setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
+    setTimeout(() => canvasActions?.copySelectedNodes(), 0);
+  }, [id, setNodes, canvasActions]);
+
+  const handleCut = useCallback(() => {
+    setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
+    setTimeout(() => canvasActions?.cutSelectedNodes(), 0);
+  }, [id, setNodes, canvasActions]);
+
+  const handlePaste = useCallback(() => {
+    canvasActions?.pasteNodes();
+  }, [canvasActions]);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(name);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -427,6 +443,11 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
           onToggleLock={handleToggleNodeLock}
           onClose={() => setContextMenu(null)}
           onDetach={parentId ? handleDetach : undefined}
+          onCopy={handleCopy}
+          onCut={handleCut}
+          onPaste={handlePaste}
+          hasClipboard={canvasActions?.hasClipboard}
+          isCanvasLocked={canvasActions?.isLocked}
         />
       )}
     </div>

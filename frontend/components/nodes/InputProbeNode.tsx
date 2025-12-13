@@ -11,6 +11,7 @@ import { useProject } from "@/contexts/ProjectContext";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock } from "lucide-react";
 import { readPrompt } from "@/lib/api";
+import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 
 const DEFAULT_WIDTH = 400;
 const DEFAULT_HEIGHT = 280;
@@ -38,6 +39,22 @@ const InputProbeNode = memo(({ data, id, selected }: NodeProps) => {
 
   const { setNodes } = useReactFlow();
   const { projectPath, onRequestFilePicker } = useProject();
+  const canvasActions = useCanvasActions();
+
+  const handleCopy = useCallback(() => {
+    setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
+    setTimeout(() => canvasActions?.copySelectedNodes(), 0);
+  }, [id, setNodes, canvasActions]);
+
+  const handleCut = useCallback(() => {
+    setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
+    setTimeout(() => canvasActions?.cutSelectedNodes(), 0);
+  }, [id, setNodes, canvasActions]);
+
+  const handlePaste = useCallback(() => {
+    canvasActions?.pasteNodes();
+  }, [canvasActions]);
+
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -256,6 +273,11 @@ const InputProbeNode = memo(({ data, id, selected }: NodeProps) => {
             onToggleLock={handleToggleNodeLock}
             onClose={() => setContextMenu(null)}
             onDetach={parentId ? handleDetach : undefined}
+            onCopy={handleCopy}
+            onCut={handleCut}
+            onPaste={handlePaste}
+            hasClipboard={canvasActions?.hasClipboard}
+            isCanvasLocked={canvasActions?.isLocked}
           />
         )}
       </div>
@@ -373,6 +395,11 @@ const InputProbeNode = memo(({ data, id, selected }: NodeProps) => {
           onToggleLock={handleToggleNodeLock}
           onClose={() => setContextMenu(null)}
           onDetach={parentId ? handleDetach : undefined}
+          onCopy={handleCopy}
+          onCut={handleCut}
+          onPaste={handlePaste}
+          hasClipboard={canvasActions?.hasClipboard}
+          isCanvasLocked={canvasActions?.isLocked}
         />
       )}
     </div>

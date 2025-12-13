@@ -3,6 +3,7 @@
 import { memo, useState, useRef, useEffect, useCallback } from "react";
 import { NodeResizer, type NodeProps, useReactFlow, useStore, type ResizeParams } from "@xyflow/react";
 import { useProject } from "@/contexts/ProjectContext";
+import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock } from "lucide-react";
 
@@ -15,6 +16,7 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
   const { label, isNodeLocked } = data as unknown as GroupNodeData;
   const { setNodes } = useReactFlow();
   const { isLocked } = useProject();
+  const canvasActions = useCanvasActions();
   const [isEditing, setIsEditing] = useState(false);
   const [editedLabel, setEditedLabel] = useState(label);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -22,6 +24,20 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
 
   const currentNode = useStore((state) => state.nodes.find((n) => n.id === id));
   const parentId = currentNode?.parentId;
+
+  const handleCopy = useCallback(() => {
+    setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
+    setTimeout(() => canvasActions?.copySelectedNodes(), 0);
+  }, [id, setNodes, canvasActions]);
+
+  const handleCut = useCallback(() => {
+    setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
+    setTimeout(() => canvasActions?.cutSelectedNodes(), 0);
+  }, [id, setNodes, canvasActions]);
+
+  const handlePaste = useCallback(() => {
+    canvasActions?.pasteNodes();
+  }, [canvasActions]);
 
   const isNodeDraggingInside = useStore((state) => {
     const groupNode = state.nodes.find((n) => n.id === id);
@@ -236,6 +252,11 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
           onToggleLock={handleToggleNodeLock}
           onClose={() => setContextMenu(null)}
           onDetach={parentId ? handleDetach : undefined}
+          onCopy={handleCopy}
+          onCut={handleCut}
+          onPaste={handlePaste}
+          hasClipboard={canvasActions?.hasClipboard}
+          isCanvasLocked={canvasActions?.isLocked}
         />
       )}
     </>

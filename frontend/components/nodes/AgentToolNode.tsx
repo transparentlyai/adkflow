@@ -6,6 +6,7 @@ import type { HandlePositions } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock } from "lucide-react";
+import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 
 interface AgentToolNodeData {
   name?: string;
@@ -16,6 +17,22 @@ interface AgentToolNodeData {
 const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
   const { name = "Agent Tool", handlePositions, isNodeLocked } = data as AgentToolNodeData;
   const { setNodes } = useReactFlow();
+  const canvasActions = useCanvasActions();
+
+  const handleCopy = useCallback(() => {
+    setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
+    setTimeout(() => canvasActions?.copySelectedNodes(), 0);
+  }, [id, setNodes, canvasActions]);
+
+  const handleCut = useCallback(() => {
+    setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
+    setTimeout(() => canvasActions?.cutSelectedNodes(), 0);
+  }, [id, setNodes, canvasActions]);
+
+  const handlePaste = useCallback(() => {
+    canvasActions?.pasteNodes();
+  }, [canvasActions]);
+
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const [newName, setNewName] = useState(name);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -167,6 +184,11 @@ const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
           onToggleLock={handleToggleNodeLock}
           onClose={() => setContextMenu(null)}
           onDetach={parentId ? handleDetach : undefined}
+          onCopy={handleCopy}
+          onCut={handleCut}
+          onPaste={handlePaste}
+          hasClipboard={canvasActions?.hasClipboard}
+          isCanvasLocked={canvasActions?.isLocked}
         />
       )}
     </>

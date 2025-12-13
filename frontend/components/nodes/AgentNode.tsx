@@ -7,6 +7,7 @@ import DraggableHandle from "@/components/DraggableHandle";
 import ResizeHandle from "@/components/ResizeHandle";
 import AgentPropertiesPanel from "@/components/AgentPropertiesPanel";
 import NodeContextMenu from "@/components/NodeContextMenu";
+import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 import { Lock } from "lucide-react";
 
 const DEFAULT_WIDTH = 450;
@@ -31,6 +32,7 @@ const TYPE_BADGES: Record<AgentType, { label: string; color: string }> = {
 const AgentNode = memo(({ data, id, selected }: NodeProps) => {
   const { agent, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked } = data as unknown as AgentNodeData;
   const { setNodes } = useReactFlow();
+  const canvasActions = useCanvasActions();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(agent.name);
@@ -46,6 +48,20 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
   // Get current node's parentId for detach functionality
   const currentNode = useStore((state) => state.nodes.find((n) => n.id === id));
   const parentId = currentNode?.parentId;
+
+  const handleCopy = useCallback(() => {
+    setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
+    setTimeout(() => canvasActions?.copySelectedNodes(), 0);
+  }, [id, setNodes, canvasActions]);
+
+  const handleCut = useCallback(() => {
+    setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
+    setTimeout(() => canvasActions?.cutSelectedNodes(), 0);
+  }, [id, setNodes, canvasActions]);
+
+  const handlePaste = useCallback(() => {
+    canvasActions?.pasteNodes();
+  }, [canvasActions]);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -380,6 +396,11 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
             onToggleLock={handleToggleNodeLock}
             onClose={() => setContextMenu(null)}
             onDetach={parentId ? handleDetach : undefined}
+            onCopy={handleCopy}
+            onCut={handleCut}
+            onPaste={handlePaste}
+            hasClipboard={canvasActions?.hasClipboard}
+            isCanvasLocked={canvasActions?.isLocked}
           />
         )}
       </div>
@@ -513,6 +534,11 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           onToggleLock={handleToggleNodeLock}
           onClose={() => setContextMenu(null)}
           onDetach={parentId ? handleDetach : undefined}
+          onCopy={handleCopy}
+          onCut={handleCut}
+          onPaste={handlePaste}
+          hasClipboard={canvasActions?.hasClipboard}
+          isCanvasLocked={canvasActions?.isLocked}
         />
       )}
     </div>

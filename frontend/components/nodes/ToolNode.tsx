@@ -10,6 +10,7 @@ import ResizeHandle from "@/components/ResizeHandle";
 import { useProject } from "@/contexts/ProjectContext";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock } from "lucide-react";
+import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 
 const DEFAULT_WIDTH = 500;
 const DEFAULT_HEIGHT = 320;
@@ -45,6 +46,21 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
   const { name = "Tool", code = DEFAULT_CODE, file_path, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked } = data as ToolNodeData;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
+  const canvasActions = useCanvasActions();
+
+  const handleCopy = useCallback(() => {
+    setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
+    setTimeout(() => canvasActions?.copySelectedNodes(), 0);
+  }, [id, setNodes, canvasActions]);
+
+  const handleCut = useCallback(() => {
+    setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
+    setTimeout(() => canvasActions?.cutSelectedNodes(), 0);
+  }, [id, setNodes, canvasActions]);
+
+  const handlePaste = useCallback(() => {
+    canvasActions?.pasteNodes();
+  }, [canvasActions]);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -306,6 +322,11 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
             onToggleLock={handleToggleNodeLock}
             onClose={() => setContextMenu(null)}
             onDetach={parentId ? handleDetach : undefined}
+            onCopy={handleCopy}
+            onCut={handleCut}
+            onPaste={handlePaste}
+            hasClipboard={canvasActions?.hasClipboard}
+            isCanvasLocked={canvasActions?.isLocked}
           />
         )}
       </div>
@@ -436,6 +457,11 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
           onToggleLock={handleToggleNodeLock}
           onClose={() => setContextMenu(null)}
           onDetach={parentId ? handleDetach : undefined}
+          onCopy={handleCopy}
+          onCut={handleCut}
+          onPaste={handlePaste}
+          hasClipboard={canvasActions?.hasClipboard}
+          isCanvasLocked={canvasActions?.isLocked}
         />
       )}
     </div>

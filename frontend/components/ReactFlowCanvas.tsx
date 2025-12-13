@@ -30,6 +30,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { useClipboard } from "@/contexts/ClipboardContext";
+import { CanvasActionsProvider } from "@/contexts/CanvasActionsContext";
 
 import GroupNode from "./nodes/GroupNode";
 import AgentNode from "./nodes/AgentNode";
@@ -1234,77 +1235,87 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             stroke-width: 3 !important;
           }
         `}</style>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onNodeDragStop={onNodeDragStop}
-          onInit={setRfInstance}
-          onPaneContextMenu={onPaneContextMenu}
-          onNodeContextMenu={onNodeContextMenu}
-          onSelectionContextMenu={onSelectionContextMenu}
-          onMouseMove={onMouseMove}
-          nodeTypes={nodeTypes}
-          colorMode="light"
-          fitView
-          attributionPosition="bottom-left"
-          style={{ background: '#f7f9fb' }}
-          defaultEdgeOptions={{
-            style: { strokeWidth: 1.5, stroke: '#64748b' },
-            animated: false,
-            selectable: true,
+        <CanvasActionsProvider
+          value={{
+            copySelectedNodes: handleCopy,
+            cutSelectedNodes: handleCut,
+            pasteNodes: handlePaste,
+            hasClipboard,
+            isLocked: !!isLocked,
           }}
-          edgesFocusable={true}
-          edgesReconnectable={false}
-          connectionLineStyle={{ strokeWidth: 1.5, stroke: '#64748b' }}
-          nodesDraggable={!isLocked}
-          nodesConnectable={!isLocked}
-          elementsSelectable={!isLocked}
-          selectionMode={SelectionMode.Partial}
-          snapToGrid
-          snapGrid={[8, 8]}
-          deleteKeyCode={null}
         >
-          <Background color="#94a3b8" gap={8} />
-          <Controls showInteractive={false} />
-          <MiniMap
-            nodeColor={(node) => {
-              switch (node.type) {
-                case "group":
-                  return "#9ca3af"; // gray-400
-                case "agent":
-                  return "#9333ea"; // purple-600
-                case "prompt":
-                  return "#16a34a"; // green-600
-                case "context":
-                  return "#2563eb"; // blue-600
-                case "inputProbe":
-                  return "#374151"; // gray-700
-                case "outputProbe":
-                  return "#374151"; // gray-700
-                case "logProbe":
-                  return "#374151"; // gray-700
-                case "tool":
-                  return "#0891b2"; // cyan-600
-                case "agentTool":
-                  return "#d97706"; // amber-600
-                case "variable":
-                  return "#7c3aed"; // violet-600
-                case "process":
-                  return "#10b981"; // emerald-500
-                case "label":
-                  return "#6b7280"; // gray-500
-                default:
-                  return "#6b7280"; // gray-500
-              }
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onNodeDragStop={onNodeDragStop}
+            onInit={setRfInstance}
+            onPaneContextMenu={onPaneContextMenu}
+            onNodeContextMenu={onNodeContextMenu}
+            onSelectionContextMenu={onSelectionContextMenu}
+            onMouseMove={onMouseMove}
+            nodeTypes={nodeTypes}
+            colorMode="light"
+            fitView
+            attributionPosition="bottom-left"
+            style={{ background: '#f7f9fb' }}
+            defaultEdgeOptions={{
+              style: { strokeWidth: 1.5, stroke: '#64748b' },
+              animated: false,
+              selectable: true,
             }}
-            maskColor="rgba(0, 0, 0, 0.1)"
-            pannable
-            zoomable
-          />
-        </ReactFlow>
+            edgesFocusable={true}
+            edgesReconnectable={false}
+            connectionLineStyle={{ strokeWidth: 1.5, stroke: '#64748b' }}
+            nodesDraggable={!isLocked}
+            nodesConnectable={!isLocked}
+            elementsSelectable={!isLocked}
+            selectionMode={SelectionMode.Partial}
+            snapToGrid
+            snapGrid={[8, 8]}
+            deleteKeyCode={null}
+          >
+            <Background color="#94a3b8" gap={8} />
+            <Controls showInteractive={false} />
+            <MiniMap
+              nodeColor={(node) => {
+                switch (node.type) {
+                  case "group":
+                    return "#9ca3af"; // gray-400
+                  case "agent":
+                    return "#9333ea"; // purple-600
+                  case "prompt":
+                    return "#16a34a"; // green-600
+                  case "context":
+                    return "#2563eb"; // blue-600
+                  case "inputProbe":
+                    return "#374151"; // gray-700
+                  case "outputProbe":
+                    return "#374151"; // gray-700
+                  case "logProbe":
+                    return "#374151"; // gray-700
+                  case "tool":
+                    return "#0891b2"; // cyan-600
+                  case "agentTool":
+                    return "#d97706"; // amber-600
+                  case "variable":
+                    return "#7c3aed"; // violet-600
+                  case "process":
+                    return "#10b981"; // emerald-500
+                  case "label":
+                    return "#6b7280"; // gray-500
+                  default:
+                    return "#6b7280"; // gray-500
+                }
+              }}
+              maskColor="rgba(0, 0, 0, 0.1)"
+              pannable
+              zoomable
+            />
+          </ReactFlow>
+        </CanvasActionsProvider>
         {contextMenu && (
           <CanvasContextMenu
             x={contextMenu.x}

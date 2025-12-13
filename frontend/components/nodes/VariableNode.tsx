@@ -4,6 +4,7 @@ import { memo, useState, useCallback } from "react";
 import { type NodeProps, useReactFlow, useStore } from "@xyflow/react";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock } from "lucide-react";
+import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 
 interface VariableNodeData {
   name?: string;
@@ -14,6 +15,22 @@ interface VariableNodeData {
 const VariableNode = memo(({ data, id, selected }: NodeProps) => {
   const { name = "variable", value = "", isNodeLocked } = data as VariableNodeData;
   const { setNodes } = useReactFlow();
+  const canvasActions = useCanvasActions();
+
+  const handleCopy = useCallback(() => {
+    setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
+    setTimeout(() => canvasActions?.copySelectedNodes(), 0);
+  }, [id, setNodes, canvasActions]);
+
+  const handleCut = useCallback(() => {
+    setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
+    setTimeout(() => canvasActions?.cutSelectedNodes(), 0);
+  }, [id, setNodes, canvasActions]);
+
+  const handlePaste = useCallback(() => {
+    canvasActions?.pasteNodes();
+  }, [canvasActions]);
+
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [newName, setNewName] = useState(name);
   const [newValue, setNewValue] = useState(value);
@@ -170,6 +187,11 @@ const VariableNode = memo(({ data, id, selected }: NodeProps) => {
           onToggleLock={handleToggleNodeLock}
           onClose={() => setContextMenu(null)}
           onDetach={parentId ? handleDetach : undefined}
+          onCopy={handleCopy}
+          onCut={handleCut}
+          onPaste={handlePaste}
+          hasClipboard={canvasActions?.hasClipboard}
+          isCanvasLocked={canvasActions?.isLocked}
         />
       )}
     </>
