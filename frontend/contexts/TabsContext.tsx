@@ -41,6 +41,11 @@ interface TabsContextValue {
   markTabClean: (tabId: string) => void;
   setTabLoading: (tabId: string, loading: boolean) => void;
 
+  // Focus management (for navigating to specific nodes)
+  pendingFocusNodeId: string | null;
+  setPendingFocusNodeId: (nodeId: string | null) => void;
+  navigateToNode: (tabId: string, nodeId: string) => void;
+
   // Utility
   clearTabs: () => void;
 }
@@ -50,9 +55,16 @@ const TabsContext = createContext<TabsContextValue | null>(null);
 export function TabsProvider({ children }: { children: ReactNode }) {
   const [tabs, setTabs] = useState<TabState[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [pendingFocusNodeId, setPendingFocusNodeId] = useState<string | null>(null);
 
   // Get active tab
   const activeTab = tabs.find((t) => t.id === activeTabId) || null;
+
+  // Navigate to a specific node in a tab
+  const navigateToNode = useCallback((tabId: string, nodeId: string) => {
+    setPendingFocusNodeId(nodeId);
+    setActiveTabId(tabId);
+  }, []);
 
   // Initialize tabs for a project
   const initializeTabs = useCallback(async (projectPath: string): Promise<InitializeTabsResult | null> => {
@@ -238,6 +250,9 @@ export function TabsProvider({ children }: { children: ReactNode }) {
         markTabDirty,
         markTabClean,
         setTabLoading,
+        pendingFocusNodeId,
+        setPendingFocusNodeId,
+        navigateToNode,
         clearTabs,
       }}
     >

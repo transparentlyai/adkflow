@@ -14,6 +14,7 @@ import { loadSession, saveSession } from "@/lib/sessionStorage";
 import { ProjectProvider } from "@/contexts/ProjectContext";
 import { ClipboardProvider } from "@/contexts/ClipboardContext";
 import { TabsProvider, useTabs } from "@/contexts/TabsContext";
+import { TeleporterProvider, useTeleporter } from "@/contexts/TeleporterContext";
 import TabBar from "@/components/TabBar";
 import type { Node, Edge } from "@xyflow/react";
 import { Lock } from "lucide-react";
@@ -41,10 +42,18 @@ function HomeContent() {
     setActiveTabId,
     markTabDirty,
     clearTabs,
+    pendingFocusNodeId,
+    setPendingFocusNodeId,
   } = useTabs();
+
+  const { syncTeleportersForTab, updateTabName } = useTeleporter();
 
   const [workflowName, setWorkflowName] = useState("Untitled Workflow");
   const canvasRef = useRef<ReactFlowCanvasRef>(null);
+
+  // Refs to avoid dependency loops in handleWorkflowChange
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
   const [isSessionLoaded, setIsSessionLoaded] = useState(false);
 
   // Project state
@@ -99,15 +108,14 @@ function HomeContent() {
       (async () => {
         const result = await initializeTabs(projectPath);
         if (result) {
-          // Load project name from manifest
           setWorkflowName(result.projectName);
           if (result.firstTab && canvasRef.current) {
             const flow = await loadTabFlow(projectPath, result.firstTab.id);
             if (flow) {
               canvasRef.current.restoreFlow(flow);
+              syncTeleportersForTab(result.firstTab.id, result.firstTab.name, flow.nodes);
             }
           }
-          // Add to recent projects
           addRecentProject({
             path: projectPath,
             name: result.projectName,
@@ -123,7 +131,7 @@ function HomeContent() {
       setShowHomeScreen(true);
       setIsSessionLoaded(true);
     }
-  }, [initializeTabs, loadTabFlow]);
+  }, [initializeTabs, loadTabFlow, syncTeleportersForTab]);
 
   // Save session whenever relevant state changes
   useEffect(() => {
@@ -138,10 +146,33 @@ function HomeContent() {
   }, [isSessionLoaded, currentProjectPath, workflowName, hasUnsavedChanges]);
 
   const handleWorkflowChange = useCallback((data: { nodes: Node[]; edges: Edge[] }) => {
-    if (activeTabId) {
+    const tab = activeTabRef.current;
+    if (activeTabId && tab) {
       markTabDirty(activeTabId);
+      syncTeleportersForTab(activeTabId, tab.name, data.nodes);
     }
-  }, [activeTabId, markTabDirty]);
+  }, [activeTabId, markTabDirty, syncTeleportersForTab]);
+
+  const syncAllTabsTeleporters = useCallback(async (projectPath: string, allTabs: typeof tabs) => {
+    for (const tab of allTabs) {
+      const flow = await loadTabFlow(projectPath, tab.id);
+      if (flow) {
+        syncTeleportersForTab(tab.id, tab.name, flow.nodes);
+      }
+    }
+  }, [loadTabFlow, syncTeleportersForTab]);
+
+  const hasSyncedAllTabsRef = useRef(false);
+  useEffect(() => {
+    if (tabs.length > 0 && currentProjectPath && !hasSyncedAllTabsRef.current) {
+      hasSyncedAllTabsRef.current = true;
+      syncAllTabsTeleporters(currentProjectPath, tabs.filter(t => t.id !== activeTabId));
+    }
+  }, [tabs, currentProjectPath, activeTabId, syncAllTabsTeleporters]);
+
+  useEffect(() => {
+    hasSyncedAllTabsRef.current = false;
+  }, [currentProjectPath]);
 
   // Project Management Handlers
   const handleCreateNewProject = async (projectPath: string, projectName?: string) => {
@@ -179,21 +210,18 @@ function HomeContent() {
 
   const handleLoadExistingProject = async (projectPath: string) => {
     try {
-      // Initialize tabs for the project
       const result = await initializeTabs(projectPath);
       let projectName = "Untitled Workflow";
 
       if (!result || !result.firstTab) {
         alert(`No tabs found at ${projectPath}. Creating a new project instead.`);
-        // Create first tab if none exist
         await createNewTab(projectPath, "Flow 1");
       } else {
-        // Load the first tab's flow
         const flow = await loadTabFlow(projectPath, result.firstTab.id);
         if (flow && canvasRef.current) {
           canvasRef.current.restoreFlow(flow);
+          syncTeleportersForTab(result.firstTab.id, result.firstTab.name, flow.nodes);
         }
-        // Load project name from manifest
         projectName = result.projectName;
       }
 
@@ -202,7 +230,6 @@ function HomeContent() {
       setIsProjectSwitcherOpen(false);
       setShowHomeScreen(false);
 
-      // Add to recent projects
       addRecentProject({
         path: projectPath,
         name: projectName,
@@ -222,14 +249,12 @@ function HomeContent() {
     }
 
     try {
-      // Get current flow from canvas
       const flow = canvasRef.current?.saveFlow();
       if (!flow) {
         alert("No flow data to save.");
         return;
       }
 
-      // Save to active tab with project name
       const success = await saveTabFlow(currentProjectPath, activeTabId, flow, workflowName);
       if (!success) {
         alert("Failed to save tab.");
@@ -290,10 +315,8 @@ function HomeContent() {
     }
 
     try {
-      // Call backend to create the prompt file
       const response = await createPrompt(currentProjectPath, promptName);
 
-      // Add prompt node to canvas with the file path and name
       if (canvasRef.current) {
         canvasRef.current.addPromptNode({
           name: promptName,
@@ -518,8 +541,36 @@ function HomeContent() {
     const flow = await loadTabFlow(currentProjectPath, tabId);
     if (flow && canvasRef.current) {
       canvasRef.current.restoreFlow(flow);
+      // Sync teleporters for this tab
+      const tab = tabs.find(t => t.id === tabId);
+      if (tab) {
+        syncTeleportersForTab(tabId, tab.name, flow.nodes);
+      }
     }
-  }, [currentProjectPath, activeTab, activeTabId, saveTabFlow, loadTabFlow, setActiveTabId]);
+  }, [currentProjectPath, activeTab, activeTabId, saveTabFlow, loadTabFlow, setActiveTabId, tabs, syncTeleportersForTab]);
+
+  const pendingFocusNodeIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!pendingFocusNodeId || !currentProjectPath || !activeTabId) return;
+    if (pendingFocusNodeIdRef.current === pendingFocusNodeId) return;
+    pendingFocusNodeIdRef.current = pendingFocusNodeId;
+
+    const handlePendingFocus = async () => {
+      const flow = await loadTabFlow(currentProjectPath, activeTabId);
+      if (flow && canvasRef.current) {
+        canvasRef.current.restoreFlow(flow);
+        const nodeIdToFocus = pendingFocusNodeId;
+        setTimeout(() => {
+          canvasRef.current?.focusNode(nodeIdToFocus);
+        }, 150);
+      }
+      setPendingFocusNodeId(null);
+      pendingFocusNodeIdRef.current = null;
+    };
+
+    handlePendingFocus();
+  }, [pendingFocusNodeId, currentProjectPath, activeTabId, loadTabFlow, setPendingFocusNodeId]);
 
   const handleAddTab = useCallback(async () => {
     if (!currentProjectPath) return;
@@ -567,7 +618,9 @@ function HomeContent() {
     if (!currentProjectPath) return;
 
     await renameTabById(currentProjectPath, tabId, name);
-  }, [currentProjectPath, renameTabById]);
+    // Update teleporter tab names
+    updateTabName(tabId, name);
+  }, [currentProjectPath, renameTabById, updateTabName]);
 
   const handleTabReorder = useCallback(async (tabIds: string[]) => {
     if (!currentProjectPath) return;
@@ -773,7 +826,9 @@ export default function Home() {
   return (
     <ClipboardProvider>
       <TabsProvider>
-        <HomeContent />
+        <TeleporterProvider>
+          <HomeContent />
+        </TeleporterProvider>
       </TabsProvider>
     </ClipboardProvider>
   );

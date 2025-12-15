@@ -24,6 +24,9 @@ import {
   Scissors,
   Clipboard,
   Trash2,
+  GitBranch,
+  ArrowRightFromLine,
+  ArrowLeftToLine,
 } from "lucide-react";
 
 export type NodeTypeOption =
@@ -38,7 +41,9 @@ export type NodeTypeOption =
   | "tool"
   | "agentTool"
   | "process"
-  | "label";
+  | "label"
+  | "teleportOut"
+  | "teleportIn";
 
 interface ContextMenuProps {
   x: number;
@@ -100,6 +105,14 @@ const menuGroups: MenuGroup[] = [
     items: [
       { type: "group", label: "Group", icon: <SquareDashed className="h-4 w-4" /> },
       { type: "label", label: "Label", icon: <Type className="h-4 w-4" /> },
+    ],
+  },
+  {
+    label: "Connectors",
+    icon: <GitBranch className="h-4 w-4" />,
+    items: [
+      { type: "teleportOut", label: "Output Connector", icon: <ArrowRightFromLine className="h-4 w-4" /> },
+      { type: "teleportIn", label: "Input Connector", icon: <ArrowLeftToLine className="h-4 w-4" /> },
     ],
   },
 ];

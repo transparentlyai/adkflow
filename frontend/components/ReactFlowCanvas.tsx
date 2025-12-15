@@ -47,6 +47,8 @@ import AgentToolNode from "./nodes/AgentToolNode";
 import VariableNode from "./nodes/VariableNode";
 import ProcessNode from "./nodes/ProcessNode";
 import LabelNode from "./nodes/LabelNode";
+import TeleportOutNode, { getDefaultTeleportOutData } from "./nodes/TeleportOutNode";
+import TeleportInNode, { getDefaultTeleportInData } from "./nodes/TeleportInNode";
 
 import { generateNodeId } from "@/lib/workflowHelpers";
 import CanvasContextMenu, { type NodeTypeOption } from "./CanvasContextMenu";
@@ -80,6 +82,8 @@ const nodeTypes = {
   variable: VariableNode,
   process: ProcessNode,
   label: LabelNode,
+  teleportOut: TeleportOutNode,
+  teleportIn: TeleportInNode,
 } as any; // eslint-disable-line
 
 interface ReactFlowCanvasProps {
@@ -105,12 +109,15 @@ export interface ReactFlowCanvasRef {
   addAgentToolNode: (position?: { x: number; y: number }) => void;
   addVariableNode: (position?: { x: number; y: number }) => void;
   addProcessNode: (processData?: { name: string; file_path: string }, position?: { x: number; y: number }) => void;
+  addTeleportOutNode: (name: string, position?: { x: number; y: number }) => void;
+  addTeleportInNode: (name: string, position?: { x: number; y: number }) => void;
   clearCanvas: () => void;
   saveFlow: () => { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } } | null;
   restoreFlow: (flow: { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }) => void;
   zoomIn: () => void;
   zoomOut: () => void;
   fitView: () => void;
+  focusNode: (nodeId: string) => void;
 }
 
 /**
@@ -149,6 +156,14 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
     const [snapToGrid, setSnapToGrid] = useState(false);
 
+    // Teleporter name prompt dialog state
+    const [teleportNamePrompt, setTeleportNamePrompt] = useState<{
+      type: "teleportOut" | "teleportIn";
+      position: { x: number; y: number };
+      parentGroupId?: string;
+    } | null>(null);
+    const [teleportNameInput, setTeleportNameInput] = useState("");
+
     // Undo/redo history
     const undoStackRef = useRef<{ nodes: Node[]; edges: Edge[] }[]>([]);
     const redoStackRef = useRef<{ nodes: Node[]; edges: Edge[] }[]>([]);
@@ -167,6 +182,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     const [variablePosition, setVariablePosition] = useState({ x: 150, y: 650 });
     const [processPosition, setProcessPosition] = useState({ x: 150, y: 700 });
     const [labelPosition, setLabelPosition] = useState({ x: 150, y: 750 });
+    const [teleportOutPosition, setTeleportOutPosition] = useState({ x: 150, y: 800 });
+    const [teleportInPosition, setTeleportInPosition] = useState({ x: 150, y: 850 });
 
     const spacing = 350;
 
@@ -982,6 +999,44 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       }
     }, [labelPosition]);
 
+    /**
+     * Add a TeleportOut node to the canvas
+     */
+    const addTeleportOutNode = useCallback((name: string, position?: { x: number; y: number }) => {
+      const teleportId = generateNodeId("teleportOut");
+
+      const newNode: Node = {
+        id: teleportId,
+        type: "teleportOut",
+        position: position || teleportOutPosition,
+        data: { ...getDefaultTeleportOutData(), name },
+      };
+
+      setNodes((nds) => [...nds, newNode]);
+      if (!position) {
+        setTeleportOutPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      }
+    }, [teleportOutPosition]);
+
+    /**
+     * Add a TeleportIn node to the canvas
+     */
+    const addTeleportInNode = useCallback((name: string, position?: { x: number; y: number }) => {
+      const teleportId = generateNodeId("teleportIn");
+
+      const newNode: Node = {
+        id: teleportId,
+        type: "teleportIn",
+        position: position || teleportInPosition,
+        data: { ...getDefaultTeleportInData(), name },
+      };
+
+      setNodes((nds) => [...nds, newNode]);
+      if (!position) {
+        setTeleportInPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      }
+    }, [teleportInPosition]);
+
     // Handle right-click on canvas pane
     const onPaneContextMenu = useCallback((event: MouseEvent | React.MouseEvent) => {
       event.preventDefault();
@@ -1108,6 +1163,14 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         case 'label':
           addNodeWithParent(addLabelNode, position, parentGroupId);
           break;
+        case 'teleportOut':
+          setTeleportNamePrompt({ type: "teleportOut", position, parentGroupId });
+          setTeleportNameInput("");
+          break;
+        case 'teleportIn':
+          setTeleportNamePrompt({ type: "teleportIn", position, parentGroupId });
+          setTeleportNameInput("");
+          break;
       }
 
       setContextMenu(null);
@@ -1133,6 +1196,64 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       setContextMenu(null);
     }, []);
 
+    // Handle teleporter name submission
+    const handleTeleportNameSubmit = useCallback(() => {
+      if (!teleportNamePrompt || !teleportNameInput.trim()) return;
+
+      const { type, position, parentGroupId } = teleportNamePrompt;
+      const name = teleportNameInput.trim();
+
+      if (type === "teleportOut") {
+        if (parentGroupId) {
+          // Add to parent group
+          const teleportId = generateNodeId("teleportOut");
+          const newNode: Node = {
+            id: teleportId,
+            type: "teleportOut",
+            position,
+            data: { ...getDefaultTeleportOutData(), name },
+            parentId: parentGroupId,
+            extent: "parent" as const,
+          };
+          setNodes((nds) => [...nds, newNode]);
+        } else {
+          addTeleportOutNode(name, position);
+        }
+      } else {
+        if (parentGroupId) {
+          // Add to parent group
+          const teleportId = generateNodeId("teleportIn");
+          const newNode: Node = {
+            id: teleportId,
+            type: "teleportIn",
+            position,
+            data: { ...getDefaultTeleportInData(), name },
+            parentId: parentGroupId,
+            extent: "parent" as const,
+          };
+          setNodes((nds) => [...nds, newNode]);
+        } else {
+          addTeleportInNode(name, position);
+        }
+      }
+
+      setTeleportNamePrompt(null);
+      setTeleportNameInput("");
+    }, [teleportNamePrompt, teleportNameInput, addTeleportOutNode, addTeleportInNode, setNodes]);
+
+    const handleTeleportNameCancel = useCallback(() => {
+      setTeleportNamePrompt(null);
+      setTeleportNameInput("");
+    }, []);
+
+    const handleTeleportNameKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") {
+        handleTeleportNameSubmit();
+      } else if (e.key === "Escape") {
+        handleTeleportNameCancel();
+      }
+    }, [handleTeleportNameSubmit, handleTeleportNameCancel]);
+
     /**
      * Clear the canvas
      */
@@ -1151,6 +1272,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       setAgentToolPosition({ x: 150, y: 450 });
       setVariablePosition({ x: 150, y: 500 });
       setProcessPosition({ x: 150, y: 550 });
+      setTeleportOutPosition({ x: 150, y: 600 });
+      setTeleportInPosition({ x: 150, y: 650 });
     }, []);
 
     /**
@@ -1207,6 +1330,20 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       }
     }, [rfInstance]);
 
+    const focusNode = useCallback((nodeId: string) => {
+      if (!rfInstance) return;
+      const node = nodes.find((n) => n.id === nodeId);
+      if (!node) return;
+
+      // Center on node with some zoom
+      const x = node.position.x + (node.measured?.width ?? 100) / 2;
+      const y = node.position.y + (node.measured?.height ?? 50) / 2;
+      rfInstance.setCenter(x, y, { zoom: 1.5, duration: 300 });
+
+      // Select the node
+      setNodes((nds) => nds.map((n) => ({ ...n, selected: n.id === nodeId })));
+    }, [rfInstance, nodes, setNodes]);
+
     // Expose methods to parent via ref
     useImperativeHandle(ref, () => ({
       addGroupNode,
@@ -1220,12 +1357,15 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       addAgentToolNode,
       addVariableNode,
       addProcessNode,
+      addTeleportOutNode,
+      addTeleportInNode,
       clearCanvas,
       saveFlow,
       restoreFlow,
       zoomIn,
       zoomOut,
       fitView: fitViewHandler,
+      focusNode,
     }));
 
     return (
@@ -1382,6 +1522,48 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           onDeleteGroupOnly={handleGroupDeleteGroupOnly}
           onDeleteAll={handleGroupDeleteAll}
         />
+
+        {/* Teleporter Name Prompt Dialog */}
+        {teleportNamePrompt && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ pointerEvents: 'auto' }}>
+            <div
+              className="absolute inset-0 bg-black bg-opacity-50"
+              onClick={handleTeleportNameCancel}
+            />
+            <div className="relative bg-white rounded-lg shadow-xl p-6" style={{ width: '400px', maxWidth: '90vw' }}>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                {teleportNamePrompt.type === "teleportOut" ? "New Output Connector" : "New Input Connector"}
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Enter a name for this connector. Connectors with matching names will be linked.
+              </p>
+              <input
+                type="text"
+                value={teleportNameInput}
+                onChange={(e) => setTeleportNameInput(e.target.value)}
+                onKeyDown={handleTeleportNameKeyDown}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
+                placeholder="Connector name"
+                autoFocus
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={handleTeleportNameCancel}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleTeleportNameSubmit}
+                  disabled={!teleportNameInput.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Create
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

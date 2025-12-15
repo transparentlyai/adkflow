@@ -116,7 +116,31 @@ export interface Workflow {
 /**
  * Node types for the Drawflow canvas
  */
-export type NodeType = "group" | "agent" | "prompt" | "context" | "inputProbe" | "outputProbe" | "logProbe" | "tool" | "agentTool" | "variable";
+export type NodeType = "group" | "agent" | "prompt" | "context" | "inputProbe" | "outputProbe" | "logProbe" | "tool" | "agentTool" | "variable" | "teleportOut" | "teleportIn";
+
+/**
+ * Teleporter (flow connector) types for cross-flow connections
+ */
+export type TeleporterDirection = "output" | "input";
+
+export interface TeleporterEntry {
+  id: string;
+  name: string;
+  direction: TeleporterDirection;
+  tabId: string;
+  tabName: string;
+  color: string;
+}
+
+export interface TeleporterRegistry {
+  teleporters: TeleporterEntry[];
+  colorMap: Record<string, string>;  // name -> color for consistent coloring
+}
+
+export interface TeleporterListResponse {
+  teleporters: TeleporterEntry[];
+  colorMap: Record<string, string>;
+}
 
 /**
  * Handle position for draggable handles
