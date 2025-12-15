@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import ReactFlowCanvas, { ReactFlowCanvasRef } from "@/components/ReactFlowCanvas";
 import TopMenubar from "@/components/TopMenubar";
+import GlobalSearch from "@/components/GlobalSearch";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import SaveConfirmDialog from "@/components/SaveConfirmDialog";
 import PromptNameDialog from "@/components/PromptNameDialog";
@@ -44,6 +45,7 @@ function HomeContent() {
     clearTabs,
     pendingFocusNodeId,
     setPendingFocusNodeId,
+    navigateToNode,
   } = useTabs();
 
   const { syncTeleportersForTab, updateTabName } = useTeleporter();
@@ -665,6 +667,17 @@ function HomeContent() {
               isLocked={isCanvasLocked}
               onToggleLock={() => setIsCanvasLocked(!isCanvasLocked)}
             />
+            {/* Global Search */}
+            {currentProjectPath && (
+              <GlobalSearch
+                projectPath={currentProjectPath}
+                tabs={tabs}
+                activeTabId={activeTabId}
+                loadTabFlow={loadTabFlow}
+                navigateToNode={navigateToNode}
+                canvasRef={canvasRef}
+              />
+            )}
           </div>
           <div className="flex items-center gap-4">
             <input
