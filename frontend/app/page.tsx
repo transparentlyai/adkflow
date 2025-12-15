@@ -4,10 +4,11 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import ReactFlowCanvas, { ReactFlowCanvasRef } from "@/components/ReactFlowCanvas";
 import TopMenubar from "@/components/TopMenubar";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import ProjectDialog from "@/components/ProjectDialog";
 import SaveConfirmDialog from "@/components/SaveConfirmDialog";
 import PromptNameDialog from "@/components/PromptNameDialog";
-import { loadProject, saveProject, createPrompt, createContext, createTool, savePrompt, readPrompt } from "@/lib/api";
+import HomeScreen from "@/components/HomeScreen";
+import ProjectSwitcher from "@/components/ProjectSwitcher";
+import { createPrompt, createContext, createTool, savePrompt, readPrompt } from "@/lib/api";
 import FilePicker from "@/components/FilePicker";
 import { loadSession, saveSession } from "@/lib/sessionStorage";
 import { ProjectProvider } from "@/contexts/ProjectContext";
@@ -16,6 +17,12 @@ import { TabsProvider, useTabs } from "@/contexts/TabsContext";
 import TabBar from "@/components/TabBar";
 import type { Node, Edge } from "@xyflow/react";
 import { Lock } from "lucide-react";
+import {
+  getRecentProjects,
+  addRecentProject,
+  removeRecentProject,
+  type RecentProject,
+} from "@/lib/recentProjects";
 
 // Main component that uses contexts
 function HomeContent() {
@@ -42,9 +49,11 @@ function HomeContent() {
 
   // Project state
   const [currentProjectPath, setCurrentProjectPath] = useState<string | null>(null);
-  const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
-  const [projectDialogMode, setProjectDialogMode] = useState<"create" | "load">("create");
+  const [isProjectSwitcherOpen, setIsProjectSwitcherOpen] = useState(false);
+  const [projectSwitcherMode, setProjectSwitcherMode] = useState<"create" | "open">("open");
   const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false);
+  const [showHomeScreen, setShowHomeScreen] = useState(false);
+  const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
 
   // Get unsaved changes from active tab
   const hasUnsavedChanges = activeTab?.hasUnsavedChanges ?? false;
@@ -76,8 +85,11 @@ function HomeContent() {
   const [filePickerInitialPath, setFilePickerInitialPath] = useState<string | undefined>(undefined);
   const [filePickerCallback, setFilePickerCallback] = useState<((newPath: string) => void) | null>(null);
 
-  // Load session on mount
+  // Load session and recent projects on mount
   useEffect(() => {
+    // Load recent projects from localStorage
+    setRecentProjects(getRecentProjects());
+
     const session = loadSession();
     if (session && session.currentProjectPath) {
       const projectPath = session.currentProjectPath;
@@ -95,13 +107,20 @@ function HomeContent() {
               canvasRef.current.restoreFlow(flow);
             }
           }
+          // Add to recent projects
+          addRecentProject({
+            path: projectPath,
+            name: result.projectName,
+            lastOpened: Date.now(),
+          });
+          setRecentProjects(getRecentProjects());
         }
       })();
 
       setIsSessionLoaded(true);
     } else {
-      // No session, show project dialog
-      setIsProjectDialogOpen(true);
+      // No session, show home screen
+      setShowHomeScreen(true);
       setIsSessionLoaded(true);
     }
   }, [initializeTabs, loadTabFlow]);
@@ -125,11 +144,13 @@ function HomeContent() {
   }, [activeTabId, markTabDirty]);
 
   // Project Management Handlers
-  const handleCreateNewProject = async (projectPath: string) => {
+  const handleCreateNewProject = async (projectPath: string, projectName?: string) => {
     try {
+      const name = projectName || "Untitled Workflow";
       setCurrentProjectPath(projectPath);
-      setWorkflowName("Untitled Workflow");
-      setIsProjectDialogOpen(false);
+      setWorkflowName(name);
+      setIsProjectSwitcherOpen(false);
+      setShowHomeScreen(false);
 
       // Initialize tabs and create first tab
       const firstTab = await initializeTabs(projectPath);
@@ -142,6 +163,14 @@ function HomeContent() {
       if (canvasRef.current) {
         canvasRef.current.clearCanvas();
       }
+
+      // Add to recent projects
+      addRecentProject({
+        path: projectPath,
+        name: name,
+        lastOpened: Date.now(),
+      });
+      setRecentProjects(getRecentProjects());
     } catch (error) {
       console.error("Error creating project:", error);
       alert("Failed to create project: " + (error as Error).message);
@@ -152,12 +181,12 @@ function HomeContent() {
     try {
       // Initialize tabs for the project
       const result = await initializeTabs(projectPath);
+      let projectName = "Untitled Workflow";
 
       if (!result || !result.firstTab) {
         alert(`No tabs found at ${projectPath}. Creating a new project instead.`);
         // Create first tab if none exist
         await createNewTab(projectPath, "Flow 1");
-        setWorkflowName("Untitled Workflow");
       } else {
         // Load the first tab's flow
         const flow = await loadTabFlow(projectPath, result.firstTab.id);
@@ -165,11 +194,21 @@ function HomeContent() {
           canvasRef.current.restoreFlow(flow);
         }
         // Load project name from manifest
-        setWorkflowName(result.projectName);
+        projectName = result.projectName;
       }
 
+      setWorkflowName(projectName);
       setCurrentProjectPath(projectPath);
-      setIsProjectDialogOpen(false);
+      setIsProjectSwitcherOpen(false);
+      setShowHomeScreen(false);
+
+      // Add to recent projects
+      addRecentProject({
+        path: projectPath,
+        name: projectName,
+        lastOpened: Date.now(),
+      });
+      setRecentProjects(getRecentProjects());
     } catch (error) {
       console.error("Error loading project:", error);
       alert("Failed to load project: " + (error as Error).message);
@@ -202,32 +241,37 @@ function HomeContent() {
   };
 
   const handleNewProject = () => {
-    setProjectDialogMode("create");
+    setProjectSwitcherMode("create");
     if (hasUnsavedChanges) {
       setIsSaveConfirmOpen(true);
     } else {
-      setIsProjectDialogOpen(true);
+      setIsProjectSwitcherOpen(true);
     }
   };
 
   const handleLoadProject = () => {
-    setProjectDialogMode("load");
+    setProjectSwitcherMode("open");
     if (hasUnsavedChanges) {
       setIsSaveConfirmOpen(true);
     } else {
-      setIsProjectDialogOpen(true);
+      setIsProjectSwitcherOpen(true);
     }
   };
 
   const handleSaveAndContinue = async () => {
     await handleSaveCurrentProject();
     setIsSaveConfirmOpen(false);
-    setIsProjectDialogOpen(true);
+    setIsProjectSwitcherOpen(true);
   };
 
   const handleDontSave = () => {
     setIsSaveConfirmOpen(false);
-    setIsProjectDialogOpen(true);
+    setIsProjectSwitcherOpen(true);
+  };
+
+  const handleRemoveRecentProject = (path: string) => {
+    removeRecentProject(path);
+    setRecentProjects(getRecentProjects());
   };
 
   const handleCancelNewProject = () => {
@@ -537,6 +581,18 @@ function HomeContent() {
     await duplicateTabById(currentProjectPath, tabId);
   }, [currentProjectPath, duplicateTabById]);
 
+  // Show HomeScreen for first-time users
+  if (showHomeScreen && !currentProjectPath) {
+    return (
+      <HomeScreen
+        recentProjects={recentProjects}
+        onCreateProject={handleCreateNewProject}
+        onLoadProject={handleLoadExistingProject}
+        onRemoveRecent={handleRemoveRecentProject}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
@@ -624,12 +680,16 @@ function HomeContent() {
         </main>
       </div>
 
-      {/* Project Dialog */}
-      <ProjectDialog
-        isOpen={isProjectDialogOpen}
-        onCreateNew={handleCreateNewProject}
-        onLoadExisting={handleLoadExistingProject}
-        initialMode={projectDialogMode}
+      {/* Project Switcher */}
+      <ProjectSwitcher
+        isOpen={isProjectSwitcherOpen}
+        onClose={() => setIsProjectSwitcherOpen(false)}
+        onCreateProject={handleCreateNewProject}
+        onLoadProject={handleLoadExistingProject}
+        recentProjects={recentProjects}
+        onRemoveRecent={handleRemoveRecentProject}
+        currentProjectPath={currentProjectPath}
+        mode={projectSwitcherMode}
       />
 
       {/* Save Confirm Dialog */}
