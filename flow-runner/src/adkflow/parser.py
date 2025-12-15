@@ -124,7 +124,6 @@ def extract_variables(workflow: dict) -> list:
     Returns:
         List of unique variable names found in the workflow
     """
-    import re
     from adkflow.variable_resolver import extract_variable_names
 
     variables = set()

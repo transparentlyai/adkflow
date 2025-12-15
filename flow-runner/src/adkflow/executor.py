@@ -1,6 +1,5 @@
 """Workflow executor for ADKFlow using Google ADK."""
 
-import asyncio
 import os
 from typing import Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -10,7 +9,6 @@ from google.genai import types
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 from rich.panel import Panel
-from rich.syntax import Syntax
 from rich.markdown import Markdown
 
 from adkflow.variable_resolver import resolve_dict_variables
@@ -55,7 +53,7 @@ class WorkflowExecutor:
                 )
 
             if self.verbose:
-                console.print(f"[blue]Using Vertex AI with Application Default Credentials[/blue]")
+                console.print("[blue]Using Vertex AI with Application Default Credentials[/blue]")
                 console.print(f"[blue]Project: {project}, Location: {location}[/blue]")
 
             self.client = genai.Client(
