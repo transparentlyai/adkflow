@@ -8,6 +8,7 @@ import ResizeHandle from "@/components/ResizeHandle";
 import AgentPropertiesPanel from "@/components/AgentPropertiesPanel";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { Lock } from "lucide-react";
 
 // Shallow comparison for arrays of strings
@@ -31,17 +32,18 @@ export interface AgentNodeData {
   isNodeLocked?: boolean;
 }
 
-const TYPE_BADGES: Record<AgentType, { label: string; color: string }> = {
-  llm: { label: "LLM", color: "bg-slate-100 text-slate-700" },
-  sequential: { label: "Sequential", color: "bg-blue-100 text-blue-700" },
-  parallel: { label: "Parallel", color: "bg-green-100 text-green-700" },
-  loop: { label: "Loop", color: "bg-amber-100 text-amber-700" },
+const TYPE_BADGE_LABELS: Record<AgentType, string> = {
+  llm: "LLM",
+  sequential: "Sequential",
+  parallel: "Parallel",
+  loop: "Loop",
 };
 
 const AgentNode = memo(({ data, id, selected }: NodeProps) => {
   const { agent, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked } = data as unknown as AgentNodeData;
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
+  const { theme } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(agent.name);
@@ -276,18 +278,23 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
     [id, agent, setNodes]
   );
 
-  const handleStyle = { width: "10px", height: "10px", border: "2px solid white" };
-  const linkHandleStyle = { width: "8px", height: "8px", border: "2px solid white" };
+  const handleStyle = { width: "10px", height: "10px", border: `2px solid ${theme.colors.handles.border}` };
+  const linkHandleStyle = { width: "8px", height: "8px", border: `2px solid ${theme.colors.handles.border}` };
 
-  const typeBadge = TYPE_BADGES[agent.type] || TYPE_BADGES.llm;
+  const typeBadgeLabel = TYPE_BADGE_LABELS[agent.type] || TYPE_BADGE_LABELS.llm;
+  const typeBadgeColors = theme.colors.nodes.agent.badges[agent.type] || theme.colors.nodes.agent.badges.llm;
 
   // Collapsed view
   if (!isExpanded) {
     return (
       <div
-        className={`bg-white rounded-lg shadow-lg min-w-[250px] max-w-[300px] transition-all cursor-pointer ${
-          selected ? "ring-2 ring-blue-700 shadow-xl" : ""
-        }`}
+        className="rounded-lg shadow-lg min-w-[250px] max-w-[300px] transition-all cursor-pointer"
+        style={{
+          backgroundColor: theme.colors.nodes.common.container.background,
+          ...(selected && {
+            boxShadow: `0 0 0 2px ${theme.colors.nodes.agent.ring}`,
+          }),
+        }}
         onDoubleClick={toggleExpand}
         title="Double-click to configure"
       >
@@ -299,7 +306,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           defaultEdge="left"
           defaultPercent={50}
           handlePositions={handlePositions}
-          style={{ ...handleStyle, backgroundColor: "#1e40af" }}
+          style={{ ...handleStyle, backgroundColor: theme.colors.handles.input }}
         />
 
         {/* Link Handle - Top */}
@@ -311,12 +318,16 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           defaultPercent={50}
           handlePositions={handlePositions}
           title="Chain with other agents for parallel execution"
-          style={{ ...linkHandleStyle, backgroundColor: "#9ca3af" }}
+          style={{ ...linkHandleStyle, backgroundColor: theme.colors.handles.link }}
         />
 
         {/* Header */}
         <div
-          className="bg-blue-800 text-white px-2 py-1 rounded-t-lg flex items-center gap-1.5"
+          className="px-2 py-1 rounded-t-lg flex items-center gap-1.5"
+          style={{
+            backgroundColor: theme.colors.nodes.agent.header,
+            color: theme.colors.nodes.agent.text,
+          }}
           onContextMenu={handleHeaderContextMenu}
         >
           {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
@@ -345,35 +356,48 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         {/* Body */}
         <div className="p-3 text-sm space-y-1.5">
           <div className="flex items-center gap-2">
-            <span className="text-gray-500 text-xs">Model:</span>
-            <span className="text-gray-900 text-xs font-medium">{agent.model || "Not set"}</span>
+            <span className="text-xs" style={{ color: theme.colors.nodes.common.text.secondary }}>Model:</span>
+            <span className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.primary }}>{agent.model || "Not set"}</span>
           </div>
 
           {connectedPromptName && (
             <div className="flex items-center gap-2">
-              <svg className="w-3.5 h-3.5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5 flex-shrink-0" style={{ color: theme.colors.nodes.prompt.header }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <span className="text-xs text-gray-700 truncate">{connectedPromptName}</span>
+              <span className="text-xs truncate" style={{ color: theme.colors.nodes.common.text.secondary }}>{connectedPromptName}</span>
             </div>
           )}
 
           {connectedToolNames.length > 0 && (
             <div className="flex items-center gap-2">
-              <svg className="w-3.5 h-3.5 text-cyan-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5 flex-shrink-0" style={{ color: theme.colors.nodes.tool.header }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              <span className="text-xs text-gray-700 truncate">{connectedToolNames.join(", ")}</span>
+              <span className="text-xs truncate" style={{ color: theme.colors.nodes.common.text.secondary }}>{connectedToolNames.join(", ")}</span>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="bg-gray-50 px-2 py-1 rounded-b-lg border-t border-gray-200 flex items-center justify-between">
-          <span className="text-xs text-gray-500">Agent</span>
-          <span className={`text-xs px-1.5 py-0.5 rounded ${typeBadge.color}`}>
-            {typeBadge.label}
+        <div
+          className="px-2 py-1 rounded-b-lg border-t flex items-center justify-between"
+          style={{
+            backgroundColor: theme.colors.nodes.common.footer.background,
+            borderColor: theme.colors.nodes.common.footer.border,
+            color: theme.colors.nodes.common.footer.text,
+          }}
+        >
+          <span className="text-xs">Agent</span>
+          <span
+            className="text-xs px-1.5 py-0.5 rounded"
+            style={{
+              backgroundColor: typeBadgeColors.background,
+              color: typeBadgeColors.text,
+            }}
+          >
+            {typeBadgeLabel}
           </span>
         </div>
 
@@ -386,7 +410,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           defaultPercent={50}
           handlePositions={handlePositions}
           title="Chain with other agents for parallel execution"
-          style={{ ...linkHandleStyle, backgroundColor: "#9ca3af" }}
+          style={{ ...linkHandleStyle, backgroundColor: theme.colors.handles.link }}
         />
 
         {/* Output Handle */}
@@ -397,7 +421,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           defaultEdge="right"
           defaultPercent={50}
           handlePositions={handlePositions}
-          style={{ ...handleStyle, backgroundColor: "#22c55e" }}
+          style={{ ...handleStyle, backgroundColor: theme.colors.handles.output }}
         />
 
         {contextMenu && (
@@ -422,10 +446,15 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
   // Expanded view with properties panel
   return (
     <div
-      className={`bg-white rounded-lg shadow-lg relative ${
-        selected ? "ring-2 ring-blue-900 shadow-xl" : ""
-      }`}
-      style={{ width: size.width, height: size.height }}
+      className="rounded-lg shadow-lg relative"
+      style={{
+        width: size.width,
+        height: size.height,
+        backgroundColor: theme.colors.nodes.common.container.background,
+        ...(selected && {
+          boxShadow: `0 0 0 2px ${theme.colors.nodes.agent.ring}`,
+        }),
+      }}
     >
       {/* Input Handle */}
       <DraggableHandle
@@ -435,7 +464,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="left"
         defaultPercent={50}
         handlePositions={handlePositions}
-        style={{ ...handleStyle, backgroundColor: "#1e40af" }}
+        style={{ ...handleStyle, backgroundColor: theme.colors.handles.input }}
       />
 
       {/* Link Handle - Top */}
@@ -447,12 +476,16 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         defaultPercent={50}
         handlePositions={handlePositions}
         title="Chain with other agents for parallel execution"
-        style={{ ...linkHandleStyle, backgroundColor: "#9ca3af" }}
+        style={{ ...linkHandleStyle, backgroundColor: theme.colors.handles.link }}
       />
 
       {/* Header */}
       <div
-        className="bg-blue-800 text-white px-2 py-1 rounded-t-lg flex items-center justify-between cursor-pointer"
+        className="px-2 py-1 rounded-t-lg flex items-center justify-between cursor-pointer"
+        style={{
+          backgroundColor: theme.colors.nodes.agent.header,
+          color: theme.colors.nodes.agent.text,
+        }}
         onDoubleClick={toggleExpand}
         onContextMenu={handleHeaderContextMenu}
       >
@@ -484,7 +517,16 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         </div>
         <button
           onClick={toggleExpand}
-          className="ml-1.5 p-0.5 hover:bg-blue-700 rounded transition-colors flex-shrink-0"
+          className="ml-1.5 p-0.5 rounded transition-colors flex-shrink-0"
+          style={{
+            backgroundColor: "transparent",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = theme.colors.nodes.agent.headerHover || theme.colors.nodes.agent.header;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "transparent";
+          }}
           title="Collapse"
         >
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -505,10 +547,23 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
       </div>
 
       {/* Footer */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gray-50 px-2 py-1 rounded-b-lg border-t border-gray-200 flex items-center justify-between">
-        <span className="text-xs text-gray-500">Agent</span>
-        <span className={`text-xs px-1.5 py-0.5 rounded ${typeBadge.color}`}>
-          {typeBadge.label}
+      <div
+        className="absolute bottom-0 left-0 right-0 px-2 py-1 rounded-b-lg border-t flex items-center justify-between"
+        style={{
+          backgroundColor: theme.colors.nodes.common.footer.background,
+          borderColor: theme.colors.nodes.common.footer.border,
+          color: theme.colors.nodes.common.footer.text,
+        }}
+      >
+        <span className="text-xs">Agent</span>
+        <span
+          className="text-xs px-1.5 py-0.5 rounded"
+          style={{
+            backgroundColor: typeBadgeColors.background,
+            color: typeBadgeColors.text,
+          }}
+        >
+          {typeBadgeLabel}
         </span>
       </div>
 
@@ -524,7 +579,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         defaultPercent={50}
         handlePositions={handlePositions}
         title="Chain with other agents for parallel execution"
-        style={{ ...linkHandleStyle, backgroundColor: "#9ca3af" }}
+        style={{ ...linkHandleStyle, backgroundColor: theme.colors.handles.link }}
       />
 
       {/* Output Handle */}
@@ -535,7 +590,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="right"
         defaultPercent={50}
         handlePositions={handlePositions}
-        style={{ ...handleStyle, backgroundColor: "#22c55e" }}
+        style={{ ...handleStyle, backgroundColor: theme.colors.handles.output }}
       />
 
       {contextMenu && (

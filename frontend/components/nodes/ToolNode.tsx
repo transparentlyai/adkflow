@@ -11,6 +11,7 @@ import { useProject } from "@/contexts/ProjectContext";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock } from "lucide-react";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const DEFAULT_WIDTH = 500;
 const DEFAULT_HEIGHT = 320;
@@ -47,6 +48,7 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
+  const { theme } = useTheme();
 
   const handleCopy = useCallback(() => {
     setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
@@ -266,9 +268,14 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
         onDoubleClick={toggleExpand}
         onContextMenu={handleHeaderContextMenu}
         title="Double-click to expand"
-        className={`bg-cyan-600 text-white rounded-lg shadow-md cursor-pointer hover:bg-cyan-700 px-2 py-1 ${
-          selected ? "ring-2 ring-cyan-400 shadow-xl" : ""
+        className={`rounded-lg shadow-md cursor-pointer px-2 py-1 ${
+          selected ? "ring-2 shadow-xl" : ""
         }`}
+        style={{
+          backgroundColor: theme.colors.nodes.tool.header,
+          color: theme.colors.nodes.tool.text,
+          ...(selected && { borderColor: theme.colors.nodes.tool.ring }),
+        }}
       >
         <div className="flex items-center gap-1.5">
           {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
@@ -285,7 +292,11 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
               onBlur={handleNameSave}
               onKeyDown={handleNameKeyDown}
               onClick={(e) => e.stopPropagation()}
-              className="flex-1 bg-white text-gray-900 px-1.5 py-0.5 rounded text-xs font-medium outline-none min-w-0"
+              className="flex-1 px-1.5 py-0.5 rounded text-xs font-medium outline-none min-w-0"
+              style={{
+                backgroundColor: theme.colors.nodes.common.container.background,
+                color: theme.colors.nodes.common.text.primary
+              }}
             />
           ) : (
             <span
@@ -300,7 +311,18 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
               e.stopPropagation();
               toggleExpand();
             }}
-            className="p-0.5 hover:bg-cyan-700 rounded transition-colors flex-shrink-0"
+            className="p-0.5 rounded transition-colors flex-shrink-0"
+            style={{
+              backgroundColor: 'transparent',
+            }}
+            onMouseEnter={(e) => {
+              if (theme.colors.nodes.tool.headerHover) {
+                e.currentTarget.style.backgroundColor = theme.colors.nodes.tool.headerHover;
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
             title="Expand"
           >
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -313,7 +335,7 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
         <Handle
           type="source"
           position={Position.Right}
-          style={{ width: '8px', height: '8px', backgroundColor: '#0891b2', border: '2px solid white' }}
+          style={{ width: '8px', height: '8px', backgroundColor: theme.colors.handles.tool, border: `2px solid ${theme.colors.handles.border}` }}
         />
 
         {contextMenu && (
@@ -338,14 +360,22 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
   // Expanded view - with code editor
   return (
     <div
-      className={`bg-white rounded-lg shadow-lg relative ${
-        selected ? "ring-2 ring-cyan-500 shadow-xl" : ""
+      className={`rounded-lg shadow-lg relative ${
+        selected ? "ring-2 shadow-xl" : ""
       }`}
-      style={{ width: size.width }}
+      style={{
+        width: size.width,
+        backgroundColor: theme.colors.nodes.common.container.background,
+        ...(selected && { borderColor: theme.colors.nodes.tool.ring }),
+      }}
     >
       {/* Header */}
       <div
-        className="bg-cyan-600 text-white px-2 py-1 rounded-t-lg flex items-center justify-between cursor-pointer"
+        className="px-2 py-1 rounded-t-lg flex items-center justify-between cursor-pointer"
+        style={{
+          backgroundColor: theme.colors.nodes.tool.header,
+          color: theme.colors.nodes.tool.text,
+        }}
         onDoubleClick={toggleExpand}
         onContextMenu={handleHeaderContextMenu}
       >
@@ -364,7 +394,11 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
               onBlur={handleNameSave}
               onKeyDown={handleNameKeyDown}
               onClick={(e) => e.stopPropagation()}
-              className="flex-1 bg-white text-gray-900 px-1.5 py-0.5 rounded text-xs font-medium outline-none min-w-0"
+              className="flex-1 px-1.5 py-0.5 rounded text-xs font-medium outline-none min-w-0"
+              style={{
+                backgroundColor: theme.colors.nodes.common.container.background,
+                color: theme.colors.nodes.common.text.primary
+              }}
             />
           ) : (
             <span
@@ -377,7 +411,18 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
         </div>
         <button
           onClick={toggleExpand}
-          className="ml-1.5 p-0.5 hover:bg-cyan-700 rounded transition-colors flex-shrink-0"
+          className="ml-1.5 p-0.5 rounded transition-colors flex-shrink-0"
+          style={{
+            backgroundColor: 'transparent',
+          }}
+          onMouseEnter={(e) => {
+            if (theme.colors.nodes.tool.headerHover) {
+              e.currentTarget.style.backgroundColor = theme.colors.nodes.tool.headerHover;
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }}
           title="Collapse"
         >
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -396,8 +441,11 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
 
       {/* Code Editor */}
       <div
-        className="border-b border-gray-200 nodrag nowheel nopan"
-        style={{ height: editorHeight }}
+        className="nodrag nowheel nopan"
+        style={{
+          height: editorHeight,
+          borderBottom: `1px solid ${theme.colors.nodes.common.container.border}`
+        }}
         onKeyDown={(e) => e.stopPropagation()}
       >
         <Editor
@@ -405,7 +453,7 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
           defaultLanguage="python"
           value={code}
           onChange={handleCodeChange}
-          theme="vs-light"
+          theme={theme.colors.monaco}
           options={{
             minimap: { enabled: false },
             fontSize: 12,
@@ -432,9 +480,14 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
       </div>
 
       {/* Footer */}
-      <div className="bg-gray-50 px-3 py-2 rounded-b-lg flex items-center justify-between">
-        <span className="text-xs text-gray-500">{name}</span>
-        <span className="text-xs text-gray-400">{lineCount} lines</span>
+      <div
+        className="px-3 py-2 rounded-b-lg flex items-center justify-between"
+        style={{
+          backgroundColor: theme.colors.nodes.common.footer.background,
+        }}
+      >
+        <span className="text-xs" style={{ color: theme.colors.nodes.common.footer.text }}>{name}</span>
+        <span className="text-xs" style={{ color: theme.colors.nodes.common.text.muted }}>{lineCount} lines</span>
       </div>
 
       {/* Resize Handle */}
@@ -448,7 +501,7 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="right"
         defaultPercent={50}
         handlePositions={handlePositions}
-        style={{ width: '10px', height: '10px', backgroundColor: '#0891b2', border: '2px solid white' }}
+        style={{ width: '10px', height: '10px', backgroundColor: theme.colors.handles.tool, border: `2px solid ${theme.colors.handles.border}` }}
       />
 
       {contextMenu && (

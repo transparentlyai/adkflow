@@ -8,6 +8,7 @@ import {
   MenubarSeparator,
   MenubarTrigger,
 } from "@/components/ui/menubar";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface EditorMenuBarProps {
   onSave?: () => void;
@@ -24,9 +25,11 @@ export default function EditorMenuBar({
   isSaving = false,
   className = "",
 }: EditorMenuBarProps) {
+  const { theme } = useTheme();
+
   return (
     <div className={`nodrag ${className}`}>
-      <Menubar className="h-7 border-0 border-b border-gray-200 rounded-none bg-gray-50 px-1">
+      <Menubar className="h-7 border-0 border-b rounded-none px-1" style={{ borderColor: theme.colors.nodes.common.container.border, backgroundColor: theme.colors.nodes.common.footer.background }}>
         <MenubarMenu>
           <MenubarTrigger className="h-5 px-2 text-xs font-normal">File</MenubarTrigger>
           <MenubarContent>

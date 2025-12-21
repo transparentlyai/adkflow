@@ -4,6 +4,7 @@ import { memo, useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { NodeResizer, type NodeProps, useReactFlow, useStore, type ResizeParams } from "@xyflow/react";
 import { useProject } from "@/contexts/ProjectContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { Settings, X, Unlink } from "lucide-react";
 import ResizeHandle from "@/components/ResizeHandle";
 
@@ -63,6 +64,7 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
 
   const { setNodes } = useReactFlow();
   const { isLocked } = useProject();
+  const { theme } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
   const [editedLabel, setEditedLabel] = useState(label);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -258,15 +260,26 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
   if (isExpanded) {
     return (
       <div
-        className="bg-white rounded-lg shadow-lg border border-gray-200"
-        style={{ width: size.width, height: size.height }}
+        className="rounded-lg shadow-lg border"
+        style={{
+          width: size.width,
+          height: size.height,
+          backgroundColor: theme.colors.nodes.common.container.background,
+          borderColor: theme.colors.nodes.common.container.border,
+        }}
       >
         {/* Header */}
-        <div className="bg-gray-500 text-white px-3 py-1.5 rounded-t-lg flex items-center justify-between">
+        <div
+          className="px-3 py-1.5 rounded-t-lg flex items-center justify-between"
+          style={{
+            backgroundColor: theme.colors.nodes.label.header,
+            color: theme.colors.nodes.label.text,
+          }}
+        >
           <span className="text-sm font-medium truncate">Label Settings</span>
           <button
             onClick={toggleExpand}
-            className="p-0.5 hover:bg-gray-600 rounded transition-colors"
+            className="p-0.5 rounded transition-colors hover:opacity-80"
             title="Close"
           >
             <X className="w-4 h-4" />
@@ -274,11 +287,21 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
         </div>
 
         {/* Preview */}
-        <div className="p-3 border-b border-gray-200 bg-gray-50">
-          <div className="text-xs text-gray-500 mb-1">Preview</div>
+        <div
+          className="p-3 border-b"
+          style={{
+            borderColor: theme.colors.nodes.common.container.border,
+            backgroundColor: theme.colors.ui.muted,
+          }}
+        >
+          <div className="text-xs mb-1" style={{ color: theme.colors.nodes.common.text.muted }}>
+            Preview
+          </div>
           <div
-            className="p-2 bg-white rounded border border-gray-200 min-h-[40px] flex items-center"
+            className="p-2 rounded border min-h-[40px] flex items-center"
             style={{
+              backgroundColor: theme.colors.nodes.common.container.background,
+              borderColor: theme.colors.nodes.common.container.border,
               fontFamily,
               fontWeight,
               fontStyle,
@@ -295,22 +318,36 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
         <div className="p-3 space-y-3 overflow-y-auto nodrag" style={{ height: size.height - 140 }}>
           {/* Text */}
           <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">Text</label>
+            <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.primary }}>
+              Text
+            </label>
             <input
               type="text"
               value={label}
               onChange={(e) => updateData({ label: e.target.value })}
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500"
+              className="w-full px-2 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-1"
+              style={{
+                borderColor: theme.colors.ui.border,
+                backgroundColor: theme.colors.ui.background,
+                color: theme.colors.ui.foreground,
+              }}
             />
           </div>
 
           {/* Font Family */}
           <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">Font Family</label>
+            <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.primary }}>
+              Font Family
+            </label>
             <select
               value={fontFamily}
               onChange={(e) => updateData({ fontFamily: e.target.value })}
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500 bg-white"
+              className="w-full px-2 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-1"
+              style={{
+                borderColor: theme.colors.ui.border,
+                backgroundColor: theme.colors.ui.background,
+                color: theme.colors.ui.foreground,
+              }}
             >
               {FONT_FAMILIES.map((f) => (
                 <option key={f.value} value={f.value}>
@@ -323,11 +360,18 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
           {/* Font Weight & Style */}
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-700">Weight</label>
+              <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.primary }}>
+                Weight
+              </label>
               <select
                 value={fontWeight}
                 onChange={(e) => updateData({ fontWeight: e.target.value })}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500 bg-white"
+                className="w-full px-2 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-1"
+                style={{
+                  borderColor: theme.colors.ui.border,
+                  backgroundColor: theme.colors.ui.background,
+                  color: theme.colors.ui.foreground,
+                }}
               >
                 {FONT_WEIGHTS.map((w) => (
                   <option key={w.value} value={w.value}>
@@ -337,11 +381,18 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-700">Style</label>
+              <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.primary }}>
+                Style
+              </label>
               <select
                 value={fontStyle}
                 onChange={(e) => updateData({ fontStyle: e.target.value })}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500 bg-white"
+                className="w-full px-2 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-1"
+                style={{
+                  borderColor: theme.colors.ui.border,
+                  backgroundColor: theme.colors.ui.background,
+                  color: theme.colors.ui.foreground,
+                }}
               >
                 <option value="normal">Normal</option>
                 <option value="italic">Italic</option>
@@ -351,17 +402,20 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
 
           {/* Alignment */}
           <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">Alignment</label>
+            <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.primary }}>
+              Alignment
+            </label>
             <div className="flex gap-1">
               {(["left", "center", "right"] as const).map((align) => (
                 <button
                   key={align}
                   onClick={() => updateData({ textAlign: align })}
-                  className={`flex-1 px-2 py-1.5 text-sm border rounded-md transition-colors ${
-                    textAlign === align
-                      ? "bg-gray-500 text-white border-gray-500"
-                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                  }`}
+                  className="flex-1 px-2 py-1.5 text-sm border rounded-md transition-colors"
+                  style={{
+                    backgroundColor: textAlign === align ? theme.colors.nodes.label.header : theme.colors.ui.background,
+                    color: textAlign === align ? theme.colors.nodes.label.text : theme.colors.ui.foreground,
+                    borderColor: textAlign === align ? theme.colors.nodes.label.header : theme.colors.ui.border,
+                  }}
                 >
                   {align.charAt(0).toUpperCase() + align.slice(1)}
                 </button>
@@ -371,16 +425,20 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
 
           {/* Color */}
           <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">Color</label>
+            <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.primary }}>
+              Color
+            </label>
             <div className="flex flex-wrap gap-1.5">
               {PRESET_COLORS.map((c) => (
                 <button
                   key={c}
                   onClick={() => updateData({ color: c })}
-                  className={`w-6 h-6 rounded border-2 transition-all ${
-                    color === c ? "border-gray-800 scale-110" : "border-transparent hover:scale-105"
-                  }`}
-                  style={{ backgroundColor: c }}
+                  className="w-6 h-6 rounded border-2 transition-all hover:scale-105"
+                  style={{
+                    backgroundColor: c,
+                    borderColor: color === c ? theme.colors.ui.foreground : "transparent",
+                    transform: color === c ? "scale(1.1)" : "scale(1)",
+                  }}
                   title={c}
                 />
               ))}
@@ -389,7 +447,8 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
               type="color"
               value={color}
               onChange={(e) => updateData({ color: e.target.value })}
-              className="w-full h-8 mt-1 cursor-pointer rounded border border-gray-300"
+              className="w-full h-8 mt-1 cursor-pointer rounded border"
+              style={{ borderColor: theme.colors.ui.border }}
             />
           </div>
         </div>
@@ -407,7 +466,11 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
         minHeight={20}
         isVisible={selected && !isLocked}
         lineClassName="!border-transparent"
-        handleClassName="!w-2 !h-2 !bg-gray-400 !border-gray-400"
+        handleClassName="!w-2 !h-2"
+        handleStyle={{
+          backgroundColor: theme.colors.nodes.label.ring,
+          borderColor: theme.colors.nodes.label.ring,
+        }}
         keepAspectRatio
         onResizeEnd={handleNodeResize}
       />
@@ -434,8 +497,13 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
             onBlur={handleSave}
             onKeyDown={handleKeyDown}
             onClick={(e) => e.stopPropagation()}
-            className="w-full bg-white px-1 py-0.5 rounded text-center outline-none border border-gray-300 nodrag"
-            style={{ fontSize: `${scaledFontSize}px`, color }}
+            className="w-full px-1 py-0.5 rounded text-center outline-none border nodrag"
+            style={{
+              fontSize: `${scaledFontSize}px`,
+              color,
+              backgroundColor: theme.colors.ui.background,
+              borderColor: theme.colors.ui.border,
+            }}
           />
         ) : (
           <span className="whitespace-nowrap" style={{ color }}>

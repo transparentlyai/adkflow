@@ -12,6 +12,7 @@ import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock } from "lucide-react";
 import { readPrompt } from "@/lib/api";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const DEFAULT_WIDTH = 500;
 const DEFAULT_HEIGHT = 320;
@@ -31,6 +32,7 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
   const { setNodes } = useReactFlow();
   const { projectPath, onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
+  const { theme } = useTheme();
 
   const handleCopy = useCallback(() => {
     setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
@@ -269,18 +271,24 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
 
   return (
     <div
-      className={`bg-white rounded-lg shadow-lg relative ${
-        selected ? "ring-2 ring-green-500 shadow-xl" : ""
-      }`}
+      className="rounded-lg shadow-lg relative"
       style={{
         width: isExpanded ? size.width : 'auto',
         minWidth: isExpanded ? size.width : 'auto',
+        backgroundColor: theme.colors.nodes.common.container.background,
+        ...(selected ? {
+          boxShadow: `0 0 0 2px ${theme.colors.nodes.prompt.ring}`,
+        } : {}),
       }}
     >
       {/* Header */}
       <div
-        className={`bg-green-600 text-white px-2 py-1 flex items-center justify-between cursor-pointer ${isExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}
-        style={{ minWidth: isExpanded ? undefined : 'auto' }}
+        className={`px-2 py-1 flex items-center justify-between cursor-pointer ${isExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}
+        style={{
+          minWidth: isExpanded ? undefined : 'auto',
+          backgroundColor: theme.colors.nodes.prompt.header,
+          color: theme.colors.nodes.prompt.text,
+        }}
         onDoubleClick={toggleExpand}
         onContextMenu={handleHeaderContextMenu}
       >
@@ -298,7 +306,11 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
               onBlur={handleNameSave}
               onKeyDown={handleNameKeyDown}
               onClick={(e) => e.stopPropagation()}
-              className="flex-1 bg-white text-gray-900 px-1.5 py-0.5 rounded text-xs font-medium outline-none min-w-0"
+              className="flex-1 px-1.5 py-0.5 rounded text-xs font-medium outline-none min-w-0"
+              style={{
+                backgroundColor: theme.colors.nodes.common.container.background,
+                color: theme.colors.nodes.common.text.primary
+              }}
             />
           ) : (
             <span
@@ -311,7 +323,18 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
         </div>
         <button
           onClick={toggleExpand}
-          className="ml-1.5 p-0.5 hover:bg-green-700 rounded transition-colors flex-shrink-0"
+          className="ml-1.5 p-0.5 rounded transition-colors flex-shrink-0"
+          style={{
+            backgroundColor: 'transparent',
+          }}
+          onMouseEnter={(e) => {
+            if (theme.colors.nodes.prompt.headerHover) {
+              e.currentTarget.style.backgroundColor = theme.colors.nodes.prompt.headerHover;
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }}
           title={isExpanded ? "Collapse" : "Expand"}
         >
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -334,8 +357,11 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
             isSaving={isSaving}
           />
           <div
-            className="border-b border-gray-200 nodrag nowheel nopan"
-            style={{ height: editorHeight }}
+            className="nodrag nowheel nopan"
+            style={{
+              height: editorHeight,
+              borderBottom: `1px solid ${theme.colors.nodes.common.container.border}`
+            }}
             onKeyDown={(e) => e.stopPropagation()}
           >
             <Editor
@@ -343,7 +369,7 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
               defaultLanguage="markdown"
               value={content}
               onChange={handleContentChange}
-              theme="vs-light"
+              theme={theme.colors.monaco}
               options={{
                 minimap: { enabled: false },
                 fontSize: 12,
@@ -370,9 +396,14 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
           </div>
 
           {/* Footer */}
-          <div className="bg-gray-50 px-3 py-2 rounded-b-lg flex items-center justify-between">
-            <span className="text-xs text-gray-500 truncate max-w-[200px]">{prompt.name}</span>
-            <span className="text-xs text-gray-400">{lineCount} lines</span>
+          <div
+            className="px-3 py-2 rounded-b-lg flex items-center justify-between"
+            style={{
+              backgroundColor: theme.colors.nodes.common.footer.background,
+            }}
+          >
+            <span className="text-xs truncate max-w-[200px]" style={{ color: theme.colors.nodes.common.footer.text }}>{prompt.name}</span>
+            <span className="text-xs" style={{ color: theme.colors.nodes.common.footer.text }}>{lineCount} lines</span>
           </div>
 
           {/* Resize Handle */}
@@ -388,7 +419,12 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="right"
         defaultPercent={50}
         handlePositions={handlePositions}
-        style={{ width: '10px', height: '10px', backgroundColor: '#22c55e', border: '2px solid white' }}
+        style={{
+          width: '10px',
+          height: '10px',
+          backgroundColor: theme.colors.handles.output,
+          border: `2px solid ${theme.colors.handles.border}`,
+        }}
       />
 
       {contextMenu && (

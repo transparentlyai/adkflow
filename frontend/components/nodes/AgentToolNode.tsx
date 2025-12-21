@@ -7,6 +7,7 @@ import DraggableHandle from "@/components/DraggableHandle";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock } from "lucide-react";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface AgentToolNodeData {
   name?: string;
@@ -18,6 +19,7 @@ const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
   const { name = "Agent Tool", handlePositions, isNodeLocked } = data as AgentToolNodeData;
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
+  const { theme } = useTheme();
 
   const handleCopy = useCallback(() => {
     setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
@@ -117,9 +119,24 @@ const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
         onDoubleClick={handleDoubleClick}
         onContextMenu={handleContextMenu}
         title={name}
-        className={`bg-amber-600 text-white rounded-lg w-12 h-12 flex flex-col items-center justify-center shadow-md cursor-pointer hover:bg-amber-700 transition-all ${
-          selected ? "ring-2 ring-amber-400 shadow-xl" : ""
-        }`}
+        className="rounded-lg w-12 h-12 flex flex-col items-center justify-center shadow-md cursor-pointer transition-all"
+        style={{
+          backgroundColor: theme.colors.nodes.agentTool.header,
+          color: theme.colors.nodes.agentTool.text,
+          ...(selected ? {
+            boxShadow: `0 0 0 2px ${theme.colors.nodes.agentTool.ring}, 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)`,
+          } : {}),
+        }}
+        onMouseEnter={(e) => {
+          if (!selected && theme.colors.nodes.agentTool.headerHover) {
+            e.currentTarget.style.backgroundColor = theme.colors.nodes.agentTool.headerHover;
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!selected) {
+            e.currentTarget.style.backgroundColor = theme.colors.nodes.agentTool.header;
+          }
+        }}
       >
         {isNodeLocked ? (
           <Lock className="w-4 h-4 opacity-80" />
@@ -138,7 +155,7 @@ const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
           defaultEdge="right"
           defaultPercent={50}
           handlePositions={handlePositions}
-          style={{ width: '8px', height: '8px', backgroundColor: '#d97706', border: '2px solid white' }}
+          style={{ width: '8px', height: '8px', backgroundColor: theme.colors.handles.agentTool, border: `2px solid ${theme.colors.handles.border}` }}
         />
       </div>
 
@@ -149,27 +166,67 @@ const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
             className="absolute inset-0 bg-black bg-opacity-50"
             onClick={handleCancel}
           />
-          <div className="relative bg-white rounded-lg shadow-xl p-6 w-96">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Rename Agent Tool</h3>
+          <div
+            className="relative rounded-lg shadow-xl p-6 w-96"
+            style={{
+              backgroundColor: theme.colors.ui.card,
+              color: theme.colors.ui.cardForeground,
+            }}
+          >
+            <h3 className="text-lg font-semibold mb-4">Rename Agent Tool</h3>
             <input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 mb-4"
+              className="w-full px-3 py-2 rounded-lg mb-4 focus:outline-none focus:ring-2"
+              style={{
+                backgroundColor: theme.colors.ui.background,
+                color: theme.colors.ui.foreground,
+                border: `1px solid ${theme.colors.ui.border}`,
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = theme.colors.nodes.agentTool.ring;
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = theme.colors.ui.border;
+              }}
               placeholder="Agent Tool name"
               autoFocus
             />
             <div className="flex justify-end gap-2">
               <button
                 onClick={handleCancel}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 rounded-lg transition-colors"
+                style={{
+                  border: `1px solid ${theme.colors.ui.border}`,
+                  color: theme.colors.ui.foreground,
+                  backgroundColor: theme.colors.ui.background,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = theme.colors.ui.muted;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = theme.colors.ui.background;
+                }}
               >
                 Cancel
               </button>
               <button
                 onClick={handleRename}
-                className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                className="px-4 py-2 rounded-lg transition-colors"
+                style={{
+                  backgroundColor: theme.colors.nodes.agentTool.header,
+                  color: theme.colors.nodes.agentTool.text,
+                }}
+                onMouseEnter={(e) => {
+                  if (theme.colors.nodes.agentTool.headerHover) {
+                    e.currentTarget.style.backgroundColor = theme.colors.nodes.agentTool.headerHover;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = theme.colors.nodes.agentTool.header;
+                }}
               >
                 Rename
               </button>

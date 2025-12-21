@@ -4,48 +4,160 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
+    /* UI colors (shadcn defaults - will be overridden by theme) */
+    --background: #ffffff;
+    --foreground: #0a0a0a;
+    --card: #ffffff;
+    --card-foreground: #0a0a0a;
+    --popover: #ffffff;
+    --popover-foreground: #0a0a0a;
+    --primary: #171717;
+    --primary-foreground: #fafafa;
+    --secondary: #f5f5f5;
+    --secondary-foreground: #171717;
+    --muted: #f5f5f5;
+    --muted-foreground: #737373;
+    --accent: #f5f5f5;
+    --accent-foreground: #171717;
+    --destructive: #ef4444;
+    --destructive-foreground: #fafafa;
+    --border: #e5e5e5;
+    --input: #e5e5e5;
+    --ring: #0a0a0a;
     --radius: 0.5rem;
-  }
 
-  .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
+    /* Canvas */
+    --canvas-bg: #f7f9fb;
+    --canvas-grid: #94a3b8;
+    --canvas-minimap-bg: #ffffff;
+    --canvas-minimap-mask: rgba(0, 0, 0, 0.1);
+    --canvas-minimap-node-stroke: #e5e7eb;
+
+    /* Node common */
+    --node-container-bg: #ffffff;
+    --node-container-border: #e5e7eb;
+    --node-container-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+    --node-footer-bg: #f9fafb;
+    --node-footer-border: #e5e7eb;
+    --node-footer-text: #6b7280;
+    --node-text-primary: #111827;
+    --node-text-secondary: #6b7280;
+    --node-text-muted: #9ca3af;
+
+    /* Agent node */
+    --node-agent-header: #1e40af;
+    --node-agent-header-hover: #1d4ed8;
+    --node-agent-text: #ffffff;
+    --node-agent-ring: #1e3a8a;
+    --node-agent-badge-llm-bg: #f1f5f9;
+    --node-agent-badge-llm-text: #334155;
+    --node-agent-badge-sequential-bg: #dbeafe;
+    --node-agent-badge-sequential-text: #1d4ed8;
+    --node-agent-badge-parallel-bg: #dcfce7;
+    --node-agent-badge-parallel-text: #16a34a;
+    --node-agent-badge-loop-bg: #fef3c7;
+    --node-agent-badge-loop-text: #d97706;
+
+    /* Prompt node */
+    --node-prompt-header: #16a34a;
+    --node-prompt-header-hover: #15803d;
+    --node-prompt-text: #ffffff;
+    --node-prompt-ring: #22c55e;
+
+    /* Context node */
+    --node-context-header: #2563eb;
+    --node-context-header-hover: #1d4ed8;
+    --node-context-text: #ffffff;
+    --node-context-ring: #3b82f6;
+
+    /* Tool node */
+    --node-tool-header: #0891b2;
+    --node-tool-header-hover: #0e7490;
+    --node-tool-text: #ffffff;
+    --node-tool-ring: #22d3ee;
+
+    /* AgentTool node */
+    --node-agent-tool-header: #d97706;
+    --node-agent-tool-header-hover: #b45309;
+    --node-agent-tool-text: #ffffff;
+    --node-agent-tool-ring: #fbbf24;
+
+    /* Variable node */
+    --node-variable-header: #7c3aed;
+    --node-variable-header-hover: #6d28d9;
+    --node-variable-text: #ffffff;
+    --node-variable-ring: #a78bfa;
+
+    /* Process node */
+    --node-process-header: #059669;
+    --node-process-header-hover: #047857;
+    --node-process-text: #ffffff;
+    --node-process-ring: #10b981;
+
+    /* Group node */
+    --node-group-header: #9ca3af;
+    --node-group-header-active: #6b7280;
+    --node-group-text: #ffffff;
+    --node-group-border: #d1d5db;
+    --node-group-border-active: #9ca3af;
+    --node-group-drop-zone: rgba(156, 163, 175, 0.15);
+
+    /* Probe node */
+    --node-probe-header: #374151;
+    --node-probe-header-hover: #4b5563;
+    --node-probe-text: #ffffff;
+    --node-probe-ring: #6b7280;
+
+    /* OutputFile node */
+    --node-output-file-header: #4b5563;
+    --node-output-file-header-hover: #6b7280;
+    --node-output-file-text: #ffffff;
+    --node-output-file-ring: #9ca3af;
+
+    /* Label node */
+    --node-label-header: #6b7280;
+    --node-label-text: #374151;
+    --node-label-ring: #9ca3af;
+
+    /* Handles */
+    --handle-input: #1e40af;
+    --handle-output: #22c55e;
+    --handle-link: #9ca3af;
+    --handle-tool: #0891b2;
+    --handle-context: #2563eb;
+    --handle-agent-tool: #d97706;
+    --handle-process: #10b981;
+    --handle-probe: #6b7280;
+    --handle-border: #ffffff;
+
+    /* Edges */
+    --edge-default: #64748b;
+    --edge-link: #9ca3af;
+    --edge-selected: #3b82f6;
+
+    /* Form elements */
+    --form-bg: #ffffff;
+    --form-text: #111827;
+    --form-border: #d1d5db;
+    --form-placeholder: #9ca3af;
+    --form-focus-border: #7c3aed;
+    --form-focus-ring: #7c3aed;
+    --form-disabled-bg: #f3f4f6;
+    --form-disabled-text: #9ca3af;
+    --form-select-bg: #ffffff;
+    --form-select-text: #111827;
+    --form-select-option-bg: #ffffff;
+    --form-select-option-text: #111827;
+    --form-checkbox-bg: #ffffff;
+    --form-checkbox-border: #d1d5db;
+    --form-checkbox-checked: #7c3aed;
+    --form-checkbox-checkmark: #ffffff;
+    --form-slider-track: #e5e7eb;
+    --form-slider-thumb: #7c3aed;
+    --form-slider-active: #7c3aed;
+
+    /* Monaco */
+    --monaco-theme: vs;
   }
 
   * {
@@ -56,7 +168,7 @@
     @apply bg-background text-foreground;
   }
 
-  /* Ensure inputs and textareas have dark, readable text */
+  /* Form elements - globally themed */
   input[type="text"],
   input[type="email"],
   input[type="password"],
@@ -64,14 +176,77 @@
   input[type="url"],
   input[type="tel"],
   input[type="number"],
-  textarea,
-  select {
-    @apply text-gray-900;
+  textarea {
+    background-color: var(--form-bg);
+    color: var(--form-text);
+    border-color: var(--form-border);
+  }
+
+  input[type="text"]:focus,
+  input[type="email"]:focus,
+  input[type="password"]:focus,
+  input[type="search"]:focus,
+  input[type="url"]:focus,
+  input[type="tel"]:focus,
+  input[type="number"]:focus,
+  textarea:focus {
+    border-color: var(--form-focus-border);
+    outline: none;
+    box-shadow: 0 0 0 1px var(--form-focus-ring);
+  }
+
+  input:disabled,
+  textarea:disabled,
+  select:disabled {
+    background-color: var(--form-disabled-bg);
+    color: var(--form-disabled-text);
+    cursor: not-allowed;
   }
 
   input::placeholder,
   textarea::placeholder {
-    @apply text-gray-400;
+    color: var(--form-placeholder);
+  }
+
+  select {
+    background-color: var(--form-select-bg);
+    color: var(--form-select-text);
+    border-color: var(--form-border);
+  }
+
+  select:focus {
+    border-color: var(--form-focus-border);
+    outline: none;
+    box-shadow: 0 0 0 1px var(--form-focus-ring);
+  }
+
+  select option {
+    background-color: var(--form-select-option-bg);
+    color: var(--form-select-option-text);
+  }
+
+  input[type="checkbox"] {
+    accent-color: var(--form-checkbox-checked);
+  }
+
+  input[type="range"] {
+    accent-color: var(--form-slider-active);
+  }
+
+  input[type="range"]::-webkit-slider-runnable-track {
+    background: var(--form-slider-track);
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    background: var(--form-slider-thumb);
+  }
+
+  input[type="range"]::-moz-range-track {
+    background: var(--form-slider-track);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    background: var(--form-slider-thumb);
   }
 }
 
@@ -97,23 +272,23 @@ body {
   }
 }
 
-/* React Flow Controls - ensure dark icons on light background */
+/* React Flow Controls - theme-aware styling */
 .react-flow__controls-button {
-  background: white !important;
-  border: 1px solid #cbd5e1 !important;
+  background: var(--node-container-bg) !important;
+  border: 1px solid var(--node-container-border) !important;
 }
 
 .react-flow__controls-button svg {
-  fill: #1e293b !important;
-  color: #1e293b !important;
+  fill: var(--node-text-primary) !important;
+  color: var(--node-text-primary) !important;
 }
 
 .react-flow__controls-button:hover {
-  background: #f1f5f9 !important;
+  background: var(--node-footer-bg) !important;
 }
 
 .react-flow__controls-button:hover svg {
-  fill: #0f172a !important;
+  fill: var(--foreground) !important;
 }
 
 /* Remove default React Flow node wrapper styling for group nodes */
@@ -123,11 +298,11 @@ body {
   background: transparent !important;
 }
 
-/* Monaco Editor - Line numbers gutter styling */
+/* Monaco Editor - theme-aware styling */
 .monaco-editor .margin {
-  background-color: #f3f4f6 !important;
+  background-color: var(--node-footer-bg) !important;
 }
 
 .monaco-editor .line-numbers {
-  color: #6b7280 !important;
+  color: var(--node-text-muted) !important;
 }

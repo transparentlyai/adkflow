@@ -33,6 +33,7 @@ import "@xyflow/react/dist/style.css";
 
 import { useClipboard } from "@/contexts/ClipboardContext";
 import { CanvasActionsProvider } from "@/contexts/CanvasActionsContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { Lock, LockOpen, Grid3X3 } from "lucide-react";
 
 import GroupNode from "./nodes/GroupNode";
@@ -137,6 +138,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
     const { screenToFlowPosition } = useReactFlow();
     const { clipboard, copy, hasClipboard } = useClipboard();
+    const { theme } = useTheme();
 
     // Context menu state
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; flowPosition: { x: number; y: number }; parentGroupId?: string } | null>(null);
@@ -194,10 +196,10 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
     // Memoized props for ReactFlow to prevent unnecessary re-renders
     const defaultEdgeOptions = useMemo(() => ({
-      style: { strokeWidth: 1.5, stroke: '#64748b' },
+      style: { strokeWidth: 1.5, stroke: theme.colors.edges.default },
       animated: false,
       selectable: true,
-    }), []);
+    }), [theme.colors.edges.default]);
 
     const snapGridValue = useMemo(() => [16, 16] as [number, number], []);
 
@@ -231,7 +233,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         const edgeWithStyle = {
           ...params,
           type: 'default',
-          style: { strokeWidth: 2, stroke: '#9ca3af', strokeDasharray: '5 5' },
+          style: { strokeWidth: 2, stroke: theme.colors.edges.link, strokeDasharray: '5 5' },
         };
         setEdges((eds) => addEdge(edgeWithStyle, eds));
       } else if (params.sourceHandle?.startsWith('link-') || params.targetHandle?.startsWith('link-')) {
@@ -1398,7 +1400,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     }));
 
     return (
-      <div className="w-full h-full" style={{ background: '#f7f9fb' }}>
+      <div className="w-full h-full" style={{ background: theme.colors.canvas.background }}>
         <style>{`
           .react-flow__node-group {
             background: transparent !important;
@@ -1413,7 +1415,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           .react-flow__edge.selected .react-flow__edge-path,
           .react-flow__edge:focus .react-flow__edge-path,
           .react-flow__edge:focus-visible .react-flow__edge-path {
-            stroke: #3b82f6 !important;
+            stroke: ${theme.colors.edges.selected} !important;
             stroke-width: 3 !important;
           }
           .react-flow__controls-button.lucide-btn svg {
@@ -1446,14 +1448,13 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             onSelectionContextMenu={onSelectionContextMenu}
             onMouseMove={onMouseMove}
             nodeTypes={nodeTypes}
-            colorMode="light"
             fitView
             proOptions={{ hideAttribution: true }}
-            style={{ background: '#f7f9fb' }}
+            style={{ background: theme.colors.canvas.background }}
             defaultEdgeOptions={defaultEdgeOptions}
             edgesFocusable={true}
             edgesReconnectable={false}
-            connectionLineStyle={{ strokeWidth: 1.5, stroke: '#64748b' }}
+            connectionLineStyle={{ strokeWidth: 1.5, stroke: theme.colors.edges.default }}
             nodesDraggable={!isLocked}
             nodesConnectable={!isLocked}
             elementsSelectable={!isLocked}
@@ -1463,7 +1464,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             deleteKeyCode={null}
             onlyRenderVisibleElements={true}
           >
-            {snapToGrid && <Background color="#94a3b8" gap={16} />}
+            {snapToGrid && <Background color={theme.colors.canvas.grid} gap={16} />}
             <Controls showInteractive={false}>
               <ControlButton
                 className="lucide-btn"
@@ -1484,34 +1485,37 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
               nodeColor={(node) => {
                 switch (node.type) {
                   case "group":
-                    return "#9ca3af"; // gray-400
+                    return theme.colors.nodes.group.header;
                   case "agent":
-                    return "#1e40af"; // blue-800 (navy)
+                    return theme.colors.nodes.agent.header;
                   case "prompt":
-                    return "#16a34a"; // green-600
+                    return theme.colors.nodes.prompt.header;
                   case "context":
-                    return "#2563eb"; // blue-600
+                    return theme.colors.nodes.context.header;
                   case "inputProbe":
-                    return "#374151"; // gray-700
                   case "outputProbe":
-                    return "#374151"; // gray-700
                   case "logProbe":
-                    return "#374151"; // gray-700
+                    return theme.colors.nodes.probe.header;
+                  case "outputFile":
+                    return theme.colors.nodes.outputFile.header;
                   case "tool":
-                    return "#0891b2"; // cyan-600
+                    return theme.colors.nodes.tool.header;
                   case "agentTool":
-                    return "#d97706"; // amber-600
+                    return theme.colors.nodes.agentTool.header;
                   case "variable":
-                    return "#7c3aed"; // violet-600
+                    return theme.colors.nodes.variable.header;
                   case "process":
-                    return "#10b981"; // emerald-500
+                    return theme.colors.nodes.process.header;
                   case "label":
-                    return "#6b7280"; // gray-500
+                    return theme.colors.nodes.label.header;
                   default:
-                    return "#6b7280"; // gray-500
+                    return theme.colors.nodes.label.header;
                 }
               }}
-              maskColor="rgba(0, 0, 0, 0.1)"
+              bgColor={theme.colors.canvas.minimap.background}
+              maskColor={theme.colors.canvas.minimap.mask}
+              nodeStrokeColor={theme.colors.canvas.minimap.nodeStroke}
+              nodeStrokeWidth={1}
               pannable
               zoomable
             />
@@ -1559,11 +1563,25 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
               className="absolute inset-0 bg-black bg-opacity-50"
               onClick={handleTeleportNameCancel}
             />
-            <div className="relative bg-white rounded-lg shadow-xl p-6" style={{ width: '400px', maxWidth: '90vw' }}>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            <div
+              className="relative rounded-lg shadow-xl p-6"
+              style={{
+                width: '400px',
+                maxWidth: '90vw',
+                backgroundColor: theme.colors.nodes.common.container.background,
+                border: `1px solid ${theme.colors.nodes.common.container.border}`
+              }}
+            >
+              <h3
+                className="text-lg font-semibold mb-4"
+                style={{ color: theme.colors.nodes.common.text.primary }}
+              >
                 {teleportNamePrompt.type === "teleportOut" ? "New Output Connector" : "New Input Connector"}
               </h3>
-              <p className="text-sm text-gray-600 mb-4">
+              <p
+                className="text-sm mb-4"
+                style={{ color: theme.colors.nodes.common.text.secondary }}
+              >
                 Enter a name for this connector. Connectors with matching names will be linked.
               </p>
               <input
@@ -1571,21 +1589,34 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
                 value={teleportNameInput}
                 onChange={(e) => setTeleportNameInput(e.target.value)}
                 onKeyDown={handleTeleportNameKeyDown}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
+                className="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 mb-4"
+                style={{
+                  backgroundColor: theme.colors.nodes.common.footer.background,
+                  border: `1px solid ${theme.colors.nodes.common.container.border}`,
+                  color: theme.colors.nodes.common.text.primary,
+                }}
                 placeholder="Connector name"
                 autoFocus
               />
               <div className="flex justify-end gap-2">
                 <button
                   onClick={handleTeleportNameCancel}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 rounded-lg transition-colors"
+                  style={{
+                    border: `1px solid ${theme.colors.nodes.common.container.border}`,
+                    color: theme.colors.nodes.common.text.secondary,
+                  }}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleTeleportNameSubmit}
                   disabled={!teleportNameInput.trim()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: theme.colors.nodes.agent.header,
+                    color: theme.colors.nodes.agent.text,
+                  }}
                 >
                   Create
                 </button>

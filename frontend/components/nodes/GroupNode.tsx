@@ -4,6 +4,7 @@ import { memo, useState, useRef, useEffect, useCallback } from "react";
 import { NodeResizer, type NodeProps, useReactFlow, useStore, useStoreApi, type ResizeParams } from "@xyflow/react";
 import { useProject } from "@/contexts/ProjectContext";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock } from "lucide-react";
 
@@ -112,6 +113,7 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
   const { setNodes } = useReactFlow();
   const { isLocked } = useProject();
   const canvasActions = useCanvasActions();
+  const { theme } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
   const [editedLabel, setEditedLabel] = useState(label);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -245,8 +247,13 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
         minWidth={200}
         minHeight={150}
         isVisible={selected && !isLocked && !isNodeLocked}
-        lineClassName="!border-gray-400"
-        handleClassName="!w-2 !h-2 !bg-gray-400 !border-gray-400"
+        lineStyle={{ borderColor: theme.colors.nodes.group.border }}
+        handleStyle={{
+          width: '8px',
+          height: '8px',
+          backgroundColor: theme.colors.nodes.group.border,
+          borderColor: theme.colors.nodes.group.border
+        }}
         onResizeEnd={handleNodeResize}
       />
       <div
@@ -255,19 +262,23 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
           minWidth: 200,
           minHeight: 150,
           border: isNodeDraggingInside
-            ? '2px solid #9ca3af'
+            ? `2px solid ${theme.colors.nodes.group.borderActive}`
             : isActive
-              ? '1px solid #d1d5db'
+              ? `1px solid ${theme.colors.nodes.group.border}`
               : 'none',
           backgroundColor: isNodeDraggingInside
-            ? 'rgba(156, 163, 175, 0.15)'
+            ? theme.colors.nodes.group.dropZone
             : dragging
-              ? 'rgba(156, 163, 175, 0.08)'
+              ? theme.colors.nodes.group.dropZone
               : 'transparent',
         }}
       >
         <div
-          className={`group-drag-handle text-white px-2 py-0.5 rounded-t-md cursor-grab flex items-center gap-1.5 transition-colors ${selected ? 'bg-gray-400' : 'bg-gray-400/60'}`}
+          className="group-drag-handle px-2 py-0.5 rounded-t-md cursor-grab flex items-center gap-1.5 transition-colors"
+          style={{
+            backgroundColor: selected ? theme.colors.nodes.group.headerActive : theme.colors.nodes.group.header,
+            color: theme.colors.nodes.group.text
+          }}
           onContextMenu={handleHeaderContextMenu}
         >
           {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
@@ -283,7 +294,11 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
               onBlur={handleSave}
               onKeyDown={handleKeyDown}
               onClick={(e) => e.stopPropagation()}
-              className="flex-1 bg-white text-gray-900 px-1.5 py-0.5 rounded text-xs font-medium outline-none nodrag"
+              className="flex-1 px-1.5 py-0.5 rounded text-xs font-medium outline-none nodrag"
+              style={{
+                backgroundColor: theme.colors.ui.background,
+                color: theme.colors.ui.foreground
+              }}
             />
           ) : (
             <div
@@ -296,7 +311,10 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
         </div>
         <div className="flex-1">
           {isNodeDraggingInside && (
-            <div className="p-2 text-xs text-gray-500/60 text-center italic">
+            <div
+              className="p-2 text-xs text-center italic"
+              style={{ color: theme.colors.nodes.group.text, opacity: 0.6 }}
+            >
               Drop to group
             </div>
           )}

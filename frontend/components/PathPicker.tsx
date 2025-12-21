@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { listDirectory, createDirectory } from "@/lib/api";
 import type { DirectoryEntry } from "@/lib/types";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface PathPickerProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export default function PathPicker({
   title = "Select Directory",
   description = "Choose a directory for your project",
 }: PathPickerProps) {
+  const { theme } = useTheme();
   const [currentPath, setCurrentPath] = useState("");
   const [entries, setEntries] = useState<DirectoryEntry[]>([]);
   const [parentPath, setParentPath] = useState<string | null>(null);
@@ -113,20 +115,21 @@ export default function PathPicker({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[80vh] flex flex-col">
+      <div className="rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[80vh] flex flex-col" style={{ backgroundColor: theme.colors.nodes.common.container.background }}>
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
-          <p className="text-sm text-gray-600 mt-1">{description}</p>
+        <div className="px-6 py-4 border-b" style={{ borderColor: theme.colors.nodes.common.container.border }}>
+          <h2 className="text-2xl font-bold" style={{ color: theme.colors.nodes.common.text.primary }}>{title}</h2>
+          <p className="text-sm mt-1" style={{ color: theme.colors.nodes.common.text.secondary }}>{description}</p>
         </div>
 
         {/* Current Path & Navigation */}
-        <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
+        <div className="px-6 py-3 border-b" style={{ backgroundColor: theme.colors.nodes.common.footer.background, borderColor: theme.colors.nodes.common.container.border }}>
           <div className="flex items-center gap-2 mb-2">
             <button
               onClick={handleGoUp}
               disabled={!parentPath || loading}
-              className="px-3 py-1 bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 rounded text-sm font-medium transition-colors"
+              className="px-3 py-1 rounded text-sm font-medium transition-colors hover:opacity-80 disabled:opacity-50"
+              style={{ backgroundColor: theme.colors.ui.muted, color: theme.colors.nodes.common.text.secondary }}
               title="Go up one directory"
             >
               ↑ Up
@@ -137,7 +140,8 @@ export default function PathPicker({
                 value={manualPath}
                 onChange={(e) => setManualPath(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleGoToManualPath()}
-                className="flex-1 px-3 py-1 border border-gray-300 rounded text-sm font-mono text-gray-900"
+                className="flex-1 px-3 py-1 border rounded text-sm font-mono"
+                style={{ borderColor: theme.colors.ui.border, color: theme.colors.nodes.common.text.primary, backgroundColor: theme.colors.nodes.common.container.background }}
                 placeholder="/path/to/directory"
               />
               <button
@@ -150,7 +154,7 @@ export default function PathPicker({
             <button
               onClick={handleShowNewFolder}
               disabled={loading || showNewFolder}
-              className="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:text-gray-500 text-white rounded text-sm font-medium transition-colors"
+              className="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded text-sm font-medium transition-colors"
               title="Create new folder"
             >
               + New Folder
@@ -159,7 +163,7 @@ export default function PathPicker({
 
           {/* New Folder Input */}
           {showNewFolder && (
-            <div className="flex items-center gap-2 mb-2 p-2 bg-white border border-gray-300 rounded">
+            <div className="flex items-center gap-2 mb-2 p-2 border rounded" style={{ backgroundColor: theme.colors.nodes.common.container.background, borderColor: theme.colors.ui.border }}>
               <input
                 type="text"
                 value={newFolderName}
@@ -168,7 +172,8 @@ export default function PathPicker({
                   if (e.key === "Enter") handleCreateFolder();
                   if (e.key === "Escape") handleCancelNewFolder();
                 }}
-                className="flex-1 px-3 py-1 border border-gray-300 rounded text-sm text-gray-900"
+                className="flex-1 px-3 py-1 border rounded text-sm"
+                style={{ borderColor: theme.colors.ui.border, color: theme.colors.nodes.common.text.primary, backgroundColor: theme.colors.nodes.common.container.background }}
                 placeholder="Folder name"
                 autoFocus
                 disabled={loading}
@@ -176,21 +181,22 @@ export default function PathPicker({
               <button
                 onClick={handleCreateFolder}
                 disabled={loading}
-                className="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white rounded text-sm font-medium transition-colors"
+                className="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded text-sm font-medium transition-colors"
               >
                 Create
               </button>
               <button
                 onClick={handleCancelNewFolder}
                 disabled={loading}
-                className="px-3 py-1 bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 text-gray-700 rounded text-sm font-medium transition-colors"
+                className="px-3 py-1 rounded text-sm font-medium transition-colors hover:opacity-80 disabled:opacity-50"
+                style={{ backgroundColor: theme.colors.ui.muted, color: theme.colors.nodes.common.text.secondary }}
               >
                 Cancel
               </button>
             </div>
           )}
 
-          <div className="text-xs text-gray-500 font-mono">
+          <div className="text-xs font-mono" style={{ color: theme.colors.nodes.common.text.muted }}>
             Current: {currentPath}
           </div>
         </div>
@@ -198,7 +204,7 @@ export default function PathPicker({
         {/* Directory Listing */}
         <div className="flex-1 overflow-auto p-4 min-h-[300px]">
           {loading && (
-            <div className="flex items-center justify-center h-full text-gray-500">
+            <div className="flex items-center justify-center h-full" style={{ color: theme.colors.nodes.common.text.muted }}>
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
                 Loading...
@@ -213,7 +219,7 @@ export default function PathPicker({
           )}
 
           {!loading && !error && entries.length === 0 && (
-            <div className="text-center text-gray-500 py-8">
+            <div className="text-center py-8" style={{ color: theme.colors.nodes.common.text.muted }}>
               <p className="text-sm">Empty directory</p>
             </div>
           )}
@@ -227,18 +233,34 @@ export default function PathPicker({
                   disabled={!entry.is_directory}
                   className={`w-full text-left px-4 py-2 rounded-md transition-colors flex items-center gap-3 ${
                     entry.is_directory
-                      ? "hover:bg-blue-50 cursor-pointer"
-                      : "text-gray-400 cursor-not-allowed"
+                      ? "cursor-pointer"
+                      : "cursor-not-allowed"
                   }`}
+                  style={{
+                    backgroundColor: entry.is_directory ? theme.colors.ui.muted : 'transparent',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (entry.is_directory) {
+                      e.currentTarget.style.backgroundColor = theme.colors.ui.accent;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (entry.is_directory) {
+                      e.currentTarget.style.backgroundColor = theme.colors.ui.muted;
+                    }
+                  }}
                 >
                   <span className="text-lg">
                     {entry.is_directory ? "📁" : "📄"}
                   </span>
-                  <span className={`flex-1 text-sm ${entry.is_directory ? "text-gray-900 font-medium" : "text-gray-400"}`}>
+                  <span className="flex-1 text-sm" style={{
+                    color: entry.is_directory ? theme.colors.nodes.common.text.primary : theme.colors.nodes.common.text.muted,
+                    fontWeight: entry.is_directory ? 500 : 400
+                  }}>
                     {entry.name}
                   </span>
                   {entry.is_directory && (
-                    <span className="text-xs text-gray-400">→</span>
+                    <span className="text-xs" style={{ color: theme.colors.nodes.common.text.muted }}>→</span>
                   )}
                 </button>
               ))}
@@ -247,14 +269,15 @@ export default function PathPicker({
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
-          <div className="text-xs text-gray-500">
+        <div className="px-6 py-4 border-t flex justify-between items-center" style={{ backgroundColor: theme.colors.nodes.common.footer.background, borderColor: theme.colors.nodes.common.container.border }}>
+          <div className="text-xs" style={{ color: theme.colors.nodes.common.text.muted }}>
             {entries.filter(e => e.is_directory).length} folders
           </div>
           <div className="flex gap-3">
             <button
               onClick={onCancel}
-              className="px-4 py-2 text-gray-700 hover:text-gray-900 font-medium transition-colors"
+              className="px-4 py-2 font-medium transition-colors hover:opacity-80"
+              style={{ color: theme.colors.nodes.common.text.secondary }}
             >
               Cancel
             </button>

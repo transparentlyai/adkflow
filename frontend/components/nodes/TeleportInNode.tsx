@@ -7,6 +7,7 @@ import { Lock, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 import { useTeleporter } from "@/contexts/TeleporterContext";
 import { useTabs } from "@/contexts/TabsContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { HandlePositions } from "@/lib/types";
 
@@ -22,6 +23,7 @@ const TeleportInNode = memo(({ data, id, selected }: NodeProps) => {
   const canvasActions = useCanvasActions();
   const { updateTeleporterName, getOutputTeleportersByName, getAllOutputTeleporters, getColorForName } = useTeleporter();
   const { navigateToNode } = useTabs();
+  const { theme } = useTheme();
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [editedName, setEditedName] = useState(name);
@@ -221,19 +223,36 @@ const TeleportInNode = memo(({ data, id, selected }: NodeProps) => {
       {/* Expanded panel */}
       {isExpanded && (
         <div
-          className="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-xl border z-50 min-w-[280px]"
+          className="absolute top-full left-0 mt-2 rounded-lg shadow-xl z-50 min-w-[280px]"
+          style={{
+            backgroundColor: theme.colors.nodes.common.container.background,
+            border: `1px solid ${theme.colors.nodes.common.container.border}`,
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Name editor */}
-          <div className="px-3 py-2 border-b bg-gray-50 rounded-t-lg">
-            <label className="text-xs text-gray-500 mb-1 block">Connector Name</label>
+          <div
+            className="px-3 py-2 rounded-t-lg"
+            style={{
+              backgroundColor: theme.colors.nodes.common.footer.background,
+              borderBottom: `1px solid ${theme.colors.nodes.common.container.border}`,
+            }}
+          >
+            <label className="text-xs mb-1 block" style={{ color: theme.colors.nodes.common.text.muted }}>
+              Connector Name
+            </label>
             <input
               type="text"
               value={editedName}
               onChange={(e) => setEditedName(e.target.value)}
               onBlur={handleNameSave}
               onKeyDown={handleNameKeyDown}
-              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-900"
+              className="w-full px-2 py-1 text-sm rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+              style={{
+                backgroundColor: theme.colors.nodes.common.container.background,
+                color: theme.colors.nodes.common.text.primary,
+                border: `1px solid ${theme.colors.nodes.common.container.border}`,
+              }}
               autoFocus
             />
           </div>
@@ -241,7 +260,14 @@ const TeleportInNode = memo(({ data, id, selected }: NodeProps) => {
           {/* Linked connectors */}
           {matchingOutputs.length > 0 && (
             <>
-              <div className="px-3 py-1.5 text-xs text-gray-500 bg-gray-50 border-b flex items-center gap-1">
+              <div
+                className="px-3 py-1.5 text-xs flex items-center gap-1"
+                style={{
+                  backgroundColor: theme.colors.nodes.common.footer.background,
+                  borderBottom: `1px solid ${theme.colors.nodes.common.container.border}`,
+                  color: theme.colors.nodes.common.text.muted,
+                }}
+              >
                 <div className="w-2 h-2 rounded-full" style={{ background: color }} />
                 Linked ({matchingOutputs.length})
               </div>
@@ -250,12 +276,19 @@ const TeleportInNode = memo(({ data, id, selected }: NodeProps) => {
                   <button
                     key={t.id}
                     onClick={() => handleNavigateToNode(t.tabId, t.id)}
-                    className="w-full px-3 py-1.5 text-left hover:bg-blue-50 flex items-center gap-2 border-b last:border-b-0"
+                    className="w-full px-3 py-1.5 text-left hover:bg-blue-50 flex items-center gap-2 last:border-b-0"
+                    style={{
+                      borderBottom: `1px solid ${theme.colors.nodes.common.container.border}`,
+                    }}
                   >
                     <div className="w-2 h-2 rounded-full" style={{ background: t.color }} />
-                    <span className="text-sm text-gray-700 flex-1">{t.name}</span>
-                    <span className="text-xs text-gray-400">{t.tabName}</span>
-                    <ExternalLink className="w-3 h-3 text-gray-400" />
+                    <span className="text-sm flex-1" style={{ color: theme.colors.nodes.common.text.primary }}>
+                      {t.name}
+                    </span>
+                    <span className="text-xs" style={{ color: theme.colors.nodes.common.text.muted }}>
+                      {t.tabName}
+                    </span>
+                    <ExternalLink className="w-3 h-3" style={{ color: theme.colors.nodes.common.text.muted }} />
                   </button>
                 ))}
               </div>
@@ -269,7 +302,14 @@ const TeleportInNode = memo(({ data, id, selected }: NodeProps) => {
             if (uniqueNames.length === 0) return null;
             return (
               <>
-                <div className="px-3 py-1.5 text-xs text-gray-500 bg-gray-50 border-b">
+                <div
+                  className="px-3 py-1.5 text-xs"
+                  style={{
+                    backgroundColor: theme.colors.nodes.common.footer.background,
+                    borderBottom: `1px solid ${theme.colors.nodes.common.container.border}`,
+                    color: theme.colors.nodes.common.text.muted,
+                  }}
+                >
                   Available to link
                 </div>
                 <div className="max-h-[150px] overflow-y-auto">
@@ -290,11 +330,18 @@ const TeleportInNode = memo(({ data, id, selected }: NodeProps) => {
                           );
                           updateTeleporterName(id, linkName);
                         }}
-                        className="w-full px-3 py-1.5 text-left hover:bg-green-50 flex items-center gap-2 border-b last:border-b-0"
+                        className="w-full px-3 py-1.5 text-left hover:bg-green-50 flex items-center gap-2 last:border-b-0"
+                        style={{
+                          borderBottom: `1px solid ${theme.colors.nodes.common.container.border}`,
+                        }}
                       >
                         <div className="w-2 h-2 rounded-full" style={{ background: connector.color }} />
-                        <span className="text-sm text-gray-700 flex-1">{linkName}</span>
-                        <span className="text-xs text-gray-400">{count} output{count > 1 ? 's' : ''}</span>
+                        <span className="text-sm flex-1" style={{ color: theme.colors.nodes.common.text.primary }}>
+                          {linkName}
+                        </span>
+                        <span className="text-xs" style={{ color: theme.colors.nodes.common.text.muted }}>
+                          {count} output{count > 1 ? 's' : ''}
+                        </span>
                       </button>
                     );
                   })}
@@ -304,10 +351,25 @@ const TeleportInNode = memo(({ data, id, selected }: NodeProps) => {
           })()}
 
           {/* Close button */}
-          <div className="px-3 py-2 border-t bg-gray-50 rounded-b-lg">
+          <div
+            className="px-3 py-2 rounded-b-lg"
+            style={{
+              backgroundColor: theme.colors.nodes.common.footer.background,
+              borderTop: `1px solid ${theme.colors.nodes.common.container.border}`,
+            }}
+          >
             <button
               onClick={() => setIsExpanded(false)}
-              className="w-full px-2 py-1 text-xs text-gray-600 hover:bg-gray-200 rounded"
+              className="w-full px-2 py-1 text-xs rounded"
+              style={{
+                color: theme.colors.nodes.common.text.secondary,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = theme.colors.nodes.common.footer.background;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
             >
               Close
             </button>

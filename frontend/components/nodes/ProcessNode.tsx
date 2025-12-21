@@ -11,6 +11,7 @@ import { useProject } from "@/contexts/ProjectContext";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock } from "lucide-react";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const DEFAULT_WIDTH = 600;
 const DEFAULT_HEIGHT = 400;
@@ -61,6 +62,7 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
+  const { theme } = useTheme();
 
   const handleCopy = useCallback(() => {
     setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
@@ -278,12 +280,12 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
 
   return (
     <div
-      className={`bg-white rounded-lg shadow-lg relative ${
-        selected ? "ring-2 ring-emerald-500 shadow-xl" : ""
-      }`}
+      className="rounded-lg shadow-lg relative"
       style={{
         width: isExpanded ? size.width : 220,
         minWidth: isExpanded ? size.width : 220,
+        backgroundColor: theme.colors.nodes.common.container.background,
+        boxShadow: selected ? `0 0 0 2px ${theme.colors.nodes.process.ring}` : undefined,
       }}
     >
       {/* Input Handle */}
@@ -294,12 +296,16 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="left"
         defaultPercent={50}
         handlePositions={handlePositions}
-        style={{ width: '10px', height: '10px', backgroundColor: '#10b981', border: '2px solid white' }}
+        style={{ width: '10px', height: '10px', backgroundColor: theme.colors.handles.process, border: `2px solid ${theme.colors.handles.border}` }}
       />
 
       {/* Header */}
       <div
-        className={`bg-emerald-600 text-white px-2 py-1 flex items-center justify-between cursor-pointer ${isExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}
+        className={`px-2 py-1 flex items-center justify-between cursor-pointer ${isExpanded ? 'rounded-t-lg' : 'rounded-lg'}`}
+        style={{
+          backgroundColor: theme.colors.nodes.process.header,
+          color: theme.colors.nodes.process.text,
+        }}
         onDoubleClick={toggleExpand}
         onContextMenu={handleHeaderContextMenu}
       >
@@ -317,7 +323,11 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
               onBlur={handleSave}
               onKeyDown={handleKeyDown}
               onClick={(e) => e.stopPropagation()}
-              className="flex-1 bg-white text-gray-900 px-1.5 py-0.5 rounded text-xs font-medium outline-none min-w-0"
+              className="flex-1 px-1.5 py-0.5 rounded text-xs font-medium outline-none min-w-0"
+              style={{
+                backgroundColor: theme.colors.nodes.common.container.background,
+                color: theme.colors.nodes.common.text.primary
+              }}
             />
           ) : (
             <div
@@ -333,7 +343,18 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
         </div>
         <button
           onClick={toggleExpand}
-          className="ml-1.5 p-0.5 hover:bg-emerald-700 rounded transition-colors flex-shrink-0"
+          className="ml-1.5 p-0.5 rounded transition-colors flex-shrink-0"
+          style={{
+            backgroundColor: 'transparent',
+          }}
+          onMouseEnter={(e) => {
+            if (theme.colors.nodes.process.headerHover) {
+              e.currentTarget.style.backgroundColor = theme.colors.nodes.process.headerHover;
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }}
           title={isExpanded ? "Collapse" : "Expand"}
         >
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -348,24 +369,29 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
 
       {/* Collapsed: Function Signature View */}
       {!isExpanded && (
-        <div className="px-3 py-3 bg-gray-50 rounded-b-lg">
+        <div
+          className="px-3 py-3 rounded-b-lg"
+          style={{
+            backgroundColor: theme.colors.nodes.common.footer.background,
+          }}
+        >
           {signature ? (
             <div className="font-mono text-xs space-y-1.5">
               <div className="flex items-center gap-1">
                 <span className="text-purple-600 font-semibold">def</span>
                 <span className="text-emerald-700 font-semibold">{signature.name}</span>
               </div>
-              <div className="text-gray-600 pl-2 border-l-2 border-gray-200">
-                <div className="text-gray-500 text-[10px] uppercase tracking-wide mb-0.5">Parameters</div>
-                <div className="text-gray-700">{signature.params || "None"}</div>
+              <div className="pl-2 border-l-2" style={{ color: theme.colors.nodes.common.text.secondary, borderColor: theme.colors.nodes.common.container.border }}>
+                <div className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: theme.colors.nodes.common.text.muted }}>Parameters</div>
+                <div style={{ color: theme.colors.nodes.common.text.secondary }}>{signature.params || "None"}</div>
               </div>
-              <div className="text-gray-600 pl-2 border-l-2 border-gray-200">
-                <div className="text-gray-500 text-[10px] uppercase tracking-wide mb-0.5">Returns</div>
+              <div className="pl-2 border-l-2" style={{ color: theme.colors.nodes.common.text.secondary, borderColor: theme.colors.nodes.common.container.border }}>
+                <div className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: theme.colors.nodes.common.text.muted }}>Returns</div>
                 <div className="text-blue-600">{signature.returnType}</div>
               </div>
             </div>
           ) : (
-            <div className="text-xs text-gray-400 italic">No function signature found</div>
+            <div className="text-xs italic" style={{ color: theme.colors.nodes.common.text.muted }}>No function signature found</div>
           )}
         </div>
       )}
@@ -380,8 +406,11 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
             isSaving={isSaving}
           />
           <div
-            className="border-b border-gray-200 nodrag nowheel nopan"
-            style={{ height: editorHeight }}
+            className="nodrag nowheel nopan"
+            style={{
+              height: editorHeight,
+              borderBottom: `1px solid ${theme.colors.nodes.common.container.border}`
+            }}
             onKeyDown={(e) => e.stopPropagation()}
           >
             <Editor
@@ -389,7 +418,7 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
               defaultLanguage="python"
               value={code}
               onChange={handleCodeChange}
-              theme="vs-light"
+              theme={theme.colors.monaco}
               options={{
                 minimap: { enabled: false },
                 fontSize: 12,
@@ -416,9 +445,24 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
           </div>
 
           {/* Footer - only shown when expanded */}
-          <div className="bg-gray-50 px-3 py-2 rounded-b-lg flex items-center justify-between">
-            <span className="text-xs text-gray-500">Process</span>
-            <span className="text-xs text-gray-400">{lineCount} lines</span>
+          <div
+            className="px-3 py-2 rounded-b-lg flex items-center justify-between"
+            style={{
+              backgroundColor: theme.colors.nodes.common.footer.background,
+            }}
+          >
+            <span
+              className="text-xs"
+              style={{ color: theme.colors.nodes.common.footer.text }}
+            >
+              Process
+            </span>
+            <span
+              className="text-xs"
+              style={{ color: theme.colors.nodes.common.text.muted }}
+            >
+              {lineCount} lines
+            </span>
           </div>
 
           {/* Resize Handle */}
@@ -434,7 +478,7 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="right"
         defaultPercent={50}
         handlePositions={handlePositions}
-        style={{ width: '10px', height: '10px', backgroundColor: '#22c55e', border: '2px solid white' }}
+        style={{ width: '10px', height: '10px', backgroundColor: theme.colors.handles.process, border: `2px solid ${theme.colors.handles.border}` }}
       />
 
       {contextMenu && (

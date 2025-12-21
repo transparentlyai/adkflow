@@ -4,6 +4,7 @@ import { useCallback, useRef, useLayoutEffect, useState, useEffect } from "react
 import { createPortal } from "react-dom";
 import { Handle, Position, useReactFlow, useUpdateNodeInternals } from "@xyflow/react";
 import type { HandleEdge, HandlePosition, HandlePositions } from "@/lib/types";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface DraggableHandleProps {
   nodeId: string;
@@ -97,6 +98,7 @@ export default function DraggableHandle({
   title,
   isConnectable = true,
 }: DraggableHandleProps) {
+  const { theme } = useTheme();
   const { setNodes } = useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -241,12 +243,18 @@ export default function DraggableHandle({
       {/* Context Menu - rendered via portal to escape React Flow transforms */}
       {contextMenu && createPortal(
         <div
-          className="fixed z-[9999] bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[120px]"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
+          className="fixed z-[9999] rounded-lg shadow-lg border py-1 min-w-[120px]"
+          style={{
+            left: contextMenu.x,
+            top: contextMenu.y,
+            backgroundColor: theme.colors.nodes.common.container.background,
+            borderColor: theme.colors.nodes.common.container.border
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
-            className="w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+            className="w-full px-3 py-1.5 text-left text-sm flex items-center gap-2 hover:opacity-80 transition-opacity"
+            style={{ color: theme.colors.nodes.common.text.secondary }}
             onClick={handleMoveClick}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

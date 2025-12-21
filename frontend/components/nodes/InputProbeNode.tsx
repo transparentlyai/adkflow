@@ -12,6 +12,7 @@ import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock } from "lucide-react";
 import { readPrompt } from "@/lib/api";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const DEFAULT_WIDTH = 400;
 const DEFAULT_HEIGHT = 280;
@@ -40,6 +41,7 @@ const InputProbeNode = memo(({ data, id, selected }: NodeProps) => {
   const { setNodes } = useReactFlow();
   const { projectPath, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
+  const { theme } = useTheme();
 
   const handleCopy = useCallback(() => {
     setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
@@ -248,9 +250,24 @@ const InputProbeNode = memo(({ data, id, selected }: NodeProps) => {
         onDoubleClick={toggleExpand}
         onContextMenu={handleHeaderContextMenu}
         title="Double-click to expand"
-        className={`bg-gray-700 text-white rounded-full w-9 h-9 flex items-center justify-center shadow-md cursor-pointer hover:bg-gray-600 transition-all ${
-          selected ? "ring-2 ring-gray-400 shadow-xl" : ""
-        }`}
+        className="rounded-full w-9 h-9 flex items-center justify-center shadow-md cursor-pointer transition-all"
+        style={{
+          backgroundColor: theme.colors.nodes.probe.header,
+          color: theme.colors.nodes.probe.text,
+          ...(selected ? {
+            boxShadow: `0 0 0 2px ${theme.colors.nodes.probe.ring}, 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)`,
+          } : {}),
+        }}
+        onMouseEnter={(e) => {
+          if (!selected && theme.colors.nodes.probe.headerHover) {
+            e.currentTarget.style.backgroundColor = theme.colors.nodes.probe.headerHover;
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!selected) {
+            e.currentTarget.style.backgroundColor = theme.colors.nodes.probe.header;
+          }
+        }}
       >
         <div className="flex items-center gap-0.5">
           {isNodeLocked && <Lock className="w-2 h-2 opacity-80" />}
@@ -264,7 +281,7 @@ const InputProbeNode = memo(({ data, id, selected }: NodeProps) => {
           defaultEdge="bottom"
           defaultPercent={50}
           handlePositions={handlePositions}
-          style={{ width: '8px', height: '8px', backgroundColor: '#6b7280', border: '2px solid white' }}
+          style={{ width: '8px', height: '8px', backgroundColor: theme.colors.handles.probe, border: `2px solid ${theme.colors.handles.border}` }}
         />
 
         {contextMenu && (
@@ -288,19 +305,41 @@ const InputProbeNode = memo(({ data, id, selected }: NodeProps) => {
 
   return (
     <div
-      className={`bg-white rounded-lg shadow-lg relative ${
-        selected ? "ring-2 ring-gray-500 shadow-xl" : ""
-      }`}
-      style={{ width: size.width }}
+      className="rounded-lg relative"
+      style={{
+        width: size.width,
+        backgroundColor: theme.colors.nodes.common.container.background,
+        boxShadow: selected
+          ? `0 0 0 2px ${theme.colors.nodes.probe.ring}, 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)`
+          : theme.colors.nodes.common.container.shadow,
+      }}
     >
       <div
-        className="bg-gray-700 text-white px-2 py-1 rounded-t-lg flex items-center justify-between cursor-pointer"
+        className="px-2 py-1 rounded-t-lg flex items-center justify-between cursor-pointer"
+        style={{
+          backgroundColor: theme.colors.nodes.probe.header,
+          color: theme.colors.nodes.probe.text,
+        }}
         onDoubleClick={toggleExpand}
         onContextMenu={handleHeaderContextMenu}
+        onMouseEnter={(e) => {
+          if (theme.colors.nodes.probe.headerHover) {
+            e.currentTarget.style.backgroundColor = theme.colors.nodes.probe.headerHover;
+          }
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = theme.colors.nodes.probe.header;
+        }}
       >
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
-          <span className="bg-gray-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">IN</span>
+          <span
+            className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+            style={{
+              backgroundColor: theme.colors.nodes.probe.headerHover || theme.colors.nodes.probe.header,
+              color: theme.colors.nodes.probe.text,
+            }}
+          >IN</span>
           {isEditing ? (
             <input
               ref={inputRef}
@@ -310,7 +349,11 @@ const InputProbeNode = memo(({ data, id, selected }: NodeProps) => {
               onBlur={handleNameSave}
               onKeyDown={handleNameKeyDown}
               onClick={(e) => e.stopPropagation()}
-              className="flex-1 bg-white text-gray-900 px-1.5 py-0.5 rounded text-xs font-medium outline-none min-w-0"
+              className="flex-1 px-1.5 py-0.5 rounded text-xs font-medium outline-none min-w-0"
+              style={{
+                backgroundColor: theme.colors.nodes.common.container.background,
+                color: theme.colors.nodes.common.text.primary,
+              }}
             />
           ) : (
             <span
@@ -323,7 +366,16 @@ const InputProbeNode = memo(({ data, id, selected }: NodeProps) => {
         </div>
         <button
           onClick={toggleExpand}
-          className="ml-1.5 p-0.5 hover:bg-gray-600 rounded transition-colors flex-shrink-0"
+          className="ml-1.5 p-0.5 rounded transition-colors flex-shrink-0"
+          style={{
+            backgroundColor: 'transparent',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = theme.colors.nodes.probe.headerHover || theme.colors.nodes.probe.header;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }}
           title="Collapse"
         >
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -346,7 +398,7 @@ const InputProbeNode = memo(({ data, id, selected }: NodeProps) => {
           height="100%"
           defaultLanguage="markdown"
           value={content}
-          theme="vs-light"
+          theme={theme.colors.monaco}
           options={{
             readOnly: true,
             minimap: { enabled: false },
@@ -372,9 +424,24 @@ const InputProbeNode = memo(({ data, id, selected }: NodeProps) => {
         />
       </div>
 
-      <div className="bg-gray-50 px-3 py-2 rounded-b-lg flex items-center justify-between">
-        <span className="text-xs text-gray-500 truncate">{file_path || "No file selected"}</span>
-        <span className="text-xs text-gray-400">{lineCount} lines</span>
+      <div
+        className="px-3 py-2 rounded-b-lg flex items-center justify-between"
+        style={{
+          backgroundColor: theme.colors.nodes.common.footer.background,
+        }}
+      >
+        <span
+          className="text-xs truncate"
+          style={{ color: theme.colors.nodes.common.footer.text }}
+        >
+          {file_path || "No file selected"}
+        </span>
+        <span
+          className="text-xs"
+          style={{ color: theme.colors.nodes.common.text.muted }}
+        >
+          {lineCount} lines
+        </span>
       </div>
 
       <ResizeHandle onResize={handleResize} />
@@ -386,7 +453,7 @@ const InputProbeNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="bottom"
         defaultPercent={50}
         handlePositions={handlePositions}
-        style={{ width: '10px', height: '10px', backgroundColor: '#6b7280', border: '2px solid white' }}
+        style={{ width: '10px', height: '10px', backgroundColor: theme.colors.handles.probe, border: `2px solid ${theme.colors.handles.border}` }}
       />
 
       {contextMenu && (

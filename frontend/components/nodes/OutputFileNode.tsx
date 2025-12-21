@@ -12,6 +12,7 @@ import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock, Loader2, FileInput, RefreshCw } from "lucide-react";
 import { readFileChunk } from "@/lib/api";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const DEFAULT_WIDTH = 400;
 const DEFAULT_HEIGHT = 280;
@@ -73,6 +74,7 @@ const OutputFileNode = memo(({ data, id, selected }: NodeProps) => {
   const { setNodes } = useReactFlow();
   const { projectPath, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
+  const { theme } = useTheme();
 
   const handleCopy = useCallback(() => {
     setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
@@ -361,8 +363,13 @@ const OutputFileNode = memo(({ data, id, selected }: NodeProps) => {
         }`}
       >
         <div className="flex items-center">
-          {isNodeLocked && <Lock className="w-3 h-3 text-gray-600 absolute -top-1 -right-1" />}
-          <FileInput className={`w-6 h-6 text-gray-500 hover:text-gray-400 ${selected ? "text-gray-400" : ""}`} />
+          {isNodeLocked && <Lock className="w-3 h-3 absolute -top-1 -right-1" style={{ color: theme.colors.nodes.common.text.secondary }} />}
+          <FileInput
+            className="w-6 h-6"
+            style={{
+              color: selected ? theme.colors.nodes.common.text.muted : theme.colors.nodes.common.text.secondary
+            }}
+          />
         </div>
 
         <DraggableHandle
@@ -372,7 +379,7 @@ const OutputFileNode = memo(({ data, id, selected }: NodeProps) => {
           defaultEdge="left"
           defaultPercent={50}
           handlePositions={handlePositions}
-          style={{ width: '8px', height: '8px', backgroundColor: '#6b7280', border: '2px solid white' }}
+          style={{ width: '8px', height: '8px', backgroundColor: theme.colors.handles.probe, border: '2px solid white' }}
         />
 
         {contextMenu && (
@@ -397,19 +404,35 @@ const OutputFileNode = memo(({ data, id, selected }: NodeProps) => {
   // Expanded state
   return (
     <div
-      className={`bg-white rounded-lg shadow-lg relative ${
-        selected ? "ring-2 ring-gray-400 shadow-xl" : ""
+      className={`rounded-lg shadow-lg relative ${
+        selected ? "ring-2 shadow-xl" : ""
       }`}
-      style={{ width: size.width }}
+      style={{
+        width: size.width,
+        backgroundColor: theme.colors.nodes.common.container.background,
+        ...(selected && { borderColor: theme.colors.nodes.outputFile.ring })
+      }}
     >
       <div
-        className="bg-gray-600 text-white px-2 py-1 rounded-t-lg flex items-center justify-between cursor-pointer"
+        className="px-2 py-1 rounded-t-lg flex items-center justify-between cursor-pointer"
+        style={{
+          backgroundColor: theme.colors.nodes.outputFile.header,
+          color: theme.colors.nodes.outputFile.text
+        }}
         onDoubleClick={toggleExpand}
         onContextMenu={handleHeaderContextMenu}
       >
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
-          <span className="bg-gray-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">OUTPUT</span>
+          <span
+            className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+            style={{
+              backgroundColor: theme.colors.nodes.common.container.background,
+              color: theme.colors.nodes.outputFile.header
+            }}
+          >
+            OUTPUT
+          </span>
           {isEditing ? (
             <input
               ref={inputRef}
@@ -419,7 +442,11 @@ const OutputFileNode = memo(({ data, id, selected }: NodeProps) => {
               onBlur={handleNameSave}
               onKeyDown={handleNameKeyDown}
               onClick={(e) => e.stopPropagation()}
-              className="flex-1 bg-white text-gray-900 px-1.5 py-0.5 rounded text-xs font-medium outline-none min-w-0"
+              className="flex-1 px-1.5 py-0.5 rounded text-xs font-medium outline-none min-w-0"
+              style={{
+                backgroundColor: theme.colors.nodes.common.container.background,
+                color: theme.colors.nodes.common.text.primary
+              }}
             />
           ) : (
             <span
@@ -434,14 +461,32 @@ const OutputFileNode = memo(({ data, id, selected }: NodeProps) => {
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="p-0.5 hover:bg-gray-500 rounded transition-colors flex-shrink-0 disabled:opacity-50"
+            className="p-0.5 rounded transition-colors flex-shrink-0 disabled:opacity-50"
+            style={{ backgroundColor: 'transparent' }}
+            onMouseEnter={(e) => {
+              if (!isRefreshing && theme.colors.nodes.outputFile.headerHover) {
+                e.currentTarget.style.backgroundColor = theme.colors.nodes.outputFile.headerHover;
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
             title="Refresh content"
           >
             <RefreshCw className={`w-3 h-3 ${isRefreshing ? "animate-spin" : ""}`} />
           </button>
           <button
             onClick={toggleExpand}
-            className="p-0.5 hover:bg-gray-500 rounded transition-colors flex-shrink-0"
+            className="p-0.5 rounded transition-colors flex-shrink-0"
+            style={{ backgroundColor: 'transparent' }}
+            onMouseEnter={(e) => {
+              if (theme.colors.nodes.outputFile.headerHover) {
+                e.currentTarget.style.backgroundColor = theme.colors.nodes.outputFile.headerHover;
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
             title="Collapse"
           >
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -457,20 +502,23 @@ const OutputFileNode = memo(({ data, id, selected }: NodeProps) => {
       />
 
       <div
-        className="border-b border-gray-200 nodrag nowheel nopan relative"
-        style={{ height: editorHeight }}
+        className="nodrag nowheel nopan relative"
+        style={{
+          height: editorHeight,
+          borderBottom: `1px solid ${theme.colors.nodes.common.container.border}`
+        }}
         onKeyDown={(e) => e.stopPropagation()}
       >
         {isInitialLoading ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-6 h-6 animate-spin text-gray-500" />
+            <Loader2 className="w-6 h-6 animate-spin" style={{ color: theme.colors.nodes.common.text.muted }} />
           </div>
         ) : (
           <Editor
             height="100%"
             language={language}
             value={content}
-            theme="vs"
+            theme={theme.colors.monaco}
             onMount={handleEditorMount}
             options={{
               readOnly: true,
@@ -498,16 +546,32 @@ const OutputFileNode = memo(({ data, id, selected }: NodeProps) => {
           />
         )}
         {isLoadingMore && (
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-gray-600 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
+          <div
+            className="absolute bottom-2 left-1/2 -translate-x-1/2 text-white text-xs px-2 py-1 rounded flex items-center gap-1"
+            style={{
+              backgroundColor: theme.colors.nodes.common.text.secondary
+            }}
+          >
             <Loader2 className="w-3 h-3 animate-spin" />
             Loading...
           </div>
         )}
       </div>
 
-      <div className="bg-gray-50 px-3 py-2 rounded-b-lg flex items-center justify-between">
-        <span className="text-xs text-gray-500 truncate">{file_path || "No file selected"}</span>
-        <span className="text-xs text-gray-400">
+      <div
+        className="px-3 py-2 rounded-b-lg flex items-center justify-between"
+        style={{ backgroundColor: theme.colors.nodes.common.footer.background }}
+      >
+        <span
+          className="text-xs truncate"
+          style={{ color: theme.colors.nodes.common.footer.text }}
+        >
+          {file_path || "No file selected"}
+        </span>
+        <span
+          className="text-xs"
+          style={{ color: theme.colors.nodes.common.text.muted }}
+        >
           {totalLines > 0 ? (
             <>
               {displayedLines} / {totalLines} lines
@@ -528,7 +592,7 @@ const OutputFileNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="left"
         defaultPercent={50}
         handlePositions={handlePositions}
-        style={{ width: '10px', height: '10px', backgroundColor: '#6b7280', border: '2px solid white' }}
+        style={{ width: '10px', height: '10px', backgroundColor: theme.colors.handles.probe, border: '2px solid white' }}
       />
 
       {contextMenu && (
