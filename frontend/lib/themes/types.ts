@@ -151,6 +151,12 @@ export interface FormColors {
   };
 }
 
+export interface ScrollbarColors {
+  track: string;
+  thumb: string;
+  thumbHover: string;
+}
+
 export interface ThemeColors {
   canvas: CanvasColors;
   nodes: NodeColors;
@@ -158,6 +164,7 @@ export interface ThemeColors {
   edges: EdgeColors;
   ui: UIColors;
   form: FormColors;
+  scrollbar: ScrollbarColors;
   monaco: "vs" | "vs-dark";
 }
 

@@ -249,6 +249,11 @@ export function applyTheme(theme: Theme): void {
   root.style.setProperty("--form-slider-thumb", colors.form.slider.thumb);
   root.style.setProperty("--form-slider-active", colors.form.slider.active);
 
+  // Scrollbar
+  root.style.setProperty("--scrollbar-track", colors.scrollbar.track);
+  root.style.setProperty("--scrollbar-thumb", colors.scrollbar.thumb);
+  root.style.setProperty("--scrollbar-thumb-hover", colors.scrollbar.thumbHover);
+
   // Monaco theme (stored for JS access)
   root.style.setProperty("--monaco-theme", colors.monaco);
 }

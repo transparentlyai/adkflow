@@ -187,6 +187,11 @@
         "active": "#38bdf8"
       }
     },
+    "scrollbar": {
+      "track": "transparent",
+      "thumb": "rgba(98, 114, 164, 0.4)",
+      "thumbHover": "rgba(98, 114, 164, 0.6)"
+    },
     "monaco": "vs-dark"
   }
 }
