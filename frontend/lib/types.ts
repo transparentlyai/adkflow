@@ -194,10 +194,6 @@ export interface ValidationResponse {
   warnings?: string[];
 }
 
-export interface ExportResponse {
-  yaml: string;
-  filename?: string;
-}
 
 export interface ImportResponse {
   workflow: Workflow;

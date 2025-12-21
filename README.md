@@ -202,14 +202,6 @@ export GOOGLE_CLOUD_LOCATION="us-central1"
 
 ---
 
-## Documentation
-
-- [Getting Started](docs/GETTING_STARTED.md) - Detailed setup guide
-- [Project Management](docs/PROJECT_MANAGEMENT.md) - Working with projects
-- [Port Configuration](docs/PORT_CONFIGURATION.md) - Custom port setup
-
----
-
 ## Contributing
 
 1. Use absolute imports

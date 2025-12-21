@@ -148,15 +148,15 @@ export default function ProjectDialog({
                   <>
                     <li>• Start with a blank workflow canvas</li>
                     <li>• Create your workflow visually</li>
-                    <li>• On save: directory will be created</li>
-                    <li>• Workflow saved as workflow.yaml</li>
+                    <li>• On save: project directory will be created</li>
+                    <li>• Workflow saved as JSON</li>
                   </>
                 ) : (
                   <>
-                    <li>• Load workflow.yaml from the path</li>
+                    <li>• Load project from the selected path</li>
                     <li>• Display workflow in the editor</li>
                     <li>• Edit and update as needed</li>
-                    <li>• On save: workflow.yaml will be updated</li>
+                    <li>• On save: project will be updated</li>
                   </>
                 )}
               </ul>
@@ -184,7 +184,7 @@ export default function ProjectDialog({
         onSelect={handlePathSelected}
         onCancel={handlePathPickerCancel}
         title={mode === "create" ? "Select Directory for New Project" : "Select Existing Project Directory"}
-        description={mode === "create" ? "Choose where to create your new workflow project" : "Choose the directory containing workflow.yaml"}
+        description={mode === "create" ? "Choose where to create your new workflow project" : "Choose the project directory to load"}
       />
     </>
   );
