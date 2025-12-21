@@ -73,6 +73,7 @@ export interface NodeColors {
   probe: NodeTypeColors;
   outputFile: NodeTypeColors;
   label: NodeTypeColors;
+  userInput: NodeTypeColors;
   teleport: {
     colors: string[];
   };

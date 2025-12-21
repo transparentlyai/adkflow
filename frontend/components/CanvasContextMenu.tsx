@@ -28,6 +28,7 @@ import {
   GitBranch,
   ArrowRightFromLine,
   ArrowLeftToLine,
+  MessageSquare,
 } from "lucide-react";
 
 export type NodeTypeOption =
@@ -45,7 +46,8 @@ export type NodeTypeOption =
   | "process"
   | "label"
   | "teleportOut"
-  | "teleportIn";
+  | "teleportIn"
+  | "userInput";
 
 interface ContextMenuProps {
   x: number;
@@ -80,6 +82,7 @@ const topLevelItems: NodeOption[] = [
   { type: "prompt", label: "Prompt", icon: <FileText className="h-4 w-4" /> },
   { type: "context", label: "Context", icon: <Database className="h-4 w-4" /> },
   { type: "outputFile", label: "Output File", icon: <FileInput className="h-4 w-4" /> },
+  { type: "userInput", label: "User Input", icon: <MessageSquare className="h-4 w-4" /> },
 ];
 
 const menuGroups: MenuGroup[] = [

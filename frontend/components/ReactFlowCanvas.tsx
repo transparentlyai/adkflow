@@ -51,6 +51,7 @@ import ProcessNode from "./nodes/ProcessNode";
 import LabelNode from "./nodes/LabelNode";
 import TeleportOutNode, { getDefaultTeleportOutData } from "./nodes/TeleportOutNode";
 import TeleportInNode, { getDefaultTeleportInData } from "./nodes/TeleportInNode";
+import UserInputNode, { getDefaultUserInputData } from "./nodes/UserInputNode";
 
 import { generateNodeId } from "@/lib/workflowHelpers";
 import CanvasContextMenu, { type NodeTypeOption } from "./CanvasContextMenu";
@@ -88,6 +89,7 @@ const nodeTypes = {
   label: LabelNode,
   teleportOut: TeleportOutNode,
   teleportIn: TeleportInNode,
+  userInput: UserInputNode,
 } as any; // eslint-disable-line
 
 interface ReactFlowCanvasProps {
@@ -116,6 +118,7 @@ export interface ReactFlowCanvasRef {
   addProcessNode: (processData?: { name: string; file_path: string }, position?: { x: number; y: number }) => void;
   addTeleportOutNode: (name: string, position?: { x: number; y: number }) => void;
   addTeleportInNode: (name: string, position?: { x: number; y: number }) => void;
+  addUserInputNode: (position?: { x: number; y: number }) => void;
   clearCanvas: () => void;
   saveFlow: () => { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } } | null;
   restoreFlow: (flow: { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }) => void;
@@ -191,6 +194,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     const [labelPosition, setLabelPosition] = useState({ x: 150, y: 750 });
     const [teleportOutPosition, setTeleportOutPosition] = useState({ x: 150, y: 800 });
     const [teleportInPosition, setTeleportInPosition] = useState({ x: 150, y: 850 });
+    const [userInputPosition, setUserInputPosition] = useState({ x: 150, y: 900 });
 
     const spacing = 350;
 
@@ -1063,6 +1067,25 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       }
     }, [teleportInPosition]);
 
+    /**
+     * Add a User Input node to the canvas
+     */
+    const addUserInputNode = useCallback((position?: { x: number; y: number }) => {
+      const userInputId = generateNodeId("userInput");
+
+      const newNode: Node = {
+        id: userInputId,
+        type: "userInput",
+        position: position || userInputPosition,
+        data: getDefaultUserInputData(),
+      };
+
+      setNodes((nds) => [...nds, newNode]);
+      if (!position) {
+        setUserInputPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+      }
+    }, [userInputPosition]);
+
     // Handle right-click on canvas pane
     const onPaneContextMenu = useCallback((event: MouseEvent | React.MouseEvent) => {
       event.preventDefault();
@@ -1200,6 +1223,9 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           setTeleportNamePrompt({ type: "teleportIn", position, parentGroupId });
           setTeleportNameInput("");
           break;
+        case 'userInput':
+          addNodeWithParent(addUserInputNode, position, parentGroupId);
+          break;
       }
 
       setContextMenu(null);
@@ -1215,6 +1241,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       addOutputFileNode,
       addAgentToolNode,
       addLabelNode,
+      addUserInputNode,
       onRequestPromptCreation,
       onRequestContextCreation,
       onRequestToolCreation,
@@ -1304,6 +1331,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       setProcessPosition({ x: 150, y: 550 });
       setTeleportOutPosition({ x: 150, y: 600 });
       setTeleportInPosition({ x: 150, y: 650 });
+      setUserInputPosition({ x: 150, y: 700 });
     }, []);
 
     /**
@@ -1390,6 +1418,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       addProcessNode,
       addTeleportOutNode,
       addTeleportInNode,
+      addUserInputNode,
       clearCanvas,
       saveFlow,
       restoreFlow,
@@ -1508,6 +1537,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
                     return theme.colors.nodes.process.header;
                   case "label":
                     return theme.colors.nodes.label.header;
+                  case "userInput":
+                    return theme.colors.nodes.userInput.header;
                   default:
                     return theme.colors.nodes.label.header;
                 }

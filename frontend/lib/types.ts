@@ -116,7 +116,7 @@ export interface Workflow {
 /**
  * Node types for the Drawflow canvas
  */
-export type NodeType = "group" | "agent" | "prompt" | "context" | "inputProbe" | "outputProbe" | "logProbe" | "tool" | "agentTool" | "variable" | "teleportOut" | "teleportIn";
+export type NodeType = "group" | "agent" | "prompt" | "context" | "inputProbe" | "outputProbe" | "logProbe" | "tool" | "agentTool" | "variable" | "teleportOut" | "teleportIn" | "userInput";
 
 /**
  * Teleporter (flow connector) types for cross-flow connections

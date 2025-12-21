@@ -105,6 +105,12 @@
         "text": "#f0f0f5",
         "ring": "#6272a4"
       },
+      "userInput": {
+        "header": "#1a5a3a",
+        "headerHover": "#2a6a4a",
+        "text": "#ffffff",
+        "ring": "#34d399"
+      },
       "teleport": {
         "colors": [
           "#ff5555", "#ffb86c", "#f1fa8c", "#50fa7b",
