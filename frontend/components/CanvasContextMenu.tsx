@@ -11,7 +11,7 @@ import {
   Terminal,
   LogIn,
   LogOut,
-  FileOutput,
+  FileInput,
   Code,
   Lock,
   Unlock,
@@ -79,6 +79,7 @@ const topLevelItems: NodeOption[] = [
   { type: "agent", label: "Agent", icon: <Monitor className="h-4 w-4" /> },
   { type: "prompt", label: "Prompt", icon: <FileText className="h-4 w-4" /> },
   { type: "context", label: "Context", icon: <Database className="h-4 w-4" /> },
+  { type: "outputFile", label: "Output File", icon: <FileInput className="h-4 w-4" /> },
 ];
 
 const menuGroups: MenuGroup[] = [
@@ -99,7 +100,6 @@ const menuGroups: MenuGroup[] = [
       { type: "inputProbe", label: "Input Probe", icon: <LogIn className="h-4 w-4" /> },
       { type: "outputProbe", label: "Output Probe", icon: <LogOut className="h-4 w-4" /> },
       { type: "logProbe", label: "Log Probe", icon: <List className="h-4 w-4" /> },
-      { type: "outputFile", label: "Output File", icon: <FileOutput className="h-4 w-4" /> },
     ],
   },
   {
