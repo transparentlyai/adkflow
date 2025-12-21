@@ -300,7 +300,7 @@ const LogProbeNode = memo(({ data, id, selected }: NodeProps) => {
             : node
         )
       );
-    });
+    }, { extensions: ['.log', '.txt'], filterLabel: 'Log files' });
   }, [onRequestFilePicker, file_path, id, setNodes]);
 
   const displayedLines = content?.split("\n").length || 0;

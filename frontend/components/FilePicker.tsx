@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { listDirectory } from "@/lib/api";
+import { listDirectory, ensureDirectory } from "@/lib/api";
 import type { DirectoryEntry } from "@/lib/types";
 
 interface FilePickerProps {
@@ -13,6 +13,10 @@ interface FilePickerProps {
   title?: string;
   description?: string;
   fileFilter?: (entry: DirectoryEntry) => boolean;
+  /** Default file extensions to filter by (e.g., ['.md', '.txt']) */
+  defaultExtensions?: string[];
+  /** Label for the filter (e.g., "Markdown files") */
+  filterLabel?: string;
 }
 
 export default function FilePicker({
@@ -24,6 +28,8 @@ export default function FilePicker({
   title = "Select File",
   description = "Choose a file from your project",
   fileFilter,
+  defaultExtensions,
+  filterLabel,
 }: FilePickerProps) {
   const [currentPath, setCurrentPath] = useState("");
   const [entries, setEntries] = useState<DirectoryEntry[]>([]);
@@ -32,6 +38,22 @@ export default function FilePicker({
   const [error, setError] = useState("");
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [manualPath, setManualPath] = useState("");
+  const [showAllFiles, setShowAllFiles] = useState(!defaultExtensions || defaultExtensions.length === 0);
+
+  // Filter function based on extensions
+  const extensionFilter = (entry: DirectoryEntry): boolean => {
+    if (showAllFiles || !defaultExtensions || defaultExtensions.length === 0) return true;
+    const ext = '.' + entry.name.split('.').pop()?.toLowerCase();
+    return defaultExtensions.some(e => e.toLowerCase() === ext);
+  };
+
+  // Combined filter: custom filter AND extension filter
+  const combinedFilter = (entry: DirectoryEntry): boolean => {
+    if (entry.is_directory) return true;
+    const passesExtensionFilter = extensionFilter(entry);
+    const passesCustomFilter = fileFilter ? fileFilter(entry) : true;
+    return passesExtensionFilter && passesCustomFilter;
+  };
 
   useEffect(() => {
     const loadDirectoryWithFallback = async (path: string): Promise<boolean> => {
@@ -41,14 +63,8 @@ export default function FilePicker({
         setParentPath(response.parent_path);
         setManualPath(response.current_path);
 
-        // Filter entries if a filter is provided
-        let filteredEntries = response.entries;
-        if (fileFilter) {
-          filteredEntries = response.entries.filter(
-            entry => entry.is_directory || fileFilter(entry)
-          );
-        }
-
+        // Filter entries using combined filter
+        const filteredEntries = response.entries.filter(combinedFilter);
         setEntries(filteredEntries);
         return true;
       } catch {
@@ -69,6 +85,15 @@ export default function FilePicker({
         : projectPath;
 
       let success = false;
+
+      // If the target directory is within the project, try to create it first
+      if (currentDir.startsWith(projectPath) && currentDir !== projectPath) {
+        try {
+          await ensureDirectory(currentDir);
+        } catch {
+          // Silently ignore - we'll fall back to walking up the tree
+        }
+      }
 
       // Walk up the directory tree until we find a valid directory
       while (currentDir && currentDir.length > 1) {
@@ -94,7 +119,7 @@ export default function FilePicker({
     };
 
     initializeDirectory();
-  }, [isOpen, projectPath, initialPath, fileFilter]);
+  }, [isOpen, projectPath, initialPath, fileFilter, showAllFiles, defaultExtensions]);
 
   const loadDirectory = async (path: string) => {
     setLoading(true);
@@ -106,14 +131,8 @@ export default function FilePicker({
       setParentPath(response.parent_path);
       setManualPath(response.current_path);
 
-      // Filter entries if a filter is provided
-      let filteredEntries = response.entries;
-      if (fileFilter) {
-        filteredEntries = response.entries.filter(
-          entry => entry.is_directory || fileFilter(entry)
-        );
-      }
-
+      // Filter entries using combined filter
+      const filteredEntries = response.entries.filter(combinedFilter);
       setEntries(filteredEntries);
     } catch (err) {
       setError((err as Error).message);
@@ -271,8 +290,24 @@ export default function FilePicker({
 
         {/* Footer Actions */}
         <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
-          <div className="text-xs text-gray-500">
-            {entries.filter(e => !e.is_directory).length} files, {entries.filter(e => e.is_directory).length} folders
+          <div className="flex items-center gap-4">
+            <div className="text-xs text-gray-500">
+              {entries.filter(e => !e.is_directory).length} files, {entries.filter(e => e.is_directory).length} folders
+            </div>
+            {defaultExtensions && defaultExtensions.length > 0 && (
+              <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showAllFiles}
+                  onChange={(e) => setShowAllFiles(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span>Show all files</span>
+                {!showAllFiles && filterLabel && (
+                  <span className="text-gray-400">({filterLabel})</span>
+                )}
+              </label>
+            )}
           </div>
           <div className="flex gap-3">
             <button

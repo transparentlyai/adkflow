@@ -279,6 +279,26 @@ export async function createDirectory(
 }
 
 /**
+ * Ensure a directory exists, creating it and any parent directories if needed
+ */
+export async function ensureDirectory(
+  path: string
+): Promise<DirectoryCreateResponse> {
+  try {
+    const response = await apiClient.post<DirectoryCreateResponse>(
+      "/api/filesystem/ensure-dir",
+      { path }
+    );
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.detail || "Failed to ensure directory");
+    }
+    throw error;
+  }
+}
+
+/**
  * List all tabs for a project
  */
 export async function listTabs(projectPath: string): Promise<TabListResponse> {

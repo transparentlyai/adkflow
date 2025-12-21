@@ -224,7 +224,7 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
             : node
         )
       );
-    });
+    }, { extensions: ['.md', '.txt'], filterLabel: 'Markdown files' });
   }, [onRequestFilePicker, prompt, id, setNodes]);
 
   const toggleExpand = useCallback(() => {

@@ -236,7 +236,7 @@ const InputProbeNode = memo(({ data, id, selected }: NodeProps) => {
             : node
         )
       );
-    });
+    }, { extensions: ['.log', '.txt', '.json'], filterLabel: 'Probe files' });
   }, [onRequestFilePicker, file_path, id, setNodes]);
 
   const lineCount = content?.split("\n").length || 0;

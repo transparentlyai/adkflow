@@ -269,7 +269,7 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
             : node
         )
       );
-    });
+    }, { extensions: ['.py'], filterLabel: 'Python files' });
   }, [onRequestFilePicker, file_path, id, setNodes]);
 
   // Calculate lines of code for display

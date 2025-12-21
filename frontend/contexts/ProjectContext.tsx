@@ -2,10 +2,21 @@
 
 import { createContext, useContext, ReactNode } from "react";
 
+export interface FilePickerOptions {
+  /** File extensions to filter by (e.g., ['.md', '.txt']) */
+  extensions?: string[];
+  /** Label for the filter dropdown (e.g., "Markdown files") */
+  filterLabel?: string;
+}
+
 interface ProjectContextValue {
   projectPath: string | null;
   onSaveFile?: (filePath: string, content: string) => Promise<void>;
-  onRequestFilePicker?: (currentFilePath: string, onSelect: (newPath: string) => void) => void;
+  onRequestFilePicker?: (
+    currentFilePath: string,
+    onSelect: (newPath: string) => void,
+    options?: FilePickerOptions
+  ) => void;
   isLocked?: boolean;
 }
 
@@ -18,7 +29,11 @@ interface ProjectProviderProps {
   children: ReactNode;
   projectPath: string | null;
   onSaveFile?: (filePath: string, content: string) => Promise<void>;
-  onRequestFilePicker?: (currentFilePath: string, onSelect: (newPath: string) => void) => void;
+  onRequestFilePicker?: (
+    currentFilePath: string,
+    onSelect: (newPath: string) => void,
+    options?: FilePickerOptions
+  ) => void;
   isLocked?: boolean;
 }
 

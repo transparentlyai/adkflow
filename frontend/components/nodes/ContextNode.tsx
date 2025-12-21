@@ -198,7 +198,7 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
             : node
         )
       );
-    });
+    }, { extensions: ['.md', '.txt'], filterLabel: 'Context files' });
   }, [onRequestFilePicker, prompt, id, setNodes]);
 
   const toggleExpand = useCallback(() => {

@@ -253,7 +253,7 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
             : node
         )
       );
-    });
+    }, { extensions: ['.py'], filterLabel: 'Python files' });
   }, [onRequestFilePicker, file_path, id, setNodes]);
 
   const lineCount = code?.split("\n").length || 0;

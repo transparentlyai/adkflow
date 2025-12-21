@@ -170,6 +170,12 @@ class DirectoryCreateResponse(BaseModel):
     message: str
 
 
+class DirectoryEnsureRequest(BaseModel):
+    """Request model for ensuring a directory exists (recursive creation)."""
+
+    path: str
+
+
 # Tab/Page Request/Response Models
 
 
@@ -986,6 +992,64 @@ async def create_directory(request: DirectoryCreateRequest) -> DirectoryCreateRe
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create directory: {str(e)}",
+        )
+
+
+@router.post("/filesystem/ensure-dir", response_model=DirectoryCreateResponse)
+async def ensure_directory(request: DirectoryEnsureRequest) -> DirectoryCreateResponse:
+    """
+    Ensure a directory exists, creating it and any parent directories if needed.
+
+    Args:
+        request: Request with the full directory path to ensure
+
+    Returns:
+        DirectoryCreateResponse with the directory path
+
+    Raises:
+        HTTPException: If creation fails
+    """
+    try:
+        # Expand user home directory if needed
+        dir_path = request.path
+        if dir_path.startswith("~"):
+            dir_path = os.path.expanduser(dir_path)
+
+        # Resolve to absolute path
+        target_dir = Path(dir_path).resolve()
+
+        # Check if it already exists
+        if target_dir.exists():
+            if not target_dir.is_dir():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Path exists but is not a directory: {request.path}",
+                )
+            return DirectoryCreateResponse(
+                success=True,
+                created_path=str(target_dir),
+                message="Directory already exists",
+            )
+
+        # Create directory and all parents
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        return DirectoryCreateResponse(
+            success=True,
+            created_path=str(target_dir),
+            message="Directory created successfully",
+        )
+
+    except HTTPException:
+        raise
+    except PermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=f"Permission denied: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to ensure directory: {str(e)}",
         )
 
 

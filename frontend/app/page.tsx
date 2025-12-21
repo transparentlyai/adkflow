@@ -12,7 +12,7 @@ import ProjectSwitcher from "@/components/ProjectSwitcher";
 import { createPrompt, createContext, createTool, savePrompt, readPrompt } from "@/lib/api";
 import FilePicker from "@/components/FilePicker";
 import { loadSession, saveSession } from "@/lib/sessionStorage";
-import { ProjectProvider } from "@/contexts/ProjectContext";
+import { ProjectProvider, type FilePickerOptions } from "@/contexts/ProjectContext";
 import { ClipboardProvider } from "@/contexts/ClipboardContext";
 import { TabsProvider, useTabs } from "@/contexts/TabsContext";
 import { TeleporterProvider, useTeleporter } from "@/contexts/TeleporterContext";
@@ -95,6 +95,7 @@ function HomeContent() {
   const [isFilePickerOpen, setIsFilePickerOpen] = useState(false);
   const [filePickerInitialPath, setFilePickerInitialPath] = useState<string | undefined>(undefined);
   const [filePickerCallback, setFilePickerCallback] = useState<((newPath: string) => void) | null>(null);
+  const [filePickerOptions, setFilePickerOptions] = useState<FilePickerOptions | undefined>(undefined);
 
   // Load session and recent projects on mount
   useEffect(() => {
@@ -493,11 +494,20 @@ function HomeContent() {
   }, [currentProjectPath]);
 
   // File picker handler
-  const handleRequestFilePicker = useCallback((currentFilePath: string, onSelect: (newPath: string) => void) => {
-    setFilePickerInitialPath(currentFilePath);
+  const handleRequestFilePicker = useCallback((
+    currentFilePath: string,
+    onSelect: (newPath: string) => void,
+    options?: FilePickerOptions
+  ) => {
+    // Resolve relative path to absolute path for proper file picker navigation
+    const fullPath = currentFilePath && !currentFilePath.startsWith('/') && currentProjectPath
+      ? `${currentProjectPath}/${currentFilePath}`
+      : currentFilePath;
+    setFilePickerInitialPath(fullPath);
     setFilePickerCallback(() => onSelect);
+    setFilePickerOptions(options);
     setIsFilePickerOpen(true);
-  }, []);
+  }, [currentProjectPath]);
 
   const handleFilePickerSelect = useCallback(async (newPath: string) => {
     if (filePickerCallback && currentProjectPath) {
@@ -516,12 +526,14 @@ function HomeContent() {
     setIsFilePickerOpen(false);
     setFilePickerCallback(null);
     setFilePickerInitialPath(undefined);
+    setFilePickerOptions(undefined);
   }, [filePickerCallback, currentProjectPath]);
 
   const handleFilePickerCancel = useCallback(() => {
     setIsFilePickerOpen(false);
     setFilePickerCallback(null);
     setFilePickerInitialPath(undefined);
+    setFilePickerOptions(undefined);
   }, []);
 
   // Tab handlers
@@ -829,6 +841,8 @@ function HomeContent() {
         onCancel={handleFilePickerCancel}
         title="Select File"
         description="Choose a file to associate with this node"
+        defaultExtensions={filePickerOptions?.extensions}
+        filterLabel={filePickerOptions?.filterLabel}
       />
     </div>
   );
