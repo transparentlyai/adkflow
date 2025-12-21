@@ -1,184 +1,163 @@
 # ADKFlow
 
-Visual workflow builder for Google Agent Development Kit (ADK) agents. Create, edit, and execute complex AI agent workflows using a web-based node editor.
-
-## Overview
-
-ADKFlow enables you to:
-- **Design** agent workflows visually using a drag-and-drop interface
-- **Configure** agents, subagents, and prompts with rich markdown editing
-- **Export** workflows as YAML files for version control and sharing
-- **Execute** workflows using the standalone CLI runner
-
-## Architecture
-
-```
-┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
-│                 │      │                 │      │                 │
-│  Frontend       │◄────►│  Backend        │      │  Flow Runner    │
-│  (Next.js)      │      │  (FastAPI)      │      │  (CLI)          │
-│                 │      │                 │      │                 │
-└─────────────────┘      └─────────────────┘      └─────────────────┘
-     Drawflow                YAML Converter            ADK Executor
-     Visual Editor           API Server                Python CLI
-```
-
-### Components
-
-1. **Frontend** (`/frontend`) - Next.js web application with Drawflow visual editor
-2. **Backend** (`/backend`) - FastAPI server for workflow validation and YAML conversion
-3. **Flow Runner** (`/flow-runner`) - Standalone CLI tool for executing YAML workflows with Google ADK
+Visual workflow builder for Google Agent Development Kit (ADK). Design, configure, and execute AI agent workflows through an intuitive node-based editor.
 
 ## Quick Start
 
 ### Prerequisites
 
-- **Node.js** 18+ (for frontend)
-- **Python** 3.11+ (for backend and runner)
-- **uv** (Python package manager) - Install: `pip install uv`
-- **Authentication** (choose one):
-  - Google AI Studio API key ([Get one](https://aistudio.google.com/app/apikey))
-  - Vertex AI with Application Default Credentials
+- Node.js 18+ and npm
+- Python 3.11+ and [uv](https://docs.astral.sh/uv/) (`pip install uv`)
+- Google AI API key ([Get one](https://aistudio.google.com/app/apikey)) or Vertex AI credentials
 
-### 1. Start the Backend
+### One-Command Setup
 
 ```bash
-cd backend
-uv pip install -e .
-python -m backend.src.main
-```
-
-Backend runs at: `http://localhost:8000`
-API docs: `http://localhost:8000/docs`
-
-### 2. Start the Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Frontend runs at: `http://localhost:3000`
-
-### 3. Install Flow Runner
-
-```bash
-cd flow-runner
-uv pip install -e .
-```
-
-### 4. Execute a Workflow
-
-```bash
-adkflow run examples/simple-workflow.yaml --var question="Analyze this data"
-```
-
-### Alternative: Automated Startup
-
-Use the `dev.sh` script to start both backend and frontend in parallel:
-
-```bash
-# Default ports (8000, 3000)
+# Clone and start everything
+git clone https://github.com/transparentlyai/adkflow.git
+cd adkflow
 ./dev.sh
-
-# Custom ports
-./dev.sh -b 8080 -f 3001
-
-# Show help
-./dev.sh --help
 ```
 
-**Port Options:**
-- `-b, --backend-port PORT` - Backend port (default: 8000)
-- `-f, --frontend-port PORT` - Frontend port (default: 3000)
-- `-h, --help` - Show help message
+Open http://localhost:3000 to start building workflows.
 
-**Logs:**
-- Backend: `/tmp/adkflow-backend.log`
-- Frontend: `/tmp/adkflow-frontend.log`
+### Manual Setup
 
-Press Ctrl+C to stop all servers.
+```bash
+# Terminal 1: Backend
+cd backend && uv pip install -e . && python -m backend.src.main
 
-See [PORT_CONFIGURATION.md](PORT_CONFIGURATION.md) for detailed port configuration guide.
+# Terminal 2: Frontend
+cd frontend && npm install && npm run dev
+
+# Terminal 3: CLI (optional)
+cd flow-runner && uv pip install -e .
+```
+
+### Run a Workflow
+
+```bash
+# Set your API key
+export GOOGLE_API_KEY="your-key-here"
+
+# Execute a workflow
+adkflow run examples/simple-workflow.yaml --var question="What are the trends?"
+```
+
+---
 
 ## Features
 
-### Visual Workflow Editor
+### Visual Node Editor
 
-- **Node Types**:
-  - **Agent** - Container for subagents, supports sequential/parallel execution
-  - **Subagent** - Execution unit with prompt and tools
-  - **Prompt** - Markdown-formatted prompt templates with variable substitution
+Build workflows by connecting nodes on an interactive canvas:
 
-- **Connections**: Link prompts to subagents and agents together
+- **Drag & drop** nodes from context menu (right-click)
+- **Connect nodes** by dragging between handles
+- **Group nodes** into collapsible containers
+- **Multi-select** with shift-click or box selection
+- **Copy/paste** with Ctrl+C/V
+- **Undo/redo** support
+- **Canvas controls**: zoom, pan, fit view, minimap
+- **Lock canvas** to prevent accidental edits
 
-- **Export/Import**: Save workflows as YAML, version control friendly
+### Node Types
 
-### Prompt Editor
+| Node | Purpose |
+|------|---------|
+| **Agent** | Container for execution with sequential/parallel/loop modes |
+| **Prompt** | Markdown prompt templates with `{variable}` substitution |
+| **Context** | Configuration and context data |
+| **Tool** | External tool configuration |
+| **Agent Tool** | Agent-level tool binding |
+| **Variable** | Define workflow variables |
+| **Process** | Process execution node |
+| **Group** | Visual container for organizing nodes |
+| **Label** | Documentation and annotations |
+| **Input Probe** | Monitor input data |
+| **Output Probe** | Monitor output data |
+| **Log Probe** | Debug logging |
+| **Output File** | Display file contents |
+| **User Input** | Collect user input at runtime |
+| **Teleport In/Out** | Cross-canvas connections |
 
-- Full **markdown** support with live preview
-- **Variable substitution** using `{variable}` syntax
-- Syntax highlighting and formatting
+### Theme System
 
-### Tool Support
+- Light and dark themes with automatic switching
+- Theme-aware scrollbars and UI components
+- Custom theme support via JSON
+- Export/import themes
 
-Configure ADK tools at agent or subagent level:
-- `code_execution` - Execute Python code
-- `google_search` - Web search
-- `web_browser` - Fetch web content
-- `file_reader`, `file_writer` - File operations
-- `calculator`, `datetime` - Utilities
-- `bigquery`, `cloud_storage` - Google Cloud
+### Project Management
 
-### Workflow Execution
+- Create and manage multiple projects
+- Multi-tab workflow editing
+- Auto-save with unsaved changes protection
+- Recent projects list
+- Session persistence across reloads
 
-Run workflows from the command line:
+---
+
+## Architecture
+
+```
+┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
+│   Frontend      │◄────►│   Backend       │      │   CLI Runner    │
+│   (Next.js)     │      │   (FastAPI)     │      │   (Python)      │
+│                 │      │                 │      │                 │
+│  ReactFlow      │      │  Project API    │      │  ADK Executor   │
+│  Visual Editor  │      │  File System    │      │  YAML Parser    │
+└─────────────────┘      └─────────────────┘      └─────────────────┘
+     :3000                    :8000                   CLI tool
+```
+
+| Component | Description |
+|-----------|-------------|
+| **Frontend** | Next.js 15 with ReactFlow for visual editing |
+| **Backend** | FastAPI server for project management and file operations |
+| **CLI Runner** | Standalone tool for executing workflows with Google ADK |
+
+---
+
+## CLI Reference
+
+### Commands
 
 ```bash
-# Run with variables
-adkflow run workflow.yaml --var key=value --var foo=bar
+# Execute workflow
+adkflow run <file.yaml> [--var KEY=VALUE]... [-v|--verbose]
 
-# Validate workflow
-adkflow validate workflow.yaml
+# Validate without running
+adkflow validate <file.yaml>
 
 # List available tools
 adkflow list-tools
+
+# Development servers
+adkflow dev                    # Start backend + frontend
+adkflow dev -b 8080 -f 3001   # Custom ports
+adkflow stop                   # Stop all servers
+
+# Individual servers
+adkflow backend [--port 8000]
+adkflow frontend [--port 3000]
 ```
 
-## Project Structure
+### Environment Variables
 
+```bash
+# Google AI Studio
+export GOOGLE_API_KEY="your-api-key"
+
+# Or Vertex AI
+export GOOGLE_GENAI_USE_VERTEXAI=true
+export GOOGLE_CLOUD_PROJECT="your-project"
+export GOOGLE_CLOUD_LOCATION="us-central1"
 ```
-adkflow/
-├── frontend/              # Next.js web application
-│   ├── app/              # App router pages
-│   ├── components/       # React components (Drawflow, nodes, editor)
-│   └── lib/              # API client, types, utilities
-│
-├── backend/              # FastAPI server
-│   └── src/
-│       ├── api/          # REST API routes
-│       ├── models/       # Pydantic models
-│       └── services/     # YAML conversion, validation
-│
-├── flow-runner/          # CLI execution tool
-│   └── src/adkflow/
-│       ├── cli.py        # Click CLI interface
-│       ├── parser.py     # YAML parsing
-│       ├── executor.py   # ADK agent orchestration
-│       └── variable_resolver.py  # Variable substitution
-│
-├── schemas/              # YAML schema documentation
-│   └── workflow-schema.md
-│
-└── examples/             # Sample workflows
-    ├── simple-workflow.yaml
-    └── sample-workflow.yaml
-```
+
+---
 
 ## Workflow YAML Format
-
-Workflows are defined in YAML with this structure:
 
 ```yaml
 workflow:
@@ -190,12 +169,15 @@ workflow:
 
   prompts:
     analyze_prompt:
-      content: "Analyze: {input_data}"
+      content: |
+        Analyze the following: {input_data}
+
+        Provide insights and recommendations.
       variables: ["input_data"]
 
   agents:
     - id: "analyzer"
-      type: "sequential"
+      type: "sequential"          # sequential | parallel | loop
       model: "gemini-2.0-flash-exp"
       temperature: 0.7
       tools: ["code_execution"]
@@ -203,19 +185,106 @@ workflow:
       subagents:
         - id: "main"
           prompt_ref: "analyze_prompt"
-          tools: ["code_execution"]
+          tools: ["code_execution", "google_search"]
 
   connections: []
 ```
 
-See [`schemas/workflow-schema.md`](schemas/workflow-schema.md) for complete specification.
+See [schemas/workflow-schema.md](schemas/workflow-schema.md) for complete specification.
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `code_execution` | Execute Python code |
+| `google_search` | Web search |
+| `web_browser` | Fetch web content |
+| `file_reader` | Read files |
+| `file_writer` | Write files |
+| `calculator` | Math operations |
+| `datetime` | Date/time utilities |
+| `bigquery` | Google BigQuery |
+| `cloud_storage` | Google Cloud Storage |
+
+---
+
+## Project Structure
+
+```
+adkflow/
+├── frontend/                 # Next.js application
+│   ├── app/                  # App router and pages
+│   ├── components/           # React components
+│   │   ├── nodes/           # Node type components (16 types)
+│   │   └── ui/              # shadcn/ui components
+│   ├── contexts/            # React contexts (theme, project, tabs)
+│   └── lib/                 # Utilities, types, themes
+│
+├── backend/                  # FastAPI server
+│   └── src/
+│       ├── api/routes.py    # REST endpoints
+│       ├── models/          # Pydantic models
+│       └── services/        # YAML conversion
+│
+├── flow-runner/              # CLI tool
+│   └── src/adkflow/
+│       ├── cli.py           # Command definitions
+│       ├── executor.py      # Workflow execution
+│       ├── parser.py        # YAML parsing
+│       └── tools.py         # Tool registry
+│
+├── examples/                 # Sample workflows
+├── schemas/                  # YAML schema docs
+└── docs/                     # Additional documentation
+```
+
+---
+
+## Development
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev          # Development with hot-reload
+npm run build        # Production build
+npm run lint         # ESLint
+```
+
+**Tech stack**: Next.js 15, TypeScript, Tailwind CSS, ReactFlow, Radix UI, Monaco Editor
+
+### Backend
+
+```bash
+cd backend
+uv pip install -e ".[dev]"
+python -m backend.src.main
+```
+
+API documentation: http://localhost:8000/docs
+
+**Tech stack**: FastAPI, Pydantic v2, uvicorn
+
+### CLI Runner
+
+```bash
+cd flow-runner
+uv pip install -e .
+adkflow --help
+```
+
+**Tech stack**: Click, Google GenAI SDK, Rich
+
+---
 
 ## Examples
 
-### Simple Analysis Workflow
+### Simple Analysis
 
 ```bash
-adkflow run examples/simple-workflow.yaml --var question="What are the trends?"
+adkflow run examples/simple-workflow.yaml \
+  --var question="What are the key trends in AI?"
 ```
 
 ### Code Review Assistant
@@ -226,76 +295,47 @@ adkflow run examples/sample-workflow.yaml \
   --var language=python
 ```
 
-## Development
+---
 
-### Backend Development
+## Keyboard Shortcuts
 
-```bash
-cd backend
-uv pip install -e ".[dev]"  # Install with dev dependencies
-python -m backend.src.main  # Run with auto-reload
-```
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+C` | Copy selected nodes |
+| `Ctrl+X` | Cut selected nodes |
+| `Ctrl+V` | Paste nodes |
+| `Delete` | Delete selected nodes |
+| `Ctrl+Z` | Undo |
+| `Ctrl+Shift+Z` | Redo |
+| `Ctrl+A` | Select all |
+| Right-click | Context menu |
 
-Visit `http://localhost:8000/docs` for interactive API documentation.
-
-### Frontend Development
-
-```bash
-cd frontend
-npm install
-npm run dev  # Runs with hot-reload
-```
-
-### Flow Runner Development
-
-```bash
-cd flow-runner
-uv pip install -e .
-adkflow --help
-```
-
-## Technology Stack
-
-| Component | Technologies |
-|-----------|-------------|
-| Frontend | Next.js 14+, TypeScript, Tailwind CSS, Drawflow, React MD Editor |
-| Backend | Python 3.11+, FastAPI, Pydantic v2, PyYAML, uvicorn |
-| Runner | Python 3.11+, Google ADK (genai), Click, Rich |
-| Package Manager | npm (frontend), uv (Python) |
-
-## Roadmap
-
-- [ ] Complete Drawflow integration (node templates, connections)
-- [ ] Implement ADK execution in flow-runner
-- [ ] Add node property editor panel
-- [ ] Workflow validation UI feedback
-- [ ] Undo/redo functionality
-- [ ] Keyboard shortcuts
-- [ ] Workflow templates library
-- [ ] Real-time execution monitoring
-- [ ] Export to Python code
-- [ ] Custom tool integration
-- [ ] Memory and artifact management
+---
 
 ## Documentation
 
-- [Workflow Schema](schemas/workflow-schema.md) - Complete YAML format specification
-- [Frontend README](frontend/README.md) - Frontend setup and development
-- [Backend README](backend/README.md) - Backend API documentation
-- [Flow Runner README](flow-runner/README.md) - CLI usage and architecture
+- [Workflow Schema](schemas/workflow-schema.md) - YAML format specification
+- [Getting Started](docs/GETTING_STARTED.md) - Detailed setup guide
+- [Project Management](docs/PROJECT_MANAGEMENT.md) - Working with projects
+- [Port Configuration](docs/PORT_CONFIGURATION.md) - Custom port setup
+
+---
 
 ## Contributing
 
-1. Follow absolute import conventions
-2. Use TypeScript for frontend, type hints for Python
-3. Run linters before committing
-4. Add tests for new features
-5. Update documentation
+1. Use absolute imports
+2. TypeScript for frontend, type hints for Python
+3. Run linters before committing (`npm run lint`, `ruff check`)
+4. Follow conventional commit messages
+
+---
 
 ## License
 
-[Add your license here]
+MIT
+
+---
 
 ## Support
 
-For issues and feature requests, please open an issue on GitHub.
+Issues and feature requests: [GitHub Issues](https://github.com/transparentlyai/adkflow/issues)
