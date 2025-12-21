@@ -7,6 +7,8 @@ export interface FilePickerOptions {
   extensions?: string[];
   /** Label for the filter dropdown (e.g., "Markdown files") */
   filterLabel?: string;
+  /** Allow creating new files (save mode) */
+  allowCreate?: boolean;
 }
 
 interface ProjectContextValue {

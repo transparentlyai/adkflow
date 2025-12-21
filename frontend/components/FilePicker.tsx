@@ -17,6 +17,8 @@ interface FilePickerProps {
   defaultExtensions?: string[];
   /** Label for the filter (e.g., "Markdown files") */
   filterLabel?: string;
+  /** Allow creating new files (save mode) */
+  allowCreate?: boolean;
 }
 
 export default function FilePicker({
@@ -30,6 +32,7 @@ export default function FilePicker({
   fileFilter,
   defaultExtensions,
   filterLabel,
+  allowCreate,
 }: FilePickerProps) {
   const [currentPath, setCurrentPath] = useState("");
   const [entries, setEntries] = useState<DirectoryEntry[]>([]);
@@ -39,6 +42,7 @@ export default function FilePicker({
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [manualPath, setManualPath] = useState("");
   const [showAllFiles, setShowAllFiles] = useState(!defaultExtensions || defaultExtensions.length === 0);
+  const [newFileName, setNewFileName] = useState("");
 
   // Filter function based on extensions
   const extensionFilter = (entry: DirectoryEntry): boolean => {
@@ -156,20 +160,33 @@ export default function FilePicker({
   const handleFileClick = (entry: DirectoryEntry) => {
     if (entry.is_directory) {
       handleNavigate(entry.path);
+      setNewFileName("");
     } else {
       setSelectedFile(entry.path);
+      setNewFileName("");
     }
   };
 
   const handleSelect = () => {
-    if (selectedFile) {
+    let finalPath: string | null = null;
+
+    // If creating a new file, use currentPath + newFileName
+    if (allowCreate && newFileName.trim()) {
+      finalPath = `${currentPath}/${newFileName.trim()}`;
+    } else if (selectedFile) {
+      finalPath = selectedFile;
+    }
+
+    if (finalPath) {
       // Return relative path from project root
-      const relativePath = selectedFile.startsWith(projectPath)
-        ? selectedFile.substring(projectPath.length + 1)
-        : selectedFile;
+      const relativePath = finalPath.startsWith(projectPath)
+        ? finalPath.substring(projectPath.length + 1)
+        : finalPath;
       onSelect(relativePath);
     }
   };
+
+  const canSelect = selectedFile || (allowCreate && newFileName.trim());
 
   // Get relative path for display
   const getRelativePath = (path: string) => {
@@ -278,8 +295,39 @@ export default function FilePicker({
           )}
         </div>
 
+        {/* New file input (when allowCreate is enabled) */}
+        {allowCreate && (
+          <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600 whitespace-nowrap">New file:</label>
+              <input
+                type="text"
+                value={newFileName}
+                onChange={(e) => {
+                  setNewFileName(e.target.value);
+                  if (e.target.value.trim()) {
+                    setSelectedFile(null);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newFileName.trim()) {
+                    handleSelect();
+                  }
+                }}
+                placeholder="Enter filename..."
+                className="flex-1 text-sm font-mono text-gray-700 bg-white border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            {newFileName.trim() && (
+              <div className="mt-1 text-xs text-gray-500 font-mono truncate">
+                {getRelativePath(currentPath)}/{newFileName.trim()}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Selected file display */}
-        {selectedFile && (
+        {selectedFile && !newFileName.trim() && (
           <div className="px-6 py-2 bg-blue-50 border-t border-blue-100">
             <div className="text-sm">
               <span className="text-gray-600">Selected: </span>
@@ -318,10 +366,10 @@ export default function FilePicker({
             </button>
             <button
               onClick={handleSelect}
-              disabled={!selectedFile}
+              disabled={!canSelect}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
             >
-              Select File
+              {allowCreate && newFileName.trim() ? "Create" : "Select"}
             </button>
           </div>
         </div>

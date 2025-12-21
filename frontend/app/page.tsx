@@ -843,6 +843,7 @@ function HomeContent() {
         description="Choose a file to associate with this node"
         defaultExtensions={filePickerOptions?.extensions}
         filterLabel={filePickerOptions?.filterLabel}
+        allowCreate={filePickerOptions?.allowCreate}
       />
     </div>
   );

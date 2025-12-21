@@ -338,7 +338,7 @@ const OutputFileNode = memo(({ data, id, selected }: NodeProps) => {
             : node
         )
       );
-    });
+    }, { allowCreate: true });
   }, [onRequestFilePicker, file_path, id, setNodes]);
 
   const handleRefresh = useCallback(() => {
