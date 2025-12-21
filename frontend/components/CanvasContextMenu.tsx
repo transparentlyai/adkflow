@@ -11,6 +11,7 @@ import {
   Terminal,
   LogIn,
   LogOut,
+  FileOutput,
   Code,
   Lock,
   Unlock,
@@ -38,6 +39,7 @@ export type NodeTypeOption =
   | "inputProbe"
   | "outputProbe"
   | "logProbe"
+  | "outputFile"
   | "tool"
   | "agentTool"
   | "process"
@@ -97,6 +99,7 @@ const menuGroups: MenuGroup[] = [
       { type: "inputProbe", label: "Input Probe", icon: <LogIn className="h-4 w-4" /> },
       { type: "outputProbe", label: "Output Probe", icon: <LogOut className="h-4 w-4" /> },
       { type: "logProbe", label: "Log Probe", icon: <List className="h-4 w-4" /> },
+      { type: "outputFile", label: "Output File", icon: <FileOutput className="h-4 w-4" /> },
     ],
   },
   {
