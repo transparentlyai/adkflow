@@ -10,38 +10,43 @@ Visual workflow builder for Google Agent Development Kit (ADK). Design, configur
 - Python 3.11+ and [uv](https://docs.astral.sh/uv/) (`pip install uv`)
 - Google AI API key ([Get one](https://aistudio.google.com/app/apikey)) or Vertex AI credentials
 
-### One-Command Setup
+### Installation
 
 ```bash
-# Clone and start everything
 git clone https://github.com/transparentlyai/adkflow.git
 cd adkflow
-./dev.sh
+
+# Install CLI tool
+cd flow-runner && uv pip install -e . && cd ..
+
+# Install frontend
+cd frontend && npm install && cd ..
+
+# Install backend
+cd backend && uv pip install -e . && cd ..
+```
+
+### Start Development Servers
+
+```bash
+# Option 1: Use CLI (starts both backend and frontend)
+./adkflow dev
+
+# Option 2: Manual startup
+# Terminal 1 - Backend
+cd backend && python -m backend.src.main
+
+# Terminal 2 - Frontend
+cd frontend && npm run dev
 ```
 
 Open http://localhost:3000 to start building workflows.
 
-### Manual Setup
-
-```bash
-# Terminal 1: Backend
-cd backend && uv pip install -e . && python -m backend.src.main
-
-# Terminal 2: Frontend
-cd frontend && npm install && npm run dev
-
-# Terminal 3: CLI (optional)
-cd flow-runner && uv pip install -e .
-```
-
 ### Run a Workflow
 
 ```bash
-# Set your API key
-export GOOGLE_API_KEY="your-key-here"
-
-# Execute a workflow
-adkflow run examples/simple-workflow.yaml --var question="What are the trends?"
+export GOOGLE_API_KEY="your-api-key"
+./adkflow run examples/simple-workflow.yaml --var question="What are the trends?"
 ```
 
 ---
@@ -61,11 +66,11 @@ Build workflows by connecting nodes on an interactive canvas:
 - **Canvas controls**: zoom, pan, fit view, minimap
 - **Lock canvas** to prevent accidental edits
 
-### Node Types
+### Node Types (16)
 
 | Node | Purpose |
 |------|---------|
-| **Agent** | Container for execution with sequential/parallel/loop modes |
+| **Agent** | Container for execution with LLM/sequential/parallel/loop modes |
 | **Prompt** | Markdown prompt templates with `{variable}` substitution |
 | **Context** | Configuration and context data |
 | **Tool** | External tool configuration |
@@ -83,17 +88,15 @@ Build workflows by connecting nodes on an interactive canvas:
 
 ### Theme System
 
-- Light and dark themes with automatic switching
-- Theme-aware scrollbars and UI components
-- Custom theme support via JSON
-- Export/import themes
+- Light and dark themes
+- Theme-aware UI components and scrollbars
+- Custom theme support via JSON import/export
 
 ### Project Management
 
 - Create and manage multiple projects
 - Multi-tab workflow editing
 - Auto-save with unsaved changes protection
-- Recent projects list
 - Session persistence across reloads
 
 ---
@@ -121,26 +124,40 @@ Build workflows by connecting nodes on an interactive canvas:
 
 ## CLI Reference
 
-### Commands
+The `./adkflow` wrapper script runs CLI commands from the project root.
+
+### Workflow Commands
 
 ```bash
-# Execute workflow
-adkflow run <file.yaml> [--var KEY=VALUE]... [-v|--verbose]
+# Execute a workflow
+./adkflow run <file.yaml> [--var KEY=VALUE]... [-v|--verbose]
 
 # Validate without running
-adkflow validate <file.yaml>
+./adkflow validate <file.yaml>
 
 # List available tools
-adkflow list-tools
+./adkflow list-tools
+```
 
-# Development servers
-adkflow dev                    # Start backend + frontend
-adkflow dev -b 8080 -f 3001   # Custom ports
-adkflow stop                   # Stop all servers
+### Server Commands
 
-# Individual servers
-adkflow backend [--port 8000]
-adkflow frontend [--port 3000]
+```bash
+# Start both backend and frontend
+./adkflow dev
+./adkflow dev -b 8080 -f 3001    # Custom ports
+
+# Start individual servers
+./adkflow backend [--port 8000]
+./adkflow frontend [--port 3000]
+
+# Production mode (with build)
+./adkflow start [--build]
+
+# Stop all servers
+./adkflow stop
+
+# Initial setup
+./adkflow setup
 ```
 
 ### Environment Variables
@@ -171,21 +188,21 @@ workflow:
     analyze_prompt:
       content: |
         Analyze the following: {input_data}
-
         Provide insights and recommendations.
-      variables: ["input_data"]
+      variables:
+        - input_data
 
   agents:
     - id: "analyzer"
-      type: "sequential"          # sequential | parallel | loop
+      type: "sequential"          # llm | sequential | parallel | loop
       model: "gemini-2.0-flash-exp"
       temperature: 0.7
-      tools: ["code_execution"]
+      tools:
+        - "code_execution"
 
       subagents:
         - id: "main"
           prompt_ref: "analyze_prompt"
-          tools: ["code_execution", "google_search"]
 
   connections: []
 ```
@@ -214,14 +231,15 @@ See [schemas/workflow-schema.md](schemas/workflow-schema.md) for complete specif
 adkflow/
 ├── frontend/                 # Next.js application
 │   ├── app/                  # App router and pages
-│   ├── components/           # React components
-│   │   ├── nodes/           # Node type components (16 types)
+│   ├── components/
+│   │   ├── nodes/           # 16 node type components
 │   │   └── ui/              # shadcn/ui components
 │   ├── contexts/            # React contexts (theme, project, tabs)
 │   └── lib/                 # Utilities, types, themes
 │
 ├── backend/                  # FastAPI server
 │   └── src/
+│       ├── main.py          # App entry point
 │       ├── api/routes.py    # REST endpoints
 │       ├── models/          # Pydantic models
 │       └── services/        # YAML conversion
@@ -235,7 +253,8 @@ adkflow/
 │
 ├── examples/                 # Sample workflows
 ├── schemas/                  # YAML schema docs
-└── docs/                     # Additional documentation
+├── docs/                     # Additional documentation
+└── adkflow                   # CLI wrapper script
 ```
 
 ---
@@ -258,11 +277,11 @@ npm run lint         # ESLint
 
 ```bash
 cd backend
-uv pip install -e ".[dev]"
-python -m backend.src.main
+uv pip install -e .
+python -m backend.src.main    # Runs on :8000 with auto-reload
 ```
 
-API documentation: http://localhost:8000/docs
+API docs: http://localhost:8000/docs
 
 **Tech stack**: FastAPI, Pydantic v2, uvicorn
 
@@ -280,17 +299,13 @@ adkflow --help
 
 ## Examples
 
-### Simple Analysis
-
 ```bash
-adkflow run examples/simple-workflow.yaml \
+# Simple analysis workflow
+./adkflow run examples/simple-workflow.yaml \
   --var question="What are the key trends in AI?"
-```
 
-### Code Review Assistant
-
-```bash
-adkflow run examples/sample-workflow.yaml \
+# Code review assistant (complex multi-agent)
+./adkflow run examples/sample-workflow.yaml \
   --var repository_path=./my-project \
   --var language=python
 ```
@@ -318,6 +333,8 @@ adkflow run examples/sample-workflow.yaml \
 - [Getting Started](docs/GETTING_STARTED.md) - Detailed setup guide
 - [Project Management](docs/PROJECT_MANAGEMENT.md) - Working with projects
 - [Port Configuration](docs/PORT_CONFIGURATION.md) - Custom port setup
+- [Flow Runner Guide](flow-runner/README.md) - CLI documentation
+- [Vertex AI Setup](flow-runner/VERTEX_AI.md) - Google Cloud authentication
 
 ---
 
