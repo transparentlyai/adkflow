@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { X, Play, Square, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { X, Play, Square, CheckCircle, AlertCircle, Loader2, GripHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { RunEvent, RunStatus, EventType, NodeExecutionState } from "@/lib/types";
 import { createRunEventSource, cancelRun, getRunStatus } from "@/lib/api";
+
+const MIN_HEIGHT = 120;
+const MAX_HEIGHT = 600;
+const DEFAULT_HEIGHT = 320;
 
 interface RunPanelProps {
   runId: string | null;
@@ -36,8 +40,36 @@ export default function RunPanel({
   const [status, setStatus] = useState<RunStatus>("pending");
   const [output, setOutput] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [height, setHeight] = useState(DEFAULT_HEIGHT);
+  const [isResizing, setIsResizing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newHeight = window.innerHeight - e.clientY;
+      setHeight(Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, newHeight)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing]);
 
   useEffect(() => {
     if (!runId) return;
@@ -242,25 +274,36 @@ export default function RunPanel({
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 h-80 bg-gray-900 border-t border-gray-700 flex flex-col z-50">
+    <div
+      className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 flex flex-col z-50"
+      style={{ height }}
+    >
+      {/* Resize handle */}
+      <div
+        className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize flex items-center justify-center hover:bg-gray-700/50 group"
+        onMouseDown={handleMouseDown}
+      >
+        <GripHorizontal className="h-3 w-3 text-gray-600 group-hover:text-gray-400" />
+      </div>
+
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700 bg-gray-800">
+      <div className="flex items-center justify-between px-3 py-1 border-b border-gray-700 bg-gray-800 mt-2">
         <div className="flex items-center gap-2">
           {getStatusIcon()}
-          <span className="text-sm font-medium text-gray-200">
-            Workflow Run {runId ? `(${runId})` : ""}
+          <span className="text-xs font-medium text-gray-200">
+            Run {runId ? `(${runId})` : ""}
           </span>
           <span className="text-xs text-gray-500 capitalize">{status}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {status === "running" && (
             <Button
               variant="ghost"
               size="sm"
               onClick={handleCancel}
-              className="text-red-400 hover:text-red-300"
+              className="text-red-400 hover:text-red-300 h-6 px-2 text-xs"
             >
-              <Square className="h-4 w-4 mr-1" />
+              <Square className="h-3 w-3 mr-1" />
               Cancel
             </Button>
           )}
@@ -268,16 +311,16 @@ export default function RunPanel({
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-200"
+            className="text-gray-400 hover:text-gray-200 h-6 w-6 p-0"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3 w-3" />
           </Button>
         </div>
       </div>
 
       {/* Event log */}
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-        <div className="font-mono text-sm space-y-1">
+      <ScrollArea className="flex-1 px-3 py-2" ref={scrollRef}>
+        <div className="font-mono text-xs space-y-0.5">
           {events.map((event) => (
             <div key={event.id} className={`${getEventColor(event.type)}`}>
               {event.agentName && (
