@@ -11,7 +11,7 @@ import HomeScreen from "@/components/HomeScreen";
 import ProjectSwitcher from "@/components/ProjectSwitcher";
 import { createPrompt, createContext, createTool, savePrompt, readPrompt, startRun, validateWorkflow } from "@/lib/api";
 import RunPanel from "@/components/RunPanel";
-import type { RunStatus } from "@/lib/types";
+import type { RunStatus, NodeExecutionState } from "@/lib/types";
 import FilePicker from "@/components/FilePicker";
 import { loadSession, saveSession } from "@/lib/sessionStorage";
 import { ProjectProvider, type FilePickerOptions } from "@/contexts/ProjectContext";
@@ -592,10 +592,21 @@ function HomeContent() {
     setIsRunning(false);
   }, []);
 
+  // Real-time node highlighting during execution
+  const handleAgentStateChange = useCallback((agentName: string, state: NodeExecutionState) => {
+    canvasRef.current?.updateNodeExecutionState(agentName, state);
+  }, []);
+
+  const handleClearExecutionState = useCallback(() => {
+    canvasRef.current?.clearExecutionState();
+  }, []);
+
   const handleCloseRunPanel = useCallback(() => {
     setIsRunPanelOpen(false);
     setCurrentRunId(null);
     setIsRunning(false);
+    // Clear any remaining highlights when closing the panel
+    canvasRef.current?.clearExecutionState();
   }, []);
 
   // Tab handlers
@@ -918,6 +929,8 @@ function HomeContent() {
           projectPath={currentProjectPath || ""}
           onClose={handleCloseRunPanel}
           onRunComplete={handleRunComplete}
+          onAgentStateChange={handleAgentStateChange}
+          onClearExecutionState={handleClearExecutionState}
         />
       )}
     </div>

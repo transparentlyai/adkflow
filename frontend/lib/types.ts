@@ -353,3 +353,6 @@ export interface ValidateResponse {
   tab_count: number;
   teleporter_count: number;
 }
+
+// Node execution state for real-time highlighting during workflow runs
+export type NodeExecutionState = "idle" | "running" | "completed" | "error";

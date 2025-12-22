@@ -271,6 +271,7 @@ class WorkflowRunner:
 
         # Execute and collect output
         output_parts: list[str] = []
+        last_author: str | None = None
 
         async for event in runner.run_async(
             user_id="runner",
@@ -278,7 +279,7 @@ class WorkflowRunner:
             new_message=content,
         ):
             # Process ADK events and emit our events
-            await self._process_adk_event(event, emit)
+            last_author = await self._process_adk_event(event, emit, last_author)
 
             # Collect final output
             if hasattr(event, "content") and event.content:
@@ -342,68 +343,85 @@ class WorkflowRunner:
                     )
                 )
 
-    async def _process_adk_event(self, event: Any, emit: Any) -> None:
-        """Process an ADK event and emit corresponding RunEvent."""
-        event_type = type(event).__name__
+    async def _process_adk_event(
+        self,
+        event: Any,
+        emit: Any,
+        last_author: str | None = None,
+    ) -> str | None:
+        """Process an ADK event and emit corresponding RunEvent.
 
-        if "start" in event_type.lower():
+        Returns the current author for tracking agent changes.
+        """
+        # ADK events use 'author' attribute for agent name
+        author = getattr(event, "author", None)
+        turn_complete = getattr(event, "turn_complete", False)
+
+        # Detect agent change - emit start event for new agent
+        if author and author != "user" and author != last_author:
             await emit(
                 RunEvent(
                     type=EventType.AGENT_START,
                     timestamp=time.time(),
-                    agent_name=getattr(event, "agent_name", None),
-                    data={"event_type": event_type},
+                    agent_name=author,
+                    data={"event_type": "agent_change"},
                 )
             )
-        elif "end" in event_type.lower():
-            await emit(
-                RunEvent(
-                    type=EventType.AGENT_END,
-                    timestamp=time.time(),
-                    agent_name=getattr(event, "agent_name", None),
-                    data={"event_type": event_type},
-                )
-            )
-        elif "tool" in event_type.lower():
-            tool_name = getattr(event, "tool_name", None) or getattr(
-                event, "name", None
-            )
-            if "result" in event_type.lower():
-                await emit(
-                    RunEvent(
-                        type=EventType.TOOL_RESULT,
-                        timestamp=time.time(),
-                        data={
-                            "tool_name": tool_name,
-                            "event_type": event_type,
-                        },
-                    )
-                )
-            else:
-                await emit(
-                    RunEvent(
-                        type=EventType.TOOL_CALL,
-                        timestamp=time.time(),
-                        data={
-                            "tool_name": tool_name,
-                            "event_type": event_type,
-                        },
-                    )
-                )
-        elif hasattr(event, "content") and event.content:
-            # Output event
+
+        # Check for content (agent output)
+        if hasattr(event, "content") and event.content:
             text = ""
-            for part in event.content.parts:
-                if hasattr(part, "text"):
+            parts = event.content.parts if event.content.parts else []
+            for part in parts:
+                if hasattr(part, "text") and part.text:
                     text += part.text
-            if text:
+            if text and author and author != "user":
                 await emit(
                     RunEvent(
                         type=EventType.AGENT_OUTPUT,
                         timestamp=time.time(),
-                        data={"output": text[:500]},  # Truncate for events
+                        agent_name=author,
+                        data={"output": text[:500]},
                     )
                 )
+
+        # Check for function calls (tool usage)
+        if hasattr(event, "content") and event.content:
+            parts = event.content.parts if event.content.parts else []
+            for part in parts:
+                if hasattr(part, "function_call") and part.function_call:
+                    tool_name = getattr(part.function_call, "name", "unknown")
+                    await emit(
+                        RunEvent(
+                            type=EventType.TOOL_CALL,
+                            timestamp=time.time(),
+                            agent_name=author,
+                            data={"tool_name": tool_name},
+                        )
+                    )
+                elif hasattr(part, "function_response") and part.function_response:
+                    tool_name = getattr(part.function_response, "name", "unknown")
+                    await emit(
+                        RunEvent(
+                            type=EventType.TOOL_RESULT,
+                            timestamp=time.time(),
+                            agent_name=author,
+                            data={"tool_name": tool_name},
+                        )
+                    )
+
+        # Detect turn completion - emit end event
+        if turn_complete and author and author != "user":
+            await emit(
+                RunEvent(
+                    type=EventType.AGENT_END,
+                    timestamp=time.time(),
+                    agent_name=author,
+                    data={"event_type": "turn_complete"},
+                )
+            )
+
+        return author if author and author != "user" else last_author
 
     async def run_async_generator(
         self,

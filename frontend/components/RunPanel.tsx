@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { X, Play, Square, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { RunEvent, RunStatus, EventType } from "@/lib/types";
+import type { RunEvent, RunStatus, EventType, NodeExecutionState } from "@/lib/types";
 import { createRunEventSource, cancelRun, getRunStatus } from "@/lib/api";
 
 interface RunPanelProps {
@@ -12,6 +12,8 @@ interface RunPanelProps {
   projectPath: string;
   onClose: () => void;
   onRunComplete?: (status: RunStatus, output?: string, error?: string) => void;
+  onAgentStateChange?: (agentName: string, state: NodeExecutionState) => void;
+  onClearExecutionState?: () => void;
 }
 
 interface DisplayEvent {
@@ -27,6 +29,8 @@ export default function RunPanel({
   projectPath,
   onClose,
   onRunComplete,
+  onAgentStateChange,
+  onClearExecutionState,
 }: RunPanelProps) {
   const [events, setEvents] = useState<DisplayEvent[]>([]);
   const [status, setStatus] = useState<RunStatus>("pending");
@@ -74,12 +78,23 @@ export default function RunPanel({
 
       setEvents((prev) => [...prev, displayEvent]);
 
+      // Emit agent state changes for real-time node highlighting
+      if (event.type === "agent_start" && event.agent_name) {
+        onAgentStateChange?.(event.agent_name, "running");
+      } else if (event.type === "agent_end" && event.agent_name) {
+        onAgentStateChange?.(event.agent_name, "completed");
+      } else if (event.type === "error" && event.agent_name) {
+        onAgentStateChange?.(event.agent_name, "error");
+      }
+
       if (event.type === "run_complete") {
         setStatus("completed");
         const outputData = event.data.output as string | undefined;
         if (outputData) {
           setOutput(outputData);
         }
+        // Clear all execution highlights when run completes
+        onClearExecutionState?.();
       } else if (event.type === "error") {
         setStatus("failed");
         const errorData = event.data.error as string | undefined;
@@ -160,7 +175,7 @@ export default function RunPanel({
       eventSource.close();
       eventSourceRef.current = null;
     };
-  }, [runId, onRunComplete, projectPath]);
+  }, [runId, onRunComplete, projectPath, onAgentStateChange, onClearExecutionState]);
 
   // Auto-scroll to bottom
   useEffect(() => {

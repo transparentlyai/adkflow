@@ -54,11 +54,12 @@ import TeleportInNode, { getDefaultTeleportInData } from "./nodes/TeleportInNode
 import UserInputNode, { getDefaultUserInputData } from "./nodes/UserInputNode";
 
 import { generateNodeId } from "@/lib/workflowHelpers";
+import { sanitizeAgentName } from "@/lib/utils";
 import CanvasContextMenu, { type NodeTypeOption } from "./CanvasContextMenu";
 import ConfirmDialog from "./ConfirmDialog";
 import GroupDeleteDialog from "./GroupDeleteDialog";
 import { getDefaultGroupData } from "./nodes/GroupNode";
-import { getDefaultAgentData } from "./nodes/AgentNode";
+import { getDefaultAgentData, type AgentNodeData } from "./nodes/AgentNode";
 import { getDefaultPromptData } from "./nodes/PromptNode";
 import { getDefaultContextData } from "./nodes/ContextNode";
 import { getDefaultInputProbeData } from "./nodes/InputProbeNode";
@@ -70,7 +71,7 @@ import { getDefaultAgentToolData } from "./nodes/AgentToolNode";
 import { getDefaultVariableData } from "./nodes/VariableNode";
 import { getDefaultProcessData } from "./nodes/ProcessNode";
 import { getDefaultLabelData } from "./nodes/LabelNode";
-import type { Agent, Prompt } from "@/lib/types";
+import type { Agent, Prompt, NodeExecutionState } from "@/lib/types";
 
 // Register custom node types
 const nodeTypes = {
@@ -126,6 +127,8 @@ export interface ReactFlowCanvasRef {
   zoomOut: () => void;
   fitView: () => void;
   focusNode: (nodeId: string) => void;
+  updateNodeExecutionState: (agentName: string, state: NodeExecutionState) => void;
+  clearExecutionState: () => void;
 }
 
 /**
@@ -1402,6 +1405,48 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       setNodes((nds) => nds.map((n) => ({ ...n, selected: n.id === nodeId })));
     }, [rfInstance, nodes, setNodes]);
 
+    // Update node execution state for real-time highlighting
+    const updateNodeExecutionState = useCallback((agentName: string, state: NodeExecutionState) => {
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.type !== "agent") return node;
+          const data = node.data as unknown as AgentNodeData;
+          const nodeName = data.agent?.name || "";
+          const sanitized = sanitizeAgentName(nodeName);
+          if (
+            nodeName.toLowerCase() === agentName.toLowerCase() ||
+            sanitized === agentName
+          ) {
+            return {
+              ...node,
+              data: {
+                ...data,
+                executionState: state,
+              } as unknown as Record<string, unknown>,
+            };
+          }
+          return node;
+        })
+      );
+    }, [setNodes]);
+
+    // Clear all execution states (when run completes)
+    const clearExecutionState = useCallback(() => {
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.type !== "agent") return node;
+          const data = node.data as unknown as AgentNodeData;
+          if (data.executionState && data.executionState !== "idle") {
+            return {
+              ...node,
+              data: { ...data, executionState: "idle" as NodeExecutionState },
+            };
+          }
+          return node;
+        })
+      );
+    }, [setNodes]);
+
     // Expose methods to parent via ref
     useImperativeHandle(ref, () => ({
       addGroupNode,
@@ -1426,6 +1471,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       zoomOut,
       fitView: fitViewHandler,
       focusNode,
+      updateNodeExecutionState,
+      clearExecutionState,
     }));
 
     return (

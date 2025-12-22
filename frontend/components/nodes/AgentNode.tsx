@@ -2,7 +2,7 @@
 
 import { memo, useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { type NodeProps, useReactFlow, useStore } from "@xyflow/react";
-import type { Agent, AgentType, HandlePositions } from "@/lib/types";
+import type { Agent, AgentType, HandlePositions, NodeExecutionState } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import ResizeHandle from "@/components/ResizeHandle";
 import AgentPropertiesPanel from "@/components/AgentPropertiesPanel";
@@ -30,6 +30,7 @@ export interface AgentNodeData {
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
   isNodeLocked?: boolean;
+  executionState?: NodeExecutionState;
 }
 
 const TYPE_BADGE_LABELS: Record<AgentType, string> = {
@@ -39,8 +40,29 @@ const TYPE_BADGE_LABELS: Record<AgentType, string> = {
   loop: "Loop",
 };
 
+// Custom comparison for memo - always re-render when executionState changes
+const agentNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): boolean => {
+  const prevData = prevProps.data as unknown as AgentNodeData;
+  const nextData = nextProps.data as unknown as AgentNodeData;
+
+  // Always re-render if executionState changes
+  if (prevData.executionState !== nextData.executionState) {
+    return false;
+  }
+
+  // Check other important props
+  if (prevProps.selected !== nextProps.selected) return false;
+  if (prevProps.id !== nextProps.id) return false;
+  if (prevData.agent?.name !== nextData.agent?.name) return false;
+  if (prevData.agent?.type !== nextData.agent?.type) return false;
+  if (prevData.agent?.model !== nextData.agent?.model) return false;
+  if (prevData.isNodeLocked !== nextData.isNodeLocked) return false;
+
+  return true;
+};
+
 const AgentNode = memo(({ data, id, selected }: NodeProps) => {
-  const { agent, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked } = data as unknown as AgentNodeData;
+  const { agent, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, executionState } = data as unknown as AgentNodeData;
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
   const { theme } = useTheme();
@@ -284,20 +306,48 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
   const typeBadgeLabel = TYPE_BADGE_LABELS[agent.type] || TYPE_BADGE_LABELS.llm;
   const typeBadgeColors = theme.colors.nodes.agent.badges[agent.type] || theme.colors.nodes.agent.badges.llm;
 
+  // Get execution state styling for real-time highlighting
+  const getExecutionStyle = useCallback((): React.CSSProperties => {
+    switch (executionState) {
+      case "running":
+        return {
+          boxShadow: `0 0 0 2px rgba(59, 130, 246, 0.8), 0 0 20px 4px rgba(59, 130, 246, 0.4)`,
+          animation: "execution-pulse 1.5s ease-in-out infinite",
+        };
+      case "completed":
+        return {
+          boxShadow: `0 0 0 2px rgba(34, 197, 94, 0.8), 0 0 10px 2px rgba(34, 197, 94, 0.3)`,
+          transition: "box-shadow 0.3s ease-out",
+        };
+      case "error":
+        return {
+          boxShadow: `0 0 0 2px rgba(239, 68, 68, 0.8), 0 0 15px 3px rgba(239, 68, 68, 0.4)`,
+        };
+      default:
+        return selected ? { boxShadow: `0 0 0 2px ${theme.colors.nodes.agent.ring}` } : {};
+    }
+  }, [executionState, selected, theme.colors.nodes.agent.ring]);
+
   // Collapsed view
   if (!isExpanded) {
     return (
-      <div
-        className="rounded-lg shadow-lg min-w-[250px] max-w-[300px] transition-all cursor-pointer"
-        style={{
-          backgroundColor: theme.colors.nodes.common.container.background,
-          ...(selected && {
-            boxShadow: `0 0 0 2px ${theme.colors.nodes.agent.ring}`,
-          }),
-        }}
-        onDoubleClick={toggleExpand}
-        title="Double-click to configure"
-      >
+      <>
+        {/* Keyframes for execution pulse animation */}
+        <style>{`
+          @keyframes execution-pulse {
+            0%, 100% { box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.8), 0 0 20px 4px rgba(59, 130, 246, 0.4); }
+            50% { box-shadow: 0 0 0 3px rgba(59, 130, 246, 1), 0 0 30px 8px rgba(59, 130, 246, 0.6); }
+          }
+        `}</style>
+        <div
+          className="rounded-lg shadow-lg min-w-[250px] max-w-[300px] transition-all cursor-pointer"
+          style={{
+            backgroundColor: theme.colors.nodes.common.container.background,
+            ...getExecutionStyle(),
+          }}
+          onDoubleClick={toggleExpand}
+          title="Double-click to configure"
+        >
         {/* Input Handle */}
         <DraggableHandle
           nodeId={id}
@@ -439,23 +489,30 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
             isCanvasLocked={canvasActions?.isLocked}
           />
         )}
-      </div>
+        </div>
+      </>
     );
   }
 
   // Expanded view with properties panel
   return (
-    <div
-      className="rounded-lg shadow-lg relative"
-      style={{
-        width: size.width,
-        height: size.height,
-        backgroundColor: theme.colors.nodes.common.container.background,
-        ...(selected && {
-          boxShadow: `0 0 0 2px ${theme.colors.nodes.agent.ring}`,
-        }),
-      }}
-    >
+    <>
+      {/* Keyframes for execution pulse animation */}
+      <style>{`
+        @keyframes execution-pulse {
+          0%, 100% { box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.8), 0 0 20px 4px rgba(59, 130, 246, 0.4); }
+          50% { box-shadow: 0 0 0 3px rgba(59, 130, 246, 1), 0 0 30px 8px rgba(59, 130, 246, 0.6); }
+        }
+      `}</style>
+      <div
+        className="rounded-lg shadow-lg relative"
+        style={{
+          width: size.width,
+          height: size.height,
+          backgroundColor: theme.colors.nodes.common.container.background,
+          ...getExecutionStyle(),
+        }}
+      >
       {/* Input Handle */}
       <DraggableHandle
         nodeId={id}
@@ -608,9 +665,10 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           isCanvasLocked={canvasActions?.isLocked}
         />
       )}
-    </div>
+      </div>
+    </>
   );
-});
+}, agentNodePropsAreEqual);
 
 AgentNode.displayName = "AgentNode";
 
