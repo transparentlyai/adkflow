@@ -4,37 +4,14 @@ Visual workflow builder for Google Agent Development Kit (ADK). Design and confi
 
 ## Quick Start
 
-### Prerequisites
-
-- Node.js 18+ and npm
-- Python 3.11+ and [uv](https://docs.astral.sh/uv/) (`pip install uv`)
-- Google AI API key ([Get one](https://aistudio.google.com/app/apikey)) or Vertex AI credentials
-
-### Installation
-
 ```bash
 git clone https://github.com/transparentlyai/adkflow.git
 cd adkflow
-
-# Install frontend
-cd frontend && npm install && cd ..
-
-# Install backend
-cd backend && uv pip install -e . && cd ..
+./adkflow setup   # Install dependencies
+./adkflow dev     # Start the app
 ```
 
-### Start Development Servers
-
-```bash
-# Option 1: Using CLI (recommended)
-./adkflow dev
-
-# Option 2: Manual (separate terminals)
-cd backend && python -m backend.src.main  # Terminal 1
-cd frontend && npm run dev                 # Terminal 2
-```
-
-Open http://localhost:3000 to start building workflows.
+Open http://localhost:3000 and start building workflows.
 
 ---
 
@@ -44,144 +21,35 @@ Open http://localhost:3000 to start building workflows.
 
 Build workflows by connecting nodes on an interactive canvas:
 
-- **Drag & drop** nodes from context menu (right-click)
-- **Connect nodes** by dragging between handles
+- **Right-click** to add nodes from context menu
+- **Drag between handles** to connect nodes
 - **Group nodes** into collapsible containers
-- **Multi-select** with shift-click or box selection
-- **Copy/paste** with Ctrl+C/V
+- **Multi-select** with Shift+click or box selection
+- **Copy/paste** nodes with Ctrl+C/V
 - **Undo/redo** support
-- **Canvas controls**: zoom, pan, fit view, minimap
+- **Zoom, pan, minimap** for navigation
 - **Lock canvas** to prevent accidental edits
 
-### Node Types (16)
+### Node Types
 
 | Node | Purpose |
 |------|---------|
-| **Agent** | Container for execution with LLM/sequential/parallel/loop modes |
-| **Prompt** | Markdown prompt templates with `{variable}` substitution |
+| **Agent** | LLM execution with sequential/parallel/loop modes |
+| **Prompt** | Markdown templates with `{variable}` substitution |
 | **Context** | Configuration and context data |
 | **Tool** | External tool configuration |
-| **Agent Tool** | Agent-level tool binding |
 | **Variable** | Define workflow variables |
-| **Process** | Process execution node |
 | **Group** | Visual container for organizing nodes |
 | **Label** | Documentation and annotations |
-| **Input Probe** | Monitor input data |
-| **Output Probe** | Monitor output data |
-| **Log Probe** | Debug logging |
-| **Output File** | Display file contents |
-| **User Input** | Collect user input at runtime |
-| **Teleport In/Out** | Cross-canvas connections |
-
-### Theme System
-
-- Light and dark themes
-- Theme-aware UI components and scrollbars
-- Custom theme support via JSON import/export
+| **Probes** | Monitor input/output/logs |
+| **Teleport** | Cross-canvas connections |
 
 ### Project Management
 
-- Create and manage multiple projects
 - Multi-tab workflow editing
 - Auto-save with unsaved changes protection
+- Light and dark themes
 - Session persistence across reloads
-
----
-
-## Architecture
-
-```
-┌─────────────────┐      ┌─────────────────┐
-│   Frontend      │◄────►│   Backend       │
-│   (Next.js)     │      │   (FastAPI)     │
-│                 │      │                 │
-│  ReactFlow      │      │  Project API    │
-│  Visual Editor  │      │  File System    │
-└─────────────────┘      └─────────────────┘
-     :3000                    :8000
-```
-
-| Component | Description |
-|-----------|-------------|
-| **Frontend** | Next.js 15 with ReactFlow for visual node editing |
-| **Backend** | FastAPI server for project management and file operations |
-
-### Project Storage
-
-Workflows are saved as JSON files:
-
-```
-my-project/
-├── manifest.json      # Project metadata and tab list
-├── prompts/           # Prompt markdown files
-│   └── analyze.prompt.md
-└── tabs/
-    └── main.flow.json # ReactFlow canvas state
-```
-
----
-
-## Project Structure
-
-```
-adkflow/
-├── frontend/                 # Next.js application
-│   ├── app/                  # App router and pages
-│   ├── components/
-│   │   ├── nodes/           # 16 node type components
-│   │   └── ui/              # shadcn/ui components
-│   ├── contexts/            # React contexts (theme, project, tabs)
-│   └── lib/                 # Utilities, types, themes
-│
-├── backend/                  # FastAPI server
-│   └── src/
-│       ├── main.py          # App entry point
-│       ├── api/routes.py    # REST endpoints
-│       └── models/          # Pydantic models
-│
-└── cli/                      # CLI for dev server management
-```
-
----
-
-## CLI Commands
-
-```bash
-./adkflow dev       # Start both servers (development)
-./adkflow start     # Start both servers (production)
-./adkflow stop      # Stop running servers
-./adkflow backend   # Start backend only
-./adkflow frontend  # Start frontend only
-./adkflow setup     # Set up development environment
-```
-
----
-
-## Development
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev          # Development with hot-reload
-npm run build        # Production build
-npm run lint         # ESLint
-```
-
-**Tech stack**: Next.js 15, TypeScript, Tailwind CSS, ReactFlow, Radix UI, Monaco Editor
-
-### Backend
-
-```bash
-cd backend
-uv pip install -e .
-python -m backend.src.main    # Runs on :8000 with auto-reload
-```
-
-API docs: http://localhost:8000/docs
-
-**Tech stack**: FastAPI, Pydantic v2, uvicorn
 
 ---
 
@@ -200,7 +68,20 @@ API docs: http://localhost:8000/docs
 
 ---
 
-## Environment Variables
+## CLI Commands
+
+```bash
+./adkflow dev       # Start development servers
+./adkflow start     # Start production servers
+./adkflow stop      # Stop running servers
+./adkflow setup     # Install all dependencies
+```
+
+---
+
+## Configuration
+
+### Environment Variables
 
 ```bash
 # Google AI Studio
@@ -210,6 +91,71 @@ export GOOGLE_API_KEY="your-api-key"
 export GOOGLE_GENAI_USE_VERTEXAI=true
 export GOOGLE_CLOUD_PROJECT="your-project"
 export GOOGLE_CLOUD_LOCATION="us-central1"
+```
+
+### Project Storage
+
+Workflows are saved as JSON files:
+
+```
+my-project/
+├── manifest.json          # Project metadata
+├── prompts/               # Prompt markdown files
+│   └── analyze.prompt.md
+└── tabs/
+    └── main.flow.json     # Canvas state
+```
+
+---
+
+## Development
+
+### Prerequisites
+
+- Node.js 18+ and npm
+- Python 3.11+ and [uv](https://docs.astral.sh/uv/)
+
+### Manual Setup
+
+```bash
+# Frontend
+cd frontend && npm install
+
+# Backend
+cd backend && uv pip install -e .
+```
+
+### Running Servers
+
+```bash
+# Using CLI
+./adkflow dev
+
+# Or manually
+cd backend && python -m backend.src.main  # Terminal 1
+cd frontend && npm run dev                 # Terminal 2
+```
+
+### Tech Stack
+
+| Component | Technologies |
+|-----------|-------------|
+| **Frontend** | Next.js 15, TypeScript, ReactFlow, Tailwind, Radix UI, Monaco |
+| **Backend** | FastAPI, Pydantic v2, uvicorn |
+
+API docs: http://localhost:8000/docs
+
+### Project Structure
+
+```
+adkflow/
+├── frontend/          # Next.js application
+│   ├── components/    # React components + nodes
+│   ├── contexts/      # Theme, project, tabs state
+│   └── lib/           # Utilities and types
+├── backend/           # FastAPI server
+│   └── src/api/       # REST endpoints
+└── cli/               # Dev server management
 ```
 
 ---
