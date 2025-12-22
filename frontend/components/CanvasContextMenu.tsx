@@ -29,6 +29,8 @@ import {
   ArrowRightFromLine,
   ArrowLeftToLine,
   MessageSquare,
+  Play,
+  Square,
 } from "lucide-react";
 
 export type NodeTypeOption =
@@ -47,7 +49,9 @@ export type NodeTypeOption =
   | "label"
   | "teleportOut"
   | "teleportIn"
-  | "userInput";
+  | "userInput"
+  | "start"
+  | "end";
 
 interface ContextMenuProps {
   x: number;
@@ -119,6 +123,14 @@ const menuGroups: MenuGroup[] = [
     items: [
       { type: "teleportOut", label: "Output Connector", icon: <ArrowRightFromLine className="h-4 w-4" /> },
       { type: "teleportIn", label: "Input Connector", icon: <ArrowLeftToLine className="h-4 w-4" /> },
+    ],
+  },
+  {
+    label: "Flow Control",
+    icon: <Play className="h-4 w-4" />,
+    items: [
+      { type: "start", label: "Start", icon: <Play className="h-4 w-4" /> },
+      { type: "end", label: "End", icon: <Square className="h-4 w-4" /> },
     ],
   },
 ];

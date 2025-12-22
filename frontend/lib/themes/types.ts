@@ -74,6 +74,8 @@ export interface NodeColors {
   outputFile: NodeTypeColors;
   label: NodeTypeColors;
   userInput: NodeTypeColors;
+  start: NodeTypeColors;
+  end: NodeTypeColors;
   teleport: {
     colors: string[];
   };

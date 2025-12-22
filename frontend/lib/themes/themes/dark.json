@@ -111,6 +111,18 @@
         "text": "#ffffff",
         "ring": "#34d399"
       },
+      "start": {
+        "header": "#166534",
+        "headerHover": "#15803d",
+        "text": "#ffffff",
+        "ring": "#22c55e"
+      },
+      "end": {
+        "header": "#991b1b",
+        "headerHover": "#b91c1c",
+        "text": "#ffffff",
+        "ring": "#ef4444"
+      },
       "teleport": {
         "colors": [
           "#ff5555", "#ffb86c", "#f1fa8c", "#50fa7b",

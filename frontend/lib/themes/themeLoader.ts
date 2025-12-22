@@ -188,6 +188,18 @@ export function applyTheme(theme: Theme): void {
   root.style.setProperty("--node-label-text", colors.nodes.label.text);
   root.style.setProperty("--node-label-ring", colors.nodes.label.ring);
 
+  // Start node
+  root.style.setProperty("--node-start-header", colors.nodes.start.header);
+  root.style.setProperty("--node-start-header-hover", colors.nodes.start.headerHover || colors.nodes.start.header);
+  root.style.setProperty("--node-start-text", colors.nodes.start.text);
+  root.style.setProperty("--node-start-ring", colors.nodes.start.ring);
+
+  // End node
+  root.style.setProperty("--node-end-header", colors.nodes.end.header);
+  root.style.setProperty("--node-end-header-hover", colors.nodes.end.headerHover || colors.nodes.end.header);
+  root.style.setProperty("--node-end-text", colors.nodes.end.text);
+  root.style.setProperty("--node-end-ring", colors.nodes.end.ring);
+
   // Teleport colors (stored as JSON for JS access)
   root.style.setProperty("--teleport-colors", JSON.stringify(colors.nodes.teleport.colors));
 

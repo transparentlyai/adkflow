@@ -52,6 +52,8 @@ import LabelNode from "./nodes/LabelNode";
 import TeleportOutNode, { getDefaultTeleportOutData } from "./nodes/TeleportOutNode";
 import TeleportInNode, { getDefaultTeleportInData } from "./nodes/TeleportInNode";
 import UserInputNode, { getDefaultUserInputData } from "./nodes/UserInputNode";
+import StartNode, { getDefaultStartData } from "./nodes/StartNode";
+import EndNode, { getDefaultEndData } from "./nodes/EndNode";
 
 import { generateNodeId } from "@/lib/workflowHelpers";
 import { sanitizeAgentName } from "@/lib/utils";
@@ -91,6 +93,8 @@ const nodeTypes = {
   teleportOut: TeleportOutNode,
   teleportIn: TeleportInNode,
   userInput: UserInputNode,
+  start: StartNode,
+  end: EndNode,
 } as any; // eslint-disable-line
 
 interface ReactFlowCanvasProps {
@@ -120,6 +124,8 @@ export interface ReactFlowCanvasRef {
   addTeleportOutNode: (name: string, position?: { x: number; y: number }) => void;
   addTeleportInNode: (name: string, position?: { x: number; y: number }) => void;
   addUserInputNode: (position?: { x: number; y: number }) => void;
+  addStartNode: (position?: { x: number; y: number }) => void;
+  addEndNode: (position?: { x: number; y: number }) => void;
   clearCanvas: () => void;
   saveFlow: () => { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } } | null;
   restoreFlow: (flow: { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }) => void;
@@ -129,6 +135,9 @@ export interface ReactFlowCanvasRef {
   focusNode: (nodeId: string) => void;
   updateNodeExecutionState: (agentName: string, state: NodeExecutionState) => void;
   clearExecutionState: () => void;
+  validateBeforeRun: () => { valid: boolean; errors: string[]; errorNodeIds: string[] };
+  highlightErrorNodes: (nodeIds: string[]) => void;
+  clearErrorHighlights: () => void;
 }
 
 /**
@@ -1089,6 +1098,40 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       }
     }, [userInputPosition]);
 
+    /**
+     * Add a Start node to the canvas (only one allowed)
+     */
+    const addStartNode = useCallback((position?: { x: number; y: number }) => {
+      // Check if start node already exists
+      const hasStart = nodes.some(n => n.type === "start");
+      if (hasStart) return;
+
+      const startId = generateNodeId("start");
+      const newNode: Node = {
+        id: startId,
+        type: "start",
+        position: position || { x: 100, y: 200 },
+        data: getDefaultStartData(),
+      };
+
+      setNodes((nds) => [...nds, newNode]);
+    }, [nodes]);
+
+    /**
+     * Add an End node to the canvas
+     */
+    const addEndNode = useCallback((position?: { x: number; y: number }) => {
+      const endId = generateNodeId("end");
+      const newNode: Node = {
+        id: endId,
+        type: "end",
+        position: position || { x: 400, y: 200 },
+        data: getDefaultEndData(),
+      };
+
+      setNodes((nds) => [...nds, newNode]);
+    }, []);
+
     // Handle right-click on canvas pane
     const onPaneContextMenu = useCallback((event: MouseEvent | React.MouseEvent) => {
       event.preventDefault();
@@ -1229,6 +1272,12 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         case 'userInput':
           addNodeWithParent(addUserInputNode, position, parentGroupId);
           break;
+        case 'start':
+          addStartNode(position);
+          break;
+        case 'end':
+          addNodeWithParent(addEndNode, position, parentGroupId);
+          break;
       }
 
       setContextMenu(null);
@@ -1245,6 +1294,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       addAgentToolNode,
       addLabelNode,
       addUserInputNode,
+      addStartNode,
+      addEndNode,
       onRequestPromptCreation,
       onRequestContextCreation,
       onRequestToolCreation,
@@ -1447,6 +1498,76 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       );
     }, [setNodes]);
 
+    // Validate workflow before running
+    const validateBeforeRun = useCallback((): { valid: boolean; errors: string[]; errorNodeIds: string[] } => {
+      const validationErrors: string[] = [];
+      const errorNodeIds: string[] = [];
+
+      // Check for agents with default or empty names
+      const agentNodes = nodes.filter((n) => n.type === "agent");
+      const unnamedAgents = agentNodes.filter((n) => {
+        const data = n.data as unknown as AgentNodeData;
+        const name = data.agent?.name?.trim();
+        return !name || name === "New Agent";
+      });
+
+      if (unnamedAgents.length > 0) {
+        validationErrors.push(
+          `${unnamedAgents.length} agent${unnamedAgents.length > 1 ? "s" : ""} need${unnamedAgents.length === 1 ? "s" : ""} a name. Double-click on the agent header to rename.`
+        );
+        errorNodeIds.push(...unnamedAgents.map((n) => n.id));
+      }
+
+      // Check for Start node
+      const startNodes = nodes.filter((n) => n.type === "start");
+      if (startNodes.length === 0) {
+        validationErrors.push("Workflow has no Start node. Add a Start node to define the entry point.");
+      } else if (startNodes.length > 1) {
+        validationErrors.push(`Workflow has ${startNodes.length} Start nodes. Only one is allowed.`);
+        errorNodeIds.push(...startNodes.map((n) => n.id));
+      }
+
+      // Check that Start node is connected to something
+      if (startNodes.length === 1) {
+        const startNode = startNodes[0];
+        const connectedEdges = edges.filter((e) => e.source === startNode.id);
+        if (connectedEdges.length === 0) {
+          validationErrors.push("Start node is not connected to any agent.");
+          errorNodeIds.push(startNode.id);
+        }
+      }
+
+      return { valid: validationErrors.length === 0, errors: validationErrors, errorNodeIds };
+    }, [nodes, edges]);
+
+    // Highlight nodes with validation errors
+    const highlightErrorNodes = useCallback((nodeIds: string[]) => {
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (nodeIds.includes(node.id)) {
+            return {
+              ...node,
+              data: { ...node.data, hasValidationError: true },
+            };
+          }
+          return node;
+        })
+      );
+    }, [setNodes]);
+
+    // Clear validation error highlights
+    const clearErrorHighlights = useCallback(() => {
+      setNodes((nds) =>
+        nds.map((node) => {
+          if ((node.data as Record<string, unknown>).hasValidationError) {
+            const { hasValidationError, ...restData } = node.data as Record<string, unknown>;
+            return { ...node, data: restData };
+          }
+          return node;
+        })
+      );
+    }, [setNodes]);
+
     // Expose methods to parent via ref
     useImperativeHandle(ref, () => ({
       addGroupNode,
@@ -1464,6 +1585,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       addTeleportOutNode,
       addTeleportInNode,
       addUserInputNode,
+      addStartNode,
+      addEndNode,
       clearCanvas,
       saveFlow,
       restoreFlow,
@@ -1473,6 +1596,9 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       focusNode,
       updateNodeExecutionState,
       clearExecutionState,
+      validateBeforeRun,
+      highlightErrorNodes,
+      clearErrorHighlights,
     }));
 
     return (
@@ -1586,6 +1712,10 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
                     return theme.colors.nodes.label.header;
                   case "userInput":
                     return theme.colors.nodes.userInput.header;
+                  case "start":
+                    return theme.colors.nodes.start.header;
+                  case "end":
+                    return theme.colors.nodes.end.header;
                   default:
                     return theme.colors.nodes.label.header;
                 }

@@ -116,7 +116,7 @@ export interface Workflow {
 /**
  * Node types for the Drawflow canvas
  */
-export type NodeType = "group" | "agent" | "prompt" | "context" | "inputProbe" | "outputProbe" | "logProbe" | "tool" | "agentTool" | "variable" | "teleportOut" | "teleportIn" | "userInput";
+export type NodeType = "group" | "agent" | "prompt" | "context" | "inputProbe" | "outputProbe" | "logProbe" | "tool" | "agentTool" | "variable" | "teleportOut" | "teleportIn" | "userInput" | "start" | "end";
 
 /**
  * Teleporter (flow connector) types for cross-flow connections
@@ -308,7 +308,7 @@ export type EventType =
   | "tool_call"
   | "tool_result"
   | "thinking"
-  | "error";
+  | "run_error";
 
 export interface RunEvent {
   type: EventType;
