@@ -59,10 +59,10 @@ const agentNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): boo
   // Check other important props
   if (prevProps.selected !== nextProps.selected) return false;
   if (prevProps.id !== nextProps.id) return false;
-  if (prevData.agent?.name !== nextData.agent?.name) return false;
-  if (prevData.agent?.type !== nextData.agent?.type) return false;
-  if (prevData.agent?.model !== nextData.agent?.model) return false;
   if (prevData.isNodeLocked !== nextData.isNodeLocked) return false;
+
+  // Compare agent object by reference - if any property changed, re-render
+  if (prevData.agent !== nextData.agent) return false;
 
   return true;
 };
@@ -616,7 +616,10 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
       </div>
 
       {/* Properties Panel */}
-      <div className="flex-1" style={{ height: size.height - 70 }}>
+      <div
+        className="flex-1 nodrag"
+        style={{ height: size.height - 70 }}
+      >
         <AgentPropertiesPanel
           agent={agent}
           connectedPromptName={connectedPromptName}
