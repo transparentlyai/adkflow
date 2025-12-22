@@ -4,7 +4,9 @@ Executes compiled workflows using ADK agents with callback support.
 """
 
 import asyncio
+import os
 import time
+import traceback
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
@@ -41,7 +43,7 @@ class EventType(Enum):
     TOOL_CALL = "tool_call"
     TOOL_RESULT = "tool_result"
     THINKING = "thinking"
-    ERROR = "error"
+    ERROR = "run_error"
     RUN_COMPLETE = "run_complete"
 
 
@@ -219,20 +221,82 @@ class WorkflowRunner:
 
         except Exception as e:
             error_msg = str(e)
+
+            # Provide friendly error messages for common issues
+            full_error = self._format_error(error_msg, config.project_path)
+
+            # Include traceback only in dev mode
+            if os.environ.get("ADKFLOW_DEV_MODE") == "1":
+                tb = traceback.format_exc()
+                full_error = f"{full_error}\n\n{tb}"
+
             await emit(
                 RunEvent(
                     type=EventType.ERROR,
                     timestamp=time.time(),
-                    data={"error": error_msg},
+                    data={"error": full_error},
                 )
             )
             return RunResult(
                 run_id=run_id,
                 status=RunStatus.FAILED,
-                error=error_msg,
+                error=full_error,
                 events=events,
                 duration_ms=(time.time() - start_time) * 1000,
             )
+
+    def _format_error(self, error_msg: str, project_path: Path) -> str:
+        """Format error messages with helpful instructions for common issues."""
+        error_lower = error_msg.lower()
+
+        # Check for missing API credentials - catch various error patterns
+        credential_error_patterns = [
+            "missing key inputs argument",
+            "api_key",
+            "google_api_key",
+            "gemini_api_key",
+            "defaultcredentialserror",
+            "could not automatically determine credentials",
+            "credentials not found",
+            "api key not valid",
+            "invalid api key",
+            "authentication failed",
+            "unauthorized",
+            "permission denied",
+            "please set the google_api_key",
+            "please provide an api_key",
+        ]
+
+        is_credential_error = any(
+            pattern in error_lower for pattern in credential_error_patterns
+        )
+
+        if is_credential_error:
+            return f"""API credentials not configured or invalid.
+
+To run workflows, you need to set up Google API credentials.
+
+Option 1: Create a .env file in your project directory:
+  {project_path}/.env
+
+  Add one of these configurations:
+
+  # For Google AI API (Gemini):
+  GOOGLE_API_KEY=your-api-key-here
+
+  # OR for Vertex AI:
+  GOOGLE_GENAI_USE_VERTEXAI=true
+  GOOGLE_CLOUD_PROJECT=your-project-id
+  GOOGLE_CLOUD_LOCATION=us-central1
+
+Option 2: Set environment variables before starting the server.
+
+Get your API key at: https://aistudio.google.com/apikey
+
+Original error: {error_msg}"""
+
+        # Return original message for other errors
+        return error_msg
 
     async def _execute(
         self,
@@ -268,19 +332,25 @@ class WorkflowRunner:
         output_parts: list[str] = []
         last_author: str | None = None
 
-        async for event in runner.run_async(
-            user_id="runner",
-            session_id=session.id,
-            new_message=content,
-        ):
-            last_author = await self._process_adk_event(event, emit, last_author)
+        try:
+            async for event in runner.run_async(
+                user_id="runner",
+                session_id=session.id,
+                new_message=content,
+            ):
+                last_author = await self._process_adk_event(event, emit, last_author)
 
-            if hasattr(event, "content") and event.content:
-                parts = event.content.parts
-                if parts:
-                    for part in parts:
-                        if hasattr(part, "text") and part.text:
-                            output_parts.append(part.text)
+                if hasattr(event, "content") and event.content:
+                    parts = event.content.parts
+                    if parts:
+                        for part in parts:
+                            if hasattr(part, "text") and part.text:
+                                output_parts.append(part.text)
+        except Exception as e:
+            # Re-raise with friendly error message if applicable
+            error_msg = str(e)
+            friendly_error = self._format_error(error_msg, config.project_path)
+            raise RuntimeError(friendly_error) from e
 
         output = "\n".join(output_parts)
         await self._write_output_files(ir, output, config.project_path, emit)

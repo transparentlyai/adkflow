@@ -9,6 +9,7 @@ Provides endpoints for:
 
 import asyncio
 import json
+import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -25,6 +26,7 @@ from adkflow_runner import (
     WorkflowRunner,
     RunEvent,
     RunStatus,
+    EventType,
 )
 
 router = APIRouter(prefix="/api/execution", tags=["execution"])
@@ -123,6 +125,10 @@ class RunManager:
 
             async def on_event(self, event: RunEvent) -> None:
                 self.active_run.events.append(event)
+                # Print errors to CLI console
+                if event.type.value == "run_error":
+                    error_msg = event.data.get("error", "Unknown error")
+                    print(f"\n[ERROR] {error_msg}\n")
                 for queue in self.active_run.subscribers:
                     try:
                         await queue.put(event)
@@ -162,6 +168,18 @@ class RunManager:
                 error="Run cancelled",
             )
         except Exception as e:
+            # Catch any unexpected exceptions and create error result
+            error_event = RunEvent(
+                type=EventType.ERROR,
+                timestamp=time.time(),
+                data={"error": str(e)},
+            )
+            active_run.events.append(error_event)
+            for queue in active_run.subscribers:
+                try:
+                    await queue.put(error_event)
+                except Exception:
+                    pass
             active_run.result = RunResult(
                 run_id=run_id,
                 status=RunStatus.FAILED,
@@ -188,6 +206,10 @@ class RunManager:
         # Send any existing events
         for event in active_run.events:
             await queue.put(event)
+
+        # If run already completed, send completion signal
+        if active_run.result is not None:
+            await queue.put(None)
 
         return queue
 
@@ -308,6 +330,24 @@ async def stream_events(run_id: str, request: Request):
                 except asyncio.TimeoutError:
                     yield {"event": "keepalive", "data": ""}
 
+        except Exception as e:
+            # Send error event if something goes wrong
+            yield {
+                "event": "run_error",
+                "data": json.dumps(
+                    {
+                        "type": "run_error",
+                        "timestamp": time.time(),
+                        "agent_id": None,
+                        "agent_name": None,
+                        "data": {"error": str(e)},
+                    }
+                ),
+            }
+            yield {
+                "event": "complete",
+                "data": json.dumps({"run_id": run_id}),
+            }
         finally:
             if queue is not None:
                 run_manager.unsubscribe(run_id, queue)

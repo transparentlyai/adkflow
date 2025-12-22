@@ -79,6 +79,73 @@ export default function RunPanel({
   const eventsRef = useRef<DisplayEvent[]>(events);
   eventsRef.current = events;
 
+  // Periodic status polling as fallback for missed events
+  useEffect(() => {
+    if (!runId || status !== "running") return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const statusResponse = await getRunStatus(runId);
+
+        // Handle failed status (with or without error message)
+        if (statusResponse.status === "failed") {
+          const errorMsg = statusResponse.error || "Workflow execution failed";
+          onEventsChange([
+            ...eventsRef.current,
+            {
+              id: `polled-error-${Date.now()}`,
+              type: "run_error",
+              content: errorMsg,
+              timestamp: Date.now(),
+            },
+          ]);
+          onStatusChange("failed");
+          onClearExecutionState?.();
+        } else if (statusResponse.status === "completed") {
+          // Run completed but we missed it
+          onStatusChange("completed");
+          onClearExecutionState?.();
+          onRunComplete?.(statusResponse.status, statusResponse.output, statusResponse.error);
+        }
+      } catch {
+        // Ignore polling errors - SSE will handle disconnection
+      }
+    }, 2000); // Poll every 2 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [runId, status, onEventsChange, onStatusChange, onClearExecutionState, onRunComplete]);
+
+  // Immediate status check when run starts (catches early failures)
+  useEffect(() => {
+    if (!runId) return;
+
+    // Small delay to let the backend process, then check status
+    const immediateCheck = setTimeout(async () => {
+      try {
+        const statusResponse = await getRunStatus(runId);
+
+        if (statusResponse.status === "failed") {
+          const errorMsg = statusResponse.error || "Workflow execution failed";
+          onEventsChange([
+            ...eventsRef.current,
+            {
+              id: `early-error-${Date.now()}`,
+              type: "run_error",
+              content: errorMsg,
+              timestamp: Date.now(),
+            },
+          ]);
+          onStatusChange("failed");
+          onClearExecutionState?.();
+        }
+      } catch {
+        // Ignore - polling will catch any issues
+      }
+    }, 500); // Check after 500ms - enough time for early failures
+
+    return () => clearTimeout(immediateCheck);
+  }, [runId, onEventsChange, onStatusChange, onClearExecutionState]);
+
   useEffect(() => {
     if (!runId) return;
 
@@ -100,7 +167,7 @@ export default function RunPanel({
           return `Tool result: ${event.data.tool_name}`;
         case "thinking":
           return "Thinking...";
-        case "error":
+        case "run_error":
           return `Error: ${event.data.error || "Unknown error"}`;
         default:
           return JSON.stringify(event.data);
@@ -125,15 +192,16 @@ export default function RunPanel({
         onAgentStateChange?.(event.agent_name, "running");
       } else if (event.type === "agent_end" && event.agent_name) {
         onAgentStateChange?.(event.agent_name, "completed");
-      } else if (event.type === "error" && event.agent_name) {
+      } else if (event.type === "run_error" && event.agent_name) {
         onAgentStateChange?.(event.agent_name, "error");
       }
 
       if (event.type === "run_complete") {
         onStatusChange("completed");
         onClearExecutionState?.();
-      } else if (event.type === "error") {
+      } else if (event.type === "run_error") {
         onStatusChange("failed");
+        onClearExecutionState?.(); // Clear agent highlights on error too
       }
     };
 
@@ -159,7 +227,7 @@ export default function RunPanel({
       "tool_call",
       "tool_result",
       "thinking",
-      "error",
+      "run_error",
     ];
 
     eventTypes.forEach((eventType) => {
@@ -181,17 +249,59 @@ export default function RunPanel({
       });
     });
 
-    eventSource.onerror = () => {
+    eventSource.onerror = async () => {
       eventSource.close();
-      onEventsChange([
-        ...eventsRef.current,
-        {
-          id: `error-${Date.now()}`,
-          type: "error",
-          content: "Connection to server lost",
-          timestamp: Date.now(),
-        },
-      ]);
+
+      // Poll for final status to see if there was an error we missed
+      try {
+        const statusResponse = await getRunStatus(runId);
+
+        if (statusResponse.status === "failed" && statusResponse.error) {
+          // Got an error from the backend - show it to the user
+          onEventsChange([
+            ...eventsRef.current,
+            {
+              id: `error-${Date.now()}`,
+              type: "run_error",
+              content: statusResponse.error,
+              timestamp: Date.now(),
+            },
+          ]);
+          onStatusChange("failed");
+          onClearExecutionState?.();
+        } else if (statusResponse.status === "completed") {
+          // Run completed successfully - we just missed the event
+          onStatusChange("completed");
+          onClearExecutionState?.();
+          onRunComplete?.(statusResponse.status, statusResponse.output, statusResponse.error);
+        } else {
+          // Still running or unknown state - show connection lost
+          onEventsChange([
+            ...eventsRef.current,
+            {
+              id: `error-${Date.now()}`,
+              type: "run_error",
+              content: "Connection to server lost. Check the backend console for errors.",
+              timestamp: Date.now(),
+            },
+          ]);
+          onStatusChange("failed");
+          onClearExecutionState?.();
+        }
+      } catch {
+        // Couldn't reach server at all
+        onEventsChange([
+          ...eventsRef.current,
+          {
+            id: `error-${Date.now()}`,
+            type: "run_error",
+            content: "Connection to server lost",
+            timestamp: Date.now(),
+          },
+        ]);
+        onStatusChange("failed");
+        onClearExecutionState?.();
+      }
     };
 
     return () => {
@@ -255,7 +365,7 @@ export default function RunPanel({
         return "text-yellow-300";
       case "thinking":
         return "text-gray-500";
-      case "error":
+      case "run_error":
         return "text-red-400";
       case "run_start":
       case "run_complete":
@@ -320,7 +430,7 @@ export default function RunPanel({
               {event.agentName && (
                 <span className="text-purple-400">[{event.agentName}] </span>
               )}
-              {event.type === "agent_output" ? (
+              {event.type === "agent_output" || event.type === "run_error" ? (
                 <span className="whitespace-pre-wrap">{event.content}</span>
               ) : (
                 <span>{event.content}</span>
