@@ -33,6 +33,8 @@ import {
   Settings,
   Play,
   CheckCircle,
+  Terminal,
+  Check,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import SettingsDialog from "@/components/SettingsDialog";
@@ -51,6 +53,8 @@ interface TopMenubarProps {
   onRunWorkflow?: () => void;
   onValidateWorkflow?: () => void;
   isRunning?: boolean;
+  showRunConsole?: boolean;
+  onToggleRunConsole?: () => void;
 }
 
 export default function TopMenubar({
@@ -67,6 +71,8 @@ export default function TopMenubar({
   onRunWorkflow,
   onValidateWorkflow,
   isRunning,
+  showRunConsole,
+  onToggleRunConsole,
 }: TopMenubarProps) {
   const { themeId, allThemes, setTheme, exportCurrentTheme, importTheme } = useTheme();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -211,6 +217,17 @@ export default function TopMenubar({
               )}
               {isLocked ? "Unlock Canvas" : "Lock Canvas"}
               <MenubarShortcut>⌘L</MenubarShortcut>
+            </MenubarItem>
+            <MenubarSeparator />
+            <MenubarItem onClick={onToggleRunConsole}>
+              {showRunConsole ? (
+                <Check className="mr-2 h-4 w-4" />
+              ) : (
+                <span className="mr-2 w-4" />
+              )}
+              <Terminal className="mr-2 h-4 w-4" />
+              Run Console
+              <MenubarShortcut>⌘J</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
             {/* Theme submenu */}

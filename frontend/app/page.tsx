@@ -754,6 +754,8 @@ function HomeContent() {
               onRunWorkflow={handleRunWorkflow}
               onValidateWorkflow={handleValidateWorkflow}
               isRunning={isRunning}
+              showRunConsole={isRunPanelOpen}
+              onToggleRunConsole={() => setIsRunPanelOpen(!isRunPanelOpen)}
             />
             {/* Global Search */}
             {currentProjectPath && (
