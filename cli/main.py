@@ -78,11 +78,13 @@ def load_env():
         load_dotenv(env_file)
 
 
-def start_backend_server(project_root: Path, port: int) -> subprocess.Popen:
+def start_backend_server(project_root: Path, port: int, dev_mode: bool = False) -> subprocess.Popen:
     """Start the backend server."""
     env = os.environ.copy()
     env["PYTHONPATH"] = str(project_root)
     env["BACKEND_PORT"] = str(port)
+    if dev_mode:
+        env["ADKFLOW_DEV_MODE"] = "1"
 
     return subprocess.Popen(
         [sys.executable, "-m", "backend.src.main"],
@@ -195,9 +197,9 @@ def dev(backend_port: int, frontend_port: int):
     signal.signal(signal.SIGTERM, cleanup)
 
     try:
-        # Start backend
+        # Start backend in dev mode
         print_msg("Starting backend server...", "blue")
-        backend_proc = start_backend_server(project_root, backend_port)
+        backend_proc = start_backend_server(project_root, backend_port, dev_mode=True)
         time.sleep(3)
 
         if backend_proc.poll() is not None:
@@ -206,7 +208,7 @@ def dev(backend_port: int, frontend_port: int):
                 print_msg(backend_proc.stdout.read().decode())
             raise click.Abort()
 
-        # Start frontend
+        # Start frontend in dev mode
         print_msg("Starting frontend server...", "blue")
         frontend_proc = start_frontend_server(project_root, frontend_port, backend_port)
         time.sleep(3)

@@ -6,6 +6,7 @@ import TopMenubar from "@/components/TopMenubar";
 import GlobalSearch from "@/components/GlobalSearch";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import SaveConfirmDialog from "@/components/SaveConfirmDialog";
+import RunConfirmDialog from "@/components/RunConfirmDialog";
 import PromptNameDialog from "@/components/PromptNameDialog";
 import ValidationResultDialog from "@/components/ValidationResultDialog";
 import HomeScreen from "@/components/HomeScreen";
@@ -17,6 +18,7 @@ import FilePicker from "@/components/FilePicker";
 import { loadSession, saveSession } from "@/lib/sessionStorage";
 import { ProjectProvider, type FilePickerOptions } from "@/contexts/ProjectContext";
 import { ClipboardProvider } from "@/contexts/ClipboardContext";
+import { RunWorkflowProvider } from "@/contexts/RunWorkflowContext";
 import { TabsProvider, useTabs } from "@/contexts/TabsContext";
 import { TeleporterProvider, useTeleporter } from "@/contexts/TeleporterContext";
 import TabBar from "@/components/TabBar";
@@ -63,6 +65,7 @@ function HomeContent() {
 
   // Project state
   const [currentProjectPath, setCurrentProjectPath] = useState<string | null>(null);
+  const [isProjectSaved, setIsProjectSaved] = useState(true); // Track if project has been saved to disk
   const [isProjectSwitcherOpen, setIsProjectSwitcherOpen] = useState(false);
   const [projectSwitcherMode, setProjectSwitcherMode] = useState<"create" | "open">("open");
   const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false);
@@ -105,6 +108,7 @@ function HomeContent() {
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [runEvents, setRunEvents] = useState<DisplayEvent[]>([]);
+  const [isRunConfirmDialogOpen, setIsRunConfirmDialogOpen] = useState(false);
   const [lastRunStatus, setLastRunStatus] = useState<RunStatus>("pending");
 
   // Validation dialog state
@@ -126,6 +130,7 @@ function HomeContent() {
     if (session && session.currentProjectPath) {
       const projectPath = session.currentProjectPath;
       setCurrentProjectPath(projectPath);
+      setIsProjectSaved(true); // Session restored from existing project
 
       // Initialize tabs and load first tab
       (async () => {
@@ -207,15 +212,26 @@ function HomeContent() {
       setShowHomeScreen(false);
 
       // Initialize tabs and create first tab
-      const firstTab = await initializeTabs(projectPath);
-      if (!firstTab) {
+      const result = await initializeTabs(projectPath);
+      let tabToLoad: { id: string; name: string } | null = null;
+
+      if (!result || !result.firstTab) {
         // No tabs exist, create the first one
-        await createNewTab(projectPath, "Flow 1");
+        const newTab = await createNewTab(projectPath, "Flow 1");
+        if (newTab) {
+          tabToLoad = newTab;
+        }
+      } else {
+        tabToLoad = result.firstTab;
       }
 
-      // Clear canvas
-      if (canvasRef.current) {
-        canvasRef.current.clearCanvas();
+      // Load the tab's default flow (which includes Start node)
+      if (tabToLoad && canvasRef.current) {
+        const flow = await loadTabFlow(projectPath, tabToLoad.id);
+        if (flow) {
+          canvasRef.current.restoreFlow(flow);
+          syncTeleportersForTab(tabToLoad.id, tabToLoad.name, flow.nodes);
+        }
       }
 
       // Add to recent projects
@@ -250,6 +266,7 @@ function HomeContent() {
 
       setWorkflowName(projectName);
       setCurrentProjectPath(projectPath);
+      setIsProjectSaved(true); // Existing project already saved to disk
       setIsProjectSwitcherOpen(false);
       setShowHomeScreen(false);
 
@@ -279,7 +296,9 @@ function HomeContent() {
       }
 
       const success = await saveTabFlow(currentProjectPath, activeTabId, flow, workflowName);
-      if (!success) {
+      if (success) {
+        setIsProjectSaved(true); // Project now saved to disk
+      } else {
         alert("Failed to save tab.");
       }
     } catch (error) {
@@ -557,14 +576,26 @@ function HomeContent() {
   }, []);
 
   // Run workflow handlers
-  const handleRunWorkflow = useCallback(async () => {
+  const executeRunWorkflow = useCallback(async () => {
     if (!currentProjectPath || isRunning) return;
 
-    // Save current tab before running
-    if (activeTab?.hasUnsavedChanges && canvasRef.current && activeTabId) {
-      const flow = canvasRef.current.saveFlow();
-      if (flow) {
-        await saveTabFlow(currentProjectPath, activeTabId, flow, workflowName);
+    // Validate workflow before running
+    if (canvasRef.current) {
+      const validation = canvasRef.current.validateBeforeRun();
+      if (!validation.valid) {
+        // Highlight nodes with errors
+        if (validation.errorNodeIds.length > 0) {
+          canvasRef.current.highlightErrorNodes(validation.errorNodeIds);
+        }
+        setValidationResult({
+          valid: false,
+          errors: validation.errors,
+          warnings: [],
+          agent_count: 0,
+          tab_count: 0,
+          teleporter_count: 0,
+        });
+        return;
       }
     }
 
@@ -581,7 +612,40 @@ function HomeContent() {
       alert("Failed to start workflow: " + (error as Error).message);
       setIsRunning(false);
     }
-  }, [currentProjectPath, isRunning, activeTab, activeTabId, saveTabFlow, workflowName]);
+  }, [currentProjectPath, isRunning, activeTabId]);
+
+  const handleRunWorkflow = useCallback(async () => {
+    if (!currentProjectPath || isRunning) return;
+
+    // Check if project needs to be saved (unsaved changes OR new project not yet saved to disk)
+    if (activeTab?.hasUnsavedChanges || !isProjectSaved) {
+      setIsRunConfirmDialogOpen(true);
+      return;
+    }
+
+    await executeRunWorkflow();
+  }, [currentProjectPath, isRunning, activeTab, isProjectSaved, executeRunWorkflow]);
+
+  const handleRunConfirmSaveAndRun = useCallback(async () => {
+    setIsRunConfirmDialogOpen(false);
+
+    // Save current tab before running
+    if (canvasRef.current && activeTabId && currentProjectPath) {
+      const flow = canvasRef.current.saveFlow();
+      if (flow) {
+        const success = await saveTabFlow(currentProjectPath, activeTabId, flow, workflowName);
+        if (success) {
+          setIsProjectSaved(true); // Project now saved to disk
+        }
+      }
+    }
+
+    await executeRunWorkflow();
+  }, [activeTabId, currentProjectPath, saveTabFlow, workflowName, executeRunWorkflow]);
+
+  const handleRunConfirmCancel = useCallback(() => {
+    setIsRunConfirmDialogOpen(false);
+  }, []);
 
   const handleValidateWorkflow = useCallback(async () => {
     if (!currentProjectPath) return;
@@ -834,17 +898,23 @@ function HomeContent() {
               onRequestFilePicker={handleRequestFilePicker}
               isLocked={isCanvasLocked}
             >
-              <ReactFlowCanvas
-                ref={canvasRef}
-                onWorkflowChange={handleWorkflowChange}
-                onRequestPromptCreation={handleRequestPromptCreation}
-                onRequestContextCreation={handleRequestContextCreation}
-                onRequestToolCreation={handleRequestToolCreation}
-                onRequestProcessCreation={handleRequestProcessCreation}
-                isLocked={isCanvasLocked}
-                onToggleLock={() => setIsCanvasLocked(!isCanvasLocked)}
-                activeTabId={activeTabId ?? undefined}
-              />
+              <RunWorkflowProvider
+                runWorkflow={handleRunWorkflow}
+                isRunning={isRunning}
+                hasProjectPath={!!currentProjectPath}
+              >
+                <ReactFlowCanvas
+                  ref={canvasRef}
+                  onWorkflowChange={handleWorkflowChange}
+                  onRequestPromptCreation={handleRequestPromptCreation}
+                  onRequestContextCreation={handleRequestContextCreation}
+                  onRequestToolCreation={handleRequestToolCreation}
+                  onRequestProcessCreation={handleRequestProcessCreation}
+                  isLocked={isCanvasLocked}
+                  onToggleLock={() => setIsCanvasLocked(!isCanvasLocked)}
+                  activeTabId={activeTabId ?? undefined}
+                />
+              </RunWorkflowProvider>
             </ProjectProvider>
           </div>
         </main>
@@ -869,6 +939,13 @@ function HomeContent() {
         onSaveAndContinue={handleSaveAndContinue}
         onDontSave={handleDontSave}
         onCancel={handleCancelNewProject}
+      />
+
+      {/* Run Confirm Dialog */}
+      <RunConfirmDialog
+        isOpen={isRunConfirmDialogOpen}
+        onSaveAndRun={handleRunConfirmSaveAndRun}
+        onCancel={handleRunConfirmCancel}
       />
 
       {/* Prompt Name Dialog */}
@@ -928,7 +1005,10 @@ function HomeContent() {
       <ValidationResultDialog
         isOpen={validationResult !== null}
         result={validationResult}
-        onClose={() => setValidationResult(null)}
+        onClose={() => {
+          setValidationResult(null);
+          canvasRef.current?.clearErrorHighlights();
+        }}
       />
 
       {/* File Picker Dialog */}

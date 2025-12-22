@@ -144,7 +144,11 @@ const OutputFileNode = memo(({ data, id, selected }: NodeProps) => {
       setLoadedOffset(CHUNK_SIZE);
       setHasMore(response.has_more);
     } catch (error) {
-      console.error("Failed to load file content:", error);
+      // File not found is expected for output files in new projects - don't log as error
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (!errorMessage.includes("File not found") && !errorMessage.includes("not found")) {
+        console.error("Failed to load file content:", error);
+      }
       setContent("");
       setContentSnippet("");
       setTotalLines(0);

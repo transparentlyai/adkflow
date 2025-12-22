@@ -11,6 +11,7 @@ from pydantic import BaseModel, ValidationError
 
 from backend.src.models.workflow import (
     ReactFlowJSON,
+    ReactFlowNode,
     TabMetadata,
     ProjectManifest,
     Viewport,
@@ -238,8 +239,18 @@ def generate_tab_id() -> str:
 
 
 def get_default_flow() -> ReactFlowJSON:
-    """Return a default empty ReactFlow JSON structure."""
-    return ReactFlowJSON(nodes=[], edges=[], viewport=Viewport(x=0, y=0, zoom=1))
+    """Return a default ReactFlow JSON structure with a Start node."""
+    start_node: ReactFlowNode = ReactFlowNode.model_validate(
+        {
+            "id": f"start_{int(time.time() * 1000)}",
+            "type": "start",
+            "position": {"x": 100, "y": 200},
+            "data": {},
+        }
+    )
+    return ReactFlowJSON(
+        nodes=[start_node], edges=[], viewport=Viewport(x=0, y=0, zoom=1)
+    )
 
 
 @router.get("/tools", response_model=ToolsResponse)
