@@ -9,7 +9,9 @@ import SaveConfirmDialog from "@/components/SaveConfirmDialog";
 import PromptNameDialog from "@/components/PromptNameDialog";
 import HomeScreen from "@/components/HomeScreen";
 import ProjectSwitcher from "@/components/ProjectSwitcher";
-import { createPrompt, createContext, createTool, savePrompt, readPrompt } from "@/lib/api";
+import { createPrompt, createContext, createTool, savePrompt, readPrompt, startRun, validateWorkflow } from "@/lib/api";
+import RunPanel from "@/components/RunPanel";
+import type { RunStatus } from "@/lib/types";
 import FilePicker from "@/components/FilePicker";
 import { loadSession, saveSession } from "@/lib/sessionStorage";
 import { ProjectProvider, type FilePickerOptions } from "@/contexts/ProjectContext";
@@ -96,6 +98,11 @@ function HomeContent() {
   const [filePickerInitialPath, setFilePickerInitialPath] = useState<string | undefined>(undefined);
   const [filePickerCallback, setFilePickerCallback] = useState<((newPath: string) => void) | null>(null);
   const [filePickerOptions, setFilePickerOptions] = useState<FilePickerOptions | undefined>(undefined);
+
+  // Run panel state
+  const [isRunPanelOpen, setIsRunPanelOpen] = useState(false);
+  const [currentRunId, setCurrentRunId] = useState<string | null>(null);
+  const [isRunning, setIsRunning] = useState(false);
 
   // Load session and recent projects on mount
   useEffect(() => {
@@ -536,6 +543,61 @@ function HomeContent() {
     setFilePickerOptions(undefined);
   }, []);
 
+  // Run workflow handlers
+  const handleRunWorkflow = useCallback(async () => {
+    if (!currentProjectPath || isRunning) return;
+
+    // Save current tab before running
+    if (activeTab?.hasUnsavedChanges && canvasRef.current && activeTabId) {
+      const flow = canvasRef.current.saveFlow();
+      if (flow) {
+        await saveTabFlow(currentProjectPath, activeTabId, flow, workflowName);
+      }
+    }
+
+    try {
+      setIsRunning(true);
+      const response = await startRun({
+        project_path: currentProjectPath,
+        tab_id: activeTabId ?? undefined,
+      });
+      setCurrentRunId(response.run_id);
+      setIsRunPanelOpen(true);
+    } catch (error) {
+      console.error("Failed to start run:", error);
+      alert("Failed to start workflow: " + (error as Error).message);
+      setIsRunning(false);
+    }
+  }, [currentProjectPath, isRunning, activeTab, activeTabId, saveTabFlow, workflowName]);
+
+  const handleValidateWorkflow = useCallback(async () => {
+    if (!currentProjectPath) return;
+
+    try {
+      const result = await validateWorkflow(currentProjectPath);
+      if (result.valid) {
+        alert(`Workflow is valid!\n\nAgents: ${result.agent_count}\nTabs: ${result.tab_count}\nTeleporter pairs: ${result.teleporter_count}`);
+      } else {
+        const errors = result.errors.length > 0 ? `\n\nErrors:\n${result.errors.join("\n")}` : "";
+        const warnings = result.warnings.length > 0 ? `\n\nWarnings:\n${result.warnings.join("\n")}` : "";
+        alert(`Workflow has errors${errors}${warnings}`);
+      }
+    } catch (error) {
+      console.error("Failed to validate:", error);
+      alert("Failed to validate workflow: " + (error as Error).message);
+    }
+  }, [currentProjectPath]);
+
+  const handleRunComplete = useCallback((status: RunStatus) => {
+    setIsRunning(false);
+  }, []);
+
+  const handleCloseRunPanel = useCallback(() => {
+    setIsRunPanelOpen(false);
+    setCurrentRunId(null);
+    setIsRunning(false);
+  }, []);
+
   // Tab handlers
   const handleTabClick = useCallback(async (tabId: string) => {
     if (!currentProjectPath) return;
@@ -678,6 +740,9 @@ function HomeContent() {
               hasProjectPath={!!currentProjectPath}
               isLocked={isCanvasLocked}
               onToggleLock={() => setIsCanvasLocked(!isCanvasLocked)}
+              onRunWorkflow={handleRunWorkflow}
+              onValidateWorkflow={handleValidateWorkflow}
+              isRunning={isRunning}
             />
             {/* Global Search */}
             {currentProjectPath && (
@@ -845,6 +910,16 @@ function HomeContent() {
         filterLabel={filePickerOptions?.filterLabel}
         allowCreate={filePickerOptions?.allowCreate}
       />
+
+      {/* Run Panel */}
+      {isRunPanelOpen && (
+        <RunPanel
+          runId={currentRunId}
+          projectPath={currentProjectPath || ""}
+          onClose={handleCloseRunPanel}
+          onRunComplete={handleRunComplete}
+        />
+      )}
     </div>
   );
 }

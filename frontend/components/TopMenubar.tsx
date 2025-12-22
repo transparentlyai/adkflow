@@ -31,6 +31,8 @@ import {
   Download,
   Upload,
   Settings,
+  Play,
+  CheckCircle,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import SettingsDialog from "@/components/SettingsDialog";
@@ -46,6 +48,9 @@ interface TopMenubarProps {
   hasProjectPath: boolean;
   isLocked?: boolean;
   onToggleLock?: () => void;
+  onRunWorkflow?: () => void;
+  onValidateWorkflow?: () => void;
+  isRunning?: boolean;
 }
 
 export default function TopMenubar({
@@ -59,6 +64,9 @@ export default function TopMenubar({
   hasProjectPath,
   isLocked,
   onToggleLock,
+  onRunWorkflow,
+  onValidateWorkflow,
+  isRunning,
 }: TopMenubarProps) {
   const { themeId, allThemes, setTheme, exportCurrentTheme, importTheme } = useTheme();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -130,6 +138,24 @@ export default function TopMenubar({
               <Save className="mr-2 h-4 w-4" />
               Save
               <MenubarShortcut>⌘S</MenubarShortcut>
+            </MenubarItem>
+          </MenubarContent>
+        </MenubarMenu>
+
+        {/* Run Menu */}
+        <MenubarMenu>
+          <MenubarTrigger className="text-sm font-normal">Run</MenubarTrigger>
+          <MenubarContent>
+            <MenubarItem onClick={onRunWorkflow} disabled={!hasProjectPath || isRunning}>
+              <Play className="mr-2 h-4 w-4" />
+              Run Workflow
+              <MenubarShortcut>⌘R</MenubarShortcut>
+            </MenubarItem>
+            <MenubarSeparator />
+            <MenubarItem onClick={onValidateWorkflow} disabled={!hasProjectPath}>
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Validate
+              <MenubarShortcut>⇧⌘V</MenubarShortcut>
             </MenubarItem>
           </MenubarContent>
         </MenubarMenu>

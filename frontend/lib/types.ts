@@ -294,3 +294,62 @@ export interface TabSaveResponse {
   success: boolean;
   message: string;
 }
+
+// Execution types for workflow running
+
+export type RunStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
+
+export type EventType =
+  | "run_start"
+  | "run_complete"
+  | "agent_start"
+  | "agent_end"
+  | "agent_output"
+  | "tool_call"
+  | "tool_result"
+  | "thinking"
+  | "error";
+
+export interface RunEvent {
+  type: EventType;
+  timestamp: number;
+  run_id: string;
+  agent_name?: string;
+  data: Record<string, unknown>;
+}
+
+export interface RunRequest {
+  project_path: string;
+  tab_id?: string;
+  input_data?: Record<string, unknown>;
+  timeout_seconds?: number;
+  validate_workflow?: boolean;
+}
+
+export interface RunResponse {
+  run_id: string;
+  status: string;
+  message: string;
+}
+
+export interface RunStatusResponse {
+  run_id: string;
+  status: RunStatus;
+  output?: string;
+  error?: string;
+  duration_ms: number;
+  event_count: number;
+}
+
+export interface ValidateRequest {
+  project_path: string;
+}
+
+export interface ValidateResponse {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  agent_count: number;
+  tab_count: number;
+  teleporter_count: number;
+}
