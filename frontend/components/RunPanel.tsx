@@ -18,7 +18,7 @@ interface RunPanelProps {
 
 interface DisplayEvent {
   id: string;
-  type: EventType | "info" | "final_output";
+  type: EventType | "info";
   content: string;
   agentName?: string;
   timestamp: number;
@@ -89,19 +89,6 @@ export default function RunPanel({
 
       if (event.type === "run_complete") {
         setStatus("completed");
-        const outputData = event.data.output as string | undefined;
-        if (outputData) {
-          // Add final output as an event in the log
-          setEvents((prev) => [
-            ...prev,
-            {
-              id: `output-${Date.now()}`,
-              type: "final_output",
-              content: outputData,
-              timestamp: Date.now(),
-            },
-          ]);
-        }
         // Clear all execution highlights when run completes
         onClearExecutionState?.();
       } else if (event.type === "error") {
@@ -228,7 +215,7 @@ export default function RunPanel({
     }
   };
 
-  const getEventColor = (type: EventType | "info" | "final_output"): string => {
+  const getEventColor = (type: EventType | "info"): string => {
     switch (type) {
       case "agent_start":
         return "text-blue-400";
@@ -249,8 +236,6 @@ export default function RunPanel({
         return "text-cyan-400";
       case "info":
         return "text-gray-400";
-      case "final_output":
-        return "text-green-400";
       default:
         return "text-gray-300";
     }
@@ -298,7 +283,7 @@ export default function RunPanel({
               {event.agentName && (
                 <span className="text-purple-400">[{event.agentName}] </span>
               )}
-              {event.type === "agent_output" || event.type === "final_output" ? (
+              {event.type === "agent_output" ? (
                 <span className="whitespace-pre-wrap">{event.content}</span>
               ) : (
                 <span>{event.content}</span>
