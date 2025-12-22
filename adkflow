@@ -1,0 +1,3 @@
+#!/bin/bash
+# ADKFlow CLI wrapper
+cd "$(dirname "$0")" && uv run adkflow "$@"
