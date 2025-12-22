@@ -76,6 +76,7 @@ export function removeRecentProject(path: string): void {
 
 /**
  * Clear all recent projects
+ * TODO: Add "Clear History" button in HomeScreen or SettingsDialog
  */
 export function clearRecentProjects(): void {
   if (typeof window === "undefined") return;

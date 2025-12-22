@@ -170,22 +170,6 @@ export interface NodeData {
 }
 
 /**
- * Drawflow node structure
- */
-export interface DrawflowNode {
-  id: number;
-  name: string;
-  data: NodeData;
-  class: string;
-  html: string;
-  typenode: boolean;
-  inputs: Record<string, any>;
-  outputs: Record<string, any>;
-  pos_x: number;
-  pos_y: number;
-}
-
-/**
  * API response types
  */
 export interface ValidationResponse {
@@ -236,11 +220,6 @@ export interface PromptCreateResponse {
   message: string;
 }
 
-export interface PromptReadRequest {
-  project_path: string;
-  file_path: string;
-}
-
 export interface PromptReadResponse {
   success: boolean;
   content: string;
@@ -257,14 +236,6 @@ export interface PromptSaveResponse {
   success: boolean;
   file_path: string;
   message: string;
-}
-
-export interface FileChunkRequest {
-  project_path: string;
-  file_path: string;
-  offset?: number;
-  limit?: number;
-  reverse?: boolean;
 }
 
 export interface FileChunkResponse {
@@ -286,11 +257,6 @@ export interface DirectoryListResponse {
   current_path: string;
   parent_path: string | null;
   entries: DirectoryEntry[];
-}
-
-export interface DirectoryCreateRequest {
-  path: string;
-  name: string;
 }
 
 export interface DirectoryCreateResponse {

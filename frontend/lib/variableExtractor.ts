@@ -3,6 +3,9 @@
  *
  * Extracts and validates variable patterns from markdown text.
  * Variables are denoted by {variable_name} syntax.
+ *
+ * TODO: Wire up for variable interpolation feature - extract and display
+ * variables in PromptNode sidebar, syntax highlighting in editor, etc.
  */
 
 /**
