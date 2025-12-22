@@ -44,8 +44,6 @@ export default function RunPanel({
   lastRunStatus,
   onStatusChange,
 }: RunPanelProps) {
-  const [output, setOutput] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const status = lastRunStatus;
   const [height, setHeight] = useState(DEFAULT_HEIGHT);
   const [isResizing, setIsResizing] = useState(false);
@@ -78,7 +76,6 @@ export default function RunPanel({
     };
   }, [isResizing]);
 
-  // Track events in a ref for use in event handlers
   const eventsRef = useRef<DisplayEvent[]>(events);
   eventsRef.current = events;
 
@@ -110,9 +107,12 @@ export default function RunPanel({
       }
     };
 
+    let eventCounter = 0;
+
     const handleEvent = (event: RunEvent) => {
+      eventCounter++;
       const displayEvent: DisplayEvent = {
-        id: `${event.type}-${event.timestamp}`,
+        id: `${event.type}-${event.timestamp}-${eventCounter}-${Math.random().toString(36).slice(2, 7)}`,
         type: event.type,
         content: formatEventContent(event),
         agentName: event.agent_name,
@@ -121,7 +121,6 @@ export default function RunPanel({
 
       onEventsChange([...eventsRef.current, displayEvent]);
 
-      // Emit agent state changes for real-time node highlighting
       if (event.type === "agent_start" && event.agent_name) {
         onAgentStateChange?.(event.agent_name, "running");
       } else if (event.type === "agent_end" && event.agent_name) {
@@ -132,14 +131,9 @@ export default function RunPanel({
 
       if (event.type === "run_complete") {
         onStatusChange("completed");
-        // Clear all execution highlights when run completes
         onClearExecutionState?.();
       } else if (event.type === "error") {
         onStatusChange("failed");
-        const errorData = event.data.error as string | undefined;
-        if (errorData) {
-          setError(errorData);
-        }
       }
     };
 
@@ -156,7 +150,6 @@ export default function RunPanel({
     const eventSource = createRunEventSource(runId);
     eventSourceRef.current = eventSource;
 
-    // Handle specific event types
     const eventTypes = [
       "run_start",
       "run_complete",
@@ -180,24 +173,15 @@ export default function RunPanel({
       });
     });
 
-    // Handle completion event
     eventSource.addEventListener("complete", () => {
       eventSource.close();
-      // Fetch final status
       getRunStatus(runId).then((statusResponse) => {
         onStatusChange(statusResponse.status);
-        if (statusResponse.output) {
-          setOutput(statusResponse.output);
-        }
-        if (statusResponse.error) {
-          setError(statusResponse.error);
-        }
         onRunComplete?.(statusResponse.status, statusResponse.output, statusResponse.error);
       });
     });
 
     eventSource.onerror = () => {
-      // Connection closed or error
       eventSource.close();
       onEventsChange([
         ...eventsRef.current,
@@ -216,7 +200,6 @@ export default function RunPanel({
     };
   }, [runId, onRunComplete, projectPath, onAgentStateChange, onClearExecutionState, onEventsChange, onStatusChange]);
 
-  // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;

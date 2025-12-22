@@ -3,9 +3,12 @@
 Creates the appropriate ADK agent types based on IR definitions.
 """
 
+from __future__ import annotations
+
 import re
+import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from google.adk.agents import Agent, LoopAgent, ParallelAgent, SequentialAgent
 from google.adk.agents.base_agent import BaseAgent
@@ -15,6 +18,12 @@ from google.genai import types
 from adkflow_runner.errors import ExecutionError
 from adkflow_runner.ir import AgentIR, WorkflowIR
 from adkflow_runner.runner.tool_loader import ToolLoader
+
+if TYPE_CHECKING:
+    from adkflow_runner.runner.workflow_runner import RunEvent
+
+# Type alias for emit function
+EmitFn = Callable[["RunEvent"], Awaitable[None]]
 
 
 def sanitize_agent_name(name: str) -> str:
@@ -37,24 +46,124 @@ def sanitize_agent_name(name: str) -> str:
     return sanitized
 
 
+def create_agent_callbacks(
+    emit: EmitFn | None,
+    agent_name: str,
+) -> dict[str, Any]:
+    """Create ADK callbacks that emit RunEvents for real-time updates.
+
+    ADK callbacks are called synchronously, so we use asyncio.create_task
+    to fire off the async emit without blocking.
+
+    Args:
+        emit: Async function to emit RunEvent (or None for no-op)
+        agent_name: Name of the agent for event attribution
+
+    Returns:
+        Dict of callback functions to pass to Agent constructor
+    """
+    if emit is None:
+        return {}
+
+    import asyncio
+
+    from adkflow_runner.runner.workflow_runner import EventType, RunEvent
+
+    async def _do_emit(event: "RunEvent") -> None:
+        await emit(event)
+
+    def _emit_event(event: "RunEvent") -> None:
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_do_emit(event))
+        except RuntimeError:
+            pass
+
+    def before_agent_callback(callback_context: Any) -> None:
+        _emit_event(
+            RunEvent(
+                type=EventType.AGENT_START,
+                timestamp=time.time(),
+                agent_name=agent_name,
+                data={"source": "callback"},
+            )
+        )
+        return None
+
+    def after_agent_callback(callback_context: Any) -> None:
+        _emit_event(
+            RunEvent(
+                type=EventType.AGENT_END,
+                timestamp=time.time(),
+                agent_name=agent_name,
+                data={"source": "callback"},
+            )
+        )
+        return None
+
+    def before_tool_callback(
+        callback_context: Any, tool_name: str, args: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        _emit_event(
+            RunEvent(
+                type=EventType.TOOL_CALL,
+                timestamp=time.time(),
+                agent_name=agent_name,
+                data={"tool_name": tool_name, "source": "callback"},
+            )
+        )
+        return None
+
+    def after_tool_callback(
+        callback_context: Any, tool_name: str, tool_result: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        _emit_event(
+            RunEvent(
+                type=EventType.TOOL_RESULT,
+                timestamp=time.time(),
+                agent_name=agent_name,
+                data={"tool_name": tool_name, "source": "callback"},
+            )
+        )
+        return None
+
+    return {
+        "before_agent_callback": before_agent_callback,
+        "after_agent_callback": after_agent_callback,
+        "before_tool_callback": before_tool_callback,
+        "after_tool_callback": after_tool_callback,
+    }
+
+
 class AgentFactory:
     """Creates ADK agents from IR definitions."""
 
-    def __init__(self, project_path: Path | None = None):
+    def __init__(
+        self,
+        project_path: Path | None = None,
+        emit: EmitFn | None = None,
+    ):
         self.project_path = project_path
+        self.emit = emit
         self.tool_loader = ToolLoader(project_path)
         self._agent_cache: dict[str, BaseAgent] = {}
 
-    def create_from_workflow(self, ir: WorkflowIR) -> BaseAgent:
+    def create_from_workflow(
+        self,
+        ir: WorkflowIR,
+        emit: EmitFn | None = None,
+    ) -> BaseAgent:
         """Create the complete agent tree from workflow IR.
 
         Args:
             ir: Complete workflow IR
+            emit: Optional emit function for real-time event callbacks
 
         Returns:
             Root agent ready for execution
         """
         self.project_path = Path(ir.project_path) if ir.project_path else None
+        self.emit = emit
         self.tool_loader = ToolLoader(self.project_path)
 
         return self.create(ir.root_agent)
@@ -116,6 +225,9 @@ class AgentFactory:
             temperature=agent_ir.temperature,
         )
 
+        # Create callbacks for real-time updates (use original name for display)
+        callbacks = create_agent_callbacks(self.emit, agent_ir.name)
+
         # Create the agent - tools must be a list or omitted entirely
         agent = Agent(
             name=name,
@@ -127,6 +239,7 @@ class AgentFactory:
             disallow_transfer_to_parent=agent_ir.disallow_transfer_to_parent,
             disallow_transfer_to_peers=agent_ir.disallow_transfer_to_peers,
             generate_content_config=generate_config,
+            **callbacks,
         )
 
         # Add subagents if any (for dynamic routing)
@@ -143,6 +256,7 @@ class AgentFactory:
                 disallow_transfer_to_parent=agent_ir.disallow_transfer_to_parent,
                 disallow_transfer_to_peers=agent_ir.disallow_transfer_to_peers,
                 generate_content_config=generate_config,
+                **callbacks,
             )
 
         return agent

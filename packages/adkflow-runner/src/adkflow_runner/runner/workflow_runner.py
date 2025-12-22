@@ -241,25 +241,21 @@ class WorkflowRunner:
         emit: Any,
     ) -> str:
         """Execute the compiled workflow."""
-        # Create agent factory and build agent tree
         factory = AgentFactory(config.project_path)
-        root_agent = factory.create_from_workflow(ir)
+        root_agent = factory.create_from_workflow(ir, emit=emit)
 
-        # Create fresh session (stateless)
         session_service = InMemorySessionService()
         session = await session_service.create_session(
             app_name="adkflow",
             user_id="runner",
         )
 
-        # Create ADK runner
         runner = Runner(
             agent=root_agent,
             app_name="adkflow",
             session_service=session_service,
         )
 
-        # Build input message
         prompt = config.input_data.get("prompt", "")
         if not prompt:
             prompt = "Execute the workflow."
@@ -269,7 +265,6 @@ class WorkflowRunner:
             parts=[types.Part(text=prompt)],
         )
 
-        # Execute and collect output
         output_parts: list[str] = []
         last_author: str | None = None
 
@@ -278,10 +273,8 @@ class WorkflowRunner:
             session_id=session.id,
             new_message=content,
         ):
-            # Process ADK events and emit our events
             last_author = await self._process_adk_event(event, emit, last_author)
 
-            # Collect final output
             if hasattr(event, "content") and event.content:
                 parts = event.content.parts
                 if parts:
@@ -290,8 +283,6 @@ class WorkflowRunner:
                             output_parts.append(part.text)
 
         output = "\n".join(output_parts)
-
-        # Write to output files if configured
         await self._write_output_files(ir, output, config.project_path, emit)
 
         return output
@@ -353,11 +344,9 @@ class WorkflowRunner:
 
         Returns the current author for tracking agent changes.
         """
-        # ADK events use 'author' attribute for agent name
         author = getattr(event, "author", None)
         turn_complete = getattr(event, "turn_complete", False)
 
-        # Detect agent change - emit start event for new agent
         if author and author != "user" and author != last_author:
             await emit(
                 RunEvent(
@@ -368,7 +357,6 @@ class WorkflowRunner:
                 )
             )
 
-        # Check for content (agent output)
         if hasattr(event, "content") and event.content:
             text = ""
             parts = event.content.parts if event.content.parts else []
@@ -381,11 +369,10 @@ class WorkflowRunner:
                         type=EventType.AGENT_OUTPUT,
                         timestamp=time.time(),
                         agent_name=author,
-                        data={"output": text[:500]},
+                        data={"output": text[:2000]},
                     )
                 )
 
-        # Check for function calls (tool usage)
         if hasattr(event, "content") and event.content:
             parts = event.content.parts if event.content.parts else []
             for part in parts:
@@ -410,7 +397,6 @@ class WorkflowRunner:
                         )
                     )
 
-        # Detect turn completion - emit end event
         if turn_complete and author and author != "user":
             await emit(
                 RunEvent(
