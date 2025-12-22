@@ -220,11 +220,7 @@ export default function TopMenubar({
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem onClick={onToggleRunConsole}>
-              {showRunConsole ? (
-                <Check className="mr-2 h-4 w-4" />
-              ) : (
-                <span className="mr-2 w-4" />
-              )}
+              <Check className={`mr-2 h-4 w-4 ${showRunConsole ? "opacity-100" : "opacity-0"}`} />
               <Terminal className="mr-2 h-4 w-4" />
               Run Console
               <MenubarShortcut>⌘J</MenubarShortcut>
