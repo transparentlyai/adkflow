@@ -10,7 +10,7 @@ import PromptNameDialog from "@/components/PromptNameDialog";
 import HomeScreen from "@/components/HomeScreen";
 import ProjectSwitcher from "@/components/ProjectSwitcher";
 import { createPrompt, createContext, createTool, savePrompt, readPrompt, startRun, validateWorkflow } from "@/lib/api";
-import RunPanel from "@/components/RunPanel";
+import RunPanel, { type DisplayEvent } from "@/components/RunPanel";
 import type { RunStatus, NodeExecutionState } from "@/lib/types";
 import FilePicker from "@/components/FilePicker";
 import { loadSession, saveSession } from "@/lib/sessionStorage";
@@ -103,6 +103,8 @@ function HomeContent() {
   const [isRunPanelOpen, setIsRunPanelOpen] = useState(false);
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [runEvents, setRunEvents] = useState<DisplayEvent[]>([]);
+  const [lastRunStatus, setLastRunStatus] = useState<RunStatus>("pending");
 
   // Load session and recent projects on mount
   useEffect(() => {
@@ -933,6 +935,10 @@ function HomeContent() {
           onRunComplete={handleRunComplete}
           onAgentStateChange={handleAgentStateChange}
           onClearExecutionState={handleClearExecutionState}
+          events={runEvents}
+          onEventsChange={setRunEvents}
+          lastRunStatus={lastRunStatus}
+          onStatusChange={setLastRunStatus}
         />
       )}
     </div>

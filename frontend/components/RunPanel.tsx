@@ -11,6 +11,14 @@ const MIN_HEIGHT = 120;
 const MAX_HEIGHT = 600;
 const DEFAULT_HEIGHT = 320;
 
+export interface DisplayEvent {
+  id: string;
+  type: EventType | "info";
+  content: string;
+  agentName?: string;
+  timestamp: number;
+}
+
 interface RunPanelProps {
   runId: string | null;
   projectPath: string;
@@ -18,14 +26,10 @@ interface RunPanelProps {
   onRunComplete?: (status: RunStatus, output?: string, error?: string) => void;
   onAgentStateChange?: (agentName: string, state: NodeExecutionState) => void;
   onClearExecutionState?: () => void;
-}
-
-interface DisplayEvent {
-  id: string;
-  type: EventType | "info";
-  content: string;
-  agentName?: string;
-  timestamp: number;
+  events: DisplayEvent[];
+  onEventsChange: (events: DisplayEvent[]) => void;
+  lastRunStatus: RunStatus;
+  onStatusChange: (status: RunStatus) => void;
 }
 
 export default function RunPanel({
@@ -35,11 +39,14 @@ export default function RunPanel({
   onRunComplete,
   onAgentStateChange,
   onClearExecutionState,
+  events,
+  onEventsChange,
+  lastRunStatus,
+  onStatusChange,
 }: RunPanelProps) {
-  const [events, setEvents] = useState<DisplayEvent[]>([]);
-  const [status, setStatus] = useState<RunStatus>("pending");
   const [output, setOutput] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const status = lastRunStatus;
   const [height, setHeight] = useState(DEFAULT_HEIGHT);
   const [isResizing, setIsResizing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -70,6 +77,10 @@ export default function RunPanel({
       document.removeEventListener("mouseup", handleMouseUp);
     };
   }, [isResizing]);
+
+  // Track events in a ref for use in event handlers
+  const eventsRef = useRef<DisplayEvent[]>(events);
+  eventsRef.current = events;
 
   useEffect(() => {
     if (!runId) return;
@@ -108,7 +119,7 @@ export default function RunPanel({
         timestamp: event.timestamp,
       };
 
-      setEvents((prev) => [...prev, displayEvent]);
+      onEventsChange([...eventsRef.current, displayEvent]);
 
       // Emit agent state changes for real-time node highlighting
       if (event.type === "agent_start" && event.agent_name) {
@@ -120,11 +131,11 @@ export default function RunPanel({
       }
 
       if (event.type === "run_complete") {
-        setStatus("completed");
+        onStatusChange("completed");
         // Clear all execution highlights when run completes
         onClearExecutionState?.();
       } else if (event.type === "error") {
-        setStatus("failed");
+        onStatusChange("failed");
         const errorData = event.data.error as string | undefined;
         if (errorData) {
           setError(errorData);
@@ -132,8 +143,8 @@ export default function RunPanel({
       }
     };
 
-    setStatus("running");
-    setEvents([
+    onStatusChange("running");
+    onEventsChange([
       {
         id: "start",
         type: "info",
@@ -174,7 +185,7 @@ export default function RunPanel({
       eventSource.close();
       // Fetch final status
       getRunStatus(runId).then((statusResponse) => {
-        setStatus(statusResponse.status);
+        onStatusChange(statusResponse.status);
         if (statusResponse.output) {
           setOutput(statusResponse.output);
         }
@@ -188,8 +199,8 @@ export default function RunPanel({
     eventSource.onerror = () => {
       // Connection closed or error
       eventSource.close();
-      setEvents((prev) => [
-        ...prev,
+      onEventsChange([
+        ...eventsRef.current,
         {
           id: `error-${Date.now()}`,
           type: "error",
@@ -203,7 +214,7 @@ export default function RunPanel({
       eventSource.close();
       eventSourceRef.current = null;
     };
-  }, [runId, onRunComplete, projectPath, onAgentStateChange, onClearExecutionState]);
+  }, [runId, onRunComplete, projectPath, onAgentStateChange, onClearExecutionState, onEventsChange, onStatusChange]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -216,9 +227,9 @@ export default function RunPanel({
     if (runId && status === "running") {
       try {
         await cancelRun(runId);
-        setStatus("cancelled");
-        setEvents((prev) => [
-          ...prev,
+        onStatusChange("cancelled");
+        onEventsChange([
+          ...eventsRef.current,
           {
             id: `cancel-${Date.now()}`,
             type: "info",
