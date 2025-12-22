@@ -67,6 +67,9 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [savedCode, setSavedCode] = useState(code);
+
+  const isDirty = file_path && code !== savedCode;
 
   // Optimized selector: only subscribe to parentId changes for this specific node
   const parentId = useStore(
@@ -232,6 +235,7 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
     setIsSaving(true);
     try {
       await onSaveFile(file_path, code);
+      setSavedCode(code);
     } catch (error) {
       console.error("Failed to save:", error);
     } finally {
@@ -361,12 +365,16 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
   return (
     <div
       className={`rounded-lg shadow-lg relative ${
-        selected ? "ring-2 shadow-xl" : ""
+        !isDirty && selected ? "ring-2 shadow-xl" : ""
       }`}
       style={{
         width: size.width,
         backgroundColor: theme.colors.nodes.common.container.background,
-        ...(selected && { borderColor: theme.colors.nodes.tool.ring }),
+        ...(isDirty ? {
+          boxShadow: `0 0 0 2px #f97316`,
+        } : selected ? {
+          borderColor: theme.colors.nodes.tool.ring,
+        } : {}),
       }}
     >
       {/* Header */}
@@ -437,6 +445,7 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
         onChangeFile={handleChangeFile}
         filePath={file_path}
         isSaving={isSaving}
+        isDirty={!!isDirty}
       />
 
       {/* Code Editor */}

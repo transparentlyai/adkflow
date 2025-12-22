@@ -52,6 +52,9 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [isContentLoaded, setIsContentLoaded] = useState(false);
+  const [savedContent, setSavedContent] = useState(content);
+
+  const isDirty = isContentLoaded && content !== savedContent;
 
   // Optimized selector: only subscribe to parentId changes for this specific node
   const parentId = useStore(
@@ -82,6 +85,7 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
                 : node
             )
           );
+          setSavedContent(response.content);
           setIsContentLoaded(true);
         } catch (error) {
           console.error("Failed to load prompt content:", error);
@@ -203,6 +207,7 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
     setIsSaving(true);
     try {
       await onSaveFile(prompt.file_path, content);
+      setSavedContent(content);
     } catch (error) {
       console.error("Failed to save:", error);
     } finally {
@@ -276,7 +281,9 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
         width: isExpanded ? size.width : 'auto',
         minWidth: isExpanded ? size.width : 'auto',
         backgroundColor: theme.colors.nodes.common.container.background,
-        ...(selected ? {
+        ...(isDirty ? {
+          boxShadow: `0 0 0 2px #f97316`,
+        } : selected ? {
           boxShadow: `0 0 0 2px ${theme.colors.nodes.prompt.ring}`,
         } : {}),
       }}
@@ -355,6 +362,7 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
             onChangeFile={handleChangeFile}
             filePath={prompt.file_path}
             isSaving={isSaving}
+            isDirty={isDirty}
           />
           <div
             className="nodrag nowheel nopan"

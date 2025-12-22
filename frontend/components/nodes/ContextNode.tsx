@@ -50,6 +50,9 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
   const [editedName, setEditedName] = useState(prompt.name);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [savedContent, setSavedContent] = useState(content);
+
+  const isDirty = prompt.file_path && content !== savedContent;
 
   // Optimized selector: only subscribe to parentId changes for this specific node
   const parentId = useStore(
@@ -177,6 +180,7 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
     setIsSaving(true);
     try {
       await onSaveFile(prompt.file_path, content);
+      setSavedContent(content);
     } catch (error) {
       console.error("Failed to save:", error);
     } finally {
@@ -235,7 +239,11 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
         width: isExpanded ? size.width : 'auto',
         minWidth: isExpanded ? size.width : 'auto',
         backgroundColor: theme.colors.nodes.common.container.background,
-        boxShadow: selected ? `0 0 0 2px ${theme.colors.nodes.context.ring}, ${theme.colors.nodes.common.container.shadow}` : theme.colors.nodes.common.container.shadow,
+        boxShadow: isDirty
+          ? `0 0 0 2px #f97316, ${theme.colors.nodes.common.container.shadow}`
+          : selected
+            ? `0 0 0 2px ${theme.colors.nodes.context.ring}, ${theme.colors.nodes.common.container.shadow}`
+            : theme.colors.nodes.common.container.shadow,
       }}
     >
       {/* Header */}
@@ -310,6 +318,7 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
             onChangeFile={handleChangeFile}
             filePath={prompt.file_path}
             isSaving={isSaving}
+            isDirty={!!isDirty}
           />
           <div
             className="border-b border-gray-200 nodrag nowheel nopan"
