@@ -51,6 +51,9 @@ class WorkflowValidator:
         # Check for invalid agent configurations
         self._check_agent_configs(graph, result)
 
+        # Check sequential data flow setup
+        self._check_sequential_data_flow(graph, result)
+
         return result
 
     def validate_ir(self, ir: WorkflowIR) -> ValidationResult:
@@ -207,6 +210,45 @@ class WorkflowValidator:
                     result.add_warning(
                         f"Loop agent '{agent_name}' has high max_iterations ({max_iterations})"
                     )
+
+    def _check_sequential_data_flow(
+        self,
+        graph: WorkflowGraph,
+        result: ValidationResult,
+    ) -> None:
+        """Check that sequential connections have proper data flow setup.
+
+        When agent A[output] connects to agent B[input], this creates a
+        SEQUENTIAL relationship. For B to receive A's output:
+        1. A must have output_key configured
+        2. B's prompt should reference that output_key as a variable
+        """
+        for edge in graph.edges:
+            if edge.semantics != EdgeSemantics.SEQUENTIAL:
+                continue
+
+            source = graph.get_node(edge.source_id)
+            target = graph.get_node(edge.target_id)
+            if not source or not target:
+                continue
+
+            # Only check agent-to-agent connections
+            if source.type != "agent" or target.type != "agent":
+                continue
+
+            source_agent = source.data.get("agent", {})
+            target_agent = target.data.get("agent", {})
+
+            source_name = source_agent.get("name", source.id)
+            target_name = target_agent.get("name", target.id)
+            output_key = source_agent.get("output_key")
+
+            # Check source has output_key
+            if not output_key:
+                result.add_warning(
+                    f"Agent '{source_name}' outputs to '{target_name}' but has no output_key. "
+                    f"The receiving agent won't be able to access the output."
+                )
 
     def _validate_agent_ir(self, agent: AgentIR, result: ValidationResult) -> None:
         """Validate a single agent IR."""

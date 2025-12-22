@@ -50,22 +50,40 @@ class IRTransformer:
         # Build agent hierarchy (sequential chains, parallel groups)
         self._build_agent_hierarchy(graph, all_agents)
 
-        # Find root agent(s)
+        # Find root agent(s) and build sequential chains
         root_agents = graph.get_root_agents()
         if not root_agents:
             raise CompilationError(
                 "No root agent found (all agents have incoming edges)"
             )
 
-        # If multiple roots, wrap in a parallel agent
-        if len(root_agents) == 1:
-            root_agent = all_agents[root_agents[0].id]
+        # Build sequential chains starting from each root
+        chains: list[AgentIR] = []
+        for root in root_agents:
+            chain = self._build_sequential_chain_from_root(root, graph, all_agents)
+            if len(chain) == 1:
+                # Single agent, no wrapper needed
+                chains.append(chain[0])
+            else:
+                # Multiple agents in sequence, wrap in SequentialAgent
+                seq_agent = AgentIR(
+                    id=f"__seq_{root.id}__",
+                    name=f"seq_{chain[0].name}",
+                    type="sequential",
+                    subagents=chain,
+                )
+                all_agents[seq_agent.id] = seq_agent
+                chains.append(seq_agent)
+
+        # If multiple chains, wrap in a parallel agent
+        if len(chains) == 1:
+            root_agent = chains[0]
         else:
             root_agent = AgentIR(
                 id="__root__",
                 name="root",
                 type="parallel",
-                subagents=[all_agents[n.id] for n in root_agents],
+                subagents=chains,
             )
             all_agents["__root__"] = root_agent
 
@@ -346,6 +364,49 @@ class IRTransformer:
                     parallel.append(all_agents[target.id])
 
         return parallel
+
+    def _build_sequential_chain_from_root(
+        self,
+        root_node: GraphNode,
+        graph: WorkflowGraph,
+        all_agents: dict[str, AgentIR],
+    ) -> list[AgentIR]:
+        """Build ordered list of agents following SEQUENTIAL edges from root.
+
+        Traverses the graph starting from root_node, following SEQUENTIAL edges
+        to build a chain of agents that should execute in order.
+
+        Args:
+            root_node: Starting agent node (has no incoming SEQUENTIAL edges)
+            graph: The workflow graph
+            all_agents: Map of agent ID to AgentIR
+
+        Returns:
+            Ordered list of AgentIR to execute sequentially
+        """
+        chain: list[AgentIR] = []
+        visited: set[str] = set()
+        current = root_node
+
+        while current and current.id not in visited:
+            visited.add(current.id)
+
+            # Add current agent to chain
+            if current.id in all_agents:
+                chain.append(all_agents[current.id])
+
+            # Find next agent via SEQUENTIAL edge
+            seq_edges = current.get_outgoing_by_semantics(EdgeSemantics.SEQUENTIAL)
+            next_node = None
+            for edge in seq_edges:
+                target = graph.get_node(edge.target_id)
+                if target and target.type == "agent" and target.id not in visited:
+                    next_node = target
+                    break
+
+            current = next_node
+
+        return chain
 
     def _resolve_output_files(self, graph: WorkflowGraph) -> list[OutputFileIR]:
         """Resolve output file connections from agents."""
