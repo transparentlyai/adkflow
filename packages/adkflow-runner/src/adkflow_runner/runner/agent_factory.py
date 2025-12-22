@@ -1,0 +1,211 @@
+"""Agent factory for creating ADK agents from IR.
+
+Creates the appropriate ADK agent types based on IR definitions.
+"""
+
+import re
+from pathlib import Path
+from typing import Any
+
+from google.adk.agents import Agent, LoopAgent, ParallelAgent, SequentialAgent
+from google.adk.agents.base_agent import BaseAgent
+from google.adk.planners import BuiltInPlanner
+from google.genai import types
+
+from adkflow_runner.errors import ExecutionError
+from adkflow_runner.ir import AgentIR, WorkflowIR
+from adkflow_runner.runner.tool_loader import ToolLoader
+
+
+def sanitize_agent_name(name: str) -> str:
+    """Convert agent name to valid Python identifier.
+
+    ADK requires agent names to be valid identifiers:
+    - Start with letter or underscore
+    - Only letters, digits, underscores
+    """
+    # Replace spaces and hyphens with underscores
+    sanitized = re.sub(r"[\s\-]+", "_", name)
+    # Remove any other invalid characters
+    sanitized = re.sub(r"[^a-zA-Z0-9_]", "", sanitized)
+    # Ensure it starts with letter or underscore
+    if sanitized and not sanitized[0].isalpha() and sanitized[0] != "_":
+        sanitized = "_" + sanitized
+    # Default if empty
+    if not sanitized:
+        sanitized = "agent"
+    return sanitized
+
+
+class AgentFactory:
+    """Creates ADK agents from IR definitions."""
+
+    def __init__(self, project_path: Path | None = None):
+        self.project_path = project_path
+        self.tool_loader = ToolLoader(project_path)
+        self._agent_cache: dict[str, BaseAgent] = {}
+
+    def create_from_workflow(self, ir: WorkflowIR) -> BaseAgent:
+        """Create the complete agent tree from workflow IR.
+
+        Args:
+            ir: Complete workflow IR
+
+        Returns:
+            Root agent ready for execution
+        """
+        self.project_path = Path(ir.project_path) if ir.project_path else None
+        self.tool_loader = ToolLoader(self.project_path)
+
+        return self.create(ir.root_agent)
+
+    def create(self, agent_ir: AgentIR) -> BaseAgent:
+        """Create an ADK agent from IR.
+
+        Args:
+            agent_ir: Agent IR definition
+
+        Returns:
+            ADK agent (Agent, SequentialAgent, ParallelAgent, or LoopAgent)
+        """
+        # Check cache
+        if agent_ir.id in self._agent_cache:
+            return self._agent_cache[agent_ir.id]
+
+        # Create based on type
+        if agent_ir.type == "llm":
+            agent = self._create_llm_agent(agent_ir)
+        elif agent_ir.type == "sequential":
+            agent = self._create_sequential_agent(agent_ir)
+        elif agent_ir.type == "parallel":
+            agent = self._create_parallel_agent(agent_ir)
+        elif agent_ir.type == "loop":
+            agent = self._create_loop_agent(agent_ir)
+        else:
+            raise ExecutionError(
+                f"Unknown agent type: {agent_ir.type}",
+                agent_id=agent_ir.id,
+            )
+
+        self._agent_cache[agent_ir.id] = agent
+        return agent
+
+    def _create_llm_agent(self, agent_ir: AgentIR) -> Agent:
+        """Create an LLM agent."""
+        # Sanitize name to valid identifier
+        name = sanitize_agent_name(agent_ir.name)
+
+        # Load tools
+        tools = self._load_tools(agent_ir)
+
+        # Build planner if configured
+        planner = None
+        if agent_ir.planner.type == "builtin":
+            if agent_ir.planner.thinking_budget:
+                thinking_config = types.ThinkingConfig(
+                    thinking_budget=agent_ir.planner.thinking_budget,
+                    include_thoughts=agent_ir.planner.include_thoughts,
+                )
+                planner = BuiltInPlanner(thinking_config=thinking_config)
+            else:
+                # Use default ThinkingConfig when no budget specified
+                planner = BuiltInPlanner(thinking_config=types.ThinkingConfig())
+
+        # Build generate config with HTTP options
+        generate_config = types.GenerateContentConfig(
+            temperature=agent_ir.temperature,
+        )
+
+        # Create the agent - tools must be a list or omitted entirely
+        agent = Agent(
+            name=name,
+            model=agent_ir.model,
+            instruction=agent_ir.instruction or "",
+            tools=tools if tools else [],
+            output_key=agent_ir.output_key,
+            planner=planner,
+            disallow_transfer_to_parent=agent_ir.disallow_transfer_to_parent,
+            disallow_transfer_to_peers=agent_ir.disallow_transfer_to_peers,
+            generate_content_config=generate_config,
+        )
+
+        # Add subagents if any (for dynamic routing)
+        if agent_ir.subagents:
+            sub_agents = [self.create(sa) for sa in agent_ir.subagents]
+            agent = Agent(
+                name=name,
+                model=agent_ir.model,
+                instruction=agent_ir.instruction or "",
+                tools=tools if tools else [],
+                sub_agents=sub_agents,
+                output_key=agent_ir.output_key,
+                planner=planner,
+                disallow_transfer_to_parent=agent_ir.disallow_transfer_to_parent,
+                disallow_transfer_to_peers=agent_ir.disallow_transfer_to_peers,
+                generate_content_config=generate_config,
+            )
+
+        return agent
+
+    def _create_sequential_agent(self, agent_ir: AgentIR) -> SequentialAgent:
+        """Create a sequential agent."""
+        name = sanitize_agent_name(agent_ir.name)
+        sub_agents = [self.create(sa) for sa in agent_ir.subagents]
+
+        return SequentialAgent(
+            name=name,
+            sub_agents=sub_agents,
+        )
+
+    def _create_parallel_agent(self, agent_ir: AgentIR) -> ParallelAgent:
+        """Create a parallel agent."""
+        name = sanitize_agent_name(agent_ir.name)
+        sub_agents = [self.create(sa) for sa in agent_ir.subagents]
+
+        return ParallelAgent(
+            name=name,
+            sub_agents=sub_agents,
+        )
+
+    def _create_loop_agent(self, agent_ir: AgentIR) -> LoopAgent:
+        """Create a loop agent."""
+        name = sanitize_agent_name(agent_ir.name)
+        sub_agents = [self.create(sa) for sa in agent_ir.subagents]
+
+        return LoopAgent(
+            name=name,
+            sub_agents=sub_agents,
+            max_iterations=agent_ir.max_iterations,
+        )
+
+    def _load_tools(self, agent_ir: AgentIR) -> list[Any]:
+        """Load tools for an agent."""
+        tools = []
+
+        for tool_ir in agent_ir.tools:
+            try:
+                tool = self.tool_loader.load(tool_ir)
+
+                # Handle built-in tools
+                if isinstance(tool, str):
+                    if tool == "google_search":
+                        from google.adk.tools.google_search_tool import google_search
+
+                        tools.append(google_search)
+                    elif tool == "code_execution":
+                        from google.adk.tools import built_in_code_execution
+
+                        tools.append(built_in_code_execution)
+                    # Add more built-in tools as needed
+                else:
+                    tools.append(tool)
+
+            except Exception as e:
+                # Log warning but continue - tool might not be critical
+                print(f"Warning: Failed to load tool '{tool_ir.name}': {e}")
+
+        return tools
+
+    def clear_cache(self) -> None:
+        """Clear the agent cache."""
+        self._agent_cache.clear()

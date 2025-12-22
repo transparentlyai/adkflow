@@ -1,0 +1,324 @@
+"""Project file loader.
+
+Loads all files needed for compilation:
+- manifest.json: Project metadata and tab list
+- pages/*.json: ReactFlow JSON for each tab
+- prompts/*.prompt.md: Prompt templates
+- tools/*.py: Tool implementations
+"""
+
+import json
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+from adkflow_runner.errors import (
+    CompilationError,
+    ErrorLocation,
+    PromptLoadError,
+    ToolLoadError,
+)
+
+
+@dataclass
+class LoadedPrompt:
+    """A loaded prompt file."""
+
+    name: str
+    file_path: str
+    absolute_path: Path
+    content: str
+
+
+@dataclass
+class LoadedTool:
+    """A loaded tool file."""
+
+    name: str
+    file_path: str
+    absolute_path: Path
+    code: str
+
+
+@dataclass
+class LoadedTab:
+    """A loaded tab (page) with its ReactFlow data."""
+
+    id: str
+    name: str
+    order: int
+    flow_data: dict[str, Any]
+
+
+@dataclass
+class LoadedProject:
+    """Complete loaded project data."""
+
+    path: Path
+    name: str
+    version: str
+    tabs: list[LoadedTab]
+    prompts: dict[str, LoadedPrompt] = field(default_factory=dict)
+    tools: dict[str, LoadedTool] = field(default_factory=dict)
+
+    def get_tab(self, tab_id: str) -> LoadedTab | None:
+        """Get a tab by ID."""
+        for tab in self.tabs:
+            if tab.id == tab_id:
+                return tab
+        return None
+
+    def get_prompt(self, file_path: str) -> LoadedPrompt | None:
+        """Get a prompt by file path."""
+        return self.prompts.get(file_path)
+
+    def get_tool(self, file_path: str) -> LoadedTool | None:
+        """Get a tool by file path."""
+        return self.tools.get(file_path)
+
+
+class ProjectLoader:
+    """Loads project files for compilation."""
+
+    def __init__(self, load_prompts: bool = True, load_tools: bool = True):
+        self.load_prompts = load_prompts
+        self.load_tools = load_tools
+
+    def load(self, project_path: Path | str) -> LoadedProject:
+        """Load a complete project.
+
+        Args:
+            project_path: Path to the project directory
+
+        Returns:
+            LoadedProject with all files loaded
+
+        Raises:
+            CompilationError: If project structure is invalid
+        """
+        project_path = Path(project_path).resolve()
+
+        if not project_path.exists():
+            raise CompilationError(f"Project path does not exist: {project_path}")
+
+        if not project_path.is_dir():
+            raise CompilationError(f"Project path is not a directory: {project_path}")
+
+        # Load manifest
+        manifest = self._load_manifest(project_path)
+
+        # Load tabs
+        tabs = self._load_tabs(project_path, manifest)
+
+        # Create project
+        project = LoadedProject(
+            path=project_path,
+            name=manifest.get("name", "Untitled"),
+            version=manifest.get("version", "2.0"),
+            tabs=tabs,
+        )
+
+        # Scan for referenced prompts and tools in the flow data
+        if self.load_prompts or self.load_tools:
+            self._load_referenced_files(project)
+
+        return project
+
+    def _load_manifest(self, project_path: Path) -> dict[str, Any]:
+        """Load manifest.json."""
+        manifest_path = project_path / "manifest.json"
+
+        if not manifest_path.exists():
+            # Check for legacy flow.json
+            legacy_path = project_path / "flow.json"
+            if legacy_path.exists():
+                raise CompilationError(
+                    "Project uses legacy format (flow.json). "
+                    "Please open in the UI to migrate to v2.0 format.",
+                    location=ErrorLocation(file_path=str(legacy_path)),
+                )
+            raise CompilationError(
+                f"No manifest.json found in project: {project_path}",
+                location=ErrorLocation(file_path=str(manifest_path)),
+            )
+
+        try:
+            with open(manifest_path, encoding="utf-8") as f:
+                return json.load(f)
+        except json.JSONDecodeError as e:
+            raise CompilationError(
+                f"Invalid JSON in manifest.json: {e}",
+                location=ErrorLocation(file_path=str(manifest_path), line=e.lineno),
+            ) from e
+
+    def _load_tabs(
+        self, project_path: Path, manifest: dict[str, Any]
+    ) -> list[LoadedTab]:
+        """Load all tab files."""
+        tabs: list[LoadedTab] = []
+        pages_dir = project_path / "pages"
+
+        if not pages_dir.exists():
+            raise CompilationError(
+                "No pages directory found in project",
+                location=ErrorLocation(file_path=str(pages_dir)),
+            )
+
+        tab_metadata = manifest.get("tabs", [])
+        if not tab_metadata:
+            raise CompilationError("No tabs defined in manifest.json")
+
+        for tab_info in sorted(tab_metadata, key=lambda t: t.get("order", 0)):
+            tab_id = tab_info.get("id")
+            if not tab_id:
+                continue
+
+            tab_file = pages_dir / f"{tab_id}.json"
+            if not tab_file.exists():
+                raise CompilationError(
+                    f"Tab file not found: {tab_file}",
+                    location=ErrorLocation(tab_id=tab_id, file_path=str(tab_file)),
+                )
+
+            try:
+                with open(tab_file, encoding="utf-8") as f:
+                    flow_data = json.load(f)
+            except json.JSONDecodeError as e:
+                raise CompilationError(
+                    f"Invalid JSON in tab file: {e}",
+                    location=ErrorLocation(
+                        tab_id=tab_id, file_path=str(tab_file), line=e.lineno
+                    ),
+                ) from e
+
+            tabs.append(
+                LoadedTab(
+                    id=tab_id,
+                    name=tab_info.get("name", tab_id),
+                    order=tab_info.get("order", 0),
+                    flow_data=flow_data,
+                )
+            )
+
+        return tabs
+
+    def _load_referenced_files(self, project: LoadedProject) -> None:
+        """Scan flow data and load referenced prompts/tools."""
+        for tab in project.tabs:
+            nodes = tab.flow_data.get("nodes", [])
+            for node in nodes:
+                node_type = node.get("type")
+                data = node.get("data", {})
+
+                if node_type == "prompt" and self.load_prompts:
+                    self._load_prompt_from_node(project, data, tab.id)
+                elif node_type == "context" and self.load_prompts:
+                    self._load_prompt_from_node(project, data, tab.id, is_context=True)
+                elif node_type in ("tool", "agentTool") and self.load_tools:
+                    self._load_tool_from_node(project, data, tab.id)
+
+    def _load_prompt_from_node(
+        self,
+        project: LoadedProject,
+        data: dict[str, Any],
+        tab_id: str,
+        is_context: bool = False,
+    ) -> None:
+        """Load a prompt file referenced by a node."""
+        # Handle nested prompt data structure
+        prompt_data = data.get("prompt", data)
+        file_path = prompt_data.get("file_path")
+
+        if not file_path or file_path in project.prompts:
+            return
+
+        # file_path may already include the directory (e.g., "prompts/file.prompt.md")
+        # or just the filename. Handle both cases.
+        absolute_path = (project.path / file_path).resolve()
+
+        # If not found, try with default directory prefix
+        if not absolute_path.exists():
+            if is_context:
+                absolute_path = (project.path / "static" / file_path).resolve()
+            else:
+                absolute_path = (project.path / "prompts" / file_path).resolve()
+
+        # Security check: ensure path is within project
+        try:
+            absolute_path.relative_to(project.path)
+        except ValueError:
+            raise PromptLoadError(
+                f"Prompt path escapes project directory: {file_path}",
+                location=ErrorLocation(tab_id=tab_id, file_path=file_path),
+            )
+
+        if not absolute_path.exists():
+            raise PromptLoadError(
+                f"Prompt file not found: {file_path}",
+                location=ErrorLocation(tab_id=tab_id, file_path=str(absolute_path)),
+            )
+
+        try:
+            content = absolute_path.read_text(encoding="utf-8")
+        except Exception as e:
+            raise PromptLoadError(
+                f"Failed to read prompt file: {e}",
+                location=ErrorLocation(tab_id=tab_id, file_path=str(absolute_path)),
+            ) from e
+
+        project.prompts[file_path] = LoadedPrompt(
+            name=prompt_data.get("name", file_path),
+            file_path=file_path,
+            absolute_path=absolute_path,
+            content=content,
+        )
+
+    def _load_tool_from_node(
+        self,
+        project: LoadedProject,
+        data: dict[str, Any],
+        tab_id: str,
+    ) -> None:
+        """Load a tool file referenced by a node."""
+        file_path = data.get("file_path")
+
+        if not file_path or file_path in project.tools:
+            return
+
+        # file_path may already include the directory (e.g., "tools/file.py")
+        # or just the filename. Handle both cases.
+        absolute_path = (project.path / file_path).resolve()
+
+        # If not found, try with tools/ prefix
+        if not absolute_path.exists():
+            absolute_path = (project.path / "tools" / file_path).resolve()
+
+        # Security check
+        try:
+            absolute_path.relative_to(project.path)
+        except ValueError:
+            raise ToolLoadError(
+                f"Tool path escapes project directory: {file_path}",
+                location=ErrorLocation(tab_id=tab_id, file_path=file_path),
+            )
+
+        if not absolute_path.exists():
+            raise ToolLoadError(
+                f"Tool file not found: {file_path}",
+                location=ErrorLocation(tab_id=tab_id, file_path=str(absolute_path)),
+            )
+
+        try:
+            code = absolute_path.read_text(encoding="utf-8")
+        except Exception as e:
+            raise ToolLoadError(
+                f"Failed to read tool file: {e}",
+                location=ErrorLocation(tab_id=tab_id, file_path=str(absolute_path)),
+            ) from e
+
+        project.tools[file_path] = LoadedTool(
+            name=data.get("name", Path(file_path).stem),
+            file_path=file_path,
+            absolute_path=absolute_path,
+            code=code,
+        )

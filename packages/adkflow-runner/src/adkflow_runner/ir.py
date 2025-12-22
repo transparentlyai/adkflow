@@ -1,0 +1,195 @@
+"""Intermediate Representation (IR) for compiled workflows.
+
+The IR is the bridge between the visual ReactFlow representation
+and the executable ADK agents. It's a normalized, validated form
+that can be:
+1. Executed directly by the Runner
+2. Serialized for caching/debugging
+3. Used to generate Python code for export
+"""
+
+from dataclasses import dataclass, field
+from typing import Any, Literal
+
+
+@dataclass
+class PlannerConfig:
+    """Planner configuration for LLM agents."""
+
+    type: Literal["none", "builtin", "react"] = "none"
+    thinking_budget: int | None = None
+    include_thoughts: bool = False
+
+
+@dataclass
+class CodeExecutorConfig:
+    """Code executor configuration."""
+
+    enabled: bool = False
+    stateful: bool = False
+    error_retry_attempts: int = 3
+
+
+@dataclass
+class HttpOptionsConfig:
+    """HTTP/retry configuration for API calls."""
+
+    timeout: int = 30000
+    max_retries: int = 3
+    retry_delay: int = 1000
+    retry_backoff_multiplier: float = 2.0
+
+
+@dataclass
+class CallbackConfig:
+    """Callback file paths for agent lifecycle hooks."""
+
+    before_model: str | None = None
+    after_model: str | None = None
+    before_tool: str | None = None
+    after_tool: str | None = None
+
+
+@dataclass
+class ToolIR:
+    """Intermediate representation for a tool.
+
+    Tools can be loaded from files or defined inline.
+    """
+
+    name: str
+    file_path: str | None = None
+    code: str | None = None
+    description: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.file_path and not self.code:
+            raise ValueError("Tool must have either file_path or code")
+
+
+@dataclass
+class PromptIR:
+    """Intermediate representation for a prompt.
+
+    Prompts are markdown templates that can contain {variable} placeholders.
+    """
+
+    name: str
+    file_path: str | None = None
+    content: str | None = None
+
+    def get_content(self) -> str:
+        """Get resolved prompt content."""
+        if self.content:
+            return self.content
+        raise ValueError(f"Prompt '{self.name}' content not loaded")
+
+
+@dataclass
+class AgentIR:
+    """Intermediate representation for an agent.
+
+    This is the core IR type that maps to ADK agent types:
+    - llm → Agent
+    - sequential → SequentialAgent
+    - parallel → ParallelAgent
+    - loop → LoopAgent
+    """
+
+    id: str
+    name: str
+    type: Literal["llm", "sequential", "parallel", "loop"]
+
+    # LLM-specific
+    model: str = "gemini-2.5-flash"
+    instruction: str | None = None
+    temperature: float = 0.7
+
+    # Tools and subagents
+    tools: list[ToolIR] = field(default_factory=list)
+    subagents: list["AgentIR"] = field(default_factory=list)
+
+    # Output
+    output_key: str | None = None
+    output_schema: str | None = None
+    input_schema: str | None = None
+
+    # Loop-specific
+    max_iterations: int = 5
+
+    # Transfer controls
+    disallow_transfer_to_parent: bool = False
+    disallow_transfer_to_peers: bool = False
+
+    # Configuration
+    planner: PlannerConfig = field(default_factory=PlannerConfig)
+    code_executor: CodeExecutorConfig = field(default_factory=CodeExecutorConfig)
+    http_options: HttpOptionsConfig = field(default_factory=HttpOptionsConfig)
+    callbacks: CallbackConfig = field(default_factory=CallbackConfig)
+
+    # Metadata
+    description: str | None = None
+    source_node_id: str | None = None  # Original ReactFlow node ID
+
+    def is_composite(self) -> bool:
+        """Check if this is a composite agent (has subagents)."""
+        return self.type in ("sequential", "parallel", "loop")
+
+    def is_llm(self) -> bool:
+        """Check if this is an LLM agent."""
+        return self.type == "llm"
+
+
+@dataclass
+class OutputFileIR:
+    """Intermediate representation for output file destinations."""
+
+    name: str
+    file_path: str
+    agent_id: str  # The agent whose output should be written
+
+
+@dataclass
+class TeleporterIR:
+    """Intermediate representation for cross-tab teleporter connections."""
+
+    name: str
+    direction: Literal["input", "output"]
+    tab_id: str
+    node_id: str
+    connected_agent_id: str | None = None
+
+
+@dataclass
+class WorkflowIR:
+    """Complete intermediate representation for a workflow.
+
+    This is the top-level IR that contains:
+    - The root agent (entry point)
+    - All agents (for lookup)
+    - Output files (agent output destinations)
+    - Teleporter connections (cross-tab)
+    - Execution metadata
+    """
+
+    root_agent: AgentIR
+    all_agents: dict[str, AgentIR] = field(default_factory=dict)
+    output_files: list[OutputFileIR] = field(default_factory=list)
+    teleporters: dict[str, TeleporterIR] = field(default_factory=dict)
+    variables: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    # Source tracking
+    project_path: str | None = None
+    tab_ids: list[str] = field(default_factory=list)
+
+    def get_agent(self, agent_id: str) -> AgentIR | None:
+        """Get an agent by ID."""
+        return self.all_agents.get(agent_id)
+
+    def get_all_tools(self) -> list[ToolIR]:
+        """Get all tools used in the workflow."""
+        tools: list[ToolIR] = []
+        for agent in self.all_agents.values():
+            tools.extend(agent.tools)
+        return tools

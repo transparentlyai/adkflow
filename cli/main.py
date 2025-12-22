@@ -1,6 +1,5 @@
 """CLI interface for ADKFlow development server management."""
 
-import click
 import os
 import signal
 import subprocess
@@ -9,6 +8,8 @@ import threading
 import time
 from pathlib import Path
 
+import click
+from adkflow_runner.cli import run_command, validate_command
 from dotenv import load_dotenv
 
 try:
@@ -616,6 +617,11 @@ def setup():
     print_panel("Setup complete!", "bold green")
     print_msg("")
     print_msg("Run 'adkflow dev' to start the development servers", "bold")
+
+
+# Add run and validate commands from adkflow-runner package
+cli.add_command(run_command, name="run")
+cli.add_command(validate_command, name="validate")
 
 
 def main():
