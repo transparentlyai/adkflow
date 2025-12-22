@@ -31,6 +31,7 @@ export interface AgentNodeData {
   contractedPosition?: { x: number; y: number };
   isNodeLocked?: boolean;
   executionState?: NodeExecutionState;
+  hasValidationError?: boolean;
 }
 
 const TYPE_BADGE_LABELS: Record<AgentType, string> = {
@@ -40,13 +41,18 @@ const TYPE_BADGE_LABELS: Record<AgentType, string> = {
   loop: "Loop",
 };
 
-// Custom comparison for memo - always re-render when executionState changes
+// Custom comparison for memo - always re-render when executionState or validation error changes
 const agentNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): boolean => {
   const prevData = prevProps.data as unknown as AgentNodeData;
   const nextData = nextProps.data as unknown as AgentNodeData;
 
   // Always re-render if executionState changes
   if (prevData.executionState !== nextData.executionState) {
+    return false;
+  }
+
+  // Always re-render if validation error state changes
+  if (prevData.hasValidationError !== nextData.hasValidationError) {
     return false;
   }
 
@@ -62,7 +68,7 @@ const agentNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): boo
 };
 
 const AgentNode = memo(({ data, id, selected }: NodeProps) => {
-  const { agent, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, executionState } = data as unknown as AgentNodeData;
+  const { agent, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, executionState, hasValidationError } = data as unknown as AgentNodeData;
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
   const { theme } = useTheme();
@@ -308,6 +314,14 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
 
   // Get execution state styling for real-time highlighting
   const getExecutionStyle = useCallback((): React.CSSProperties => {
+    // Validation error takes priority - show red glow with pulse
+    if (hasValidationError) {
+      return {
+        boxShadow: `0 0 0 2px rgba(239, 68, 68, 0.8), 0 0 20px 4px rgba(239, 68, 68, 0.4)`,
+        animation: "validation-error-pulse 1s ease-in-out infinite",
+      };
+    }
+
     switch (executionState) {
       case "running":
         return {
@@ -326,17 +340,21 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
       default:
         return selected ? { boxShadow: `0 0 0 2px ${theme.colors.nodes.agent.ring}` } : {};
     }
-  }, [executionState, selected, theme.colors.nodes.agent.ring]);
+  }, [executionState, hasValidationError, selected, theme.colors.nodes.agent.ring]);
 
   // Collapsed view
   if (!isExpanded) {
     return (
       <>
-        {/* Keyframes for execution pulse animation */}
+        {/* Keyframes for execution and validation pulse animations */}
         <style>{`
           @keyframes execution-pulse {
             0%, 100% { box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.8), 0 0 20px 4px rgba(59, 130, 246, 0.4); }
             50% { box-shadow: 0 0 0 3px rgba(59, 130, 246, 1), 0 0 30px 8px rgba(59, 130, 246, 0.6); }
+          }
+          @keyframes validation-error-pulse {
+            0%, 100% { box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.8), 0 0 20px 4px rgba(239, 68, 68, 0.4); }
+            50% { box-shadow: 0 0 0 3px rgba(239, 68, 68, 1), 0 0 30px 8px rgba(239, 68, 68, 0.6); }
           }
         `}</style>
         <div
@@ -373,11 +391,12 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
 
         {/* Header */}
         <div
-          className="px-2 py-1 rounded-t-lg flex items-center gap-1.5"
+          className="px-2 py-1 rounded-t-lg flex items-center gap-1.5 cursor-pointer"
           style={{
             backgroundColor: theme.colors.nodes.agent.header,
             color: theme.colors.nodes.agent.text,
           }}
+          onDoubleClick={(e) => { e.stopPropagation(); toggleExpand(); }}
           onContextMenu={handleHeaderContextMenu}
         >
           {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
@@ -394,12 +413,12 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
               className="flex-1 bg-white text-gray-900 px-1.5 py-0.5 rounded text-xs font-medium outline-none"
             />
           ) : (
-            <div
-              className="flex-1 font-medium text-xs hover:opacity-80"
+            <span
+              className="font-medium text-xs hover:opacity-80 truncate max-w-[200px]"
               onDoubleClick={handleNameDoubleClick}
             >
               {agent.name}
-            </div>
+            </span>
           )}
         </div>
 
@@ -497,11 +516,15 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
   // Expanded view with properties panel
   return (
     <>
-      {/* Keyframes for execution pulse animation */}
+      {/* Keyframes for execution and validation pulse animations */}
       <style>{`
         @keyframes execution-pulse {
           0%, 100% { box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.8), 0 0 20px 4px rgba(59, 130, 246, 0.4); }
           50% { box-shadow: 0 0 0 3px rgba(59, 130, 246, 1), 0 0 30px 8px rgba(59, 130, 246, 0.6); }
+        }
+        @keyframes validation-error-pulse {
+          0%, 100% { box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.8), 0 0 20px 4px rgba(239, 68, 68, 0.4); }
+          50% { box-shadow: 0 0 0 3px rgba(239, 68, 68, 1), 0 0 30px 8px rgba(239, 68, 68, 0.6); }
         }
       `}</style>
       <div
