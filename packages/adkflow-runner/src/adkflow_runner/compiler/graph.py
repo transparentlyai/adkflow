@@ -91,7 +91,24 @@ class WorkflowGraph:
         return [n for n in self.nodes.values() if n.type == "agent"]
 
     def get_root_agents(self) -> list[GraphNode]:
-        """Get agents with no incoming sequential edges."""
+        """Get agents that should start execution.
+
+        If a start node exists, returns agents connected to it.
+        Otherwise, returns agents with no incoming sequential edges.
+        """
+        # Check for start node
+        start_nodes = [n for n in self.nodes.values() if n.type == "start"]
+        if start_nodes:
+            # Return agents connected to start nodes
+            roots = []
+            for start_node in start_nodes:
+                for edge in start_node.outgoing:
+                    target = self.nodes.get(edge.target_id)
+                    if target and target.type == "agent":
+                        roots.append(target)
+            return roots
+
+        # Fallback: agents with no incoming sequential edges
         roots = []
         for node in self.get_agent_nodes():
             has_incoming_sequential = any(

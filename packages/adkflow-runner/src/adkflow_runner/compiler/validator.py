@@ -54,6 +54,9 @@ class WorkflowValidator:
         # Check sequential data flow setup
         self._check_sequential_data_flow(graph, result)
 
+        # Check for exactly one start node
+        self._check_start_node(graph, result)
+
         return result
 
     def validate_ir(self, ir: WorkflowIR) -> ValidationResult:
@@ -249,6 +252,32 @@ class WorkflowValidator:
                     f"Agent '{source_name}' outputs to '{target_name}' but has no output_key. "
                     f"The receiving agent won't be able to access the output."
                 )
+
+    def _check_start_node(
+        self,
+        graph: WorkflowGraph,
+        result: ValidationResult,
+    ) -> None:
+        """Check that exactly one start node exists."""
+        start_nodes = [n for n in graph.nodes.values() if n.type == "start"]
+
+        if len(start_nodes) == 0:
+            result.add_error(
+                ValidationError(
+                    "Workflow has no Start node. Add a Start node to define the entry point."
+                )
+            )
+        elif len(start_nodes) > 1:
+            result.add_error(
+                ValidationError(
+                    f"Workflow has {len(start_nodes)} Start nodes. Only one is allowed.",
+                    location=ErrorLocation(
+                        node_id=start_nodes[1].id, tab_id=start_nodes[1].tab_id
+                    ),
+                )
+            )
+        elif not start_nodes[0].outgoing:
+            result.add_warning("Start node is not connected to any agent")
 
     def _validate_agent_ir(self, agent: AgentIR, result: ValidationResult) -> None:
         """Validate a single agent IR."""

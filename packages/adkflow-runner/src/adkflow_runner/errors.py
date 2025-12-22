@@ -141,6 +141,11 @@ class ValidationResult:
         self.warnings.append(warning)
 
     def raise_if_invalid(self) -> None:
-        """Raise the first error if validation failed."""
+        """Raise a ValidationError if validation failed."""
         if not self.valid and self.errors:
-            raise self.errors[0]
+            if len(self.errors) == 1:
+                raise self.errors[0]
+            # Combine all errors into one message
+            error_msgs = [str(e) for e in self.errors]
+            combined_msg = "Validation failed:\n• " + "\n• ".join(error_msgs)
+            raise ValidationError(combined_msg)

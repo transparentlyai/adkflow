@@ -118,6 +118,20 @@ DEFAULT_EDGE_RULES: list[EdgeRule] = [
         semantics=EdgeSemantics.CONTEXT,
         priority=5,
     ),
+    # Start → Agent: entry point (sequential)
+    EdgeRule(
+        source_type="start",
+        target_type="agent",
+        semantics=EdgeSemantics.SEQUENTIAL,
+        priority=10,
+    ),
+    # Agent → End: termination point (sequential)
+    EdgeRule(
+        source_type="agent",
+        target_type="end",
+        semantics=EdgeSemantics.SEQUENTIAL,
+        priority=10,
+    ),
 ]
 
 
