@@ -7,6 +7,7 @@ import GlobalSearch from "@/components/GlobalSearch";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import SaveConfirmDialog from "@/components/SaveConfirmDialog";
 import PromptNameDialog from "@/components/PromptNameDialog";
+import ValidationResultDialog from "@/components/ValidationResultDialog";
 import HomeScreen from "@/components/HomeScreen";
 import ProjectSwitcher from "@/components/ProjectSwitcher";
 import { createPrompt, createContext, createTool, savePrompt, readPrompt, startRun, validateWorkflow } from "@/lib/api";
@@ -105,6 +106,16 @@ function HomeContent() {
   const [isRunning, setIsRunning] = useState(false);
   const [runEvents, setRunEvents] = useState<DisplayEvent[]>([]);
   const [lastRunStatus, setLastRunStatus] = useState<RunStatus>("pending");
+
+  // Validation dialog state
+  const [validationResult, setValidationResult] = useState<{
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+    agent_count: number;
+    tab_count: number;
+    teleporter_count: number;
+  } | null>(null);
 
   // Load session and recent projects on mount
   useEffect(() => {
@@ -577,16 +588,17 @@ function HomeContent() {
 
     try {
       const result = await validateWorkflow(currentProjectPath);
-      if (result.valid) {
-        alert(`Workflow is valid!\n\nAgents: ${result.agent_count}\nTabs: ${result.tab_count}\nTeleporter pairs: ${result.teleporter_count}`);
-      } else {
-        const errors = result.errors.length > 0 ? `\n\nErrors:\n${result.errors.join("\n")}` : "";
-        const warnings = result.warnings.length > 0 ? `\n\nWarnings:\n${result.warnings.join("\n")}` : "";
-        alert(`Workflow has errors${errors}${warnings}`);
-      }
+      setValidationResult(result);
     } catch (error) {
       console.error("Failed to validate:", error);
-      alert("Failed to validate workflow: " + (error as Error).message);
+      setValidationResult({
+        valid: false,
+        errors: [(error as Error).message],
+        warnings: [],
+        agent_count: 0,
+        tab_count: 0,
+        teleporter_count: 0,
+      });
     }
   }, [currentProjectPath]);
 
@@ -910,6 +922,13 @@ function HomeContent() {
         variant="destructive"
         onConfirm={handleTabDeleteConfirm}
         onCancel={handleTabDeleteCancel}
+      />
+
+      {/* Validation Result Dialog */}
+      <ValidationResultDialog
+        isOpen={validationResult !== null}
+        result={validationResult}
+        onClose={() => setValidationResult(null)}
       />
 
       {/* File Picker Dialog */}
