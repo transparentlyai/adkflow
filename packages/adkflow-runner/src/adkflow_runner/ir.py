@@ -113,6 +113,7 @@ class AgentIR:
     output_key: str | None = None
     output_schema: str | None = None
     input_schema: str | None = None
+    include_contents: Literal["default", "none"] = "default"
 
     # Loop-specific
     max_iterations: int = 5

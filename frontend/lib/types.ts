@@ -77,6 +77,7 @@ export interface Agent {
   input_schema?: string;
   output_schema?: string;
   output_key?: string;
+  include_contents?: "default" | "none";
 
   // Callbacks (file paths to Python functions)
   before_model_callback?: string;

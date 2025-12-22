@@ -214,6 +214,18 @@ class WorkflowValidator:
                         f"Loop agent '{agent_name}' has high max_iterations ({max_iterations})"
                     )
 
+            # include_contents="none" requires output_key
+            include_contents = agent_data.get("include_contents", "default")
+            output_key = agent_data.get("output_key")
+            if include_contents == "none" and not output_key:
+                result.add_error(
+                    ValidationError(
+                        f"Agent '{agent_name}' has include_contents='none' but no output_key. "
+                        "Output key is required when include_contents is 'none'.",
+                        location=ErrorLocation(node_id=node.id, tab_id=node.tab_id),
+                    )
+                )
+
     def _check_sequential_data_flow(
         self,
         graph: WorkflowGraph,

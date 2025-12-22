@@ -494,16 +494,74 @@ export default function AgentPropertiesPanel({
     </div>
   );
 
-  const renderSchemaTab = () => (
+  const renderSchemaTab = () => {
+    const outputKeyRequired = agent.include_contents === "none" && !agent.output_key;
+
+    return (
     <div className="space-y-5">
-      <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
-        <p className="text-xs text-amber-800">
-          <strong>Note:</strong> Schema validation cannot be used with tools or agent transfers.
-        </p>
+      {/* Output Configuration */}
+      <div className="space-y-3">
+        <h4 className="text-xs font-semibold uppercase tracking-wide" style={{ color: theme.colors.nodes.common.text.primary }}>Output Configuration</h4>
+        <div className="space-y-3 pl-2 border-l-2" style={{ borderColor: theme.colors.ui.primary }}>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>
+              Output Key
+              {agent.include_contents === "none" && <span className="text-red-500 ml-1">*</span>}
+            </label>
+            <input
+              type="text"
+              value={agent.output_key || ""}
+              onChange={(e) => onUpdate({ output_key: e.target.value || undefined })}
+              onKeyDown={(e) => e.stopPropagation()}
+              placeholder="e.g., result"
+              className="w-full px-3 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-1"
+              style={{
+                backgroundColor: theme.colors.nodes.common.container.background,
+                borderColor: outputKeyRequired ? "#ef4444" : theme.colors.nodes.common.container.border,
+                color: theme.colors.nodes.common.text.primary
+              }}
+            />
+            {outputKeyRequired ? (
+              <p className="text-xs text-red-500">Required when Include Contents is &quot;None&quot;</p>
+            ) : (
+              <p className="text-xs" style={{ color: theme.colors.nodes.common.text.muted }}>Saves agent output to session state with this key</p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>Include Contents</label>
+            <select
+              value={agent.include_contents || "default"}
+              onChange={(e) => onUpdate({ include_contents: e.target.value as "default" | "none" })}
+              className="w-full px-3 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-1"
+              style={{
+                backgroundColor: theme.colors.nodes.common.container.background,
+                borderColor: theme.colors.nodes.common.container.border,
+                color: theme.colors.nodes.common.text.primary
+              }}
+            >
+              <option value="default">Default</option>
+              <option value="none">None</option>
+            </select>
+            <p className="text-xs" style={{ color: theme.colors.nodes.common.text.muted }}>Controls content inclusion in agent processing</p>
+          </div>
+        </div>
       </div>
 
+      {/* Schema Validation */}
       <div className="space-y-3">
-        <h4 className="text-xs font-semibold uppercase tracking-wide" style={{ color: theme.colors.nodes.common.text.primary }}>Input/Output Validation</h4>
+        <h4 className="text-xs font-semibold uppercase tracking-wide" style={{ color: theme.colors.nodes.common.text.primary }}>Schema Validation</h4>
+        <div
+          className="p-3 border rounded-md"
+          style={{
+            backgroundColor: theme.colors.nodes.common.footer.background,
+            borderColor: theme.colors.nodes.common.container.border,
+          }}
+        >
+          <p className="text-xs" style={{ color: theme.colors.nodes.common.text.muted }}>
+            <strong>Note:</strong> Schema validation cannot be used with tools or agent transfers.
+          </p>
+        </div>
         <div className="space-y-3 pl-2 border-l-2" style={{ borderColor: theme.colors.ui.primary }}>
           <div className="space-y-1.5">
             <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>Input Schema</label>
@@ -511,6 +569,7 @@ export default function AgentPropertiesPanel({
               type="text"
               value={agent.input_schema || ""}
               onChange={(e) => onUpdate({ input_schema: e.target.value || undefined })}
+              onKeyDown={(e) => e.stopPropagation()}
               placeholder="e.g., models.TaskInput"
               className="w-full px-3 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-1"
               style={{
@@ -528,6 +587,7 @@ export default function AgentPropertiesPanel({
               type="text"
               value={agent.output_schema || ""}
               onChange={(e) => onUpdate({ output_schema: e.target.value || undefined })}
+              onKeyDown={(e) => e.stopPropagation()}
               placeholder="e.g., models.TaskOutput"
               className="w-full px-3 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-1"
               style={{
@@ -538,27 +598,11 @@ export default function AgentPropertiesPanel({
             />
             <p className="text-xs" style={{ color: theme.colors.nodes.common.text.muted }}>Pydantic BaseModel class path</p>
           </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>Output Key</label>
-            <input
-              type="text"
-              value={agent.output_key || ""}
-              onChange={(e) => onUpdate({ output_key: e.target.value || undefined })}
-              placeholder="e.g., result"
-              className="w-full px-3 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-1"
-              style={{
-                backgroundColor: theme.colors.nodes.common.container.background,
-                borderColor: theme.colors.nodes.common.container.border,
-                color: theme.colors.nodes.common.text.primary
-              }}
-            />
-            <p className="text-xs" style={{ color: theme.colors.nodes.common.text.muted }}>Primary output field name</p>
-          </div>
         </div>
       </div>
     </div>
   );
+  };
 
   const renderCallbacksTab = () => (
     <div className="space-y-5">
@@ -571,6 +615,7 @@ export default function AgentPropertiesPanel({
               type="text"
               value={agent.before_model_callback || ""}
               onChange={(e) => onUpdate({ before_model_callback: e.target.value || undefined })}
+              onKeyDown={(e) => e.stopPropagation()}
               placeholder="e.g., callbacks/guardrails.py"
               className="w-full px-3 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-1"
               style={{
@@ -586,6 +631,7 @@ export default function AgentPropertiesPanel({
               type="text"
               value={agent.after_model_callback || ""}
               onChange={(e) => onUpdate({ after_model_callback: e.target.value || undefined })}
+              onKeyDown={(e) => e.stopPropagation()}
               placeholder="e.g., callbacks/logging.py"
               className="w-full px-3 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-1"
               style={{
@@ -607,6 +653,7 @@ export default function AgentPropertiesPanel({
               type="text"
               value={agent.before_tool_callback || ""}
               onChange={(e) => onUpdate({ before_tool_callback: e.target.value || undefined })}
+              onKeyDown={(e) => e.stopPropagation()}
               placeholder="e.g., callbacks/validation.py"
               className="w-full px-3 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-1"
               style={{
@@ -622,6 +669,7 @@ export default function AgentPropertiesPanel({
               type="text"
               value={agent.after_tool_callback || ""}
               onChange={(e) => onUpdate({ after_tool_callback: e.target.value || undefined })}
+              onKeyDown={(e) => e.stopPropagation()}
               placeholder="e.g., callbacks/artifact_save.py"
               className="w-full px-3 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-1"
               style={{
@@ -692,7 +740,10 @@ export default function AgentPropertiesPanel({
       </div>
 
       {/* Tab Content */}
-      <div className={`flex-1 overflow-y-auto p-4 nodrag nowheel nopan ${disabled ? "opacity-60 pointer-events-none" : ""}`}>
+      <div
+        className={`flex-1 overflow-y-auto p-4 nodrag nowheel nopan ${disabled ? "opacity-60 pointer-events-none" : ""}`}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
         {renderTabContent()}
       </div>
     </div>

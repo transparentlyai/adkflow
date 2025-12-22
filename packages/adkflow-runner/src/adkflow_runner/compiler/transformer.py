@@ -173,6 +173,7 @@ class IRTransformer:
             output_key=agent_data.get("output_key"),
             output_schema=agent_data.get("output_schema"),
             input_schema=agent_data.get("input_schema"),
+            include_contents=agent_data.get("include_contents", "default"),
             max_iterations=agent_data.get("max_iterations", 5),
             disallow_transfer_to_parent=agent_data.get(
                 "disallow_transfer_to_parent", False
