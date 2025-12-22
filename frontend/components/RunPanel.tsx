@@ -18,7 +18,7 @@ interface RunPanelProps {
 
 interface DisplayEvent {
   id: string;
-  type: EventType | "info";
+  type: EventType | "info" | "final_output";
   content: string;
   agentName?: string;
   timestamp: number;
@@ -91,7 +91,16 @@ export default function RunPanel({
         setStatus("completed");
         const outputData = event.data.output as string | undefined;
         if (outputData) {
-          setOutput(outputData);
+          // Add final output as an event in the log
+          setEvents((prev) => [
+            ...prev,
+            {
+              id: `output-${Date.now()}`,
+              type: "final_output",
+              content: outputData,
+              timestamp: Date.now(),
+            },
+          ]);
         }
         // Clear all execution highlights when run completes
         onClearExecutionState?.();
@@ -219,7 +228,7 @@ export default function RunPanel({
     }
   };
 
-  const getEventColor = (type: EventType | "info"): string => {
+  const getEventColor = (type: EventType | "info" | "final_output"): string => {
     switch (type) {
       case "agent_start":
         return "text-blue-400";
@@ -240,6 +249,8 @@ export default function RunPanel({
         return "text-cyan-400";
       case "info":
         return "text-gray-400";
+      case "final_output":
+        return "text-green-400";
       default:
         return "text-gray-300";
     }
@@ -287,7 +298,7 @@ export default function RunPanel({
               {event.agentName && (
                 <span className="text-purple-400">[{event.agentName}] </span>
               )}
-              {event.type === "agent_output" ? (
+              {event.type === "agent_output" || event.type === "final_output" ? (
                 <span className="whitespace-pre-wrap">{event.content}</span>
               ) : (
                 <span>{event.content}</span>
@@ -296,24 +307,6 @@ export default function RunPanel({
           ))}
         </div>
       </ScrollArea>
-
-      {/* Output/Error footer */}
-      {(output || error) && (
-        <div className="border-t border-gray-700 p-4 bg-gray-800 max-h-32 overflow-auto">
-          {output && (
-            <div className="text-green-400 font-mono text-sm">
-              <span className="font-bold">Output: </span>
-              <span className="whitespace-pre-wrap">{output}</span>
-            </div>
-          )}
-          {error && (
-            <div className="text-red-400 font-mono text-sm">
-              <span className="font-bold">Error: </span>
-              <span className="whitespace-pre-wrap">{error}</span>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
