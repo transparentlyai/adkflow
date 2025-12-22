@@ -36,7 +36,8 @@ export default function PathPicker({
     if (isOpen) {
       loadDirectory(initialPath);
     }
-  }, [isOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, initialPath]);
 
   const loadDirectory = async (path: string) => {
     setLoading(true);

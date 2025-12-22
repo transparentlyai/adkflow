@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { listDirectory, ensureDirectory } from "@/lib/api";
 import type { DirectoryEntry } from "@/lib/types";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -47,19 +47,19 @@ export default function FilePicker({
   const [newFileName, setNewFileName] = useState("");
 
   // Filter function based on extensions
-  const extensionFilter = (entry: DirectoryEntry): boolean => {
+  const extensionFilter = useCallback((entry: DirectoryEntry): boolean => {
     if (showAllFiles || !defaultExtensions || defaultExtensions.length === 0) return true;
     const ext = '.' + entry.name.split('.').pop()?.toLowerCase();
     return defaultExtensions.some(e => e.toLowerCase() === ext);
-  };
+  }, [showAllFiles, defaultExtensions]);
 
   // Combined filter: custom filter AND extension filter
-  const combinedFilter = (entry: DirectoryEntry): boolean => {
+  const combinedFilter = useCallback((entry: DirectoryEntry): boolean => {
     if (entry.is_directory) return true;
     const passesExtensionFilter = extensionFilter(entry);
     const passesCustomFilter = fileFilter ? fileFilter(entry) : true;
     return passesExtensionFilter && passesCustomFilter;
-  };
+  }, [extensionFilter, fileFilter]);
 
   useEffect(() => {
     const loadDirectoryWithFallback = async (path: string): Promise<boolean> => {
@@ -125,7 +125,7 @@ export default function FilePicker({
     };
 
     initializeDirectory();
-  }, [isOpen, projectPath, initialPath, fileFilter, showAllFiles, defaultExtensions]);
+  }, [isOpen, projectPath, initialPath, combinedFilter]);
 
   const loadDirectory = async (path: string) => {
     setLoading(true);

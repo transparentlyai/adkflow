@@ -246,7 +246,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       } else {
         setEdges((eds) => addEdge(params, eds));
       }
-    }, [isLocked]);
+    }, [isLocked, theme.colors.edges.link]);
 
     // Auto-parent/detach nodes from Group on drag stop (handles multi-selection)
     const onNodeDragStop = useCallback(
