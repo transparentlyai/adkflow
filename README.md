@@ -26,11 +26,12 @@ cd backend && uv pip install -e . && cd ..
 ### Start Development Servers
 
 ```bash
-# Terminal 1 - Backend
-cd backend && python -m backend.src.main
+# Option 1: Using CLI (recommended)
+./adkflow dev
 
-# Terminal 2 - Frontend
-cd frontend && npm run dev
+# Option 2: Manual (separate terminals)
+cd backend && python -m backend.src.main  # Terminal 1
+cd frontend && npm run dev                 # Terminal 2
 ```
 
 Open http://localhost:3000 to start building workflows.
@@ -136,11 +137,22 @@ adkflow/
 │   └── src/
 │       ├── main.py          # App entry point
 │       ├── api/routes.py    # REST endpoints
-│       ├── models/          # Pydantic models
-│       └── services/        # File operations
+│       └── models/          # Pydantic models
 │
-├── docs/                     # Documentation
-└── schemas/                  # Schema documentation
+└── cli/                      # CLI for dev server management
+```
+
+---
+
+## CLI Commands
+
+```bash
+./adkflow dev       # Start both servers (development)
+./adkflow start     # Start both servers (production)
+./adkflow stop      # Stop running servers
+./adkflow backend   # Start backend only
+./adkflow frontend  # Start frontend only
+./adkflow setup     # Set up development environment
 ```
 
 ---
