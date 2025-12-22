@@ -8,7 +8,7 @@ Visual workflow builder for Google Agent Development Kit (ADK). Design and confi
 git clone https://github.com/transparentlyai/adkflow.git
 cd adkflow
 ./adkflow setup   # Install dependencies
-./adkflow dev     # Start the app
+./adkflow start   # Start the app
 ```
 
 Open http://localhost:3000 and start building workflows.
