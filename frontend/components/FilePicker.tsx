@@ -4,6 +4,13 @@ import { useState, useEffect, useCallback } from "react";
 import { listDirectory, ensureDirectory } from "@/lib/api";
 import type { DirectoryEntry } from "@/lib/types";
 import { useTheme } from "@/contexts/ThemeContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 interface FilePickerProps {
   isOpen: boolean;
@@ -199,18 +206,23 @@ export default function FilePicker({
     return path;
   };
 
-  if (!isOpen) return null;
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      onCancel();
+    }
+  };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[70vh] flex flex-col" style={{ backgroundColor: theme.colors.nodes.common.container.background }}>
-        {/* Header */}
-        <div className="px-6 py-4 border-b" style={{ borderColor: theme.colors.nodes.common.container.border }}>
-          <h2 className="text-xl font-bold" style={{ color: theme.colors.nodes.common.text.primary }}>{title}</h2>
-          <p className="text-sm mt-1" style={{ color: theme.colors.nodes.common.text.secondary }}>{description}</p>
-        </div>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <DialogContent
+        className="max-w-2xl max-h-[70vh] flex flex-col p-0 gap-0 z-[60]"
+        style={{ backgroundColor: theme.colors.nodes.common.container.background }}
+      >
+        <DialogHeader className="px-6 py-4 border-b" style={{ borderColor: theme.colors.nodes.common.container.border }}>
+          <DialogTitle style={{ color: theme.colors.nodes.common.text.primary }}>{title}</DialogTitle>
+          <DialogDescription style={{ color: theme.colors.nodes.common.text.secondary }}>{description}</DialogDescription>
+        </DialogHeader>
 
-        {/* Breadcrumb / Navigation */}
         <div className="px-6 py-3 border-b" style={{ backgroundColor: theme.colors.nodes.common.footer.background, borderColor: theme.colors.nodes.common.container.border }}>
           <div className="flex items-center gap-2">
             <button
@@ -245,7 +257,6 @@ export default function FilePicker({
           </div>
         </div>
 
-        {/* File Listing */}
         <div className="flex-1 overflow-auto p-4 min-h-[250px]">
           {loading && (
             <div className="flex items-center justify-center h-full" style={{ color: theme.colors.nodes.common.text.muted }}>
@@ -317,7 +328,6 @@ export default function FilePicker({
           )}
         </div>
 
-        {/* New file input (when allowCreate is enabled) */}
         {allowCreate && (
           <div className="px-6 py-3 border-t" style={{ backgroundColor: theme.colors.nodes.common.footer.background, borderColor: theme.colors.nodes.common.container.border }}>
             <div className="flex items-center gap-2">
@@ -349,7 +359,6 @@ export default function FilePicker({
           </div>
         )}
 
-        {/* Selected file display */}
         {selectedFile && !newFileName.trim() && (
           <div
             className="px-6 py-2 border-t"
@@ -365,7 +374,6 @@ export default function FilePicker({
           </div>
         )}
 
-        {/* Footer Actions */}
         <div className="px-6 py-4 border-t flex justify-between items-center" style={{ backgroundColor: theme.colors.nodes.common.footer.background, borderColor: theme.colors.nodes.common.container.border }}>
           <div className="flex items-center gap-4">
             <div className="text-xs" style={{ color: theme.colors.nodes.common.text.muted }}>
@@ -404,8 +412,8 @@ export default function FilePicker({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

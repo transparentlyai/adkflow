@@ -383,6 +383,25 @@ function HomeContent() {
     setPendingPromptPosition(undefined);
   };
 
+  const handleSelectExistingPrompt = (filePath: string) => {
+    // Extract name from file path (e.g., "prompts/greeting.prompt.md" -> "greeting")
+    const fileName = filePath.split("/").pop() || filePath;
+    const name = fileName.replace(/\.prompt\.md$/, "").replace(/\.md$/, "");
+
+    if (canvasRef.current) {
+      canvasRef.current.addPromptNode({
+        name: name,
+        file_path: filePath,
+      }, pendingPromptPosition);
+    }
+
+    setIsPromptNameDialogOpen(false);
+    setPendingPromptPosition(undefined);
+    if (activeTabId) {
+      markTabDirty(activeTabId);
+    }
+  };
+
   const handleRequestContextCreation = useCallback((position: { x: number; y: number }) => {
     setPendingContextPosition(position);
     setIsContextNameDialogOpen(true);
@@ -423,6 +442,24 @@ function HomeContent() {
     setPendingContextPosition(undefined);
   };
 
+  const handleSelectExistingContext = (filePath: string) => {
+    const fileName = filePath.split("/").pop() || filePath;
+    const name = fileName.replace(/\.context\.md$/, "").replace(/\.md$/, "");
+
+    if (canvasRef.current) {
+      canvasRef.current.addContextNode({
+        name: name,
+        file_path: filePath,
+      }, pendingContextPosition);
+    }
+
+    setIsContextNameDialogOpen(false);
+    setPendingContextPosition(undefined);
+    if (activeTabId) {
+      markTabDirty(activeTabId);
+    }
+  };
+
   const handleRequestToolCreation = useCallback((position: { x: number; y: number }) => {
     setPendingToolPosition(position);
     setIsToolNameDialogOpen(true);
@@ -461,6 +498,24 @@ function HomeContent() {
     setPendingToolPosition(undefined);
   };
 
+  const handleSelectExistingTool = (filePath: string) => {
+    const fileName = filePath.split("/").pop() || filePath;
+    const name = fileName.replace(/\.py$/, "");
+
+    if (canvasRef.current) {
+      canvasRef.current.addToolNode({
+        name: name,
+        file_path: filePath,
+      }, pendingToolPosition);
+    }
+
+    setIsToolNameDialogOpen(false);
+    setPendingToolPosition(undefined);
+    if (activeTabId) {
+      markTabDirty(activeTabId);
+    }
+  };
+
   const handleRequestProcessCreation = useCallback((position: { x: number; y: number }) => {
     setPendingProcessPosition(position);
     setIsProcessNameDialogOpen(true);
@@ -497,6 +552,24 @@ function HomeContent() {
   const handleCancelProcessCreation = () => {
     setIsProcessNameDialogOpen(false);
     setPendingProcessPosition(undefined);
+  };
+
+  const handleSelectExistingProcess = (filePath: string) => {
+    const fileName = filePath.split("/").pop() || filePath;
+    const name = fileName.replace(/\.py$/, "");
+
+    if (canvasRef.current) {
+      canvasRef.current.addProcessNode({
+        name: name,
+        file_path: filePath,
+      }, pendingProcessPosition);
+    }
+
+    setIsProcessNameDialogOpen(false);
+    setPendingProcessPosition(undefined);
+    if (activeTabId) {
+      markTabDirty(activeTabId);
+    }
   };
 
   // Clear canvas handlers
@@ -952,31 +1025,39 @@ function HomeContent() {
       <PromptNameDialog
         isOpen={isPromptNameDialogOpen}
         onSubmit={handleCreatePrompt}
+        onSelectExisting={handleSelectExistingPrompt}
         onCancel={handleCancelPromptCreation}
+        projectPath={currentProjectPath || undefined}
       />
 
       {/* Context Name Dialog */}
       <PromptNameDialog
         isOpen={isContextNameDialogOpen}
         onSubmit={handleCreateContext}
+        onSelectExisting={handleSelectExistingContext}
         onCancel={handleCancelContextCreation}
         type="context"
+        projectPath={currentProjectPath || undefined}
       />
 
       {/* Tool Name Dialog */}
       <PromptNameDialog
         isOpen={isToolNameDialogOpen}
         onSubmit={handleCreateTool}
+        onSelectExisting={handleSelectExistingTool}
         onCancel={handleCancelToolCreation}
         type="tool"
+        projectPath={currentProjectPath || undefined}
       />
 
       {/* Process Name Dialog */}
       <PromptNameDialog
         isOpen={isProcessNameDialogOpen}
         onSubmit={handleCreateProcess}
+        onSelectExisting={handleSelectExistingProcess}
         onCancel={handleCancelProcessCreation}
         type="process"
+        projectPath={currentProjectPath || undefined}
       />
 
       {/* Clear Canvas Confirm Dialog */}
