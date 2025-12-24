@@ -816,14 +816,10 @@ async def save_prompt_file(request: PromptSaveRequest) -> PromptSaveResponse:
             project_path = Path(request.project_path).resolve()
             prompt_file = project_path / request.file_path
 
-        # Validate file exists
-        if not prompt_file.exists():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Prompt file not found: {request.file_path}",
-            )
+        # Create parent directories if they don't exist
+        prompt_file.parent.mkdir(parents=True, exist_ok=True)
 
-        # Write content to file
+        # Write content to file (creates file if it doesn't exist)
         with open(prompt_file, "w", encoding="utf-8") as f:
             f.write(request.content)
 
