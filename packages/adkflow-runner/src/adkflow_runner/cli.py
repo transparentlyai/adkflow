@@ -401,6 +401,50 @@ def validate_command(project_path: str, output_format: str):
         sys.exit(1)
 
 
+@cli.command("topology")
+@click.argument("project_path", type=click.Path(exists=True), default=".")
+@click.option(
+    "--format",
+    "-f",
+    "output_format",
+    type=click.Choice(["mermaid", "ascii"]),
+    default="ascii",
+    help="Output format (default: ascii)",
+)
+def topology_command(project_path: str, output_format: str):
+    """Show the compiled agent topology of a workflow.
+
+    Displays how agents are grouped and executed (SequentialAgent,
+    ParallelAgent, LoopAgent wrappers).
+
+    Examples:
+        adkflow-runner topology .
+        adkflow-runner topology /path/to/project
+        adkflow-runner topology . --format mermaid
+    """
+    from adkflow_runner.compiler import Compiler
+    from adkflow_runner.visualization import render_ascii, render_mermaid
+
+    compiler = Compiler()
+
+    try:
+        # Compile the workflow to IR
+        ir = compiler.compile(Path(project_path).resolve())
+
+        # Render the topology
+        if output_format == "mermaid":
+            output = render_mermaid(ir)
+        else:
+            output = render_ascii(ir)
+
+        print(output)
+        sys.exit(0)
+
+    except Exception as e:
+        print_msg(f"Failed to generate topology: {e}", "red")
+        sys.exit(1)
+
+
 def main():
     """Entry point for adkflow-runner CLI."""
     cli()

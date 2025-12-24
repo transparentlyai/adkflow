@@ -358,6 +358,12 @@ export interface ValidateResponse {
   teleporter_count: number;
 }
 
+export interface TopologyResponse {
+  mermaid: string;
+  ascii: string;
+  agent_count: number;
+}
+
 // Node execution state for real-time highlighting during workflow runs
 export type NodeExecutionState = "idle" | "running" | "completed" | "error";
 

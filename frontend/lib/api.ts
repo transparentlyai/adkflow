@@ -25,6 +25,7 @@ import type {
   RunResponse,
   RunStatusResponse,
   ValidateResponse,
+  TopologyResponse,
   UserInputSubmission,
   UserInputResponse,
 } from "@/lib/types";
@@ -539,6 +540,24 @@ export async function validateWorkflow(projectPath: string): Promise<ValidateRes
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
       throw new Error(error.response.data.detail || "Failed to validate workflow");
+    }
+    throw error;
+  }
+}
+
+/**
+ * Get the compiled agent topology of a workflow
+ */
+export async function getTopology(projectPath: string): Promise<TopologyResponse> {
+  try {
+    const response = await apiClient.post<TopologyResponse>(
+      "/api/execution/topology",
+      { project_path: projectPath }
+    );
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.detail || "Failed to get topology");
     }
     throw error;
   }

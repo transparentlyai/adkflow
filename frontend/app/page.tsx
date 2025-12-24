@@ -9,11 +9,12 @@ import SaveConfirmDialog from "@/components/SaveConfirmDialog";
 import RunConfirmDialog from "@/components/RunConfirmDialog";
 import PromptNameDialog from "@/components/PromptNameDialog";
 import ValidationResultDialog from "@/components/ValidationResultDialog";
+import TopologyDialog from "@/components/TopologyDialog";
 import HomeScreen from "@/components/HomeScreen";
 import ProjectSwitcher from "@/components/ProjectSwitcher";
-import { savePrompt, readPrompt, startRun, validateWorkflow } from "@/lib/api";
+import { savePrompt, readPrompt, startRun, validateWorkflow, getTopology } from "@/lib/api";
 import RunPanel, { type DisplayEvent } from "@/components/RunPanel";
-import type { RunStatus, NodeExecutionState } from "@/lib/types";
+import type { RunStatus, NodeExecutionState, TopologyResponse } from "@/lib/types";
 import FilePicker from "@/components/FilePicker";
 import { loadSession, saveSession } from "@/lib/sessionStorage";
 import { ProjectProvider, type FilePickerOptions } from "@/contexts/ProjectContext";
@@ -124,6 +125,9 @@ function HomeContent() {
     tab_count: number;
     teleporter_count: number;
   } | null>(null);
+
+  // Topology dialog state
+  const [topologyResult, setTopologyResult] = useState<TopologyResponse | null>(null);
 
   // Load session and recent projects on mount
   useEffect(() => {
@@ -753,6 +757,19 @@ function HomeContent() {
     }
   }, [currentProjectPath]);
 
+  const handleShowTopology = useCallback(async () => {
+    if (!currentProjectPath) return;
+
+    try {
+      const result = await getTopology(currentProjectPath);
+      setTopologyResult(result);
+    } catch (error) {
+      console.error("Failed to get topology:", error);
+      // Show error in a simple way - could enhance with a toast
+      alert(`Failed to get topology: ${(error as Error).message}`);
+    }
+  }, [currentProjectPath]);
+
   const handleRunComplete = useCallback((status: RunStatus) => {
     setIsRunning(false);
   }, []);
@@ -922,6 +939,7 @@ function HomeContent() {
               onToggleLock={() => setIsCanvasLocked(!isCanvasLocked)}
               onRunWorkflow={handleRunWorkflow}
               onValidateWorkflow={handleValidateWorkflow}
+              onShowTopology={handleShowTopology}
               isRunning={isRunning}
               showRunConsole={isRunPanelOpen}
               onToggleRunConsole={() => setIsRunPanelOpen(!isRunPanelOpen)}
@@ -1119,6 +1137,13 @@ function HomeContent() {
           setValidationResult(null);
           canvasRef.current?.clearErrorHighlights();
         }}
+      />
+
+      {/* Topology Dialog */}
+      <TopologyDialog
+        isOpen={topologyResult !== null}
+        result={topologyResult}
+        onClose={() => setTopologyResult(null)}
       />
 
       {/* File Picker Dialog */}

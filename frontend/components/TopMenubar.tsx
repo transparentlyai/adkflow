@@ -35,6 +35,7 @@ import {
   CheckCircle,
   Terminal,
   Check,
+  Network,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import SettingsDialog from "@/components/SettingsDialog";
@@ -52,6 +53,7 @@ interface TopMenubarProps {
   onToggleLock?: () => void;
   onRunWorkflow?: () => void;
   onValidateWorkflow?: () => void;
+  onShowTopology?: () => void;
   isRunning?: boolean;
   showRunConsole?: boolean;
   onToggleRunConsole?: () => void;
@@ -70,6 +72,7 @@ export default function TopMenubar({
   onToggleLock,
   onRunWorkflow,
   onValidateWorkflow,
+  onShowTopology,
   isRunning,
   showRunConsole,
   onToggleRunConsole,
@@ -162,6 +165,11 @@ export default function TopMenubar({
               <CheckCircle className="mr-2 h-4 w-4" />
               Validate
               <MenubarShortcut>⇧⌘V</MenubarShortcut>
+            </MenubarItem>
+            <MenubarItem onClick={onShowTopology} disabled={!hasProjectPath}>
+              <Network className="mr-2 h-4 w-4" />
+              Show Topology
+              <MenubarShortcut>⌘T</MenubarShortcut>
             </MenubarItem>
           </MenubarContent>
         </MenubarMenu>

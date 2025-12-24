@@ -88,6 +88,20 @@ class ValidateResponse(BaseModel):
     teleporter_count: int = 0
 
 
+class TopologyRequest(BaseModel):
+    """Request to get workflow topology."""
+
+    project_path: str = Field(..., description="Path to the project directory")
+
+
+class TopologyResponse(BaseModel):
+    """Response with workflow topology as Mermaid diagram."""
+
+    mermaid: str = Field(..., description="Mermaid diagram source")
+    ascii: str = Field(..., description="ASCII tree representation")
+    agent_count: int = Field(0, description="Number of agents in workflow")
+
+
 class UserInputSubmission(BaseModel):
     """Request to submit user input during a run."""
 
@@ -522,6 +536,40 @@ async def validate_workflow(request: ValidateRequest) -> ValidateResponse:
         return ValidateResponse(
             valid=False,
             errors=[str(e)],
+        )
+
+
+@router.post("/topology", response_model=TopologyResponse)
+async def get_topology(request: TopologyRequest) -> TopologyResponse:
+    """Get the compiled agent topology of a workflow.
+
+    Returns a Mermaid diagram and ASCII tree showing how agents
+    are grouped and executed (SequentialAgent, ParallelAgent, LoopAgent).
+    """
+    from adkflow_runner.visualization import render_ascii, render_mermaid
+
+    project_path = Path(request.project_path).resolve()
+    if not project_path.exists():
+        raise HTTPException(
+            status_code=404, detail=f"Project path not found: {request.project_path}"
+        )
+
+    compiler = Compiler()
+
+    try:
+        ir = compiler.compile(project_path)
+        mermaid = render_mermaid(ir)
+        ascii_tree = render_ascii(ir)
+
+        return TopologyResponse(
+            mermaid=mermaid,
+            ascii=ascii_tree,
+            agent_count=len(ir.all_agents),
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to generate topology: {e}"
         )
 
 
