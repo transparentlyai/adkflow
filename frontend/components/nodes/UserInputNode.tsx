@@ -45,6 +45,26 @@ function deriveVariableName(name: string): string {
   return (sanitized || "user") + "_input";
 }
 
+// Custom comparison for memo - always re-render when isWaitingForInput changes
+const userInputNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): boolean => {
+  const prevData = prevProps.data as unknown as UserInputNodeData;
+  const nextData = nextProps.data as unknown as UserInputNodeData;
+
+  if (prevData.isWaitingForInput !== nextData.isWaitingForInput) {
+    return false;
+  }
+
+  if (prevProps.selected !== nextProps.selected) return false;
+  if (prevProps.id !== nextProps.id) return false;
+  if (prevData.isNodeLocked !== nextData.isNodeLocked) return false;
+  if (prevData.name !== nextData.name) return false;
+  if (prevData.timeout !== nextData.timeout) return false;
+  if (prevData.timeoutBehavior !== nextData.timeoutBehavior) return false;
+  if (prevData.predefinedText !== nextData.predefinedText) return false;
+
+  return true;
+};
+
 const UserInputNode = memo(({ data, id, selected }: NodeProps) => {
   const {
     name = "User Input",
@@ -596,7 +616,7 @@ const UserInputNode = memo(({ data, id, selected }: NodeProps) => {
       )}
     </div>
   );
-});
+}, userInputNodePropsAreEqual);
 
 UserInputNode.displayName = "UserInputNode";
 

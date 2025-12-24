@@ -135,6 +135,7 @@ export interface ReactFlowCanvasRef {
   fitView: () => void;
   focusNode: (nodeId: string) => void;
   updateNodeExecutionState: (agentName: string, state: NodeExecutionState) => void;
+  updateUserInputWaitingState: (nodeId: string, isWaiting: boolean) => void;
   clearExecutionState: () => void;
   validateBeforeRun: () => { valid: boolean; errors: string[]; errorNodeIds: string[] };
   highlightErrorNodes: (nodeIds: string[]) => void;
@@ -1490,12 +1491,36 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     const clearExecutionState = useCallback(() => {
       setNodes((nds) =>
         nds.map((node) => {
-          if (node.type !== "agent") return node;
-          const data = node.data as unknown as AgentNodeData;
-          if (data.executionState && data.executionState !== "idle") {
+          if (node.type === "agent") {
+            const data = node.data as unknown as AgentNodeData;
+            if (data.executionState && data.executionState !== "idle") {
+              return {
+                ...node,
+                data: { ...data, executionState: "idle" as NodeExecutionState },
+              };
+            }
+          } else if (node.type === "userInput") {
+            const data = node.data as Record<string, unknown>;
+            if (data.isWaitingForInput) {
+              return {
+                ...node,
+                data: { ...data, isWaitingForInput: false },
+              };
+            }
+          }
+          return node;
+        })
+      );
+    }, [setNodes]);
+
+    // Update user input node waiting state for glow effect
+    const updateUserInputWaitingState = useCallback((nodeId: string, isWaiting: boolean) => {
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.id === nodeId && node.type === "userInput") {
             return {
               ...node,
-              data: { ...data, executionState: "idle" as NodeExecutionState },
+              data: { ...node.data, isWaitingForInput: isWaiting },
             };
           }
           return node;
@@ -1600,6 +1625,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       fitView: fitViewHandler,
       focusNode,
       updateNodeExecutionState,
+      updateUserInputWaitingState,
       clearExecutionState,
       validateBeforeRun,
       highlightErrorNodes,

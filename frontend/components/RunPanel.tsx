@@ -25,6 +25,7 @@ interface RunPanelProps {
   onClose: () => void;
   onRunComplete?: (status: RunStatus, output?: string, error?: string) => void;
   onAgentStateChange?: (agentName: string, state: NodeExecutionState) => void;
+  onUserInputStateChange?: (nodeId: string, isWaiting: boolean) => void;
   onClearExecutionState?: () => void;
   events: DisplayEvent[];
   onEventsChange: (events: DisplayEvent[]) => void;
@@ -38,6 +39,7 @@ export default function RunPanel({
   onClose,
   onRunComplete,
   onAgentStateChange,
+  onUserInputStateChange,
   onClearExecutionState,
   events,
   onEventsChange,
@@ -220,9 +222,16 @@ export default function RunPanel({
         };
         setPendingInput(inputRequest);
         setUserInputValue("");
+        // Highlight the UserInput node as waiting
+        onUserInputStateChange?.(inputRequest.node_id, true);
         // Focus the input after a short delay
         setTimeout(() => inputRef.current?.focus(), 100);
       } else if (event.type === "user_input_received" || event.type === "user_input_timeout") {
+        // Clear the waiting state from the UserInput node
+        const nodeId = event.data.node_id as string;
+        if (nodeId) {
+          onUserInputStateChange?.(nodeId, false);
+        }
         setPendingInput(null);
         setUserInputValue("");
       }
@@ -344,7 +353,7 @@ export default function RunPanel({
       eventSource.close();
       eventSourceRef.current = null;
     };
-  }, [runId, onRunComplete, projectPath, onAgentStateChange, onClearExecutionState, onEventsChange, onStatusChange]);
+  }, [runId, onRunComplete, projectPath, onAgentStateChange, onUserInputStateChange, onClearExecutionState, onEventsChange, onStatusChange]);
 
   useEffect(() => {
     if (scrollRef.current) {

@@ -762,6 +762,10 @@ function HomeContent() {
     canvasRef.current?.updateNodeExecutionState(agentName, state);
   }, []);
 
+  const handleUserInputStateChange = useCallback((nodeId: string, isWaiting: boolean) => {
+    canvasRef.current?.updateUserInputWaitingState(nodeId, isWaiting);
+  }, []);
+
   const handleClearExecutionState = useCallback(() => {
     canvasRef.current?.clearExecutionState();
   }, []);
@@ -1139,6 +1143,7 @@ function HomeContent() {
           onClose={handleCloseRunPanel}
           onRunComplete={handleRunComplete}
           onAgentStateChange={handleAgentStateChange}
+          onUserInputStateChange={handleUserInputStateChange}
           onClearExecutionState={handleClearExecutionState}
           events={runEvents}
           onEventsChange={setRunEvents}
