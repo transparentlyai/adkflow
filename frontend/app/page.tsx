@@ -128,6 +128,7 @@ function HomeContent() {
 
   // Topology dialog state
   const [topologyResult, setTopologyResult] = useState<TopologyResponse | null>(null);
+  const [isTopologySaveDialogOpen, setIsTopologySaveDialogOpen] = useState(false);
 
   // Load session and recent projects on mount
   useEffect(() => {
@@ -757,7 +758,7 @@ function HomeContent() {
     }
   }, [currentProjectPath]);
 
-  const handleShowTopology = useCallback(async () => {
+  const executeShowTopology = useCallback(async () => {
     if (!currentProjectPath) return;
 
     try {
@@ -765,10 +766,42 @@ function HomeContent() {
       setTopologyResult(result);
     } catch (error) {
       console.error("Failed to get topology:", error);
-      // Show error in a simple way - could enhance with a toast
       alert(`Failed to get topology: ${(error as Error).message}`);
     }
   }, [currentProjectPath]);
+
+  const handleShowTopology = useCallback(async () => {
+    if (!currentProjectPath) return;
+
+    // Check if project needs to be saved first
+    if (activeTab?.hasUnsavedChanges || !isProjectSaved) {
+      setIsTopologySaveDialogOpen(true);
+      return;
+    }
+
+    await executeShowTopology();
+  }, [currentProjectPath, activeTab, isProjectSaved, executeShowTopology]);
+
+  const handleTopologySaveAndShow = useCallback(async () => {
+    setIsTopologySaveDialogOpen(false);
+
+    // Save current tab before showing topology
+    if (canvasRef.current && activeTabId && currentProjectPath) {
+      const flow = canvasRef.current.saveFlow();
+      if (flow) {
+        const success = await saveTabFlow(currentProjectPath, activeTabId, flow, workflowName);
+        if (success) {
+          setIsProjectSaved(true);
+        }
+      }
+    }
+
+    await executeShowTopology();
+  }, [activeTabId, currentProjectPath, workflowName, saveTabFlow, executeShowTopology]);
+
+  const handleTopologySaveCancel = useCallback(() => {
+    setIsTopologySaveDialogOpen(false);
+  }, []);
 
   const handleRunComplete = useCallback((status: RunStatus) => {
     setIsRunning(false);
@@ -1056,6 +1089,16 @@ function HomeContent() {
         isOpen={isRunConfirmDialogOpen}
         onSaveAndRun={handleRunConfirmSaveAndRun}
         onCancel={handleRunConfirmCancel}
+      />
+
+      {/* Topology Save Dialog */}
+      <ConfirmDialog
+        isOpen={isTopologySaveDialogOpen}
+        title="Save Before Viewing Topology?"
+        description="You have unsaved changes. The workflow needs to be saved to generate an accurate topology."
+        confirmLabel="Save & Show"
+        onConfirm={handleTopologySaveAndShow}
+        onCancel={handleTopologySaveCancel}
       />
 
       {/* Prompt Name Dialog */}
