@@ -17,8 +17,27 @@ from adkflow_runner.ir import (
     PlannerConfig,
     TeleporterIR,
     ToolIR,
+    UserInputIR,
     WorkflowIR,
 )
+
+
+def _sanitize_variable_name(name: str) -> str:
+    """Convert a node name to a valid variable name.
+
+    Example: "Review Step" -> "review_step_input"
+    """
+    import re
+
+    # Convert to lowercase, replace spaces/hyphens with underscores
+    sanitized = name.lower().replace(" ", "_").replace("-", "_")
+    # Remove any invalid characters
+    sanitized = re.sub(r"[^a-z0-9_]", "", sanitized)
+    # Ensure it starts with letter or underscore
+    if sanitized and not sanitized[0].isalpha() and sanitized[0] != "_":
+        sanitized = "_" + sanitized
+    # Default and add suffix
+    return (sanitized or "user") + "_input"
 
 
 class IRTransformer:
@@ -101,11 +120,15 @@ class IRTransformer:
         # Resolve output files
         output_files = self._resolve_output_files(graph)
 
+        # Transform user input nodes
+        user_inputs = self._transform_user_inputs(graph, all_agents)
+
         return WorkflowIR(
             root_agent=root_agent,
             all_agents=all_agents,
             output_files=output_files,
             teleporters=teleporters,
+            user_inputs=user_inputs,
             project_path=str(project.path),
             tab_ids=[tab.id for tab in project.tabs],
             metadata={
@@ -432,3 +455,70 @@ class IRTransformer:
                                 )
 
         return output_files
+
+    def _transform_user_inputs(
+        self,
+        graph: WorkflowGraph,
+        all_agents: dict[str, AgentIR],
+    ) -> list[UserInputIR]:
+        """Transform userInput nodes to IR.
+
+        UserInput nodes can operate in two modes:
+        - Trigger mode: No incoming connections, acts like a Start node
+        - Pause mode: Has incoming connections, pauses execution for user input
+
+        Only includes UserInput nodes that are connected to the flow
+        (have at least one outgoing connection to an agent).
+        """
+        user_inputs: list[UserInputIR] = []
+
+        for node in graph.get_user_input_nodes():
+            # Get node data
+            name = node.data.get("name", f"user_input_{node.id[:8]}")
+            variable_name = _sanitize_variable_name(name)
+
+            # Find incoming agents (SEQUENTIAL edges)
+            incoming_agent_ids: list[str] = []
+            for edge in node.incoming:
+                if edge.semantics == EdgeSemantics.SEQUENTIAL:
+                    source = graph.get_node(edge.source_id)
+                    if source and source.type == "agent":
+                        incoming_agent_ids.append(source.id)
+
+            # Find outgoing agents (SEQUENTIAL edges)
+            outgoing_agent_ids: list[str] = []
+            for edge in node.outgoing:
+                if edge.semantics == EdgeSemantics.SEQUENTIAL:
+                    target = graph.get_node(edge.target_id)
+                    if target and target.type == "agent":
+                        outgoing_agent_ids.append(target.id)
+
+            # Skip UserInput nodes that aren't connected to any agents
+            # A UserInput node must have at least one outgoing connection to be useful
+            if not outgoing_agent_ids:
+                continue
+
+            # Determine if trigger mode (no incoming connections)
+            is_trigger = len(incoming_agent_ids) == 0
+
+            # Get timeout configuration from node data
+            timeout_seconds = float(node.data.get("timeout", 300.0))
+            timeout_behavior = node.data.get("timeoutBehavior", "error")
+            predefined_text = node.data.get("predefinedText", "")
+
+            user_inputs.append(
+                UserInputIR(
+                    id=node.id,
+                    name=name,
+                    variable_name=variable_name,
+                    is_trigger=is_trigger,
+                    timeout_seconds=timeout_seconds,
+                    timeout_behavior=timeout_behavior,
+                    predefined_text=predefined_text,
+                    incoming_agent_ids=incoming_agent_ids,
+                    outgoing_agent_ids=outgoing_agent_ids,
+                    source_node_id=node.id,
+                )
+            )
+
+        return user_inputs

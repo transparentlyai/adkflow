@@ -7,13 +7,18 @@ import asyncio
 import json
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 from dotenv import load_dotenv
 
+if TYPE_CHECKING:
+    from adkflow_runner.runner import UserInputRequest
+
 try:
     from rich.console import Console
     from rich.panel import Panel
+    from rich.prompt import Prompt
 
     console = Console()
     HAS_RICH = True
@@ -21,6 +26,85 @@ except ImportError:
     HAS_RICH = False
     console = None
     Panel = None  # type: ignore[assignment]
+    Prompt = None  # type: ignore[assignment]
+
+
+class CLIUserInputProvider:
+    """Interactive CLI handler for user input requests.
+
+    Displays previous output and prompts for user input in the terminal.
+    """
+
+    def __init__(self, quiet: bool = False):
+        self.quiet = quiet
+
+    async def request_input(self, request: "UserInputRequest") -> str | None:
+        """Request user input interactively.
+
+        Args:
+            request: The input request context
+
+        Returns:
+            User input string
+
+        Raises:
+            TimeoutError: If timeout occurs (not implemented in CLI - blocks)
+            asyncio.CancelledError: If the request was cancelled
+        """
+        # Display previous output if available
+        if request.previous_output and not self.quiet:
+            if HAS_RICH and console and Panel:
+                # Truncate very long outputs
+                output_display = request.previous_output
+                if len(output_display) > 2000:
+                    output_display = output_display[:2000] + "\n... (truncated)"
+
+                console.print()
+                console.print(
+                    Panel(
+                        output_display,
+                        title="[cyan]Output from previous step[/cyan]",
+                        border_style="cyan",
+                    )
+                )
+            else:
+                print("\n" + "=" * 50)
+                print("Previous output:")
+                output_display = request.previous_output
+                if len(output_display) > 2000:
+                    output_display = output_display[:2000] + "\n... (truncated)"
+                print(output_display)
+                print("=" * 50)
+
+        # Display prompt info
+        if not self.quiet:
+            if HAS_RICH and console:
+                console.print()
+                console.print(
+                    f"[bold yellow]?[/bold yellow] [bold]{request.node_name}[/bold]"
+                )
+                console.print(
+                    f"  [dim]Variable: {{{request.variable_name}}} | "
+                    f"Timeout: {request.timeout_seconds}s[/dim]"
+                )
+            else:
+                print(f"\n? {request.node_name}")
+                print(
+                    f"  Variable: {{{request.variable_name}}} | "
+                    f"Timeout: {request.timeout_seconds}s"
+                )
+
+        # Read user input
+        try:
+            if HAS_RICH and Prompt:
+                response = Prompt.ask("[bold]Your input[/bold]")
+            else:
+                response = input("Your input: ")
+
+            return response.strip()
+
+        except (KeyboardInterrupt, EOFError):
+            raise asyncio.CancelledError("User cancelled input")
 
 
 def print_msg(msg: str, style: str | None = None):
@@ -104,6 +188,12 @@ def cli():
     default=False,
     help="Skip workflow validation before execution",
 )
+@click.option(
+    "--interactive/--no-interactive",
+    "-I",
+    default=True,
+    help="Enable/disable interactive user input prompts (default: enabled)",
+)
 def run_command(
     project_path: str,
     tab: str | None,
@@ -114,6 +204,7 @@ def run_command(
     quiet: bool,
     timeout: int,
     no_validate: bool,
+    interactive: bool,
 ):
     """Run an ADKFlow workflow.
 
@@ -167,6 +258,11 @@ def run_command(
                 "yellow",
             )
 
+    # Set up user input provider
+    user_input_provider = None
+    if interactive and not quiet:
+        user_input_provider = CLIUserInputProvider(quiet=quiet)
+
     # Create run config
     config = RunConfig(
         project_path=Path(project_path).resolve(),
@@ -175,6 +271,7 @@ def run_command(
         callbacks=callbacks,
         timeout_seconds=timeout,
         validate=not no_validate,
+        user_input_provider=user_input_provider,
     )
 
     # Run the workflow

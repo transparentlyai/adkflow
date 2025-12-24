@@ -29,6 +29,8 @@ from adkflow_runner.runner import (
     RunEvent,
     RunStatus,
     EventType,
+    UserInputRequest,
+    UserInputProvider,
 )
 from adkflow_runner.callbacks import (
     ConsoleCallbacks,
@@ -61,6 +63,8 @@ __all__ = [
     "RunEvent",
     "RunStatus",
     "EventType",
+    "UserInputRequest",
+    "UserInputProvider",
     # Callbacks
     "ConsoleCallbacks",
     "CompositeCallbacks",

@@ -90,11 +90,31 @@ class WorkflowGraph:
         """Get all agent nodes."""
         return [n for n in self.nodes.values() if n.type == "agent"]
 
+    def get_user_input_nodes(self) -> list[GraphNode]:
+        """Get all userInput nodes."""
+        return [n for n in self.nodes.values() if n.type == "userInput"]
+
+    def get_trigger_user_inputs(self) -> list[GraphNode]:
+        """Get userInput nodes that act as triggers (no incoming sequential edges)."""
+        triggers = []
+        for node in self.get_user_input_nodes():
+            has_incoming_sequential = any(
+                e.semantics == EdgeSemantics.SEQUENTIAL for e in node.incoming
+            )
+            if not has_incoming_sequential:
+                triggers.append(node)
+        return triggers
+
     def get_root_agents(self) -> list[GraphNode]:
         """Get agents that should start execution.
 
-        If a start node exists, returns agents connected to it.
-        Otherwise, returns agents with no incoming sequential edges.
+        Priority order:
+        1. If start nodes exist, return agents connected to them
+        2. If trigger userInput nodes exist, return agents connected to them
+        3. Otherwise, return agents with no incoming sequential edges
+
+        Note: Trigger userInput nodes require user input before their
+        connected agents can start. The runner handles this pause.
         """
         # Check for start node
         start_nodes = [n for n in self.nodes.values() if n.type == "start"]
@@ -106,9 +126,24 @@ class WorkflowGraph:
                     target = self.nodes.get(edge.target_id)
                     if target and target.type == "agent":
                         roots.append(target)
-            return roots
+            if roots:
+                return roots
+
+        # Check for trigger userInput nodes
+        trigger_inputs = self.get_trigger_user_inputs()
+        if trigger_inputs:
+            # Return agents connected to trigger userInput nodes
+            roots = []
+            for trigger_node in trigger_inputs:
+                for edge in trigger_node.outgoing:
+                    target = self.nodes.get(edge.target_id)
+                    if target and target.type == "agent":
+                        roots.append(target)
+            if roots:
+                return roots
 
         # Fallback: agents with no incoming sequential edges
+        # Exclude agents that receive input from userInput nodes
         roots = []
         for node in self.get_agent_nodes():
             has_incoming_sequential = any(

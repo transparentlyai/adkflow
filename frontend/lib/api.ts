@@ -25,6 +25,8 @@ import type {
   RunResponse,
   RunStatusResponse,
   ValidateResponse,
+  UserInputSubmission,
+  UserInputResponse,
 } from "@/lib/types";
 
 // Base URL for the API
@@ -549,6 +551,27 @@ export async function validateWorkflow(projectPath: string): Promise<ValidateRes
 export function createRunEventSource(runId: string): EventSource {
   const url = `${API_BASE_URL}/api/execution/run/${runId}/events`;
   return new EventSource(url);
+}
+
+/**
+ * Submit user input for a waiting UserInput node
+ */
+export async function submitUserInput(
+  runId: string,
+  submission: UserInputSubmission
+): Promise<UserInputResponse> {
+  try {
+    const response = await apiClient.post<UserInputResponse>(
+      `/api/execution/run/${runId}/input`,
+      submission
+    );
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.detail || "Failed to submit user input");
+    }
+    throw error;
+  }
 }
 
 export default apiClient;

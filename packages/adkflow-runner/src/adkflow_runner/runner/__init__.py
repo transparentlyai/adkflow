@@ -13,6 +13,8 @@ from adkflow_runner.runner.workflow_runner import (
     RunEvent,
     RunStatus,
     EventType,
+    UserInputRequest,
+    UserInputProvider,
 )
 from adkflow_runner.runner.agent_factory import AgentFactory
 from adkflow_runner.runner.tool_loader import ToolLoader
@@ -24,6 +26,8 @@ __all__ = [
     "RunEvent",
     "RunStatus",
     "EventType",
+    "UserInputRequest",
+    "UserInputProvider",
     "AgentFactory",
     "ToolLoader",
 ]

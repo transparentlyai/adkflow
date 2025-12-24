@@ -46,6 +46,11 @@ class EventType(Enum):
     ERROR = "run_error"
     RUN_COMPLETE = "run_complete"
 
+    # User input events
+    USER_INPUT_REQUIRED = "user_input_required"
+    USER_INPUT_RECEIVED = "user_input_received"
+    USER_INPUT_TIMEOUT = "user_input_timeout"
+
 
 @dataclass
 class RunEvent:
@@ -93,6 +98,57 @@ class RunResult:
         }
 
 
+@dataclass
+class UserInputRequest:
+    """Request for user input during workflow execution."""
+
+    request_id: str
+    node_id: str
+    node_name: str
+    variable_name: str
+    previous_output: str | None  # Output from previous agent (None if trigger mode)
+    is_trigger: bool  # True if no input connection
+    timeout_seconds: float
+    timeout_behavior: str  # "pass_through" | "predefined_text" | "error"
+    predefined_text: str
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for event data."""
+        return {
+            "request_id": self.request_id,
+            "node_id": self.node_id,
+            "node_name": self.node_name,
+            "variable_name": self.variable_name,
+            "previous_output": self.previous_output,
+            "is_trigger": self.is_trigger,
+            "timeout_seconds": self.timeout_seconds,
+            "timeout_behavior": self.timeout_behavior,
+            "predefined_text": self.predefined_text,
+        }
+
+
+class UserInputProvider(Protocol):
+    """Protocol for providing user input during workflow execution.
+
+    Implementations handle the actual user interaction (CLI prompts, UI dialogs, etc.)
+    """
+
+    async def request_input(self, request: UserInputRequest) -> str | None:
+        """Request user input.
+
+        Args:
+            request: The input request context
+
+        Returns:
+            User input string, or None if skipped/cancelled
+
+        Raises:
+            TimeoutError: If timeout_behavior is "error" and timeout occurs
+            asyncio.CancelledError: If the request was cancelled
+        """
+        ...
+
+
 class RunnerCallbacks(Protocol):
     """Protocol for execution callbacks."""
 
@@ -118,6 +174,7 @@ class RunConfig:
     callbacks: RunnerCallbacks | None = None
     timeout_seconds: float = 300  # 5 minutes default
     validate: bool = True
+    user_input_provider: UserInputProvider | None = None
 
 
 class WorkflowRunner:
@@ -305,6 +362,21 @@ Original error: {error_msg}"""
         emit: Any,
     ) -> str:
         """Execute the compiled workflow."""
+        # Track accumulated outputs for variable substitution
+        accumulated_outputs: dict[str, str] = {}
+
+        # Handle trigger user inputs (those without incoming connections)
+        trigger_inputs = [ui for ui in ir.user_inputs if ui.is_trigger]
+        for user_input in trigger_inputs:
+            user_response = await self._handle_user_input(
+                user_input=user_input,
+                previous_output=None,
+                config=config,
+                emit=emit,
+            )
+            if user_response is not None:
+                accumulated_outputs[user_input.variable_name] = user_response
+
         factory = AgentFactory(config.project_path)
         root_agent = factory.create_from_workflow(ir, emit=emit)
 
@@ -320,9 +392,17 @@ Original error: {error_msg}"""
             session_service=session_service,
         )
 
+        # Build prompt from input_data and any trigger user input responses
         prompt = config.input_data.get("prompt", "")
         if not prompt:
             prompt = "Execute the workflow."
+
+        # If we have trigger input responses, prepend them to the prompt
+        if trigger_inputs and accumulated_outputs:
+            trigger_context = "\n".join(
+                f"{name}: {value}" for name, value in accumulated_outputs.items()
+            )
+            prompt = f"{trigger_context}\n\n{prompt}"
 
         content = types.Content(
             role="user",
@@ -353,9 +433,135 @@ Original error: {error_msg}"""
             raise RuntimeError(friendly_error) from e
 
         output = "\n".join(output_parts)
+
+        # Handle pause user inputs (those with incoming connections)
+        # These are processed after the first segment of agents completes
+        pause_inputs = [ui for ui in ir.user_inputs if not ui.is_trigger]
+        if pause_inputs:
+            # Store the current output for use in pause inputs
+            accumulated_outputs["__last_output__"] = output
+
+            for user_input in pause_inputs:
+                user_response = await self._handle_user_input(
+                    user_input=user_input,
+                    previous_output=output,
+                    config=config,
+                    emit=emit,
+                )
+                if user_response is not None:
+                    accumulated_outputs[user_input.variable_name] = user_response
+                    # The user response becomes the new output for downstream processing
+                    output = user_response
+
         await self._write_output_files(ir, output, config.project_path, emit)
 
         return output
+
+    async def _handle_user_input(
+        self,
+        user_input: Any,  # UserInputIR
+        previous_output: str | None,
+        config: RunConfig,
+        emit: Any,
+    ) -> str | None:
+        """Handle a user input pause point.
+
+        Emits USER_INPUT_REQUIRED event, waits for response (or timeout),
+        and returns the user's input.
+
+        Args:
+            user_input: The UserInputIR to handle
+            previous_output: Output from previous agent (None for triggers)
+            config: Run configuration
+            emit: Event emitter function
+
+        Returns:
+            User's input string, or None if skipped/cancelled
+        """
+        request_id = str(uuid.uuid4())[:8]
+
+        # Create request
+        request = UserInputRequest(
+            request_id=request_id,
+            node_id=user_input.id,
+            node_name=user_input.name,
+            variable_name=user_input.variable_name,
+            previous_output=previous_output,
+            is_trigger=user_input.is_trigger,
+            timeout_seconds=user_input.timeout_seconds,
+            timeout_behavior=user_input.timeout_behavior,
+            predefined_text=user_input.predefined_text,
+        )
+
+        # Emit USER_INPUT_REQUIRED event
+        await emit(
+            RunEvent(
+                type=EventType.USER_INPUT_REQUIRED,
+                timestamp=time.time(),
+                data=request.to_dict(),
+            )
+        )
+
+        # If we have a user input provider, use it
+        if config.user_input_provider:
+            try:
+                response = await config.user_input_provider.request_input(request)
+
+                # Emit received event
+                await emit(
+                    RunEvent(
+                        type=EventType.USER_INPUT_RECEIVED,
+                        timestamp=time.time(),
+                        data={
+                            "request_id": request_id,
+                            "node_id": user_input.id,
+                            "node_name": user_input.name,
+                        },
+                    )
+                )
+
+                return response
+
+            except TimeoutError:
+                # Emit timeout event
+                await emit(
+                    RunEvent(
+                        type=EventType.USER_INPUT_TIMEOUT,
+                        timestamp=time.time(),
+                        data={
+                            "request_id": request_id,
+                            "node_id": user_input.id,
+                            "behavior": user_input.timeout_behavior,
+                        },
+                    )
+                )
+
+                # Handle timeout based on configured behavior
+                if user_input.timeout_behavior == "pass_through":
+                    return previous_output
+                elif user_input.timeout_behavior == "predefined_text":
+                    return user_input.predefined_text
+                else:  # "error"
+                    raise RuntimeError(f"User input timeout for '{user_input.name}'")
+
+            except asyncio.CancelledError:
+                raise
+
+        else:
+            # No user input provider configured
+            # Use timeout behavior immediately
+            if user_input.timeout_behavior == "pass_through":
+                return previous_output
+            elif user_input.timeout_behavior == "predefined_text":
+                return user_input.predefined_text
+            else:
+                # For trigger inputs without a provider, we can't proceed
+                if user_input.is_trigger:
+                    raise RuntimeError(
+                        f"No user input provider configured and trigger "
+                        f"'{user_input.name}' requires input"
+                    )
+                return previous_output
 
     async def _write_output_files(
         self,
@@ -504,6 +710,7 @@ Original error: {error_msg}"""
             callbacks=QueueCallbacks(),
             timeout_seconds=config.timeout_seconds,
             validate=config.validate,
+            user_input_provider=config.user_input_provider,
         )
 
         # Start run in background

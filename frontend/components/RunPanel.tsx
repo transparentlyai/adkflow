@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { X, Play, Square, CheckCircle, AlertCircle, Loader2, GripHorizontal } from "lucide-react";
+import { X, Play, Square, CheckCircle, AlertCircle, Loader2, GripHorizontal, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { RunEvent, RunStatus, EventType, NodeExecutionState } from "@/lib/types";
-import { createRunEventSource, cancelRun, getRunStatus } from "@/lib/api";
+import type { RunEvent, RunStatus, EventType, NodeExecutionState, UserInputRequest } from "@/lib/types";
+import { createRunEventSource, cancelRun, getRunStatus, submitUserInput } from "@/lib/api";
 
 const MIN_HEIGHT = 120;
 const MAX_HEIGHT = 600;
@@ -47,8 +47,12 @@ export default function RunPanel({
   const status = lastRunStatus;
   const [height, setHeight] = useState(DEFAULT_HEIGHT);
   const [isResizing, setIsResizing] = useState(false);
+  const [pendingInput, setPendingInput] = useState<UserInputRequest | null>(null);
+  const [userInputValue, setUserInputValue] = useState("");
+  const [isSubmittingInput, setIsSubmittingInput] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -169,6 +173,12 @@ export default function RunPanel({
           return "Thinking...";
         case "run_error":
           return `Error: ${event.data.error || "Unknown error"}`;
+        case "user_input_required":
+          return `⏳ Waiting for input: ${event.data.node_name}`;
+        case "user_input_received":
+          return `✓ Input received: ${event.data.node_name}`;
+        case "user_input_timeout":
+          return `⏱ Input timeout: ${event.data.node_name}`;
         default:
           return JSON.stringify(event.data);
       }
@@ -196,12 +206,35 @@ export default function RunPanel({
         onAgentStateChange?.(event.agent_name, "error");
       }
 
+      // Handle user input required event
+      if (event.type === "user_input_required") {
+        const inputRequest: UserInputRequest = {
+          request_id: event.data.request_id as string,
+          node_id: event.data.node_id as string,
+          node_name: event.data.node_name as string,
+          variable_name: event.data.variable_name as string,
+          is_trigger: event.data.is_trigger as boolean,
+          previous_output: event.data.previous_output as string | null,
+          source_node_name: null,
+          timeout_seconds: event.data.timeout_seconds as number,
+        };
+        setPendingInput(inputRequest);
+        setUserInputValue("");
+        // Focus the input after a short delay
+        setTimeout(() => inputRef.current?.focus(), 100);
+      } else if (event.type === "user_input_received" || event.type === "user_input_timeout") {
+        setPendingInput(null);
+        setUserInputValue("");
+      }
+
       if (event.type === "run_complete") {
         onStatusChange("completed");
         onClearExecutionState?.();
+        setPendingInput(null);
       } else if (event.type === "run_error") {
         onStatusChange("failed");
         onClearExecutionState?.(); // Clear agent highlights on error too
+        setPendingInput(null);
       }
     };
 
@@ -228,6 +261,9 @@ export default function RunPanel({
       "tool_result",
       "thinking",
       "run_error",
+      "user_input_required",
+      "user_input_received",
+      "user_input_timeout",
     ];
 
     eventTypes.forEach((eventType) => {
@@ -321,6 +357,7 @@ export default function RunPanel({
       try {
         await cancelRun(runId);
         onStatusChange("cancelled");
+        setPendingInput(null);
         onEventsChange([
           ...eventsRef.current,
           {
@@ -333,6 +370,39 @@ export default function RunPanel({
       } catch (err) {
         console.error("Failed to cancel:", err);
       }
+    }
+  };
+
+  const handleSubmitUserInput = async () => {
+    if (!runId || !pendingInput || !userInputValue.trim() || isSubmittingInput) return;
+
+    setIsSubmittingInput(true);
+    try {
+      await submitUserInput(runId, {
+        request_id: pendingInput.request_id,
+        user_input: userInputValue.trim(),
+      });
+      // The pendingInput will be cleared when we receive the user_input_received event
+    } catch (err) {
+      console.error("Failed to submit user input:", err);
+      onEventsChange([
+        ...eventsRef.current,
+        {
+          id: `input-error-${Date.now()}`,
+          type: "run_error",
+          content: `Failed to submit input: ${err instanceof Error ? err.message : "Unknown error"}`,
+          timestamp: Date.now(),
+        },
+      ]);
+    } finally {
+      setIsSubmittingInput(false);
+    }
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      handleSubmitUserInput();
     }
   };
 
@@ -370,6 +440,12 @@ export default function RunPanel({
       case "run_start":
       case "run_complete":
         return "text-cyan-400";
+      case "user_input_required":
+        return "text-amber-400";
+      case "user_input_received":
+        return "text-green-400";
+      case "user_input_timeout":
+        return "text-orange-400";
       case "info":
         return "text-gray-400";
       default:
@@ -439,6 +515,59 @@ export default function RunPanel({
           ))}
         </div>
       </ScrollArea>
+
+      {/* User input panel */}
+      {pendingInput && (
+        <div className="border-t border-amber-600/50 bg-gray-800 p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="text-xs font-medium text-amber-400">
+              {pendingInput.node_name}
+            </span>
+            <span className="text-xs text-gray-500">
+              Variable: {`{${pendingInput.variable_name}}`}
+            </span>
+          </div>
+
+          {pendingInput.previous_output && (
+            <div className="mb-2 p-2 rounded bg-gray-700/50 text-xs text-gray-300 max-h-20 overflow-auto">
+              <div className="text-gray-500 mb-1">Previous output:</div>
+              <pre className="whitespace-pre-wrap font-mono">
+                {pendingInput.previous_output.length > 500
+                  ? pendingInput.previous_output.slice(0, 500) + "..."
+                  : pendingInput.previous_output}
+              </pre>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <textarea
+              ref={inputRef}
+              value={userInputValue}
+              onChange={(e) => setUserInputValue(e.target.value)}
+              onKeyDown={handleInputKeyDown}
+              placeholder="Enter your response..."
+              className="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-amber-500 resize-none"
+              rows={2}
+              disabled={isSubmittingInput}
+            />
+            <Button
+              onClick={handleSubmitUserInput}
+              disabled={!userInputValue.trim() || isSubmittingInput}
+              className="bg-amber-600 hover:bg-amber-500 text-white px-4 self-end"
+            >
+              {isSubmittingInput ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+          <div className="text-xs text-gray-500 mt-1">
+            Press Ctrl+Enter to submit
+          </div>
+        </div>
+      )}
     </div>
   );
 }

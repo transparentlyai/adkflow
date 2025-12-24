@@ -132,6 +132,24 @@ DEFAULT_EDGE_RULES: list[EdgeRule] = [
         semantics=EdgeSemantics.SEQUENTIAL,
         priority=10,
     ),
+    # Agent → UserInput: pause point (sequential)
+    EdgeRule(
+        source_type="agent",
+        target_type="userInput",
+        source_handle="output",
+        target_handle="input",
+        semantics=EdgeSemantics.SEQUENTIAL,
+        priority=10,
+    ),
+    # UserInput → Agent: resume flow (sequential)
+    EdgeRule(
+        source_type="userInput",
+        target_type="agent",
+        source_handle="output",
+        target_handle="input",
+        semantics=EdgeSemantics.SEQUENTIAL,
+        priority=10,
+    ),
 ]
 
 

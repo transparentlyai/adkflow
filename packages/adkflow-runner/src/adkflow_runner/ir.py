@@ -162,6 +162,39 @@ class TeleporterIR:
 
 
 @dataclass
+class UserInputIR:
+    """Intermediate representation for a user input pause point.
+
+    When the runner encounters this during execution, it pauses and
+    requests user input before continuing. Can operate in two modes:
+
+    - Trigger mode (is_trigger=True): No incoming agents, acts like a Start node
+    - Pause mode (is_trigger=False): Receives output from previous agents
+    """
+
+    id: str
+    name: str
+    variable_name: (
+        str  # Sanitized name for variable substitution (e.g., "review_step_input")
+    )
+
+    # Mode
+    is_trigger: bool = False  # True if no incoming connection (acts as Start)
+
+    # Timeout configuration
+    timeout_seconds: float = 300.0  # 0 = no timeout
+    timeout_behavior: Literal["pass_through", "predefined_text", "error"] = "error"
+    predefined_text: str = ""  # Text to use when timeout_behavior is "predefined_text"
+
+    # Execution context
+    incoming_agent_ids: list[str] = field(default_factory=list)
+    outgoing_agent_ids: list[str] = field(default_factory=list)
+
+    # Source tracking
+    source_node_id: str | None = None
+
+
+@dataclass
 class WorkflowIR:
     """Complete intermediate representation for a workflow.
 
@@ -177,6 +210,7 @@ class WorkflowIR:
     all_agents: dict[str, AgentIR] = field(default_factory=dict)
     output_files: list[OutputFileIR] = field(default_factory=list)
     teleporters: dict[str, TeleporterIR] = field(default_factory=dict)
+    user_inputs: list[UserInputIR] = field(default_factory=list)
     variables: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
 

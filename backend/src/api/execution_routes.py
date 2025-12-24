@@ -27,6 +27,7 @@ from adkflow_runner import (
     RunEvent,
     RunStatus,
     EventType,
+    UserInputRequest,
 )
 
 router = APIRouter(prefix="/api/execution", tags=["execution"])
@@ -87,7 +88,41 @@ class ValidateResponse(BaseModel):
     teleporter_count: int = 0
 
 
+class UserInputSubmission(BaseModel):
+    """Request to submit user input during a run."""
+
+    request_id: str = Field(
+        ..., description="The request ID from USER_INPUT_REQUIRED event"
+    )
+    user_input: str = Field(..., description="The user's input value")
+
+
+class UserInputSubmissionResponse(BaseModel):
+    """Response after submitting user input."""
+
+    success: bool
+    message: str
+    request_id: str
+
+
 # Run Manager (tracks active runs)
+
+
+@dataclass
+class PendingUserInput:
+    """Tracks a pending user input request."""
+
+    request_id: str
+    node_id: str
+    node_name: str
+    variable_name: str
+    timeout_seconds: float
+    timeout_behavior: str
+    predefined_text: str
+    created_at: float
+    input_event: asyncio.Event
+    input_value: str | None = None
+    timed_out: bool = False
 
 
 @dataclass
@@ -101,6 +136,58 @@ class ActiveRun:
     events: list[RunEvent] = field(default_factory=list)
     subscribers: list[asyncio.Queue] = field(default_factory=list)
     cancelled: bool = False
+    pending_inputs: dict[str, PendingUserInput] = field(default_factory=dict)
+
+
+class AsyncQueueInputProvider:
+    """User input provider that works with the backend API.
+
+    Uses asyncio.Event to coordinate between the runner and API endpoint.
+    When USER_INPUT_REQUIRED event is emitted, this provider waits for
+    the API endpoint to receive user input and trigger the event.
+    """
+
+    def __init__(self, active_run: "ActiveRun"):
+        self.active_run = active_run
+
+    async def request_input(self, request: UserInputRequest) -> str | None:
+        """Request user input and wait for response.
+
+        The USER_INPUT_REQUIRED event is already emitted by the runner.
+        This method creates a pending input record and waits for the
+        API endpoint to provide the user's response.
+        """
+        # Create pending input record
+        pending = PendingUserInput(
+            request_id=request.request_id,
+            node_id=request.node_id,
+            node_name=request.node_name,
+            variable_name=request.variable_name,
+            timeout_seconds=request.timeout_seconds,
+            timeout_behavior=request.timeout_behavior,
+            predefined_text=request.predefined_text,
+            created_at=time.time(),
+            input_event=asyncio.Event(),
+        )
+        self.active_run.pending_inputs[request.request_id] = pending
+
+        try:
+            # Wait for input or timeout
+            timeout = request.timeout_seconds if request.timeout_seconds > 0 else None
+            await asyncio.wait_for(
+                pending.input_event.wait(),
+                timeout=timeout,
+            )
+            return pending.input_value
+
+        except asyncio.TimeoutError:
+            pending.timed_out = True
+            raise TimeoutError(f"User input timeout for '{request.node_name}'")
+
+        finally:
+            # Clean up
+            if request.request_id in self.active_run.pending_inputs:
+                del self.active_run.pending_inputs[request.request_id]
 
 
 class RunManager:
@@ -145,6 +232,7 @@ class RunManager:
 
         active_run = ActiveRun(run_id=run_id, config=config)
         config.callbacks = BroadcastCallbacks(active_run)  # type: ignore
+        config.user_input_provider = AsyncQueueInputProvider(active_run)  # type: ignore
         self.runs[run_id] = active_run
 
         # Start execution in background
@@ -466,3 +554,41 @@ async def list_runs(
             break
 
     return {"runs": runs}
+
+
+@router.post("/run/{run_id}/input", response_model=UserInputSubmissionResponse)
+async def submit_user_input(
+    run_id: str, request: UserInputSubmission
+) -> UserInputSubmissionResponse:
+    """Submit user input for a waiting workflow.
+
+    When a workflow encounters a UserInput node and emits USER_INPUT_REQUIRED,
+    the frontend should collect user input and submit it here.
+    """
+    active_run = run_manager.get_run(run_id)
+    if not active_run:
+        raise HTTPException(status_code=404, detail=f"Run not found: {run_id}")
+
+    pending = active_run.pending_inputs.get(request.request_id)
+    if not pending:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No pending input request: {request.request_id}",
+        )
+
+    if pending.timed_out:
+        raise HTTPException(
+            status_code=410,  # Gone
+            detail="Input request has timed out",
+        )
+
+    # Provide the input and unblock the waiting coroutine
+    # The workflow_runner will emit USER_INPUT_RECEIVED when it processes the response
+    pending.input_value = request.user_input
+    pending.input_event.set()
+
+    return UserInputSubmissionResponse(
+        success=True,
+        message="Input received",
+        request_id=request.request_id,
+    )

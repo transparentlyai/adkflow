@@ -309,7 +309,10 @@ export type EventType =
   | "tool_call"
   | "tool_result"
   | "thinking"
-  | "run_error";
+  | "run_error"
+  | "user_input_required"
+  | "user_input_received"
+  | "user_input_timeout";
 
 export interface RunEvent {
   type: EventType;
@@ -357,3 +360,27 @@ export interface ValidateResponse {
 
 // Node execution state for real-time highlighting during workflow runs
 export type NodeExecutionState = "idle" | "running" | "completed" | "error";
+
+// User Input types for interactive workflow pausing
+export type TimeoutBehavior = "pass_through" | "predefined_text" | "error";
+
+export interface UserInputRequest {
+  request_id: string;
+  node_id: string;
+  node_name: string;
+  variable_name: string;
+  is_trigger: boolean;
+  previous_output: string | null;
+  source_node_name: string | null;
+  timeout_seconds: number;
+}
+
+export interface UserInputSubmission {
+  request_id: string;
+  user_input: string;
+}
+
+export interface UserInputResponse {
+  success: boolean;
+  message: string;
+}

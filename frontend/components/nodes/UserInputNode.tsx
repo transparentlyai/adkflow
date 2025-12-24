@@ -6,12 +6,14 @@ import type { HandlePositions } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import ResizeHandle from "@/components/ResizeHandle";
 import NodeContextMenu from "@/components/NodeContextMenu";
-import { Lock, Send } from "lucide-react";
+import { Lock, Send, Settings, MessageSquare, Copy } from "lucide-react";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 import { useTheme } from "@/contexts/ThemeContext";
 
-const DEFAULT_WIDTH = 350;
-const DEFAULT_HEIGHT = 200;
+const DEFAULT_WIDTH = 380;
+const DEFAULT_HEIGHT = 280;
+
+type TimeoutBehavior = "pass_through" | "predefined_text" | "error";
 
 interface UserInputNodeData {
   name?: string;
@@ -21,6 +23,32 @@ interface UserInputNodeData {
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
   isNodeLocked?: boolean;
+
+  // Configuration (Config tab)
+  timeout?: number; // seconds, 0 = no timeout
+  timeoutBehavior?: TimeoutBehavior;
+  predefinedText?: string;
+
+  // UI state
+  activeTab?: "chat" | "config";
+
+  // Runtime state (populated during execution)
+  runtimeInput?: string;
+  runtimeSourceNode?: string;
+  isWaitingForInput?: boolean;
+}
+
+/**
+ * Derive variable name from node name.
+ * Example: "Review Step" -> "review_step_input"
+ */
+function deriveVariableName(name: string): string {
+  let sanitized = name.toLowerCase().replace(/[\s-]+/g, "_");
+  sanitized = sanitized.replace(/[^a-z0-9_]/g, "");
+  if (sanitized && !/^[a-z_]/.test(sanitized)) {
+    sanitized = "_" + sanitized;
+  }
+  return (sanitized || "user") + "_input";
 }
 
 const UserInputNode = memo(({ data, id, selected }: NodeProps) => {
@@ -32,6 +60,13 @@ const UserInputNode = memo(({ data, id, selected }: NodeProps) => {
     expandedPosition,
     contractedPosition,
     isNodeLocked,
+    timeout = 300,
+    timeoutBehavior = "error",
+    predefinedText = "",
+    activeTab: savedActiveTab = "chat",
+    runtimeInput,
+    runtimeSourceNode,
+    isWaitingForInput,
   } = (data || {}) as UserInputNodeData;
 
   const { setNodes } = useReactFlow();
@@ -56,6 +91,7 @@ const UserInputNode = memo(({ data, id, selected }: NodeProps) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [inputValue, setInputValue] = useState("");
+  const [activeTab, setActiveTab] = useState<"chat" | "config">(savedActiveTab);
 
   const parentId = useStore(
     useCallback((state) => state.nodes.find((n) => n.id === id)?.parentId, [id])
@@ -223,7 +259,60 @@ const UserInputNode = memo(({ data, id, selected }: NodeProps) => {
     }
   };
 
-  const textareaHeight = size.height - 90;
+  // Derive variable name from node name
+  const variableName = deriveVariableName(name);
+
+  // Handler to copy variable to clipboard
+  const handleCopyVariable = useCallback(() => {
+    navigator.clipboard.writeText(`{${variableName}}`);
+  }, [variableName]);
+
+  // Handler to update timeout
+  const handleTimeoutChange = useCallback((newTimeout: number) => {
+    setNodes((nodes) =>
+      nodes.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, timeout: newTimeout } }
+          : node
+      )
+    );
+  }, [id, setNodes]);
+
+  // Handler to update timeout behavior
+  const handleTimeoutBehaviorChange = useCallback((newBehavior: TimeoutBehavior) => {
+    setNodes((nodes) =>
+      nodes.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, timeoutBehavior: newBehavior } }
+          : node
+      )
+    );
+  }, [id, setNodes]);
+
+  // Handler to update predefined text
+  const handlePredefinedTextChange = useCallback((newText: string) => {
+    setNodes((nodes) =>
+      nodes.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, predefinedText: newText } }
+          : node
+      )
+    );
+  }, [id, setNodes]);
+
+  // Handler to change active tab and persist it
+  const handleTabChange = useCallback((tab: "chat" | "config") => {
+    setActiveTab(tab);
+    setNodes((nodes) =>
+      nodes.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, activeTab: tab } }
+          : node
+      )
+    );
+  }, [id, setNodes]);
+
+  const textareaHeight = size.height - 140; // Reduced to account for tab bar
 
   if (!isExpanded) {
     return (
@@ -237,8 +326,28 @@ const UserInputNode = memo(({ data, id, selected }: NodeProps) => {
           ...(selected ? {
             boxShadow: `0 0 0 2px ${theme.colors.nodes.userInput.ring}, 0 10px 15px -3px rgba(0, 0, 0, 0.1)`,
           } : {}),
+          ...(isWaitingForInput ? {
+            animation: 'pulse 2s infinite',
+            boxShadow: `0 0 0 2px ${theme.colors.nodes.userInput.ring}, 0 0 20px rgba(74, 222, 128, 0.5)`,
+          } : {}),
         }}
       >
+        {/* Input Handle */}
+        <DraggableHandle
+          nodeId={id}
+          handleId="input"
+          type="target"
+          defaultEdge="left"
+          defaultPercent={50}
+          handlePositions={handlePositions}
+          style={{
+            width: '8px',
+            height: '8px',
+            backgroundColor: theme.colors.handles.input,
+            border: `2px solid ${theme.colors.handles.border}`,
+          }}
+        />
+
         {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
 
         <input
@@ -296,6 +405,7 @@ const UserInputNode = memo(({ data, id, selected }: NodeProps) => {
           </svg>
         </button>
 
+        {/* Output Handle */}
         <DraggableHandle
           nodeId={id}
           handleId="output"
@@ -339,8 +449,29 @@ const UserInputNode = memo(({ data, id, selected }: NodeProps) => {
         boxShadow: selected
           ? `0 0 0 2px ${theme.colors.nodes.userInput.ring}, 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)`
           : theme.colors.nodes.common.container.shadow,
+        ...(isWaitingForInput ? {
+          animation: 'pulse 2s infinite',
+          boxShadow: `0 0 0 2px ${theme.colors.nodes.userInput.ring}, 0 0 20px rgba(74, 222, 128, 0.5)`,
+        } : {}),
       }}
     >
+      {/* Input Handle */}
+      <DraggableHandle
+        nodeId={id}
+        handleId="input"
+        type="target"
+        defaultEdge="left"
+        defaultPercent={50}
+        handlePositions={handlePositions}
+        style={{
+          width: '10px',
+          height: '10px',
+          backgroundColor: theme.colors.handles.input,
+          border: `2px solid ${theme.colors.handles.border}`,
+        }}
+      />
+
+      {/* Header */}
       <div
         className="px-2 py-1 rounded-t-lg flex items-center justify-between cursor-pointer"
         style={{
@@ -403,28 +534,218 @@ const UserInputNode = memo(({ data, id, selected }: NodeProps) => {
         </button>
       </div>
 
+      {/* Tab Bar */}
       <div
-        className="p-2 nodrag nowheel nopan"
+        className="flex border-b"
+        style={{ borderColor: theme.colors.form.border }}
+      >
+        <button
+          onClick={() => handleTabChange("chat")}
+          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium transition-colors"
+          style={{
+            backgroundColor: activeTab === "chat" ? theme.colors.nodes.common.container.background : 'transparent',
+            color: activeTab === "chat" ? theme.colors.nodes.common.text.primary : theme.colors.nodes.common.text.secondary,
+            borderBottom: activeTab === "chat" ? `2px solid ${theme.colors.nodes.userInput.header}` : '2px solid transparent',
+          }}
+        >
+          <MessageSquare className="w-3 h-3" />
+          Chat
+        </button>
+        <button
+          onClick={() => handleTabChange("config")}
+          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium transition-colors"
+          style={{
+            backgroundColor: activeTab === "config" ? theme.colors.nodes.common.container.background : 'transparent',
+            color: activeTab === "config" ? theme.colors.nodes.common.text.primary : theme.colors.nodes.common.text.secondary,
+            borderBottom: activeTab === "config" ? `2px solid ${theme.colors.nodes.userInput.header}` : '2px solid transparent',
+          }}
+        >
+          <Settings className="w-3 h-3" />
+          Config
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      <div
+        className="nodrag nowheel nopan"
         style={{ height: textareaHeight }}
         onKeyDown={(e) => e.stopPropagation()}
       >
-        <textarea
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={handleTextareaKeyDown}
-          onClick={(e) => e.stopPropagation()}
-          placeholder="Type your message here..."
-          disabled={isNodeLocked}
-          className="w-full h-full px-3 py-2 text-sm rounded-md outline-none resize-none"
-          style={{
-            backgroundColor: theme.colors.form.background,
-            color: theme.colors.form.text,
-            border: `1px solid ${theme.colors.form.border}`,
-            opacity: isNodeLocked ? 0.6 : 1,
-          }}
-        />
+        {activeTab === "chat" ? (
+          <div className="p-2 h-full flex flex-col gap-2">
+            {/* Source Node Info (if has runtime input) */}
+            {runtimeSourceNode && (
+              <div
+                className="text-xs px-2 py-1 rounded"
+                style={{
+                  backgroundColor: theme.colors.form.background,
+                  color: theme.colors.nodes.common.text.secondary,
+                }}
+              >
+                From: <span style={{ color: theme.colors.nodes.common.text.primary }}>{runtimeSourceNode}</span>
+              </div>
+            )}
+
+            {/* Previous Output Viewer */}
+            <div
+              className="flex-1 overflow-auto rounded-md text-xs p-2"
+              style={{
+                backgroundColor: theme.colors.form.background,
+                color: theme.colors.form.text,
+                border: `1px solid ${theme.colors.form.border}`,
+                minHeight: 60,
+              }}
+            >
+              {runtimeInput ? (
+                <pre className="whitespace-pre-wrap break-words font-mono">{runtimeInput}</pre>
+              ) : (
+                <span style={{ color: theme.colors.nodes.common.text.secondary, fontStyle: 'italic' }}>
+                  Ready for input...
+                </span>
+              )}
+            </div>
+
+            {/* Variable Name Display */}
+            <div
+              className="flex items-center justify-between px-2 py-1 rounded text-xs"
+              style={{
+                backgroundColor: theme.colors.form.background,
+                border: `1px solid ${theme.colors.form.border}`,
+              }}
+            >
+              <span style={{ color: theme.colors.nodes.common.text.secondary }}>
+                Variable: <code style={{ color: theme.colors.nodes.common.text.primary }}>{`{${variableName}}`}</code>
+              </span>
+              <button
+                onClick={handleCopyVariable}
+                className="p-1 rounded transition-colors"
+                style={{ backgroundColor: 'transparent' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = theme.colors.form.border;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+                title="Copy variable"
+              >
+                <Copy className="w-3 h-3" style={{ color: theme.colors.nodes.common.text.secondary }} />
+              </button>
+            </div>
+
+            {/* Input Field */}
+            <textarea
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleTextareaKeyDown}
+              onClick={(e) => e.stopPropagation()}
+              placeholder="Type your response..."
+              disabled={isNodeLocked}
+              className="px-3 py-2 text-sm rounded-md outline-none resize-none"
+              style={{
+                backgroundColor: theme.colors.form.background,
+                color: theme.colors.form.text,
+                border: `1px solid ${theme.colors.form.border}`,
+                opacity: isNodeLocked ? 0.6 : 1,
+                minHeight: 40,
+              }}
+              rows={2}
+            />
+          </div>
+        ) : (
+          <div className="p-3 flex flex-col gap-3">
+            {/* Timeout Setting */}
+            <div>
+              <label
+                className="block text-xs font-medium mb-1"
+                style={{ color: theme.colors.nodes.common.text.secondary }}
+              >
+                Timeout (seconds)
+              </label>
+              <input
+                type="number"
+                value={timeout}
+                onChange={(e) => handleTimeoutChange(parseInt(e.target.value) || 0)}
+                min={0}
+                className="w-full px-2 py-1.5 text-sm rounded-md outline-none"
+                style={{
+                  backgroundColor: theme.colors.form.background,
+                  color: theme.colors.form.text,
+                  border: `1px solid ${theme.colors.form.border}`,
+                }}
+                disabled={isNodeLocked}
+              />
+              <span
+                className="text-xs mt-0.5 block"
+                style={{ color: theme.colors.nodes.common.text.secondary }}
+              >
+                0 = no timeout
+              </span>
+            </div>
+
+            {/* Timeout Behavior */}
+            <div>
+              <label
+                className="block text-xs font-medium mb-1.5"
+                style={{ color: theme.colors.nodes.common.text.secondary }}
+              >
+                On Timeout
+              </label>
+              <div className="flex flex-col gap-1.5">
+                {[
+                  { value: "error" as const, label: "Throw error" },
+                  { value: "pass_through" as const, label: "Pass through (use previous input)" },
+                  { value: "predefined_text" as const, label: "Use predefined text" },
+                ].map((option) => (
+                  <label
+                    key={option.value}
+                    className="flex items-center gap-2 text-xs cursor-pointer"
+                    style={{ color: theme.colors.nodes.common.text.primary }}
+                  >
+                    <input
+                      type="radio"
+                      name={`timeout-behavior-${id}`}
+                      value={option.value}
+                      checked={timeoutBehavior === option.value}
+                      onChange={() => handleTimeoutBehaviorChange(option.value)}
+                      disabled={isNodeLocked}
+                      className="cursor-pointer"
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Predefined Text (shown if predefined_text behavior selected) */}
+            {timeoutBehavior === "predefined_text" && (
+              <div>
+                <label
+                  className="block text-xs font-medium mb-1"
+                  style={{ color: theme.colors.nodes.common.text.secondary }}
+                >
+                  Predefined Text
+                </label>
+                <textarea
+                  value={predefinedText}
+                  onChange={(e) => handlePredefinedTextChange(e.target.value)}
+                  placeholder="Default response on timeout..."
+                  disabled={isNodeLocked}
+                  className="w-full px-2 py-1.5 text-sm rounded-md outline-none resize-none"
+                  style={{
+                    backgroundColor: theme.colors.form.background,
+                    color: theme.colors.form.text,
+                    border: `1px solid ${theme.colors.form.border}`,
+                    opacity: isNodeLocked ? 0.6 : 1,
+                  }}
+                  rows={2}
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
+      {/* Footer */}
       <div
         className="px-3 py-2 rounded-b-lg flex items-center justify-between"
         style={{
@@ -469,6 +790,7 @@ const UserInputNode = memo(({ data, id, selected }: NodeProps) => {
 
       <ResizeHandle onResize={handleResize} />
 
+      {/* Output Handle */}
       <DraggableHandle
         nodeId={id}
         handleId="output"
@@ -511,5 +833,9 @@ export function getDefaultUserInputData() {
   return {
     name: "User Input",
     value: "",
+    timeout: 300,
+    timeoutBehavior: "error" as TimeoutBehavior,
+    predefinedText: "",
+    activeTab: "chat" as const,
   };
 }
