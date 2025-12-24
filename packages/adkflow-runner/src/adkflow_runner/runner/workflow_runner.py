@@ -450,8 +450,22 @@ Original error: {error_msg}"""
                 )
                 if user_response is not None:
                     accumulated_outputs[user_input.variable_name] = user_response
-                    # The user response becomes the new output for downstream processing
-                    output = user_response
+
+                    # Execute downstream agents connected to this UserInput
+                    downstream_output = await self._execute_downstream_agents(
+                        user_input=user_input,
+                        user_response=user_response,
+                        ir=ir,
+                        config=config,
+                        emit=emit,
+                        session_service=session_service,
+                        factory=factory,
+                    )
+                    if downstream_output:
+                        output = downstream_output
+                    else:
+                        # The user response becomes the output if no downstream agents
+                        output = user_response
 
         await self._write_output_files(ir, output, config.project_path, emit)
 
@@ -562,6 +576,85 @@ Original error: {error_msg}"""
                         f"'{user_input.name}' requires input"
                     )
                 return previous_output
+
+    async def _execute_downstream_agents(
+        self,
+        user_input: Any,  # UserInputIR
+        user_response: str,
+        ir: WorkflowIR,
+        config: RunConfig,
+        emit: Any,
+        session_service: Any,
+        factory: Any,
+    ) -> str | None:
+        """Execute agents connected downstream of a UserInput node.
+
+        Args:
+            user_input: The UserInputIR with outgoing agent connections
+            user_response: The user's response to use as input
+            ir: Complete workflow IR with all agents
+            config: Run configuration
+            emit: Event emitter function
+            session_service: Session service for runner
+            factory: Agent factory for creating agents
+
+        Returns:
+            Output from downstream agents, or None if no downstream agents
+        """
+        if not user_input.outgoing_agent_ids:
+            return None
+
+        output_parts: list[str] = []
+
+        for agent_id in user_input.outgoing_agent_ids:
+            agent_ir = ir.all_agents.get(agent_id)
+            if not agent_ir:
+                continue
+
+            # Create the downstream agent
+            downstream_agent = factory.create(agent_ir)
+
+            # Create a new runner for this segment
+            downstream_runner = Runner(
+                agent=downstream_agent,
+                app_name="adkflow",
+                session_service=session_service,
+            )
+
+            # Create a new session for this segment
+            session = await session_service.create_session(
+                app_name="adkflow",
+                user_id="runner",
+            )
+
+            # Use user response as the prompt
+            content = types.Content(
+                role="user",
+                parts=[types.Part(text=user_response)],
+            )
+
+            last_author: str | None = None
+
+            try:
+                async for event in downstream_runner.run_async(
+                    user_id="runner",
+                    session_id=session.id,
+                    new_message=content,
+                ):
+                    last_author = await self._process_adk_event(event, emit, last_author)
+
+                    if hasattr(event, "content") and event.content:
+                        parts = event.content.parts
+                        if parts:
+                            for part in parts:
+                                if hasattr(part, "text") and part.text:
+                                    output_parts.append(part.text)
+            except Exception as e:
+                error_msg = str(e)
+                friendly_error = self._format_error(error_msg, config.project_path)
+                raise RuntimeError(friendly_error) from e
+
+        return "\n".join(output_parts) if output_parts else None
 
     async def _write_output_files(
         self,
