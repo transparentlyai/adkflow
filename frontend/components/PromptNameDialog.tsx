@@ -20,7 +20,7 @@ interface PromptNameDialogProps {
   onSubmit: (promptName: string) => void;
   onSelectExisting?: (filePath: string) => void;
   onCancel: () => void;
-  type?: "prompt" | "context" | "tool" | "process";
+  type?: "prompt" | "context" | "tool" | "process" | "outputFile";
   projectPath?: string;
 }
 
@@ -90,6 +90,19 @@ export default function PromptNameDialog({
       filterExtensions: [".py"],
       filterLabel: "Python files",
     },
+    outputFile: {
+      title: "Create New Output File",
+      description: "Enter a name for the output file or select an existing one",
+      inputLabel: "Output File Name",
+      placeholder: "e.g., results, report, analysis",
+      fileExtension: ".txt",
+      directory: "outputs/",
+      button: "Create Output File",
+      selectButton: "Select Output File",
+      errorMessage: "Please enter an output file name",
+      filterExtensions: [],
+      filterLabel: "All files",
+    },
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -136,6 +149,8 @@ export default function PromptNameDialog({
     ? "prompt-name"
     : type === "context"
     ? "context-name"
+    : type === "outputFile"
+    ? "output"
     : "tool_name";
 
   const canSelectExisting = !!onSelectExisting && !!projectPath;

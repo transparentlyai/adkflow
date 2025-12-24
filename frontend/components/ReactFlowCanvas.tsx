@@ -103,6 +103,7 @@ interface ReactFlowCanvasProps {
   onRequestContextCreation?: (position: { x: number; y: number }) => void;
   onRequestToolCreation?: (position: { x: number; y: number }) => void;
   onRequestProcessCreation?: (position: { x: number; y: number }) => void;
+  onRequestOutputFileCreation?: (position: { x: number; y: number }) => void;
   isLocked?: boolean;
   onToggleLock?: () => void;
   activeTabId?: string;
@@ -116,7 +117,7 @@ export interface ReactFlowCanvasRef {
   addInputProbeNode: (position?: { x: number; y: number }) => void;
   addOutputProbeNode: (position?: { x: number; y: number }) => void;
   addLogProbeNode: (position?: { x: number; y: number }) => void;
-  addOutputFileNode: (position?: { x: number; y: number }) => void;
+  addOutputFileNode: (outputFileData?: { name: string; file_path: string }, position?: { x: number; y: number }) => void;
   addToolNode: (toolData?: { name: string; file_path: string }, position?: { x: number; y: number }) => void;
   addAgentToolNode: (position?: { x: number; y: number }) => void;
   addVariableNode: (position?: { x: number; y: number }) => void;
@@ -147,7 +148,7 @@ export interface ReactFlowCanvasRef {
  * Replaces the Drawflow-based canvas with native React Flow implementation.
  */
 const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
-  ({ onWorkflowChange, onRequestPromptCreation, onRequestContextCreation, onRequestToolCreation, onRequestProcessCreation, isLocked, onToggleLock, activeTabId }, ref) => {
+  ({ onWorkflowChange, onRequestPromptCreation, onRequestContextCreation, onRequestToolCreation, onRequestProcessCreation, onRequestOutputFileCreation, isLocked, onToggleLock, activeTabId }, ref) => {
     const [nodes, setNodes] = useState<Node[]>([]);
     const [edges, setEdges] = useState<Edge[]>([]);
     const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
@@ -929,14 +930,16 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     /**
      * Add an OutputFile node to the canvas
      */
-    const addOutputFileNode = useCallback((position?: { x: number; y: number }) => {
+    const addOutputFileNode = useCallback((outputFileData?: { name: string; file_path: string }, position?: { x: number; y: number }) => {
       const outputFileId = generateNodeId("outputFile");
 
       const newNode: Node = {
         id: outputFileId,
         type: "outputFile",
         position: position || outputFilePosition,
-        data: getDefaultOutputFileData(),
+        data: outputFileData
+          ? { ...getDefaultOutputFileData(), name: outputFileData.name, file_path: outputFileData.file_path }
+          : getDefaultOutputFileData(),
       };
 
       setNodes((nds) => [...nds, newNode]);
@@ -1243,7 +1246,9 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           addNodeWithParent(addLogProbeNode, position, parentGroupId);
           break;
         case 'outputFile':
-          addNodeWithParent(addOutputFileNode, position, parentGroupId);
+          if (onRequestOutputFileCreation) {
+            onRequestOutputFileCreation(position);
+          }
           break;
         case 'tool':
           if (onRequestToolCreation) {
@@ -1290,7 +1295,6 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       addInputProbeNode,
       addOutputProbeNode,
       addLogProbeNode,
-      addOutputFileNode,
       addAgentToolNode,
       addLabelNode,
       addUserInputNode,
@@ -1300,6 +1304,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       onRequestContextCreation,
       onRequestToolCreation,
       onRequestProcessCreation,
+      onRequestOutputFileCreation,
     ]);
 
     // Close context menu

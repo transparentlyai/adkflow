@@ -88,7 +88,14 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
           setSavedContent(response.content);
           setIsContentLoaded(true);
         } catch (error) {
-          console.error("Failed to load prompt content:", error);
+          // File not found is expected for new nodes - treat as empty content
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          if (errorMessage.includes("not found")) {
+            setSavedContent("");
+            setIsContentLoaded(true);
+          } else {
+            console.error("Failed to load prompt content:", error);
+          }
         }
       }
     };

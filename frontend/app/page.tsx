@@ -11,7 +11,7 @@ import PromptNameDialog from "@/components/PromptNameDialog";
 import ValidationResultDialog from "@/components/ValidationResultDialog";
 import HomeScreen from "@/components/HomeScreen";
 import ProjectSwitcher from "@/components/ProjectSwitcher";
-import { createPrompt, createContext, createTool, savePrompt, readPrompt, startRun, validateWorkflow } from "@/lib/api";
+import { savePrompt, readPrompt, startRun, validateWorkflow } from "@/lib/api";
 import RunPanel, { type DisplayEvent } from "@/components/RunPanel";
 import type { RunStatus, NodeExecutionState } from "@/lib/types";
 import FilePicker from "@/components/FilePicker";
@@ -90,6 +90,10 @@ function HomeContent() {
   // Process name dialog state
   const [isProcessNameDialogOpen, setIsProcessNameDialogOpen] = useState(false);
   const [pendingProcessPosition, setPendingProcessPosition] = useState<{ x: number; y: number } | undefined>(undefined);
+
+  // Output file name dialog state
+  const [isOutputFileNameDialogOpen, setIsOutputFileNameDialogOpen] = useState(false);
+  const [pendingOutputFilePosition, setPendingOutputFilePosition] = useState<{ x: number; y: number } | undefined>(undefined);
 
   // Clear canvas dialog state
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
@@ -350,31 +354,22 @@ function HomeContent() {
     setIsPromptNameDialogOpen(true);
   }, []);
 
-  const handleCreatePrompt = async (promptName: string) => {
-    if (!currentProjectPath) {
-      alert("No project loaded");
-      return;
+  const handleCreatePrompt = (promptName: string) => {
+    // Compute file path locally - file will be created when content is saved
+    const sanitizedName = promptName.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
+    const filePath = `prompts/${sanitizedName}.prompt.md`;
+
+    if (canvasRef.current) {
+      canvasRef.current.addPromptNode({
+        name: promptName,
+        file_path: filePath,
+      }, pendingPromptPosition);
     }
 
-    try {
-      const response = await createPrompt(currentProjectPath, promptName);
-
-      if (canvasRef.current) {
-        canvasRef.current.addPromptNode({
-          name: promptName,
-          file_path: response.file_path,
-        }, pendingPromptPosition);
-      }
-
-      setIsPromptNameDialogOpen(false);
-      setPendingPromptPosition(undefined);
-      if (activeTabId) {
-        markTabDirty(activeTabId);
-      }
-
-    } catch (error) {
-      console.error("Failed to create prompt:", error);
-      alert("Failed to create prompt: " + (error as Error).message);
+    setIsPromptNameDialogOpen(false);
+    setPendingPromptPosition(undefined);
+    if (activeTabId) {
+      markTabDirty(activeTabId);
     }
   };
 
@@ -407,33 +402,22 @@ function HomeContent() {
     setIsContextNameDialogOpen(true);
   }, []);
 
-  const handleCreateContext = async (contextName: string) => {
-    if (!currentProjectPath) {
-      alert("No project loaded");
-      return;
+  const handleCreateContext = (contextName: string) => {
+    // Compute file path locally - file will be created when content is saved
+    const sanitizedName = contextName.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
+    const filePath = `static/${sanitizedName}.context.md`;
+
+    if (canvasRef.current) {
+      canvasRef.current.addContextNode({
+        name: contextName,
+        file_path: filePath,
+      }, pendingContextPosition);
     }
 
-    try {
-      // Call backend to create the context file
-      const response = await createContext(currentProjectPath, contextName);
-
-      // Add context node to canvas with the file path and name
-      if (canvasRef.current) {
-        canvasRef.current.addContextNode({
-          name: contextName,
-          file_path: response.file_path,
-        }, pendingContextPosition);
-      }
-
-      setIsContextNameDialogOpen(false);
-      setPendingContextPosition(undefined);
-      if (activeTabId) {
-        markTabDirty(activeTabId);
-      }
-
-    } catch (error) {
-      console.error("Failed to create context:", error);
-      alert("Failed to create context: " + (error as Error).message);
+    setIsContextNameDialogOpen(false);
+    setPendingContextPosition(undefined);
+    if (activeTabId) {
+      markTabDirty(activeTabId);
     }
   };
 
@@ -465,31 +449,22 @@ function HomeContent() {
     setIsToolNameDialogOpen(true);
   }, []);
 
-  const handleCreateTool = async (toolName: string) => {
-    if (!currentProjectPath) {
-      alert("No project loaded");
-      return;
+  const handleCreateTool = (toolName: string) => {
+    // Compute file path locally - file will be created when content is saved
+    const sanitizedName = toolName.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "_");
+    const filePath = `tools/${sanitizedName}.py`;
+
+    if (canvasRef.current) {
+      canvasRef.current.addToolNode({
+        name: toolName,
+        file_path: filePath,
+      }, pendingToolPosition);
     }
 
-    try {
-      const response = await createTool(currentProjectPath, toolName);
-
-      if (canvasRef.current) {
-        canvasRef.current.addToolNode({
-          name: toolName,
-          file_path: response.file_path,
-        }, pendingToolPosition);
-      }
-
-      setIsToolNameDialogOpen(false);
-      setPendingToolPosition(undefined);
-      if (activeTabId) {
-        markTabDirty(activeTabId);
-      }
-
-    } catch (error) {
-      console.error("Failed to create tool:", error);
-      alert("Failed to create tool: " + (error as Error).message);
+    setIsToolNameDialogOpen(false);
+    setPendingToolPosition(undefined);
+    if (activeTabId) {
+      markTabDirty(activeTabId);
     }
   };
 
@@ -521,31 +496,22 @@ function HomeContent() {
     setIsProcessNameDialogOpen(true);
   }, []);
 
-  const handleCreateProcess = async (processName: string) => {
-    if (!currentProjectPath) {
-      alert("No project loaded");
-      return;
+  const handleCreateProcess = (processName: string) => {
+    // Compute file path locally - file will be created when content is saved
+    const sanitizedName = processName.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "_");
+    const filePath = `tools/${sanitizedName}.py`;
+
+    if (canvasRef.current) {
+      canvasRef.current.addProcessNode({
+        name: processName,
+        file_path: filePath,
+      }, pendingProcessPosition);
     }
 
-    try {
-      const response = await createTool(currentProjectPath, processName);
-
-      if (canvasRef.current) {
-        canvasRef.current.addProcessNode({
-          name: processName,
-          file_path: response.file_path,
-        }, pendingProcessPosition);
-      }
-
-      setIsProcessNameDialogOpen(false);
-      setPendingProcessPosition(undefined);
-      if (activeTabId) {
-        markTabDirty(activeTabId);
-      }
-
-    } catch (error) {
-      console.error("Failed to create process:", error);
-      alert("Failed to create process: " + (error as Error).message);
+    setIsProcessNameDialogOpen(false);
+    setPendingProcessPosition(undefined);
+    if (activeTabId) {
+      markTabDirty(activeTabId);
     }
   };
 
@@ -567,6 +533,54 @@ function HomeContent() {
 
     setIsProcessNameDialogOpen(false);
     setPendingProcessPosition(undefined);
+    if (activeTabId) {
+      markTabDirty(activeTabId);
+    }
+  };
+
+  const handleRequestOutputFileCreation = useCallback((position: { x: number; y: number }) => {
+    setPendingOutputFilePosition(position);
+    setIsOutputFileNameDialogOpen(true);
+  }, []);
+
+  const handleCreateOutputFile = (outputFileName: string) => {
+    // Sanitize the name for file path
+    const sanitizedName = outputFileName.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
+    const filePath = `outputs/${sanitizedName}.txt`;
+
+    if (canvasRef.current) {
+      canvasRef.current.addOutputFileNode({
+        name: outputFileName,
+        file_path: filePath,
+      }, pendingOutputFilePosition);
+    }
+
+    setIsOutputFileNameDialogOpen(false);
+    setPendingOutputFilePosition(undefined);
+    if (activeTabId) {
+      markTabDirty(activeTabId);
+    }
+  };
+
+  const handleCancelOutputFileCreation = () => {
+    setIsOutputFileNameDialogOpen(false);
+    setPendingOutputFilePosition(undefined);
+  };
+
+  const handleSelectExistingOutputFile = (filePath: string) => {
+    const fileName = filePath.split("/").pop() || filePath;
+    // Remove extension for display name
+    const name = fileName.replace(/\.[^/.]+$/, "");
+
+    if (canvasRef.current) {
+      canvasRef.current.addOutputFileNode({
+        name: name,
+        file_path: filePath,
+      }, pendingOutputFilePosition);
+    }
+
+    setIsOutputFileNameDialogOpen(false);
+    setPendingOutputFilePosition(undefined);
     if (activeTabId) {
       markTabDirty(activeTabId);
     }
@@ -983,6 +997,7 @@ function HomeContent() {
                   onRequestContextCreation={handleRequestContextCreation}
                   onRequestToolCreation={handleRequestToolCreation}
                   onRequestProcessCreation={handleRequestProcessCreation}
+                  onRequestOutputFileCreation={handleRequestOutputFileCreation}
                   isLocked={isCanvasLocked}
                   onToggleLock={() => setIsCanvasLocked(!isCanvasLocked)}
                   activeTabId={activeTabId ?? undefined}
@@ -1057,6 +1072,16 @@ function HomeContent() {
         onSelectExisting={handleSelectExistingProcess}
         onCancel={handleCancelProcessCreation}
         type="process"
+        projectPath={currentProjectPath || undefined}
+      />
+
+      {/* Output File Name Dialog */}
+      <PromptNameDialog
+        isOpen={isOutputFileNameDialogOpen}
+        onSubmit={handleCreateOutputFile}
+        onSelectExisting={handleSelectExistingOutputFile}
+        onCancel={handleCancelOutputFileCreation}
+        type="outputFile"
         projectPath={currentProjectPath || undefined}
       />
 

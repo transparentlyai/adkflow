@@ -355,25 +355,73 @@ const OutputFileNode = memo(({ data, id, selected }: NodeProps) => {
   const editorHeight = size.height - 70;
   const language = getMonacoLanguage(file_path || "");
 
-  // Collapsed state
+  // Collapsed state - header bar style matching Prompt/Context nodes
   if (!isExpanded) {
     return (
       <div
-        onDoubleClick={toggleExpand}
-        onContextMenu={handleHeaderContextMenu}
+        className="rounded-lg shadow-lg relative"
+        style={{
+          width: 'auto',
+          backgroundColor: theme.colors.nodes.common.container.background,
+          ...(selected && { boxShadow: `0 0 0 2px ${theme.colors.nodes.outputFile.ring}` }),
+        }}
         title={`${file_path}\n\n${contentSnippet}${contentSnippet.length >= 100 ? "..." : ""}`}
-        className={`relative cursor-pointer transition-all pl-2 ${
-          selected ? "drop-shadow-lg" : "drop-shadow-md"
-        }`}
       >
-        <div className="flex items-center">
-          {isNodeLocked && <Lock className="w-3 h-3 absolute -top-1 -right-1" style={{ color: theme.colors.nodes.common.text.secondary }} />}
-          <FileInput
-            className="w-6 h-6"
-            style={{
-              color: selected ? theme.colors.nodes.common.text.muted : theme.colors.nodes.common.text.secondary
+        {/* Header */}
+        <div
+          className="px-2 py-1 rounded-lg flex items-center justify-between cursor-pointer"
+          style={{
+            backgroundColor: theme.colors.nodes.outputFile.header,
+            color: theme.colors.nodes.outputFile.text,
+          }}
+          onDoubleClick={toggleExpand}
+          onContextMenu={handleHeaderContextMenu}
+        >
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
+            <FileInput className="w-3 h-3 flex-shrink-0" />
+            {isEditing ? (
+              <input
+                ref={inputRef}
+                type="text"
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                onBlur={handleNameSave}
+                onKeyDown={handleNameKeyDown}
+                onClick={(e) => e.stopPropagation()}
+                className="flex-1 px-1.5 py-0.5 rounded text-xs font-medium outline-none min-w-0"
+                style={{
+                  backgroundColor: theme.colors.nodes.common.container.background,
+                  color: theme.colors.nodes.common.text.primary,
+                }}
+              />
+            ) : (
+              <span
+                className="font-medium text-xs truncate hover:opacity-80"
+                onDoubleClick={handleNameDoubleClick}
+              >
+                {name}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={toggleExpand}
+            className="ml-1.5 p-0.5 rounded transition-colors flex-shrink-0"
+            style={{ backgroundColor: 'transparent' }}
+            onMouseEnter={(e) => {
+              if (theme.colors.nodes.outputFile.headerHover) {
+                e.currentTarget.style.backgroundColor = theme.colors.nodes.outputFile.headerHover;
+              }
             }}
-          />
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+            title="Expand"
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+            </svg>
+          </button>
         </div>
 
         <DraggableHandle
@@ -383,7 +431,7 @@ const OutputFileNode = memo(({ data, id, selected }: NodeProps) => {
           defaultEdge="left"
           defaultPercent={50}
           handlePositions={handlePositions}
-          style={{ width: '8px', height: '8px', backgroundColor: theme.colors.handles.probe, border: '2px solid white' }}
+          style={{ width: '10px', height: '10px', backgroundColor: theme.colors.handles.probe, border: '2px solid white' }}
         />
 
         {contextMenu && (
