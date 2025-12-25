@@ -363,12 +363,25 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       [nodes, isLocked]
     );
 
-    // Notify parent of workflow changes
+    // Helper to strip non-content properties for comparison
+    const getContentHash = useCallback((nodes: Node[], edges: Edge[]) => {
+      const strippedNodes = nodes.map(({ selected, dragging, ...rest }) => rest);
+      return JSON.stringify({ nodes: strippedNodes, edges });
+    }, []);
+
+    // Track previous content to avoid dirty state on selection changes
+    const prevContentRef = useRef<string>("");
+
+    // Notify parent of workflow changes (only for actual content changes, not selection)
     useEffect(() => {
       if (onWorkflowChange) {
-        onWorkflowChange({ nodes, edges });
+        const currentContent = getContentHash(nodes, edges);
+        if (prevContentRef.current && prevContentRef.current !== currentContent) {
+          onWorkflowChange({ nodes, edges });
+        }
+        prevContentRef.current = currentContent;
       }
-    }, [nodes, edges, onWorkflowChange]);
+    }, [nodes, edges, onWorkflowChange, getContentHash]);
 
     // Save current state to undo stack before modifying operations
     const saveSnapshot = useCallback(() => {
