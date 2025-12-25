@@ -20,7 +20,6 @@ import {
   applyEdgeChanges,
   addEdge,
   useReactFlow,
-  useKeyPress,
   SelectionMode,
   type Node,
   type Edge,
@@ -726,69 +725,78 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       }
     }, [nodes, edges, isLocked]);
 
-    // Keyboard shortcuts using ReactFlow's useKeyPress
-    // Track previous key states to only trigger on key-down (false -> true transition)
-    const copyPressed = useKeyPress(["Control+c", "Meta+c"]);
-    const cutPressed = useKeyPress(["Control+x", "Meta+x"]);
-    const pastePressed = useKeyPress(["Control+v", "Meta+v"]);
-    const deletePressed = useKeyPress(["Delete", "Backspace"]);
-    const undoPressed = useKeyPress(["Control+z", "Meta+z"]);
-    const redoPressed = useKeyPress(["Control+Shift+z", "Meta+Shift+z", "Control+y", "Meta+y"]);
-
-    const prevCopyPressed = useRef(false);
-    const prevCutPressed = useRef(false);
-    const prevPastePressed = useRef(false);
-    const prevDeletePressed = useRef(false);
-    const prevUndoPressed = useRef(false);
-    const prevRedoPressed = useRef(false);
-
+    // Keyboard shortcuts using direct event listener to avoid race conditions
+    // Check event.target immediately when the event fires, before any React state updates
     useEffect(() => {
-      // Copy: trigger only on key-down
-      if (copyPressed && !prevCopyPressed.current) {
-        handleCopy();
-      }
-      prevCopyPressed.current = copyPressed;
-    }, [copyPressed, handleCopy]);
+      const handleKeyDown = (e: KeyboardEvent) => {
+        const target = e.target as HTMLElement;
 
-    useEffect(() => {
-      // Cut: trigger only on key-down
-      if (cutPressed && !prevCutPressed.current && !isLocked) {
-        handleCut();
-      }
-      prevCutPressed.current = cutPressed;
-    }, [cutPressed, isLocked, handleCut]);
+        // Check if the event originated from an editable element
+        // This check happens synchronously at event time, avoiding race conditions
+        const isEditing = (() => {
+          if (!target) return false;
 
-    useEffect(() => {
-      // Paste: trigger only on key-down
-      if (pastePressed && !prevPastePressed.current && !isLocked) {
-        handlePaste();
-      }
-      prevPastePressed.current = pastePressed;
-    }, [pastePressed, isLocked, handlePaste]);
+          // Standard editable elements
+          const tagName = target.tagName.toLowerCase();
+          if (tagName === "input" || tagName === "textarea") return true;
 
-    useEffect(() => {
-      // Delete: trigger only on key-down
-      if (deletePressed && !prevDeletePressed.current && !isLocked) {
-        handleDelete();
-      }
-      prevDeletePressed.current = deletePressed;
-    }, [deletePressed, isLocked, handleDelete]);
+          // Contenteditable
+          if (target.getAttribute("contenteditable") === "true") return true;
 
-    useEffect(() => {
-      // Undo: trigger only on key-down
-      if (undoPressed && !prevUndoPressed.current && !isLocked) {
-        handleUndo();
-      }
-      prevUndoPressed.current = undoPressed;
-    }, [undoPressed, isLocked, handleUndo]);
+          // Inside Monaco editor or nodrag container
+          if (target.closest(".monaco-editor") || target.closest(".nodrag")) return true;
 
-    useEffect(() => {
-      // Redo: trigger only on key-down
-      if (redoPressed && !prevRedoPressed.current && !isLocked) {
-        handleRedo();
-      }
-      prevRedoPressed.current = redoPressed;
-    }, [redoPressed, isLocked, handleRedo]);
+          return false;
+        })();
+
+        // If editing, let the editor/input handle the event
+        if (isEditing) return;
+
+        const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+        const modifier = isMac ? e.metaKey : e.ctrlKey;
+
+        // Copy: Ctrl/Cmd+C
+        if (modifier && e.key.toLowerCase() === "c" && !e.shiftKey) {
+          handleCopy();
+          return;
+        }
+
+        // Cut: Ctrl/Cmd+X
+        if (modifier && e.key.toLowerCase() === "x" && !isLocked) {
+          handleCut();
+          return;
+        }
+
+        // Paste: Ctrl/Cmd+V
+        if (modifier && e.key.toLowerCase() === "v" && !isLocked) {
+          handlePaste();
+          return;
+        }
+
+        // Undo: Ctrl/Cmd+Z (without Shift)
+        if (modifier && e.key.toLowerCase() === "z" && !e.shiftKey && !isLocked) {
+          handleUndo();
+          return;
+        }
+
+        // Redo: Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y
+        if (modifier && !isLocked) {
+          if ((e.key.toLowerCase() === "z" && e.shiftKey) || e.key.toLowerCase() === "y") {
+            handleRedo();
+            return;
+          }
+        }
+
+        // Delete: Delete or Backspace
+        if ((e.key === "Delete" || e.key === "Backspace") && !isLocked) {
+          handleDelete();
+          return;
+        }
+      };
+
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [isLocked, handleCopy, handleCut, handlePaste, handleDelete, handleUndo, handleRedo]);
 
     const addGroupNode = useCallback((position?: { x: number; y: number }) => {
       const groupId = generateNodeId("group");
