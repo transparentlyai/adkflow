@@ -61,19 +61,42 @@ export default function TopologyDialog({
           mermaidInitialized = true;
         }
 
-        // Get theme colors for the diagram (all must be strings)
-        const agentColor = theme.colors.nodes.agent.header;
-        const sequentialBg = theme.colors.nodes.agent.badges.sequential.background;
-        const userInputColor = theme.colors.nodes.userInput.header;
-        const outputFileColor = theme.colors.nodes.outputFile.header;
+        // Get theme colors for the diagram from topology section
+        const topo = theme.colors.topology;
 
         // Replace hardcoded colors in Mermaid source with theme colors
         const themedMermaid = result.mermaid
-          .replace(/fill:#4ade80/g, `fill:${agentColor}`)
-          .replace(/fill:#e0f2fe/g, `fill:${sequentialBg}`)
-          .replace(/stroke:#0284c7/g, `stroke:${sequentialBg}`)
-          .replace(/fill:#fbbf24/g, `fill:${userInputColor}`)
-          .replace(/fill:#60a5fa/g, `fill:${outputFileColor}`);
+          // Agent nodes (green)
+          .replace(/fill:#4ade80/g, `fill:${topo.agentNode.fill}`)
+          .replace(/stroke:#166534/g, `stroke:${topo.agentNode.stroke}`)
+          // Subgraph depth 0
+          .replace(/fill:#1e3a5f/g, `fill:${topo.subgraph.depth0.fill}`)
+          .replace(/stroke:#60a5fa/g, `stroke:${topo.subgraph.depth0.stroke}`)
+          .replace(/color:#e0f2fe/g, `color:${topo.subgraph.depth0.text}`)
+          // Subgraph depth 1
+          .replace(/fill:#2d4a6f/g, `fill:${topo.subgraph.depth1.fill}`)
+          .replace(/stroke:#818cf8/g, `stroke:${topo.subgraph.depth1.stroke}`)
+          .replace(/color:#e0e7ff/g, `color:${topo.subgraph.depth1.text}`)
+          // Subgraph depth 2
+          .replace(/fill:#3d5a7f/g, `fill:${topo.subgraph.depth2.fill}`)
+          .replace(/stroke:#a78bfa/g, `stroke:${topo.subgraph.depth2.stroke}`)
+          .replace(/color:#ede9fe/g, `color:${topo.subgraph.depth2.text}`)
+          // Subgraph depth 3
+          .replace(/fill:#4d6a8f/g, `fill:${topo.subgraph.depth3.fill}`)
+          .replace(/stroke:#c4b5fd/g, `stroke:${topo.subgraph.depth3.stroke}`)
+          .replace(/color:#f5f3ff/g, `color:${topo.subgraph.depth3.text}`)
+          // UserInput nodes (amber/emerald)
+          .replace(/fill:#fbbf24/g, `fill:${topo.userInput.fill}`)
+          .replace(/stroke:#b45309/g, `stroke:${topo.userInput.stroke}`)
+          // OutputFile nodes (blue/gray)
+          .replace(/fill:#60a5fa/g, `fill:${topo.outputFile.fill}`)
+          .replace(/stroke:#1d4ed8/g, `stroke:${topo.outputFile.stroke}`)
+          // Start node (green circle)
+          .replace(/fill:#22c55e/g, `fill:${topo.start.fill}`)
+          .replace(/stroke:#16a34a/g, `stroke:${topo.start.stroke}`)
+          // End node (red circle)
+          .replace(/fill:#ef4444/g, `fill:${topo.end.fill}`)
+          .replace(/stroke:#dc2626/g, `stroke:${topo.end.stroke}`);
 
         // Generate unique ID for this render
         const id = `mermaid-${Date.now()}`;

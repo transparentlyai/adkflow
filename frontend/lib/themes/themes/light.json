@@ -204,6 +204,34 @@
       "thumb": "rgba(156, 163, 175, 0.4)",
       "thumbHover": "rgba(156, 163, 175, 0.6)"
     },
+    "topology": {
+      "agentNode": {
+        "fill": "#22c55e",
+        "stroke": "#16a34a"
+      },
+      "subgraph": {
+        "depth0": { "fill": "#dbeafe", "stroke": "#3b82f6", "text": "#1e3a8a" },
+        "depth1": { "fill": "#e0e7ff", "stroke": "#6366f1", "text": "#312e81" },
+        "depth2": { "fill": "#ede9fe", "stroke": "#8b5cf6", "text": "#4c1d95" },
+        "depth3": { "fill": "#f5f3ff", "stroke": "#a78bfa", "text": "#5b21b6" }
+      },
+      "userInput": {
+        "fill": "#10b981",
+        "stroke": "#059669"
+      },
+      "outputFile": {
+        "fill": "#64748b",
+        "stroke": "#475569"
+      },
+      "start": {
+        "fill": "#22c55e",
+        "stroke": "#16a34a"
+      },
+      "end": {
+        "fill": "#ef4444",
+        "stroke": "#dc2626"
+      }
+    },
     "monaco": "vs"
   }
 }

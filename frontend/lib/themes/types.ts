@@ -159,6 +159,41 @@ export interface ScrollbarColors {
   thumbHover: string;
 }
 
+export interface TopologyColors {
+  /** Colors for agent nodes in the Mermaid diagram */
+  agentNode: {
+    fill: string;
+    stroke: string;
+  };
+  /** Colors for subgraph wrappers (SequentialAgent, ParallelAgent, LoopAgent) at different nesting depths */
+  subgraph: {
+    depth0: { fill: string; stroke: string; text: string };
+    depth1: { fill: string; stroke: string; text: string };
+    depth2: { fill: string; stroke: string; text: string };
+    depth3: { fill: string; stroke: string; text: string };
+  };
+  /** Colors for UserInput nodes */
+  userInput: {
+    fill: string;
+    stroke: string;
+  };
+  /** Colors for OutputFile nodes */
+  outputFile: {
+    fill: string;
+    stroke: string;
+  };
+  /** Colors for Start node */
+  start: {
+    fill: string;
+    stroke: string;
+  };
+  /** Colors for End node */
+  end: {
+    fill: string;
+    stroke: string;
+  };
+}
+
 export interface ThemeColors {
   canvas: CanvasColors;
   nodes: NodeColors;
@@ -167,6 +202,7 @@ export interface ThemeColors {
   ui: UIColors;
   form: FormColors;
   scrollbar: ScrollbarColors;
+  topology: TopologyColors;
   monaco: "vs" | "vs-dark";
 }
 
