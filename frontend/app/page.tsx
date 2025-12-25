@@ -23,7 +23,7 @@ import { TabsProvider, useTabs } from "@/contexts/TabsContext";
 import { TeleporterProvider, useTeleporter } from "@/contexts/TeleporterContext";
 import TabBar from "@/components/TabBar";
 import type { Node, Edge } from "@xyflow/react";
-import { Lock } from "lucide-react";
+import { Lock, Save } from "lucide-react";
 import {
   getRecentProjects,
   addRecentProject,
@@ -71,6 +71,7 @@ function HomeContent() {
   const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false);
   const [showHomeScreen, setShowHomeScreen] = useState(false);
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Get unsaved changes from active tab
   const hasUnsavedChanges = activeTab?.hasUnsavedChanges ?? false;
@@ -286,6 +287,7 @@ function HomeContent() {
       return;
     }
 
+    setIsSaving(true);
     try {
       const flow = canvasRef.current?.saveFlow();
       if (!flow) {
@@ -302,6 +304,8 @@ function HomeContent() {
     } catch (error) {
       console.error("Error saving project:", error);
       alert("Failed to save project: " + (error as Error).message);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1109,7 +1113,15 @@ function HomeContent() {
               </span>
             )}
             {hasUnsavedChanges && (
-              <span className="text-xs text-orange-500 font-medium">Unsaved</span>
+              <button
+                onClick={handleSaveCurrentProject}
+                disabled={isSaving}
+                className="flex items-center gap-1 text-xs text-orange-500 font-medium hover:bg-accent rounded px-1.5 py-0.5 transition-colors disabled:opacity-50"
+                title="Save changes (⌘S)"
+              >
+                <Save className={`w-3 h-3 ${isSaving ? 'animate-pulse' : ''}`} />
+                <span>{isSaving ? "Saving..." : "Save"}</span>
+              </button>
             )}
             {isCanvasLocked && (
               <span className="flex items-center gap-1 text-xs text-blue-500 font-medium">
