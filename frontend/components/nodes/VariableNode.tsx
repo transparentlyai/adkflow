@@ -4,6 +4,7 @@ import { memo, useState, useCallback } from "react";
 import { type NodeProps, useReactFlow, useStore } from "@xyflow/react";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock } from "lucide-react";
+import ValidationIndicator from "@/components/nodes/ValidationIndicator";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -12,10 +13,12 @@ interface VariableNodeData {
   value?: string;
   isNodeLocked?: boolean;
   hasDuplicateNameError?: boolean;
+  validationErrors?: string[];
+  validationWarnings?: string[];
 }
 
 const VariableNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name = "variable", value = "", isNodeLocked, hasDuplicateNameError } = data as VariableNodeData;
+  const { name = "variable", value = "", isNodeLocked, hasDuplicateNameError, validationErrors, validationWarnings } = data as VariableNodeData;
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
   const { theme } = useTheme();
@@ -146,6 +149,11 @@ const VariableNode = memo(({ data, id, selected }: NodeProps) => {
       >
         <div className="font-medium text-sm whitespace-nowrap flex items-center gap-1">
           {isNodeLocked && <Lock className="w-3 h-3 opacity-80" />}
+          <ValidationIndicator
+            errors={validationErrors}
+            warnings={validationWarnings}
+            duplicateNameError={hasDuplicateNameError}
+          />
           {`{${name}}`}
         </div>
       </div>

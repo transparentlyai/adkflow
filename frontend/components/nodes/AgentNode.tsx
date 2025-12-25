@@ -10,6 +10,7 @@ import NodeContextMenu from "@/components/NodeContextMenu";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Lock } from "lucide-react";
+import ValidationIndicator from "@/components/nodes/ValidationIndicator";
 
 // Shallow comparison for arrays of strings
 function arraysEqual(a: string[], b: string[]): boolean {
@@ -34,6 +35,8 @@ export interface AgentNodeData {
   hasValidationError?: boolean;
   hasValidationWarning?: boolean;
   hasDuplicateNameError?: boolean;
+  validationErrors?: string[];
+  validationWarnings?: string[];
 }
 
 const TYPE_BADGE_LABELS: Record<AgentType, string> = {
@@ -63,6 +66,12 @@ const agentNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): boo
   if (prevData.hasDuplicateNameError !== nextData.hasDuplicateNameError) {
     return false;
   }
+  if (prevData.validationErrors !== nextData.validationErrors) {
+    return false;
+  }
+  if (prevData.validationWarnings !== nextData.validationWarnings) {
+    return false;
+  }
 
   // Check other important props
   if (prevProps.selected !== nextProps.selected) return false;
@@ -76,7 +85,7 @@ const agentNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): boo
 };
 
 const AgentNode = memo(({ data, id, selected }: NodeProps) => {
-  const { agent, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, executionState, hasValidationError, hasValidationWarning, hasDuplicateNameError } = data as unknown as AgentNodeData;
+  const { agent, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, executionState, hasValidationError, hasValidationWarning, hasDuplicateNameError, validationErrors, validationWarnings } = data as unknown as AgentNodeData;
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
   const { theme } = useTheme();
@@ -427,6 +436,11 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           onContextMenu={handleHeaderContextMenu}
         >
           {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
+          <ValidationIndicator
+            errors={validationErrors}
+            warnings={validationWarnings}
+            duplicateNameError={hasDuplicateNameError}
+          />
           {isEditing ? (
             <input
               ref={inputRef}
@@ -602,6 +616,11 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
       >
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
+          <ValidationIndicator
+            errors={validationErrors}
+            warnings={validationWarnings}
+            duplicateNameError={hasDuplicateNameError}
+          />
           <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>

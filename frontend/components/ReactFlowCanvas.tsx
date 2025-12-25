@@ -137,8 +137,8 @@ export interface ReactFlowCanvasRef {
   updateNodeExecutionState: (agentName: string, state: NodeExecutionState) => void;
   updateUserInputWaitingState: (nodeId: string, isWaiting: boolean) => void;
   clearExecutionState: () => void;
-  highlightErrorNodes: (nodeIds: string[]) => void;
-  highlightWarningNodes: (nodeIds: string[]) => void;
+  highlightErrorNodes: (nodeErrors: Record<string, string[]>) => void;
+  highlightWarningNodes: (nodeWarnings: Record<string, string[]>) => void;
   clearErrorHighlights: () => void;
 }
 
@@ -1528,43 +1528,68 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       );
     }, [setNodes]);
 
-    // Highlight nodes with validation errors
-    const highlightErrorNodes = useCallback((nodeIds: string[]) => {
-      setNodes((nds) =>
-        nds.map((node) => {
-          if (nodeIds.includes(node.id)) {
-            return {
-              ...node,
-              data: { ...node.data, hasValidationError: true },
-            };
-          }
-          return node;
-        })
-      );
-    }, [setNodes]);
+    // Highlight nodes with validation errors and their messages
+    const highlightErrorNodes = useCallback(
+      (nodeErrors: Record<string, string[]>) => {
+        setNodes((nds) =>
+          nds.map((node) => {
+            if (nodeErrors[node.id]) {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  hasValidationError: true,
+                  validationErrors: nodeErrors[node.id],
+                },
+              };
+            }
+            return node;
+          })
+        );
+      },
+      [setNodes]
+    );
 
-    // Highlight nodes with validation warnings
-    const highlightWarningNodes = useCallback((nodeIds: string[]) => {
-      setNodes((nds) =>
-        nds.map((node) => {
-          if (nodeIds.includes(node.id)) {
-            return {
-              ...node,
-              data: { ...node.data, hasValidationWarning: true },
-            };
-          }
-          return node;
-        })
-      );
-    }, [setNodes]);
+    // Highlight nodes with validation warnings and their messages
+    const highlightWarningNodes = useCallback(
+      (nodeWarnings: Record<string, string[]>) => {
+        setNodes((nds) =>
+          nds.map((node) => {
+            if (nodeWarnings[node.id]) {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  hasValidationWarning: true,
+                  validationWarnings: nodeWarnings[node.id],
+                },
+              };
+            }
+            return node;
+          })
+        );
+      },
+      [setNodes]
+    );
 
     // Clear validation error and warning highlights
     const clearErrorHighlights = useCallback(() => {
       setNodes((nds) =>
         nds.map((node) => {
           const data = node.data as Record<string, unknown>;
-          if (data.hasValidationError || data.hasValidationWarning) {
-            const { hasValidationError, hasValidationWarning, ...restData } = data;
+          if (
+            data.hasValidationError ||
+            data.hasValidationWarning ||
+            data.validationErrors ||
+            data.validationWarnings
+          ) {
+            const {
+              hasValidationError,
+              hasValidationWarning,
+              validationErrors,
+              validationWarnings,
+              ...restData
+            } = data;
             return { ...node, data: restData };
           }
           return node;

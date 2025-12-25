@@ -85,6 +85,9 @@ class ValidateResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     error_node_ids: list[str] = Field(default_factory=list)
     warning_node_ids: list[str] = Field(default_factory=list)
+    # Node ID -> list of error/warning messages for tooltip display
+    node_errors: dict[str, list[str]] = Field(default_factory=dict)
+    node_warnings: dict[str, list[str]] = Field(default_factory=dict)
     agent_count: int = 0
     tab_count: int = 0
     teleporter_count: int = 0
@@ -539,12 +542,32 @@ async def validate_workflow(request: ValidateRequest) -> ValidateResponse:
             if w.location and w.location.node_id
         ]
 
+        # Build node_id -> error messages mapping for tooltips
+        node_errors: dict[str, list[str]] = {}
+        for e in result.errors:
+            if e.location and e.location.node_id:
+                node_id = e.location.node_id
+                if node_id not in node_errors:
+                    node_errors[node_id] = []
+                node_errors[node_id].append(str(e))
+
+        # Build node_id -> warning messages mapping for tooltips
+        node_warnings: dict[str, list[str]] = {}
+        for w in result.warnings:
+            if w.location and w.location.node_id:
+                node_id = w.location.node_id
+                if node_id not in node_warnings:
+                    node_warnings[node_id] = []
+                node_warnings[node_id].append(str(w))
+
         return ValidateResponse(
             valid=result.valid,
             errors=[str(e) for e in result.errors],
             warnings=[str(w) for w in result.warnings],
             error_node_ids=error_node_ids,
             warning_node_ids=warning_node_ids,
+            node_errors=node_errors,
+            node_warnings=node_warnings,
             agent_count=len(graph.get_agent_nodes()),
             tab_count=len(project.tabs),
             teleporter_count=len(graph.teleporter_pairs),

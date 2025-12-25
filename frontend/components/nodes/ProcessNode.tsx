@@ -10,6 +10,7 @@ import ResizeHandle from "@/components/ResizeHandle";
 import { useProject } from "@/contexts/ProjectContext";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock } from "lucide-react";
+import ValidationIndicator from "@/components/nodes/ValidationIndicator";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -27,6 +28,8 @@ export interface ProcessNodeData extends Record<string, unknown> {
   contractedPosition?: { x: number; y: number };
   isNodeLocked?: boolean;
   hasDuplicateNameError?: boolean;
+  validationErrors?: string[];
+  validationWarnings?: string[];
 }
 
 const DEFAULT_CODE = `def process(input_data: dict) -> dict:
@@ -59,7 +62,7 @@ function parseFunctionSignature(code: string): { name: string; params: string; r
 }
 
 const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name, code, file_path, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, hasDuplicateNameError } = data as unknown as ProcessNodeData;
+  const { name, code, file_path, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, hasDuplicateNameError, validationErrors, validationWarnings } = data as unknown as ProcessNodeData;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
@@ -316,6 +319,11 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
       >
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
+          <ValidationIndicator
+            errors={validationErrors}
+            warnings={validationWarnings}
+            duplicateNameError={hasDuplicateNameError}
+          />
           <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
           </svg>

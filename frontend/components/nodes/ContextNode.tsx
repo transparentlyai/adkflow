@@ -10,6 +10,7 @@ import ResizeHandle from "@/components/ResizeHandle";
 import { useProject } from "@/contexts/ProjectContext";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock } from "lucide-react";
+import ValidationIndicator from "@/components/nodes/ValidationIndicator";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -23,10 +24,12 @@ export interface ContextNodeData {
   expandedSize?: { width: number; height: number };
   isNodeLocked?: boolean;
   hasDuplicateNameError?: boolean;
+  validationErrors?: string[];
+  validationWarnings?: string[];
 }
 
 const ContextNode = memo(({ data, id, selected }: NodeProps) => {
-  const { prompt, content = "", handlePositions, expandedSize, isNodeLocked, hasDuplicateNameError } = data as unknown as ContextNodeData;
+  const { prompt, content = "", handlePositions, expandedSize, isNodeLocked, hasDuplicateNameError, validationErrors, validationWarnings } = data as unknown as ContextNodeData;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
@@ -262,6 +265,11 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
       >
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
+          <ValidationIndicator
+            errors={validationErrors}
+            warnings={validationWarnings}
+            duplicateNameError={hasDuplicateNameError}
+          />
           <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
           </svg>

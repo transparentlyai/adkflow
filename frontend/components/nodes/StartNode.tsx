@@ -4,6 +4,7 @@ import { memo, useState, useCallback } from "react";
 import { type NodeProps, useReactFlow, Handle, Position } from "@xyflow/react";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { Play, Loader2 } from "lucide-react";
+import ValidationIndicator from "@/components/nodes/ValidationIndicator";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 import { useRunWorkflow } from "@/contexts/RunWorkflowContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -13,10 +14,12 @@ export interface StartNodeData extends Record<string, unknown> {
   handlePositions?: HandlePositions;
   isNodeLocked?: boolean;
   hasValidationError?: boolean;
+  validationErrors?: string[];
+  validationWarnings?: string[];
 }
 
 const StartNode = memo(({ data, id, selected }: NodeProps) => {
-  const { isNodeLocked, hasValidationError } = data as StartNodeData;
+  const { isNodeLocked, hasValidationError, validationErrors, validationWarnings } = data as StartNodeData;
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
   const { runWorkflow, isRunning, hasProjectPath } = useRunWorkflow();
@@ -95,6 +98,13 @@ const StartNode = memo(({ data, id, selected }: NodeProps) => {
         className="relative cursor-pointer"
         style={{ width: size, height: size }}
       >
+        <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-10">
+          <ValidationIndicator
+            errors={validationErrors}
+            warnings={validationWarnings}
+          />
+        </div>
+
         {/* Circular node */}
         <div
           className="w-full h-full rounded-full flex items-center justify-center shadow-lg transition-colors"

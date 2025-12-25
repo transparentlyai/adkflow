@@ -6,6 +6,7 @@ import type { HandlePositions } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock } from "lucide-react";
+import ValidationIndicator from "@/components/nodes/ValidationIndicator";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -14,10 +15,12 @@ interface AgentToolNodeData {
   handlePositions?: HandlePositions;
   isNodeLocked?: boolean;
   hasDuplicateNameError?: boolean;
+  validationErrors?: string[];
+  validationWarnings?: string[];
 }
 
 const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name = "Agent Tool", handlePositions, isNodeLocked, hasDuplicateNameError } = data as AgentToolNodeData;
+  const { name = "Agent Tool", handlePositions, isNodeLocked, hasDuplicateNameError, validationErrors, validationWarnings } = data as AgentToolNodeData;
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
   const { theme } = useTheme();
@@ -145,6 +148,11 @@ const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
           <Lock className="w-4 h-4 opacity-80" />
         ) : (
           <>
+            <ValidationIndicator
+              errors={validationErrors}
+              warnings={validationWarnings}
+              duplicateNameError={hasDuplicateNameError}
+            />
             <div className="text-xs leading-tight">Agent</div>
             <div className="text-xs leading-tight">Tool</div>
           </>

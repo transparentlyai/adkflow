@@ -10,6 +10,7 @@ import ResizeHandle from "@/components/ResizeHandle";
 import { useProject } from "@/contexts/ProjectContext";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock } from "lucide-react";
+import ValidationIndicator from "@/components/nodes/ValidationIndicator";
 import { readPrompt } from "@/lib/api";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -26,10 +27,12 @@ export interface PromptNodeData {
   contractedPosition?: { x: number; y: number };
   isNodeLocked?: boolean;
   hasDuplicateNameError?: boolean;
+  validationErrors?: string[];
+  validationWarnings?: string[];
 }
 
 const PromptNode = memo(({ data, id, selected }: NodeProps) => {
-  const { prompt, content = "", handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, hasDuplicateNameError } = data as unknown as PromptNodeData;
+  const { prompt, content = "", handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, hasDuplicateNameError, validationErrors, validationWarnings } = data as unknown as PromptNodeData;
   const { setNodes } = useReactFlow();
   const { projectPath, onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
@@ -311,6 +314,11 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
       >
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
+          <ValidationIndicator
+            errors={validationErrors}
+            warnings={validationWarnings}
+            duplicateNameError={hasDuplicateNameError}
+          />
           <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>

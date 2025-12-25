@@ -667,14 +667,14 @@ function HomeContent() {
     try {
       const validation = await validateWorkflow(currentProjectPath);
 
-      // Highlight error nodes if any
-      if (validation.error_node_ids && validation.error_node_ids.length > 0) {
-        canvasRef.current?.highlightErrorNodes(validation.error_node_ids);
+      // Highlight error nodes with their messages
+      if (validation.node_errors && Object.keys(validation.node_errors).length > 0) {
+        canvasRef.current?.highlightErrorNodes(validation.node_errors);
       }
 
-      // Highlight warning nodes if any
-      if (validation.warning_node_ids && validation.warning_node_ids.length > 0) {
-        canvasRef.current?.highlightWarningNodes(validation.warning_node_ids);
+      // Highlight warning nodes with their messages
+      if (validation.node_warnings && Object.keys(validation.node_warnings).length > 0) {
+        canvasRef.current?.highlightWarningNodes(validation.node_warnings);
       }
 
       // If validation failed, show all errors and warnings then abort
@@ -778,13 +778,13 @@ function HomeContent() {
 
   // Helper to show errors in the run console
   const showErrorsInConsole = useCallback(
-    (errors: string[], errorNodeIds: string[] = []) => {
+    (errors: string[], nodeErrors: Record<string, string[]> = {}) => {
       // Clear previous error highlights
       canvasRef.current?.clearErrorHighlights();
 
       // Highlight error nodes if any
-      if (errorNodeIds.length > 0) {
-        canvasRef.current?.highlightErrorNodes(errorNodeIds);
+      if (Object.keys(nodeErrors).length > 0) {
+        canvasRef.current?.highlightErrorNodes(nodeErrors);
       }
 
       // Add errors as run_error events
@@ -811,14 +811,14 @@ function HomeContent() {
     try {
       const result = await validateWorkflow(currentProjectPath);
 
-      // Highlight error nodes if any
-      if (result.error_node_ids && result.error_node_ids.length > 0) {
-        canvasRef.current?.highlightErrorNodes(result.error_node_ids);
+      // Highlight error nodes with their messages
+      if (result.node_errors && Object.keys(result.node_errors).length > 0) {
+        canvasRef.current?.highlightErrorNodes(result.node_errors);
       }
 
-      // Highlight warning nodes if any
-      if (result.warning_node_ids && result.warning_node_ids.length > 0) {
-        canvasRef.current?.highlightWarningNodes(result.warning_node_ids);
+      // Highlight warning nodes with their messages
+      if (result.node_warnings && Object.keys(result.node_warnings).length > 0) {
+        canvasRef.current?.highlightWarningNodes(result.node_warnings);
       }
 
       // Build events list with all errors and warnings

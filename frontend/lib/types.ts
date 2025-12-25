@@ -356,6 +356,9 @@ export interface ValidateResponse {
   warnings: string[];
   error_node_ids: string[];
   warning_node_ids: string[];
+  // Node ID -> list of error/warning messages for tooltip display
+  node_errors: Record<string, string[]>;
+  node_warnings: Record<string, string[]>;
   agent_count: number;
   tab_count: number;
   teleporter_count: number;
