@@ -5,6 +5,7 @@ that can be executed by the Runner.
 """
 
 from adkflow_runner.compiler.graph import GraphNode, WorkflowGraph
+from adkflow_runner.compiler.hierarchy import HierarchyBuilder
 from adkflow_runner.compiler.loader import LoadedProject
 from adkflow_runner.config import EdgeSemantics, ExecutionConfig, get_default_config
 from adkflow_runner.errors import CompilationError, ErrorLocation
@@ -69,42 +70,21 @@ class IRTransformer:
         # Build agent hierarchy (sequential chains, parallel groups)
         self._build_agent_hierarchy(graph, all_agents)
 
-        # Find root agent(s) and build sequential chains
+        # Find root agent(s)
         root_agents = graph.get_root_agents()
         if not root_agents:
             raise CompilationError(
                 "No root agent found (all agents have incoming edges)"
             )
 
-        # Build sequential chains starting from each root
-        chains: list[AgentIR] = []
-        for root in root_agents:
-            chain = self._build_sequential_chain_from_root(root, graph, all_agents)
-            if len(chain) == 1:
-                # Single agent, no wrapper needed
-                chains.append(chain[0])
-            else:
-                # Multiple agents in sequence, wrap in SequentialAgent
-                seq_agent = AgentIR(
-                    id=f"__seq_{root.id}__",
-                    name=f"seq_{chain[0].name}",
-                    type="sequential",
-                    subagents=chain,
-                )
-                all_agents[seq_agent.id] = seq_agent
-                chains.append(seq_agent)
+        # Build agent hierarchy recursively with merge point detection
+        # This properly handles diamond/fork-join patterns where parallel
+        # branches converge to a single downstream agent
+        hierarchy_builder = HierarchyBuilder(graph, all_agents)
+        root_agent = hierarchy_builder.build(root_agents)
 
-        # If multiple chains, wrap in a parallel agent
-        if len(chains) == 1:
-            root_agent = chains[0]
-        else:
-            root_agent = AgentIR(
-                id="__root__",
-                name="root",
-                type="parallel",
-                subagents=chains,
-            )
-            all_agents["__root__"] = root_agent
+        if not root_agent:
+            raise CompilationError("Failed to build agent hierarchy from root agents")
 
         # Transform teleporters
         teleporters = {
@@ -123,12 +103,18 @@ class IRTransformer:
         # Transform user input nodes
         user_inputs = self._transform_user_inputs(graph, all_agents)
 
+        # Detect flow control nodes (for topology visualization)
+        has_start_node = any(n.type == "start" for n in graph.nodes.values())
+        has_end_node = any(n.type == "end" for n in graph.nodes.values())
+
         return WorkflowIR(
             root_agent=root_agent,
             all_agents=all_agents,
             output_files=output_files,
             teleporters=teleporters,
             user_inputs=user_inputs,
+            has_start_node=has_start_node,
+            has_end_node=has_end_node,
             project_path=str(project.path),
             tab_ids=[tab.id for tab in project.tabs],
             metadata={

@@ -16,6 +16,15 @@ def render_mermaid(ir: WorkflowIR) -> str:
     styles: list[str] = []  # Collect styles to add at the end
     node_counter = {"count": 0}
 
+    # Color palette for nested subgraphs (depth 0, 1, 2, 3...)
+    # Each tuple: (fill_color, stroke_color, stroke_width, text_color)
+    subgraph_colors = [
+        ("#1e3a5f", "#60a5fa", "2px", "#e0f2fe"),  # Depth 0: dark blue, light text
+        ("#2d4a6f", "#818cf8", "2px", "#e0e7ff"),  # Depth 1: medium blue, light text
+        ("#3d5a7f", "#a78bfa", "2px", "#ede9fe"),  # Depth 2: lighter blue, light text
+        ("#4d6a8f", "#c4b5fd", "2px", "#f5f3ff"),  # Depth 3: even lighter, light text
+    ]
+
     def get_node_id() -> str:
         node_counter["count"] += 1
         return f"N{node_counter['count']}"
@@ -23,7 +32,18 @@ def render_mermaid(ir: WorkflowIR) -> str:
     # Track connections for sequential agents
     connections: list[tuple[str, str]] = []
 
-    def render_agent(agent: AgentIR, indent: str = "    ") -> tuple[str, str]:
+    # Add Start node if present
+    start_node_id: str | None = None
+    if ir.has_start_node:
+        start_node_id = get_node_id()
+        lines.append(f'    {start_node_id}(("Start"))')
+        styles.append(
+            f"style {start_node_id} fill:#22c55e,stroke:#16a34a,stroke-width:2px"
+        )
+
+    def render_agent(
+        agent: AgentIR, indent: str = "    ", depth: int = 0
+    ) -> tuple[str, str]:
         """Recursively render an agent and its subagents.
 
         Returns: (node_id, last_leaf_id) - the node/subgraph ID and the last
@@ -38,7 +58,7 @@ def render_mermaid(ir: WorkflowIR) -> str:
 
             child_results: list[tuple[str, str]] = []
             for subagent in agent.subagents:
-                result = render_agent(subagent, indent + "    ")
+                result = render_agent(subagent, indent + "    ", depth + 1)
                 child_results.append(result)
 
             child_ids = [r[0] for r in child_results]
@@ -52,8 +72,13 @@ def render_mermaid(ir: WorkflowIR) -> str:
                 connections.append((child_ids[-1], child_ids[0]))
 
             lines.append(f"{indent}end")
-            # Style for subgraph - add to styles list (applied after all definitions)
-            styles.append(f"style {node_id} fill:#e0f2fe,stroke:#0284c7")
+
+            # Style for subgraph with depth-based colors
+            color_idx = min(depth, len(subgraph_colors) - 1)
+            fill, stroke, stroke_width, text_color = subgraph_colors[color_idx]
+            styles.append(
+                f"style {node_id} fill:{fill},stroke:{stroke},stroke-width:{stroke_width},color:{text_color}"
+            )
 
             # Return the last leaf node for outgoing connections
             last_leaf = child_results[-1][1] if child_results else node_id
@@ -62,12 +87,18 @@ def render_mermaid(ir: WorkflowIR) -> str:
             # LLM agents become nodes
             label = _get_agent_label(agent)
             lines.append(f'{indent}{node_id}["{label}"]')
-            # Style for node - add to styles list
-            styles.append(f"style {node_id} fill:#4ade80")
+            # Style for node - green with dark border
+            styles.append(
+                f"style {node_id} fill:#4ade80,stroke:#166534,stroke-width:2px"
+            )
             return (node_id, node_id)  # Leaf node: both IDs are the same
 
     # Render the root agent
     root_id, last_leaf_id = render_agent(ir.root_agent)
+
+    # Connect Start node to root agent
+    if start_node_id:
+        connections.append((start_node_id, root_id))
 
     # Find user inputs that are pause points (not triggers)
     pause_inputs = [ui for ui in ir.user_inputs if not ui.is_trigger]
@@ -79,7 +110,7 @@ def render_mermaid(ir: WorkflowIR) -> str:
         ui_id = get_node_id()
         ui_label = _get_user_input_label(ui)
         lines.append(f'    {ui_id}{{{{"{ui_label}"}}}}')
-        styles.append(f"style {ui_id} fill:#fbbf24")
+        styles.append(f"style {ui_id} fill:#fbbf24,stroke:#b45309,stroke-width:2px")
         connections.append((current_leaf, ui_id))
 
         # Find downstream agents
@@ -95,9 +126,19 @@ def render_mermaid(ir: WorkflowIR) -> str:
         out_id = get_node_id()
         file_name = out_file.file_path.split("/")[-1]
         lines.append(f'    {out_id}[/"{file_name}"/]')
-        styles.append(f"style {out_id} fill:#60a5fa")
+        styles.append(f"style {out_id} fill:#60a5fa,stroke:#1d4ed8,stroke-width:2px")
         # Connect from the last leaf node (actual agent, not subgraph)
         connections.append((current_leaf, out_id))
+        current_leaf = out_id
+
+    # Add End node if present
+    if ir.has_end_node:
+        end_node_id = get_node_id()
+        lines.append(f'    {end_node_id}(("End"))')
+        styles.append(
+            f"style {end_node_id} fill:#ef4444,stroke:#dc2626,stroke-width:2px"
+        )
+        connections.append((current_leaf, end_node_id))
 
     # Add all connections
     for src, dst in connections:
@@ -123,6 +164,12 @@ def render_ascii(ir: WorkflowIR) -> str:
         name = ir.project_path.rstrip("/").split("/")[-1]
     lines.append(name)
 
+    # Add Start node if present
+    if ir.has_start_node:
+        has_more = True  # There's always at least the root agent after start
+        connector = "├── " if has_more else "└── "
+        lines.append(f"{connector}▶ Start")
+
     def render_agent(
         agent: AgentIR, prefix: str = "", is_last: bool = True, depth: int = 0
     ) -> None:
@@ -144,21 +191,35 @@ def render_ascii(ir: WorkflowIR) -> str:
             agent_info = _get_agent_info(agent)
             lines.append(f"{prefix}{connector}{agent_info}")
 
+    # Determine what comes after to calculate is_last correctly
+    has_user_inputs = bool([ui for ui in ir.user_inputs if not ui.is_trigger])
+    has_output_files = bool(ir.output_files)
+    has_end_node = ir.has_end_node
+
     # Check if root is a wrapper or single agent
     if ir.root_agent.is_composite():
         wrapper_info = _get_wrapper_info(ir.root_agent)
         lines.append(wrapper_info)
         for i, subagent in enumerate(ir.root_agent.subagents):
-            is_last = i == len(ir.root_agent.subagents) - 1 and not ir.user_inputs
+            is_last = (
+                i == len(ir.root_agent.subagents) - 1
+                and not has_user_inputs
+                and not has_output_files
+                and not has_end_node
+            )
             render_agent(subagent, "", is_last, 0)
     else:
         agent_info = _get_agent_info(ir.root_agent)
-        lines.append(f"├── {agent_info}")
+        is_last = not has_user_inputs and not has_output_files and not has_end_node
+        connector = "└── " if is_last else "├── "
+        lines.append(f"{connector}{agent_info}")
 
     # Add user input pause points
     pause_inputs = [ui for ui in ir.user_inputs if not ui.is_trigger]
     for i, ui in enumerate(pause_inputs):
-        is_last_ui = i == len(pause_inputs) - 1 and not ir.output_files
+        is_last_ui = (
+            i == len(pause_inputs) - 1 and not has_output_files and not has_end_node
+        )
         connector = "└── " if is_last_ui else "├── "
         lines.append(f"{connector}{_get_user_input_info(ui)}")
 
@@ -172,9 +233,13 @@ def render_ascii(ir: WorkflowIR) -> str:
 
     # Add output files
     for i, out_file in enumerate(ir.output_files):
-        is_last = i == len(ir.output_files) - 1
+        is_last = i == len(ir.output_files) - 1 and not has_end_node
         connector = "└── " if is_last else "├── "
         lines.append(f"{connector}→ {out_file.file_path}")
+
+    # Add End node if present
+    if ir.has_end_node:
+        lines.append("└── ■ End")
 
     return "\n".join(lines)
 

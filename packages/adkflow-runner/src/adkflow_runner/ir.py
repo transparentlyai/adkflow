@@ -214,6 +214,10 @@ class WorkflowIR:
     variables: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    # Flow control nodes (for topology visualization)
+    has_start_node: bool = False
+    has_end_node: bool = False
+
     # Source tracking
     project_path: str | None = None
     tab_ids: list[str] = field(default_factory=list)
