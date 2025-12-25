@@ -96,15 +96,13 @@ export default function GlobalSearch({
     }
   }, [buildIndex, indexBuiltAt]);
 
-  // Handle blur - close dropdown after a delay (to allow clicking results)
+  // Handle blur - close dropdown when focus leaves the container
   const handleBlur = useCallback((e: React.FocusEvent) => {
-    // Don't close if clicking within the container
+    // Don't close if focus moves within the container
     if (containerRef.current?.contains(e.relatedTarget as HTMLElement)) {
       return;
     }
-    setTimeout(() => {
-      setIsOpen(false);
-    }, 150);
+    setIsOpen(false);
   }, []);
 
   const handleSelect = useCallback(
@@ -218,7 +216,10 @@ export default function GlobalSearch({
                       ? "bg-accent text-accent-foreground"
                       : "hover:bg-accent/50"
                   }`}
-                  onClick={() => handleSelect(result)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelect(result);
+                  }}
                   onMouseEnter={() => setSelectedIndex(index)}
                 >
                   <div className="flex items-center justify-between gap-2">
