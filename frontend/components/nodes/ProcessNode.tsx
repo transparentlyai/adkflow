@@ -26,6 +26,7 @@ export interface ProcessNodeData extends Record<string, unknown> {
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
   isNodeLocked?: boolean;
+  hasDuplicateNameError?: boolean;
 }
 
 const DEFAULT_CODE = `def process(input_data: dict) -> dict:
@@ -58,7 +59,7 @@ function parseFunctionSignature(code: string): { name: string; params: string; r
 }
 
 const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name, code, file_path, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked } = data as unknown as ProcessNodeData;
+  const { name, code, file_path, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, hasDuplicateNameError } = data as unknown as ProcessNodeData;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
@@ -285,7 +286,11 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
         width: isExpanded ? size.width : 220,
         minWidth: isExpanded ? size.width : 220,
         backgroundColor: theme.colors.nodes.common.container.background,
-        boxShadow: selected ? `0 0 0 2px ${theme.colors.nodes.process.ring}` : undefined,
+        boxShadow: hasDuplicateNameError
+          ? `0 0 0 2px #ef4444`
+          : selected
+            ? `0 0 0 2px ${theme.colors.nodes.process.ring}`
+            : undefined,
       }}
     >
       {/* Input Handle */}

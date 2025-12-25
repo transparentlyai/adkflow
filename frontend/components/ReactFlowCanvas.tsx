@@ -1572,6 +1572,132 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       );
     }, [setNodes]);
 
+    // Track current duplicate error node IDs to avoid unnecessary re-renders
+    const duplicateErrorNodesRef = useRef<Set<string>>(new Set());
+
+    // Real-time validation for duplicate names
+    useEffect(() => {
+      // File-based node types that can share names if pointing to same file/content
+      const fileBasedTypes = new Set(["prompt", "context", "tool", "process", "agentTool"]);
+      // Node types that always require unique names
+      const uniqueNameTypes = new Set(["agent", "variable"]);
+
+      // Helper to extract name and file info from a node
+      const getNodeInfo = (node: Node): { name: string; filePath: string | null; content: string | null } | null => {
+        const data = node.data as Record<string, unknown>;
+        const nodeType = node.type || "";
+
+        if (!fileBasedTypes.has(nodeType) && !uniqueNameTypes.has(nodeType)) {
+          return null;
+        }
+
+        let name = "";
+        let filePath: string | null = null;
+        let content: string | null = null;
+
+        if (nodeType === "agent") {
+          const agentData = data.agent as { name?: string } | undefined;
+          name = agentData?.name || "";
+        } else if (nodeType === "prompt" || nodeType === "context") {
+          const promptData = data.prompt as { name?: string; file_path?: string } | undefined;
+          name = promptData?.name || "";
+          filePath = promptData?.file_path || null;
+          content = (data.content as string) || null;
+        } else if (nodeType === "tool" || nodeType === "process" || nodeType === "agentTool") {
+          name = (data.name as string) || "";
+          filePath = (data.file_path as string) || null;
+          content = (data.code as string) || null;
+        } else if (nodeType === "variable") {
+          name = (data.name as string) || "";
+        }
+
+        if (!name) return null;
+
+        return { name, filePath, content };
+      };
+
+      // Group nodes by name
+      const nameToNodes = new Map<string, Array<{ id: string; type: string; filePath: string | null; content: string | null }>>();
+
+      for (const node of nodes) {
+        const info = getNodeInfo(node);
+        if (!info) continue;
+
+        const existing = nameToNodes.get(info.name) || [];
+        existing.push({
+          id: node.id,
+          type: node.type || "",
+          filePath: info.filePath,
+          content: info.content,
+        });
+        nameToNodes.set(info.name, existing);
+      }
+
+      // Find nodes with duplicate errors
+      const newErrorNodeIds = new Set<string>();
+
+      for (const [, nodeInfos] of nameToNodes) {
+        if (nodeInfos.length <= 1) continue;
+
+        // Check if any are unique-name types (always an error)
+        const uniqueNodes = nodeInfos.filter((n) => uniqueNameTypes.has(n.type));
+        const fileNodes = nodeInfos.filter((n) => fileBasedTypes.has(n.type));
+
+        if (uniqueNodes.length > 0) {
+          // All nodes with this name are errors (unique-name types can't share)
+          for (const n of nodeInfos) {
+            newErrorNodeIds.add(n.id);
+          }
+          continue;
+        }
+
+        // All are file-based - check if they point to same resource
+        if (fileNodes.length > 1) {
+          const first = fileNodes[0];
+          const allSame = fileNodes.every(
+            (n) => n.filePath === first.filePath && n.content === first.content
+          );
+
+          if (!allSame) {
+            // Different resources - all are errors
+            for (const n of fileNodes) {
+              newErrorNodeIds.add(n.id);
+            }
+          }
+        }
+      }
+
+      // Check if error set changed
+      const prevIds = duplicateErrorNodesRef.current;
+      const idsChanged =
+        newErrorNodeIds.size !== prevIds.size ||
+        [...newErrorNodeIds].some((id) => !prevIds.has(id));
+
+      if (!idsChanged) return;
+
+      // Update ref
+      duplicateErrorNodesRef.current = newErrorNodeIds;
+
+      // Update nodes with error flags
+      setNodes((nds) =>
+        nds.map((node) => {
+          const data = node.data as Record<string, unknown>;
+          const hasError = newErrorNodeIds.has(node.id);
+          const currentHasError = !!data.hasDuplicateNameError;
+
+          if (hasError !== currentHasError) {
+            if (hasError) {
+              return { ...node, data: { ...data, hasDuplicateNameError: true } };
+            } else {
+              const { hasDuplicateNameError, ...restData } = data;
+              return { ...node, data: restData };
+            }
+          }
+          return node;
+        })
+      );
+    }, [nodes, setNodes]);
+
     // Expose methods to parent via ref
     useImperativeHandle(ref, () => ({
       addGroupNode,

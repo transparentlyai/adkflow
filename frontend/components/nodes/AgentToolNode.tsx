@@ -13,10 +13,11 @@ interface AgentToolNodeData {
   name?: string;
   handlePositions?: HandlePositions;
   isNodeLocked?: boolean;
+  hasDuplicateNameError?: boolean;
 }
 
 const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name = "Agent Tool", handlePositions, isNodeLocked } = data as AgentToolNodeData;
+  const { name = "Agent Tool", handlePositions, isNodeLocked, hasDuplicateNameError } = data as AgentToolNodeData;
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
   const { theme } = useTheme();
@@ -123,7 +124,9 @@ const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
         style={{
           backgroundColor: theme.colors.nodes.agentTool.header,
           color: theme.colors.nodes.agentTool.text,
-          ...(selected ? {
+          ...(hasDuplicateNameError ? {
+            boxShadow: `0 0 0 2px #ef4444, 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)`,
+          } : selected ? {
             boxShadow: `0 0 0 2px ${theme.colors.nodes.agentTool.ring}, 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)`,
           } : {}),
         }}

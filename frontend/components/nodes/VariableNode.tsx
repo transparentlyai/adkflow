@@ -11,10 +11,11 @@ interface VariableNodeData {
   name?: string;
   value?: string;
   isNodeLocked?: boolean;
+  hasDuplicateNameError?: boolean;
 }
 
 const VariableNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name = "variable", value = "", isNodeLocked } = data as VariableNodeData;
+  const { name = "variable", value = "", isNodeLocked, hasDuplicateNameError } = data as VariableNodeData;
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
   const { theme } = useTheme();
@@ -123,14 +124,16 @@ const VariableNode = memo(({ data, id, selected }: NodeProps) => {
         onContextMenu={handleContextMenu}
         title={tooltipText}
         className={`px-4 py-2 rounded-full shadow-md cursor-pointer transition-all ${
-          selected ? "shadow-xl" : ""
+          !hasDuplicateNameError && selected ? "shadow-xl" : ""
         }`}
         style={{
           backgroundColor: theme.colors.nodes.variable.header,
           color: theme.colors.nodes.variable.text,
-          ...(selected && {
+          ...(hasDuplicateNameError ? {
+            boxShadow: `0 0 0 2px #ef4444`,
+          } : selected ? {
             boxShadow: `0 0 0 2px ${theme.colors.nodes.variable.ring}`,
-          }),
+          } : {}),
         }}
         onMouseEnter={(e) => {
           if (theme.colors.nodes.variable.headerHover) {

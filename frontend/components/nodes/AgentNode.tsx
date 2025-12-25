@@ -33,6 +33,7 @@ export interface AgentNodeData {
   executionState?: NodeExecutionState;
   hasValidationError?: boolean;
   hasValidationWarning?: boolean;
+  hasDuplicateNameError?: boolean;
 }
 
 const TYPE_BADGE_LABELS: Record<AgentType, string> = {
@@ -59,6 +60,9 @@ const agentNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): boo
   if (prevData.hasValidationWarning !== nextData.hasValidationWarning) {
     return false;
   }
+  if (prevData.hasDuplicateNameError !== nextData.hasDuplicateNameError) {
+    return false;
+  }
 
   // Check other important props
   if (prevProps.selected !== nextProps.selected) return false;
@@ -72,7 +76,7 @@ const agentNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): boo
 };
 
 const AgentNode = memo(({ data, id, selected }: NodeProps) => {
-  const { agent, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, executionState, hasValidationError, hasValidationWarning } = data as unknown as AgentNodeData;
+  const { agent, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, executionState, hasValidationError, hasValidationWarning, hasDuplicateNameError } = data as unknown as AgentNodeData;
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
   const { theme } = useTheme();
@@ -318,7 +322,14 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
 
   // Get execution state styling for real-time highlighting
   const getExecutionStyle = useCallback((): React.CSSProperties => {
-    // Validation error takes priority - show red glow with pulse
+    // Duplicate name error takes priority - show red glow (static, no pulse for real-time)
+    if (hasDuplicateNameError) {
+      return {
+        boxShadow: `0 0 0 2px #ef4444`,
+      };
+    }
+
+    // Backend validation error - show red glow with pulse
     if (hasValidationError) {
       return {
         boxShadow: `0 0 0 2px rgba(239, 68, 68, 0.8), 0 0 20px 4px rgba(239, 68, 68, 0.4)`,
@@ -352,7 +363,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
       default:
         return selected ? { boxShadow: `0 0 0 2px ${theme.colors.nodes.agent.ring}` } : {};
     }
-  }, [executionState, hasValidationError, hasValidationWarning, selected, theme.colors.nodes.agent.ring]);
+  }, [executionState, hasDuplicateNameError, hasValidationError, hasValidationWarning, selected, theme.colors.nodes.agent.ring]);
 
   // Collapsed view
   if (!isExpanded) {

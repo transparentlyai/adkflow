@@ -22,10 +22,11 @@ export interface ContextNodeData {
   handlePositions?: HandlePositions;
   expandedSize?: { width: number; height: number };
   isNodeLocked?: boolean;
+  hasDuplicateNameError?: boolean;
 }
 
 const ContextNode = memo(({ data, id, selected }: NodeProps) => {
-  const { prompt, content = "", handlePositions, expandedSize, isNodeLocked } = data as unknown as ContextNodeData;
+  const { prompt, content = "", handlePositions, expandedSize, isNodeLocked, hasDuplicateNameError } = data as unknown as ContextNodeData;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
@@ -239,11 +240,13 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
         width: isExpanded ? size.width : 'auto',
         minWidth: isExpanded ? size.width : 'auto',
         backgroundColor: theme.colors.nodes.common.container.background,
-        boxShadow: isDirty
-          ? `0 0 0 2px #f97316, ${theme.colors.nodes.common.container.shadow}`
-          : selected
-            ? `0 0 0 2px ${theme.colors.nodes.context.ring}, ${theme.colors.nodes.common.container.shadow}`
-            : theme.colors.nodes.common.container.shadow,
+        boxShadow: hasDuplicateNameError
+          ? `0 0 0 2px #ef4444, ${theme.colors.nodes.common.container.shadow}`
+          : isDirty
+            ? `0 0 0 2px #f97316, ${theme.colors.nodes.common.container.shadow}`
+            : selected
+              ? `0 0 0 2px ${theme.colors.nodes.context.ring}, ${theme.colors.nodes.common.container.shadow}`
+              : theme.colors.nodes.common.container.shadow,
       }}
     >
       {/* Header */}

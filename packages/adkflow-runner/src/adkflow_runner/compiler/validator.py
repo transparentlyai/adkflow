@@ -3,7 +3,7 @@
 Validates workflows before execution to catch errors early.
 """
 
-from adkflow_runner.compiler.graph import WorkflowGraph
+from adkflow_runner.compiler.graph import GraphNode, WorkflowGraph
 from adkflow_runner.compiler.loader import LoadedProject
 from adkflow_runner.config import EdgeSemantics
 from adkflow_runner.errors import (
@@ -310,38 +310,128 @@ class WorkflowValidator:
         graph: WorkflowGraph,
         result: ValidationResult,
     ) -> None:
-        """Check for duplicate node names across the workflow."""
-        # Node types that should have unique names
-        named_types = {"agent", "prompt", "tool", "context", "variable"}
+        """Check for duplicate node names across the workflow.
 
-        # Group nodes by name -> list of (node_id, tab_id, node_type)
-        name_to_nodes: dict[str, list[tuple[str, str | None, str]]] = {}
+        File-based nodes (prompt, context, tool, process) can share names if they
+        point to the same file with the same content - they're just references to
+        the same resource. Other nodes (agent, variable) must have unique names.
+        """
+        # Node types that can share names if pointing to same file
+        file_based_types = {"prompt", "context", "tool", "process", "agentTool"}
+        # Node types that always require unique names
+        unique_name_types = {"agent", "variable"}
+
+        # Group nodes by name
+        name_to_nodes: dict[str, list[GraphNode]] = {}
 
         for node in graph.nodes.values():
-            if node.type not in named_types:
+            if node.type not in file_based_types and node.type not in unique_name_types:
                 continue
 
             name = node.name
             if not name:
                 continue
 
-            name_to_nodes.setdefault(name, []).append((node.id, node.tab_id, node.type))
+            name_to_nodes.setdefault(name, []).append(node)
 
-        # Report duplicates
-        for name, locations in name_to_nodes.items():
-            if len(locations) > 1:
-                for node_id, tab_id, node_type in locations:
+        # Check for invalid duplicates
+        for name, nodes in name_to_nodes.items():
+            if len(nodes) <= 1:
+                continue
+
+            # For nodes requiring unique names, all duplicates are errors
+            unique_nodes = [n for n in nodes if n.type in unique_name_types]
+            if unique_nodes:
+                for node in unique_nodes:
                     result.add_error(
                         ValidationError(
-                            f"Duplicate name '{name}' - node names must be unique across the workflow",
+                            f"Duplicate name '{name}' - {node.type} names must be unique",
                             location=ErrorLocation(
-                                node_id=node_id,
-                                tab_id=tab_id,
+                                node_id=node.id,
+                                tab_id=node.tab_id,
                                 node_name=name,
-                                node_type=node_type,
+                                node_type=node.type,
                             ),
                         )
                     )
+                # Also error if file-based nodes share name with unique-name nodes
+                for node in nodes:
+                    if node.type in file_based_types:
+                        result.add_error(
+                            ValidationError(
+                                f"Duplicate name '{name}' - conflicts with {unique_nodes[0].type}",
+                                location=ErrorLocation(
+                                    node_id=node.id,
+                                    tab_id=node.tab_id,
+                                    node_name=name,
+                                    node_type=node.type,
+                                ),
+                            )
+                        )
+                continue
+
+            # All nodes are file-based - check if they point to the same resource
+            self._check_file_based_duplicates(name, nodes, result)
+
+    def _check_file_based_duplicates(
+        self,
+        name: str,
+        nodes: list[GraphNode],
+        result: ValidationResult,
+    ) -> None:
+        """Check if file-based nodes with the same name point to the same resource.
+
+        Same-name nodes are allowed if they have the same file_path and content.
+        This enables reusing the same prompt/tool across multiple agents.
+        """
+
+        def get_file_info(node: GraphNode) -> tuple[str | None, str | None]:
+            """Extract file_path and content from a node."""
+            if node.type in ("prompt", "context"):
+                prompt_data = node.data.get("prompt", {})
+                file_path = prompt_data.get("file_path")
+                content = node.data.get("content")
+                return file_path, content
+            elif node.type in ("tool", "process", "agentTool"):
+                file_path = node.data.get("file_path")
+                code = node.data.get("code")
+                return file_path, code
+            return None, None
+
+        # Get file info for all nodes
+        node_infos: list[tuple[GraphNode, str | None, str | None]] = []
+        for node in nodes:
+            file_path, content = get_file_info(node)
+            node_infos.append((node, file_path, content))
+
+        # Check if all nodes point to the same resource
+        reference_path, reference_content = node_infos[0][1], node_infos[0][2]
+
+        # All must have the same file_path and content
+        all_same = all(
+            path == reference_path and content == reference_content
+            for _, path, content in node_infos
+        )
+
+        if all_same:
+            # Same resource, duplicates are allowed
+            return
+
+        # Different resources - report as errors
+        for node, file_path, _ in node_infos:
+            result.add_error(
+                ValidationError(
+                    f"Duplicate name '{name}' with different content - "
+                    f"rename the node or use the same file",
+                    location=ErrorLocation(
+                        node_id=node.id,
+                        tab_id=node.tab_id,
+                        node_name=name,
+                        node_type=node.type,
+                        file_path=file_path,
+                    ),
+                )
+            )
 
     def _validate_agent_ir(self, agent: AgentIR, result: ValidationResult) -> None:
         """Validate a single agent IR."""

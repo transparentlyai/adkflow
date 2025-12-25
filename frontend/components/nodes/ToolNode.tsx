@@ -41,10 +41,11 @@ interface ToolNodeData {
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
   isNodeLocked?: boolean;
+  hasDuplicateNameError?: boolean;
 }
 
 const ToolNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name = "Tool", code = DEFAULT_CODE, file_path, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked } = data as ToolNodeData;
+  const { name = "Tool", code = DEFAULT_CODE, file_path, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, hasDuplicateNameError } = data as ToolNodeData;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
@@ -273,12 +274,16 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
         onContextMenu={handleHeaderContextMenu}
         title="Double-click to expand"
         className={`rounded-lg shadow-md cursor-pointer px-2 py-1 ${
-          selected ? "ring-2 shadow-xl" : ""
+          !hasDuplicateNameError && selected ? "ring-2 shadow-xl" : ""
         }`}
         style={{
           backgroundColor: theme.colors.nodes.tool.header,
           color: theme.colors.nodes.tool.text,
-          ...(selected && { borderColor: theme.colors.nodes.tool.ring }),
+          ...(hasDuplicateNameError ? {
+            boxShadow: `0 0 0 2px #ef4444`,
+          } : selected ? {
+            borderColor: theme.colors.nodes.tool.ring,
+          } : {}),
         }}
       >
         <div className="flex items-center gap-1.5">
@@ -365,12 +370,14 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
   return (
     <div
       className={`rounded-lg shadow-lg relative ${
-        !isDirty && selected ? "ring-2 shadow-xl" : ""
+        !isDirty && !hasDuplicateNameError && selected ? "ring-2 shadow-xl" : ""
       }`}
       style={{
         width: size.width,
         backgroundColor: theme.colors.nodes.common.container.background,
-        ...(isDirty ? {
+        ...(hasDuplicateNameError ? {
+          boxShadow: `0 0 0 2px #ef4444`,
+        } : isDirty ? {
           boxShadow: `0 0 0 2px #f97316`,
         } : selected ? {
           borderColor: theme.colors.nodes.tool.ring,

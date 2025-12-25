@@ -25,10 +25,11 @@ export interface PromptNodeData {
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
   isNodeLocked?: boolean;
+  hasDuplicateNameError?: boolean;
 }
 
 const PromptNode = memo(({ data, id, selected }: NodeProps) => {
-  const { prompt, content = "", handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked } = data as unknown as PromptNodeData;
+  const { prompt, content = "", handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, hasDuplicateNameError } = data as unknown as PromptNodeData;
   const { setNodes } = useReactFlow();
   const { projectPath, onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
@@ -288,7 +289,9 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
         width: isExpanded ? size.width : 'auto',
         minWidth: isExpanded ? size.width : 'auto',
         backgroundColor: theme.colors.nodes.common.container.background,
-        ...(isDirty ? {
+        ...(hasDuplicateNameError ? {
+          boxShadow: `0 0 0 2px #ef4444`,
+        } : isDirty ? {
           boxShadow: `0 0 0 2px #f97316`,
         } : selected ? {
           boxShadow: `0 0 0 2px ${theme.colors.nodes.prompt.ring}`,
