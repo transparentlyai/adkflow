@@ -144,6 +144,7 @@
     },
     "edges": {
       "default": "#6272a4",
+      "hover": "#8294c4",
       "link": "#6b6b80",
       "selected": "#38bdf8"
     },

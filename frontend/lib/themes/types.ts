@@ -95,6 +95,7 @@ export interface HandleColors {
 
 export interface EdgeColors {
   default: string;
+  hover: string;
   link: string;
   selected: string;
 }

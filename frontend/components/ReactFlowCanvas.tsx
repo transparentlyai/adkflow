@@ -1772,6 +1772,13 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           .react-flow__node-group .react-flow__resize-control {
             pointer-events: auto !important;
           }
+          .react-flow__edge .react-flow__edge-path {
+            transition: stroke 0.15s ease, stroke-width 0.15s ease;
+          }
+          .react-flow__edge:hover .react-flow__edge-path {
+            stroke: ${theme.colors.edges.hover} !important;
+            stroke-width: 2.5 !important;
+          }
           .react-flow__edge.selected .react-flow__edge-path,
           .react-flow__edge:focus .react-flow__edge-path,
           .react-flow__edge:focus-visible .react-flow__edge-path {
