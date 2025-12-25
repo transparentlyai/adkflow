@@ -57,6 +57,9 @@ class WorkflowValidator:
         # Check for exactly one start node
         self._check_start_node(graph, result)
 
+        # Check for duplicate node names
+        self._check_duplicate_names(graph, result)
+
         return result
 
     def validate_ir(self, ir: WorkflowIR) -> ValidationResult:
@@ -149,7 +152,8 @@ class WorkflowValidator:
 
             if not has_connections:
                 result.add_warning(
-                    f"Agent '{node.name}' has no connections (isolated node)"
+                    f"Agent '{node.name}' has no connections (isolated node)",
+                    location=ErrorLocation(node_id=node.id, tab_id=node.tab_id),
                 )
 
     def _check_orphaned_nodes(
@@ -163,7 +167,8 @@ class WorkflowValidator:
                 has_outgoing = len(node.outgoing) > 0
                 if not has_outgoing:
                     result.add_warning(
-                        f"{node.type.capitalize()} '{node.name}' is not connected to any agent"
+                        f"{node.type.capitalize()} '{node.name}' is not connected to any agent",
+                        location=ErrorLocation(node_id=node.id, tab_id=node.tab_id),
                     )
 
     def _check_agent_configs(
@@ -185,7 +190,8 @@ class WorkflowValidator:
                 )
                 if not has_instruction:
                     result.add_warning(
-                        f"LLM agent '{agent_name}' has no connected prompt or context"
+                        f"LLM agent '{agent_name}' has no connected prompt or context",
+                        location=ErrorLocation(node_id=node.id, tab_id=node.tab_id),
                     )
 
             # Composite agents need subagents
@@ -196,7 +202,8 @@ class WorkflowValidator:
                 )
                 if not has_subagents:
                     result.add_warning(
-                        f"{agent_type.capitalize()} agent '{agent_name}' has no subagents"
+                        f"{agent_type.capitalize()} agent '{agent_name}' has no subagents",
+                        location=ErrorLocation(node_id=node.id, tab_id=node.tab_id),
                     )
 
             # Loop agents need iteration limit
@@ -211,7 +218,8 @@ class WorkflowValidator:
                     )
                 elif max_iterations > 100:
                     result.add_warning(
-                        f"Loop agent '{agent_name}' has high max_iterations ({max_iterations})"
+                        f"Loop agent '{agent_name}' has high max_iterations ({max_iterations})",
+                        location=ErrorLocation(node_id=node.id, tab_id=node.tab_id),
                     )
 
             # include_contents="none" requires output_key
@@ -262,7 +270,8 @@ class WorkflowValidator:
             if not output_key:
                 result.add_warning(
                     f"Agent '{source_name}' outputs to '{target_name}' but has no output_key. "
-                    f"The receiving agent won't be able to access the output."
+                    f"The receiving agent won't be able to access the output.",
+                    location=ErrorLocation(node_id=source.id, tab_id=source.tab_id),
                 )
 
     def _check_start_node(
@@ -289,7 +298,50 @@ class WorkflowValidator:
                 )
             )
         elif not start_nodes[0].outgoing:
-            result.add_warning("Start node is not connected to any agent")
+            result.add_warning(
+                "Start node is not connected to any agent",
+                location=ErrorLocation(
+                    node_id=start_nodes[0].id, tab_id=start_nodes[0].tab_id
+                ),
+            )
+
+    def _check_duplicate_names(
+        self,
+        graph: WorkflowGraph,
+        result: ValidationResult,
+    ) -> None:
+        """Check for duplicate node names across the workflow."""
+        # Node types that should have unique names
+        named_types = {"agent", "prompt", "tool", "context", "variable"}
+
+        # Group nodes by name -> list of (node_id, tab_id, node_type)
+        name_to_nodes: dict[str, list[tuple[str, str | None, str]]] = {}
+
+        for node in graph.nodes.values():
+            if node.type not in named_types:
+                continue
+
+            name = node.name
+            if not name:
+                continue
+
+            name_to_nodes.setdefault(name, []).append((node.id, node.tab_id, node.type))
+
+        # Report duplicates
+        for name, locations in name_to_nodes.items():
+            if len(locations) > 1:
+                for node_id, tab_id, node_type in locations:
+                    result.add_error(
+                        ValidationError(
+                            f"Duplicate name '{name}' - node names must be unique across the workflow",
+                            location=ErrorLocation(
+                                node_id=node_id,
+                                tab_id=tab_id,
+                                node_name=name,
+                                node_type=node_type,
+                            ),
+                        )
+                    )
 
     def _validate_agent_ir(self, agent: AgentIR, result: ValidationResult) -> None:
         """Validate a single agent IR."""
@@ -315,11 +367,13 @@ class WorkflowValidator:
         # Check temperature range
         if agent.temperature < 0 or agent.temperature > 2:
             result.add_warning(
-                f"Agent '{agent.name}' has unusual temperature: {agent.temperature}"
+                f"Agent '{agent.name}' has unusual temperature: {agent.temperature}",
+                location=ErrorLocation(node_id=agent.source_node_id),
             )
 
         # Check subagents for composite agents
         if agent.is_composite() and not agent.subagents:
             result.add_warning(
-                f"Composite agent '{agent.name}' ({agent.type}) has no subagents"
+                f"Composite agent '{agent.name}' ({agent.type}) has no subagents",
+                location=ErrorLocation(node_id=agent.source_node_id),
             )

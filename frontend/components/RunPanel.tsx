@@ -446,6 +446,8 @@ export default function RunPanel({
         return "text-gray-500";
       case "run_error":
         return "text-red-400";
+      case "warning":
+        return "text-yellow-400";
       case "run_start":
       case "run_complete":
         return "text-cyan-400";
@@ -515,7 +517,7 @@ export default function RunPanel({
               {event.agentName && (
                 <span className="text-purple-400">[{event.agentName}] </span>
               )}
-              {event.type === "agent_output" || event.type === "run_error" ? (
+              {event.type === "agent_output" || event.type === "run_error" || event.type === "warning" ? (
                 <span className="whitespace-pre-wrap">{event.content}</span>
               ) : (
                 <span>{event.content}</span>

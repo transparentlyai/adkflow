@@ -137,8 +137,8 @@ export interface ReactFlowCanvasRef {
   updateNodeExecutionState: (agentName: string, state: NodeExecutionState) => void;
   updateUserInputWaitingState: (nodeId: string, isWaiting: boolean) => void;
   clearExecutionState: () => void;
-  validateBeforeRun: () => { valid: boolean; errors: string[]; errorNodeIds: string[] };
   highlightErrorNodes: (nodeIds: string[]) => void;
+  highlightWarningNodes: (nodeIds: string[]) => void;
   clearErrorHighlights: () => void;
 }
 
@@ -1528,48 +1528,6 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       );
     }, [setNodes]);
 
-    // Validate workflow before running
-    const validateBeforeRun = useCallback((): { valid: boolean; errors: string[]; errorNodeIds: string[] } => {
-      const validationErrors: string[] = [];
-      const errorNodeIds: string[] = [];
-
-      // Check for agents with default or empty names
-      const agentNodes = nodes.filter((n) => n.type === "agent");
-      const unnamedAgents = agentNodes.filter((n) => {
-        const data = n.data as unknown as AgentNodeData;
-        const name = data.agent?.name?.trim();
-        return !name || name === "New Agent";
-      });
-
-      if (unnamedAgents.length > 0) {
-        validationErrors.push(
-          `${unnamedAgents.length} agent${unnamedAgents.length > 1 ? "s" : ""} need${unnamedAgents.length === 1 ? "s" : ""} a name. Double-click on the agent header to rename.`
-        );
-        errorNodeIds.push(...unnamedAgents.map((n) => n.id));
-      }
-
-      // Check for Start node
-      const startNodes = nodes.filter((n) => n.type === "start");
-      if (startNodes.length === 0) {
-        validationErrors.push("Workflow has no Start node. Add a Start node to define the entry point.");
-      } else if (startNodes.length > 1) {
-        validationErrors.push(`Workflow has ${startNodes.length} Start nodes. Only one is allowed.`);
-        errorNodeIds.push(...startNodes.map((n) => n.id));
-      }
-
-      // Check that Start node is connected to something
-      if (startNodes.length === 1) {
-        const startNode = startNodes[0];
-        const connectedEdges = edges.filter((e) => e.source === startNode.id);
-        if (connectedEdges.length === 0) {
-          validationErrors.push("Start node is not connected to any agent.");
-          errorNodeIds.push(startNode.id);
-        }
-      }
-
-      return { valid: validationErrors.length === 0, errors: validationErrors, errorNodeIds };
-    }, [nodes, edges]);
-
     // Highlight nodes with validation errors
     const highlightErrorNodes = useCallback((nodeIds: string[]) => {
       setNodes((nds) =>
@@ -1585,12 +1543,28 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       );
     }, [setNodes]);
 
-    // Clear validation error highlights
+    // Highlight nodes with validation warnings
+    const highlightWarningNodes = useCallback((nodeIds: string[]) => {
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (nodeIds.includes(node.id)) {
+            return {
+              ...node,
+              data: { ...node.data, hasValidationWarning: true },
+            };
+          }
+          return node;
+        })
+      );
+    }, [setNodes]);
+
+    // Clear validation error and warning highlights
     const clearErrorHighlights = useCallback(() => {
       setNodes((nds) =>
         nds.map((node) => {
-          if ((node.data as Record<string, unknown>).hasValidationError) {
-            const { hasValidationError, ...restData } = node.data as Record<string, unknown>;
+          const data = node.data as Record<string, unknown>;
+          if (data.hasValidationError || data.hasValidationWarning) {
+            const { hasValidationError, hasValidationWarning, ...restData } = data;
             return { ...node, data: restData };
           }
           return node;
@@ -1627,8 +1601,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       updateNodeExecutionState,
       updateUserInputWaitingState,
       clearExecutionState,
-      validateBeforeRun,
       highlightErrorNodes,
+      highlightWarningNodes,
       clearErrorHighlights,
     }));
 

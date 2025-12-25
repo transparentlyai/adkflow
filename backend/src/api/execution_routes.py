@@ -83,6 +83,8 @@ class ValidateResponse(BaseModel):
     valid: bool
     errors: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    error_node_ids: list[str] = Field(default_factory=list)
+    warning_node_ids: list[str] = Field(default_factory=list)
     agent_count: int = 0
     tab_count: int = 0
     teleporter_count: int = 0
@@ -523,10 +525,26 @@ async def validate_workflow(request: ValidateRequest) -> ValidateResponse:
         graph = compiler.build_graph(parsed)
         result = compiler.validate_graph(graph, project)
 
+        # Extract node IDs from errors for highlighting
+        error_node_ids = [
+            e.location.node_id
+            for e in result.errors
+            if e.location and e.location.node_id
+        ]
+
+        # Extract node IDs from warnings for highlighting
+        warning_node_ids = [
+            w.location.node_id
+            for w in result.warnings
+            if w.location and w.location.node_id
+        ]
+
         return ValidateResponse(
             valid=result.valid,
             errors=[str(e) for e in result.errors],
-            warnings=result.warnings,
+            warnings=[str(w) for w in result.warnings],
+            error_node_ids=error_node_ids,
+            warning_node_ids=warning_node_ids,
             agent_count=len(graph.get_agent_nodes()),
             tab_count=len(project.tabs),
             teleporter_count=len(graph.teleporter_pairs),
@@ -568,9 +586,7 @@ async def get_topology(request: TopologyRequest) -> TopologyResponse:
         )
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to generate topology: {e}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to generate topology: {e}")
 
 
 @router.get("/runs")

@@ -32,6 +32,7 @@ export interface AgentNodeData {
   isNodeLocked?: boolean;
   executionState?: NodeExecutionState;
   hasValidationError?: boolean;
+  hasValidationWarning?: boolean;
 }
 
 const TYPE_BADGE_LABELS: Record<AgentType, string> = {
@@ -51,8 +52,11 @@ const agentNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): boo
     return false;
   }
 
-  // Always re-render if validation error state changes
+  // Always re-render if validation error/warning state changes
   if (prevData.hasValidationError !== nextData.hasValidationError) {
+    return false;
+  }
+  if (prevData.hasValidationWarning !== nextData.hasValidationWarning) {
     return false;
   }
 
@@ -68,7 +72,7 @@ const agentNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): boo
 };
 
 const AgentNode = memo(({ data, id, selected }: NodeProps) => {
-  const { agent, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, executionState, hasValidationError } = data as unknown as AgentNodeData;
+  const { agent, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, executionState, hasValidationError, hasValidationWarning } = data as unknown as AgentNodeData;
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
   const { theme } = useTheme();
@@ -322,6 +326,14 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
       };
     }
 
+    // Validation warning - show yellow glow with pulse
+    if (hasValidationWarning) {
+      return {
+        boxShadow: `0 0 0 2px rgba(234, 179, 8, 0.8), 0 0 20px 4px rgba(234, 179, 8, 0.4)`,
+        animation: "validation-warning-pulse 1s ease-in-out infinite",
+      };
+    }
+
     switch (executionState) {
       case "running":
         return {
@@ -340,7 +352,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
       default:
         return selected ? { boxShadow: `0 0 0 2px ${theme.colors.nodes.agent.ring}` } : {};
     }
-  }, [executionState, hasValidationError, selected, theme.colors.nodes.agent.ring]);
+  }, [executionState, hasValidationError, hasValidationWarning, selected, theme.colors.nodes.agent.ring]);
 
   // Collapsed view
   if (!isExpanded) {
@@ -355,6 +367,10 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           @keyframes validation-error-pulse {
             0%, 100% { box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.8), 0 0 20px 4px rgba(239, 68, 68, 0.4); }
             50% { box-shadow: 0 0 0 3px rgba(239, 68, 68, 1), 0 0 30px 8px rgba(239, 68, 68, 0.6); }
+          }
+          @keyframes validation-warning-pulse {
+            0%, 100% { box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.8), 0 0 20px 4px rgba(234, 179, 8, 0.4); }
+            50% { box-shadow: 0 0 0 3px rgba(234, 179, 8, 1), 0 0 30px 8px rgba(234, 179, 8, 0.6); }
           }
         `}</style>
         <div
@@ -525,6 +541,10 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         @keyframes validation-error-pulse {
           0%, 100% { box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.8), 0 0 20px 4px rgba(239, 68, 68, 0.4); }
           50% { box-shadow: 0 0 0 3px rgba(239, 68, 68, 1), 0 0 30px 8px rgba(239, 68, 68, 0.6); }
+        }
+        @keyframes validation-warning-pulse {
+          0%, 100% { box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.8), 0 0 20px 4px rgba(234, 179, 8, 0.4); }
+          50% { box-shadow: 0 0 0 3px rgba(234, 179, 8, 1), 0 0 30px 8px rgba(234, 179, 8, 0.6); }
         }
       `}</style>
       <div

@@ -310,6 +310,7 @@ export type EventType =
   | "tool_result"
   | "thinking"
   | "run_error"
+  | "warning"
   | "user_input_required"
   | "user_input_received"
   | "user_input_timeout";
@@ -353,6 +354,8 @@ export interface ValidateResponse {
   valid: boolean;
   errors: string[];
   warnings: string[];
+  error_node_ids: string[];
+  warning_node_ids: string[];
   agent_count: number;
   tab_count: number;
   teleporter_count: number;

@@ -126,19 +126,34 @@ class TeleporterError(CompilationError):
 
 
 @dataclass
+class ValidationWarning:
+    """Warning during workflow validation (non-blocking)."""
+
+    message: str
+    location: ErrorLocation | None = None
+
+    def __str__(self) -> str:
+        if self.location:
+            loc_str = str(self.location)
+            if loc_str != "unknown location":
+                return f"{self.message} [{loc_str}]"
+        return self.message
+
+
+@dataclass
 class ValidationResult:
     """Result of workflow validation."""
 
     valid: bool
     errors: list[ValidationError] = field(default_factory=list)
-    warnings: list[str] = field(default_factory=list)
+    warnings: list[ValidationWarning] = field(default_factory=list)
 
     def add_error(self, error: ValidationError) -> None:
         self.errors.append(error)
         self.valid = False
 
-    def add_warning(self, warning: str) -> None:
-        self.warnings.append(warning)
+    def add_warning(self, message: str, location: ErrorLocation | None = None) -> None:
+        self.warnings.append(ValidationWarning(message=message, location=location))
 
     def raise_if_invalid(self) -> None:
         """Raise a ValidationError if validation failed."""

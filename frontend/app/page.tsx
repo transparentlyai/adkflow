@@ -8,7 +8,6 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import SaveConfirmDialog from "@/components/SaveConfirmDialog";
 import RunConfirmDialog from "@/components/RunConfirmDialog";
 import PromptNameDialog from "@/components/PromptNameDialog";
-import ValidationResultDialog from "@/components/ValidationResultDialog";
 import TopologyDialog from "@/components/TopologyDialog";
 import HomeScreen from "@/components/HomeScreen";
 import ProjectSwitcher from "@/components/ProjectSwitcher";
@@ -115,16 +114,6 @@ function HomeContent() {
   const [runEvents, setRunEvents] = useState<DisplayEvent[]>([]);
   const [isRunConfirmDialogOpen, setIsRunConfirmDialogOpen] = useState(false);
   const [lastRunStatus, setLastRunStatus] = useState<RunStatus>("pending");
-
-  // Validation dialog state
-  const [validationResult, setValidationResult] = useState<{
-    valid: boolean;
-    errors: string[];
-    warnings: string[];
-    agent_count: number;
-    tab_count: number;
-    teleporter_count: number;
-  } | null>(null);
 
   // Topology dialog state
   const [topologyResult, setTopologyResult] = useState<TopologyResponse | null>(null);
@@ -671,24 +660,64 @@ function HomeContent() {
   const executeRunWorkflow = useCallback(async () => {
     if (!currentProjectPath || isRunning) return;
 
-    // Validate workflow before running
-    if (canvasRef.current) {
-      const validation = canvasRef.current.validateBeforeRun();
+    // Clear any previous error highlights
+    canvasRef.current?.clearErrorHighlights();
+
+    // Validate workflow using backend validator (same as Validate command)
+    try {
+      const validation = await validateWorkflow(currentProjectPath);
+
+      // Highlight error nodes if any
+      if (validation.error_node_ids && validation.error_node_ids.length > 0) {
+        canvasRef.current?.highlightErrorNodes(validation.error_node_ids);
+      }
+
+      // Highlight warning nodes if any
+      if (validation.warning_node_ids && validation.warning_node_ids.length > 0) {
+        canvasRef.current?.highlightWarningNodes(validation.warning_node_ids);
+      }
+
+      // If validation failed, show all errors and warnings then abort
       if (!validation.valid) {
-        // Highlight nodes with errors
-        if (validation.errorNodeIds.length > 0) {
-          canvasRef.current.highlightErrorNodes(validation.errorNodeIds);
-        }
-        setValidationResult({
-          valid: false,
-          errors: validation.errors,
-          warnings: [],
-          agent_count: 0,
-          tab_count: 0,
-          teleporter_count: 0,
+        const events: DisplayEvent[] = [];
+
+        // Add errors
+        validation.errors.forEach((error, i) => {
+          events.push({
+            id: `validation-error-${Date.now()}-${i}`,
+            type: "run_error" as const,
+            content: error,
+            timestamp: Date.now(),
+          });
         });
+
+        // Add warnings
+        validation.warnings.forEach((warning, i) => {
+          events.push({
+            id: `validation-warning-${Date.now()}-${i}`,
+            type: "warning" as const,
+            content: warning,
+            timestamp: Date.now(),
+          });
+        });
+
+        setRunEvents(events);
+        setLastRunStatus("failed");
+        setIsRunPanelOpen(true);
         return;
       }
+    } catch (error) {
+      console.error("Failed to validate:", error);
+      const errorEvents: DisplayEvent[] = [{
+        id: `validation-error-${Date.now()}`,
+        type: "run_error" as const,
+        content: `Validation failed: ${(error as Error).message}`,
+        timestamp: Date.now(),
+      }];
+      setRunEvents(errorEvents);
+      setLastRunStatus("failed");
+      setIsRunPanelOpen(true);
+      return;
     }
 
     try {
@@ -701,7 +730,15 @@ function HomeContent() {
       setIsRunPanelOpen(true);
     } catch (error) {
       console.error("Failed to start run:", error);
-      alert("Failed to start workflow: " + (error as Error).message);
+      const errorEvents: DisplayEvent[] = [{
+        id: `run-error-${Date.now()}`,
+        type: "run_error" as const,
+        content: `Failed to start workflow: ${(error as Error).message}`,
+        timestamp: Date.now(),
+      }];
+      setRunEvents(errorEvents);
+      setLastRunStatus("failed");
+      setIsRunPanelOpen(true);
       setIsRunning(false);
     }
   }, [currentProjectPath, isRunning, activeTabId]);
@@ -739,24 +776,92 @@ function HomeContent() {
     setIsRunConfirmDialogOpen(false);
   }, []);
 
+  // Helper to show errors in the run console
+  const showErrorsInConsole = useCallback(
+    (errors: string[], errorNodeIds: string[] = []) => {
+      // Clear previous error highlights
+      canvasRef.current?.clearErrorHighlights();
+
+      // Highlight error nodes if any
+      if (errorNodeIds.length > 0) {
+        canvasRef.current?.highlightErrorNodes(errorNodeIds);
+      }
+
+      // Add errors as run_error events
+      const errorEvents: DisplayEvent[] = errors.map((error, i) => ({
+        id: `validation-error-${Date.now()}-${i}`,
+        type: "run_error" as const,
+        content: error,
+        timestamp: Date.now(),
+      }));
+
+      setRunEvents(errorEvents);
+      setLastRunStatus("failed");
+      setIsRunPanelOpen(true);
+    },
+    []
+  );
+
   const handleValidateWorkflow = useCallback(async () => {
     if (!currentProjectPath) return;
 
+    // Clear any previous error highlights
+    canvasRef.current?.clearErrorHighlights();
+
     try {
       const result = await validateWorkflow(currentProjectPath);
-      setValidationResult(result);
+
+      // Highlight error nodes if any
+      if (result.error_node_ids && result.error_node_ids.length > 0) {
+        canvasRef.current?.highlightErrorNodes(result.error_node_ids);
+      }
+
+      // Highlight warning nodes if any
+      if (result.warning_node_ids && result.warning_node_ids.length > 0) {
+        canvasRef.current?.highlightWarningNodes(result.warning_node_ids);
+      }
+
+      // Build events list with all errors and warnings
+      const events: DisplayEvent[] = [];
+
+      // Add errors first
+      result.errors.forEach((error, i) => {
+        events.push({
+          id: `validation-error-${Date.now()}-${i}`,
+          type: "run_error" as const,
+          content: error,
+          timestamp: Date.now(),
+        });
+      });
+
+      // Add warnings
+      result.warnings.forEach((warning, i) => {
+        events.push({
+          id: `validation-warning-${Date.now()}-${i}`,
+          type: "warning" as const,
+          content: warning,
+          timestamp: Date.now(),
+        });
+      });
+
+      // Add summary
+      if (result.valid) {
+        events.unshift({
+          id: `validation-success-${Date.now()}`,
+          type: "info" as const,
+          content: `Validation passed (${result.agent_count} agents, ${result.tab_count} tabs)`,
+          timestamp: Date.now(),
+        });
+      }
+
+      setRunEvents(events);
+      setLastRunStatus(result.valid ? "completed" : "failed");
+      setIsRunPanelOpen(true);
     } catch (error) {
       console.error("Failed to validate:", error);
-      setValidationResult({
-        valid: false,
-        errors: [(error as Error).message],
-        warnings: [],
-        agent_count: 0,
-        tab_count: 0,
-        teleporter_count: 0,
-      });
+      showErrorsInConsole([(error as Error).message]);
     }
-  }, [currentProjectPath]);
+  }, [currentProjectPath, showErrorsInConsole]);
 
   const executeShowTopology = useCallback(async () => {
     if (!currentProjectPath) return;
@@ -766,9 +871,9 @@ function HomeContent() {
       setTopologyResult(result);
     } catch (error) {
       console.error("Failed to get topology:", error);
-      alert(`Failed to get topology: ${(error as Error).message}`);
+      showErrorsInConsole([`Failed to generate topology: ${(error as Error).message}`]);
     }
-  }, [currentProjectPath]);
+  }, [currentProjectPath, showErrorsInConsole]);
 
   const handleShowTopology = useCallback(async () => {
     if (!currentProjectPath) return;
@@ -826,6 +931,7 @@ function HomeContent() {
     setIsRunning(false);
     // Clear any remaining highlights when closing the panel
     canvasRef.current?.clearExecutionState();
+    canvasRef.current?.clearErrorHighlights();
   }, []);
 
   // Tab handlers
@@ -1170,16 +1276,6 @@ function HomeContent() {
         variant="destructive"
         onConfirm={handleTabDeleteConfirm}
         onCancel={handleTabDeleteCancel}
-      />
-
-      {/* Validation Result Dialog */}
-      <ValidationResultDialog
-        isOpen={validationResult !== null}
-        result={validationResult}
-        onClose={() => {
-          setValidationResult(null);
-          canvasRef.current?.clearErrorHighlights();
-        }}
       />
 
       {/* Topology Dialog */}
