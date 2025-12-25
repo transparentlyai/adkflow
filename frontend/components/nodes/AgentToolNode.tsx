@@ -14,13 +14,13 @@ interface AgentToolNodeData {
   name?: string;
   handlePositions?: HandlePositions;
   isNodeLocked?: boolean;
-  hasDuplicateNameError?: boolean;
+  duplicateNameError?: string;
   validationErrors?: string[];
   validationWarnings?: string[];
 }
 
 const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name = "Agent Tool", handlePositions, isNodeLocked, hasDuplicateNameError, validationErrors, validationWarnings } = data as AgentToolNodeData;
+  const { name = "Agent Tool", handlePositions, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as AgentToolNodeData;
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
   const { theme } = useTheme();
@@ -127,7 +127,7 @@ const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
         style={{
           backgroundColor: theme.colors.nodes.agentTool.header,
           color: theme.colors.nodes.agentTool.text,
-          ...(hasDuplicateNameError ? {
+          ...(duplicateNameError ? {
             boxShadow: `0 0 0 2px #ef4444, 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)`,
           } : selected ? {
             boxShadow: `0 0 0 2px ${theme.colors.nodes.agentTool.ring}, 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)`,
@@ -151,7 +151,7 @@ const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
             <ValidationIndicator
               errors={validationErrors}
               warnings={validationWarnings}
-              duplicateNameError={hasDuplicateNameError}
+              duplicateNameError={duplicateNameError}
             />
             <div className="text-xs leading-tight">Agent</div>
             <div className="text-xs leading-tight">Tool</div>

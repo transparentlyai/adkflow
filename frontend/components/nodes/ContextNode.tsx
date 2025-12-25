@@ -23,13 +23,13 @@ export interface ContextNodeData {
   handlePositions?: HandlePositions;
   expandedSize?: { width: number; height: number };
   isNodeLocked?: boolean;
-  hasDuplicateNameError?: boolean;
+  duplicateNameError?: string;
   validationErrors?: string[];
   validationWarnings?: string[];
 }
 
 const ContextNode = memo(({ data, id, selected }: NodeProps) => {
-  const { prompt, content = "", handlePositions, expandedSize, isNodeLocked, hasDuplicateNameError, validationErrors, validationWarnings } = data as unknown as ContextNodeData;
+  const { prompt, content = "", handlePositions, expandedSize, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as unknown as ContextNodeData;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
@@ -243,7 +243,7 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
         width: isExpanded ? size.width : 'auto',
         minWidth: isExpanded ? size.width : 'auto',
         backgroundColor: theme.colors.nodes.common.container.background,
-        boxShadow: hasDuplicateNameError
+        boxShadow: duplicateNameError
           ? `0 0 0 2px #ef4444, ${theme.colors.nodes.common.container.shadow}`
           : isDirty
             ? `0 0 0 2px #f97316, ${theme.colors.nodes.common.container.shadow}`
@@ -268,7 +268,7 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
           <ValidationIndicator
             errors={validationErrors}
             warnings={validationWarnings}
-            duplicateNameError={hasDuplicateNameError}
+            duplicateNameError={duplicateNameError}
           />
           <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />

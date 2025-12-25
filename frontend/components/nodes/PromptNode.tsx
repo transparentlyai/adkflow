@@ -26,13 +26,13 @@ export interface PromptNodeData {
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
   isNodeLocked?: boolean;
-  hasDuplicateNameError?: boolean;
+  duplicateNameError?: string;
   validationErrors?: string[];
   validationWarnings?: string[];
 }
 
 const PromptNode = memo(({ data, id, selected }: NodeProps) => {
-  const { prompt, content = "", handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, hasDuplicateNameError, validationErrors, validationWarnings } = data as unknown as PromptNodeData;
+  const { prompt, content = "", handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as unknown as PromptNodeData;
   const { setNodes } = useReactFlow();
   const { projectPath, onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
@@ -292,7 +292,7 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
         width: isExpanded ? size.width : 'auto',
         minWidth: isExpanded ? size.width : 'auto',
         backgroundColor: theme.colors.nodes.common.container.background,
-        ...(hasDuplicateNameError ? {
+        ...(duplicateNameError ? {
           boxShadow: `0 0 0 2px #ef4444`,
         } : isDirty ? {
           boxShadow: `0 0 0 2px #f97316`,
@@ -317,7 +317,7 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
           <ValidationIndicator
             errors={validationErrors}
             warnings={validationWarnings}
-            duplicateNameError={hasDuplicateNameError}
+            duplicateNameError={duplicateNameError}
           />
           <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

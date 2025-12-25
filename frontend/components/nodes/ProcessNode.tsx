@@ -27,7 +27,7 @@ export interface ProcessNodeData extends Record<string, unknown> {
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
   isNodeLocked?: boolean;
-  hasDuplicateNameError?: boolean;
+  duplicateNameError?: string;
   validationErrors?: string[];
   validationWarnings?: string[];
 }
@@ -62,7 +62,7 @@ function parseFunctionSignature(code: string): { name: string; params: string; r
 }
 
 const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name, code, file_path, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, hasDuplicateNameError, validationErrors, validationWarnings } = data as unknown as ProcessNodeData;
+  const { name, code, file_path, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as unknown as ProcessNodeData;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
@@ -289,7 +289,7 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
         width: isExpanded ? size.width : 220,
         minWidth: isExpanded ? size.width : 220,
         backgroundColor: theme.colors.nodes.common.container.background,
-        boxShadow: hasDuplicateNameError
+        boxShadow: duplicateNameError
           ? `0 0 0 2px #ef4444`
           : selected
             ? `0 0 0 2px ${theme.colors.nodes.process.ring}`
@@ -322,7 +322,7 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
           <ValidationIndicator
             errors={validationErrors}
             warnings={validationWarnings}
-            duplicateNameError={hasDuplicateNameError}
+            duplicateNameError={duplicateNameError}
           />
           <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />

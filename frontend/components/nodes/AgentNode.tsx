@@ -34,7 +34,7 @@ export interface AgentNodeData {
   executionState?: NodeExecutionState;
   hasValidationError?: boolean;
   hasValidationWarning?: boolean;
-  hasDuplicateNameError?: boolean;
+  duplicateNameError?: string;
   validationErrors?: string[];
   validationWarnings?: string[];
 }
@@ -63,7 +63,7 @@ const agentNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): boo
   if (prevData.hasValidationWarning !== nextData.hasValidationWarning) {
     return false;
   }
-  if (prevData.hasDuplicateNameError !== nextData.hasDuplicateNameError) {
+  if (prevData.duplicateNameError !== nextData.duplicateNameError) {
     return false;
   }
   if (prevData.validationErrors !== nextData.validationErrors) {
@@ -85,7 +85,7 @@ const agentNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): boo
 };
 
 const AgentNode = memo(({ data, id, selected }: NodeProps) => {
-  const { agent, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, executionState, hasValidationError, hasValidationWarning, hasDuplicateNameError, validationErrors, validationWarnings } = data as unknown as AgentNodeData;
+  const { agent, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, executionState, hasValidationError, hasValidationWarning, duplicateNameError, validationErrors, validationWarnings } = data as unknown as AgentNodeData;
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
   const { theme } = useTheme();
@@ -332,7 +332,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
   // Get execution state styling for real-time highlighting
   const getExecutionStyle = useCallback((): React.CSSProperties => {
     // Duplicate name error takes priority - show red glow (static, no pulse for real-time)
-    if (hasDuplicateNameError) {
+    if (duplicateNameError) {
       return {
         boxShadow: `0 0 0 2px #ef4444`,
       };
@@ -372,7 +372,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
       default:
         return selected ? { boxShadow: `0 0 0 2px ${theme.colors.nodes.agent.ring}` } : {};
     }
-  }, [executionState, hasDuplicateNameError, hasValidationError, hasValidationWarning, selected, theme.colors.nodes.agent.ring]);
+  }, [executionState, duplicateNameError, hasValidationError, hasValidationWarning, selected, theme.colors.nodes.agent.ring]);
 
   // Collapsed view
   if (!isExpanded) {
@@ -439,7 +439,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           <ValidationIndicator
             errors={validationErrors}
             warnings={validationWarnings}
-            duplicateNameError={hasDuplicateNameError}
+            duplicateNameError={duplicateNameError}
           />
           {isEditing ? (
             <input
@@ -619,7 +619,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           <ValidationIndicator
             errors={validationErrors}
             warnings={validationWarnings}
-            duplicateNameError={hasDuplicateNameError}
+            duplicateNameError={duplicateNameError}
           />
           <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />

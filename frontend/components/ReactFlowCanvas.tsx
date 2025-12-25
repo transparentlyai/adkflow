@@ -1597,8 +1597,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       );
     }, [setNodes]);
 
-    // Track current duplicate error node IDs to avoid unnecessary re-renders
-    const duplicateErrorNodesRef = useRef<Set<string>>(new Set());
+    // Track current duplicate error nodes (id -> message) to avoid unnecessary re-renders
+    const duplicateErrorNodesRef = useRef<Map<string, string>>(new Map());
 
     // Real-time validation for duplicate names
     useEffect(() => {
@@ -1658,8 +1658,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         nameToNodes.set(info.name, existing);
       }
 
-      // Find nodes with duplicate errors
-      const newErrorNodeIds = new Set<string>();
+      // Find nodes with duplicate errors and their messages
+      const newErrorNodes = new Map<string, string>();
 
       for (const [, nodeInfos] of nameToNodes) {
         if (nodeInfos.length <= 1) continue;
@@ -1670,8 +1670,9 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
         if (uniqueNodes.length > 0) {
           // All nodes with this name are errors (unique-name types can't share)
+          const msg = "Duplicate name: name must be unique";
           for (const n of nodeInfos) {
-            newErrorNodeIds.add(n.id);
+            newErrorNodes.set(n.id, msg);
           }
           continue;
         }
@@ -1685,36 +1686,37 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
           if (!allSame) {
             // Different resources - all are errors
+            const msg = "Duplicate name: same name but different content";
             for (const n of fileNodes) {
-              newErrorNodeIds.add(n.id);
+              newErrorNodes.set(n.id, msg);
             }
           }
         }
       }
 
-      // Check if error set changed
-      const prevIds = duplicateErrorNodesRef.current;
-      const idsChanged =
-        newErrorNodeIds.size !== prevIds.size ||
-        [...newErrorNodeIds].some((id) => !prevIds.has(id));
+      // Check if error map changed
+      const prevMap = duplicateErrorNodesRef.current;
+      const mapChanged =
+        newErrorNodes.size !== prevMap.size ||
+        [...newErrorNodes].some(([id, msg]) => prevMap.get(id) !== msg);
 
-      if (!idsChanged) return;
+      if (!mapChanged) return;
 
       // Update ref
-      duplicateErrorNodesRef.current = newErrorNodeIds;
+      duplicateErrorNodesRef.current = newErrorNodes;
 
-      // Update nodes with error flags
+      // Update nodes with error messages
       setNodes((nds) =>
         nds.map((node) => {
           const data = node.data as Record<string, unknown>;
-          const hasError = newErrorNodeIds.has(node.id);
-          const currentHasError = !!data.hasDuplicateNameError;
+          const errorMsg = newErrorNodes.get(node.id);
+          const currentMsg = data.duplicateNameError as string | undefined;
 
-          if (hasError !== currentHasError) {
-            if (hasError) {
-              return { ...node, data: { ...data, hasDuplicateNameError: true } };
+          if (errorMsg !== currentMsg) {
+            if (errorMsg) {
+              return { ...node, data: { ...data, duplicateNameError: errorMsg } };
             } else {
-              const { hasDuplicateNameError, ...restData } = data;
+              const { duplicateNameError, ...restData } = data;
               return { ...node, data: restData };
             }
           }

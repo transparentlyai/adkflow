@@ -14,19 +14,19 @@ export interface ValidationIndicatorProps {
   errors?: string[];
   /** Backend validation warnings for this node */
   warnings?: string[];
-  /** Client-side duplicate name error */
-  duplicateNameError?: boolean;
+  /** Client-side duplicate name error message */
+  duplicateNameError?: string;
 }
 
 const ValidationIndicator = memo(
   ({
     errors = [],
     warnings = [],
-    duplicateNameError = false,
+    duplicateNameError,
   }: ValidationIndicatorProps) => {
     const allErrors: string[] = [...errors];
     if (duplicateNameError) {
-      allErrors.unshift("Duplicate name: another node has the same name");
+      allErrors.unshift(duplicateNameError);
     }
 
     const hasErrors = allErrors.length > 0;
