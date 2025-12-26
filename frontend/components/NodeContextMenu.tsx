@@ -2,6 +2,7 @@
 
 import { createPortal } from "react-dom";
 import { Lock, Unlock, Unlink, Copy, Scissors, Clipboard } from "lucide-react";
+import { formatShortcut } from "@/lib/utils";
 
 interface NodeContextMenuProps {
   x: number;
@@ -64,7 +65,7 @@ export default function NodeContextMenu({
               <Copy className="h-4 w-4" />
             </span>
             Copy
-            <span className="ml-auto text-xs text-muted-foreground">Ctrl+C</span>
+            <span className="ml-auto text-xs text-muted-foreground">{formatShortcut("C")}</span>
           </button>
         )}
         {onCut && (
@@ -81,7 +82,7 @@ export default function NodeContextMenu({
               <Scissors className="h-4 w-4" />
             </span>
             Cut
-            <span className="ml-auto text-xs text-muted-foreground">Ctrl+X</span>
+            <span className="ml-auto text-xs text-muted-foreground">{formatShortcut("X")}</span>
           </button>
         )}
         {onPaste && (
@@ -98,7 +99,7 @@ export default function NodeContextMenu({
               <Clipboard className="h-4 w-4" />
             </span>
             Paste
-            <span className="ml-auto text-xs text-muted-foreground">Ctrl+V</span>
+            <span className="ml-auto text-xs text-muted-foreground">{formatShortcut("V")}</span>
           </button>
         )}
         {(onCopy || onCut || onPaste) && (

@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import SettingsDialog from "@/components/SettingsDialog";
+import { formatShortcut } from "@/lib/utils";
 
 interface TopMenubarProps {
   onNewProject: () => void;
@@ -135,18 +136,18 @@ export default function TopMenubar({
             <MenubarItem onClick={onNewProject}>
               <FilePlus className="mr-2 h-4 w-4" />
               New Project
-              <MenubarShortcut>⌘N</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut("N")}</MenubarShortcut>
             </MenubarItem>
             <MenubarItem onClick={onLoadProject}>
               <FolderOpen className="mr-2 h-4 w-4" />
               Open Project
-              <MenubarShortcut>⌘O</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut("O")}</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem onClick={onSaveProject} disabled={!hasProjectPath}>
               <Save className="mr-2 h-4 w-4" />
               Save
-              <MenubarShortcut>⌘S</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut("S")}</MenubarShortcut>
             </MenubarItem>
           </MenubarContent>
         </MenubarMenu>
@@ -158,18 +159,18 @@ export default function TopMenubar({
             <MenubarItem onClick={onRunWorkflow} disabled={!hasProjectPath || isRunning}>
               <Play className="mr-2 h-4 w-4" />
               Run Workflow
-              <MenubarShortcut>⌘R</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut("R")}</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem onClick={onValidateWorkflow} disabled={!hasProjectPath}>
               <CheckCircle className="mr-2 h-4 w-4" />
               Validate
-              <MenubarShortcut>⇧⌘V</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut("V", true)}</MenubarShortcut>
             </MenubarItem>
             <MenubarItem onClick={onShowTopology} disabled={!hasProjectPath}>
               <Network className="mr-2 h-4 w-4" />
               Show Topology
-              <MenubarShortcut>⌘T</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut("T")}</MenubarShortcut>
             </MenubarItem>
           </MenubarContent>
         </MenubarMenu>
@@ -181,12 +182,12 @@ export default function TopMenubar({
             <MenubarItem disabled>
               <Undo2 className="mr-2 h-4 w-4" />
               Undo
-              <MenubarShortcut>⌘Z</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut("Z")}</MenubarShortcut>
             </MenubarItem>
             <MenubarItem disabled>
               <Redo2 className="mr-2 h-4 w-4" />
               Redo
-              <MenubarShortcut>⇧⌘Z</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut("Z", true)}</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem onClick={onClearCanvas} disabled={!hasProjectPath}>
@@ -203,18 +204,18 @@ export default function TopMenubar({
             <MenubarItem onClick={onZoomIn} disabled={!onZoomIn}>
               <ZoomIn className="mr-2 h-4 w-4" />
               Zoom In
-              <MenubarShortcut>⌘+</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut("+")}</MenubarShortcut>
             </MenubarItem>
             <MenubarItem onClick={onZoomOut} disabled={!onZoomOut}>
               <ZoomOut className="mr-2 h-4 w-4" />
               Zoom Out
-              <MenubarShortcut>⌘-</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut("-")}</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem onClick={onFitView} disabled={!onFitView}>
               <Maximize className="mr-2 h-4 w-4" />
               Fit to Screen
-              <MenubarShortcut>⌘0</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut("0")}</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem onClick={onToggleLock} disabled={!onToggleLock}>
@@ -224,14 +225,14 @@ export default function TopMenubar({
                 <Lock className="mr-2 h-4 w-4" />
               )}
               {isLocked ? "Unlock Canvas" : "Lock Canvas"}
-              <MenubarShortcut>⌘L</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut("L")}</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem onClick={onToggleRunConsole}>
               <Check className={`mr-2 h-4 w-4 ${showRunConsole ? "opacity-100" : "opacity-0"}`} />
               <Terminal className="mr-2 h-4 w-4" />
               Run Console
-              <MenubarShortcut>⌘J</MenubarShortcut>
+              <MenubarShortcut>{formatShortcut("J")}</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
             {/* Theme submenu */}

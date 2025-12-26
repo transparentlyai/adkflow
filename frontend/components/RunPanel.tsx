@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { RunEvent, RunStatus, EventType, NodeExecutionState, UserInputRequest } from "@/lib/types";
 import { createRunEventSource, cancelRun, getRunStatus, submitUserInput } from "@/lib/api";
+import { isMacOS } from "@/lib/utils";
 
 const MIN_HEIGHT = 120;
 const MAX_HEIGHT = 600;
@@ -575,7 +576,7 @@ export default function RunPanel({
             </Button>
           </div>
           <div className="text-xs text-gray-500 mt-1">
-            Press Ctrl+Enter to submit
+            Press {isMacOS() ? "⌘" : "Ctrl+"}Enter to submit
           </div>
         </div>
       )}

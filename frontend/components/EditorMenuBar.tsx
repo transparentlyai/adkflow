@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/menubar";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Save } from "lucide-react";
+import { formatShortcut } from "@/lib/utils";
 
 interface EditorMenuBarProps {
   onSave?: () => void;
@@ -44,7 +45,7 @@ export default function EditorMenuBar({
                 <>
                   <MenubarItem onClick={onSave} disabled={isSaving}>
                     {isSaving ? "Saving..." : "Save"}
-                    <span className="ml-auto text-xs text-muted-foreground">⌘S</span>
+                    <span className="ml-auto text-xs text-muted-foreground">{formatShortcut("S")}</span>
                   </MenubarItem>
                   <MenubarSeparator />
                 </>
@@ -70,7 +71,7 @@ export default function EditorMenuBar({
             className={`h-5 px-2 flex items-center gap-1 text-xs rounded transition-colors disabled:opacity-50 hover:bg-accent ${
               isDirty ? 'text-orange-500 font-medium' : ''
             }`}
-            title={isSaving ? "Saving..." : isDirty ? "Unsaved changes (⌘S)" : "Save (⌘S)"}
+            title={isSaving ? "Saving..." : isDirty ? `Unsaved changes (${formatShortcut("S")})` : `Save (${formatShortcut("S")})`}
           >
             <Save className={`w-3 h-3 ${isSaving ? 'animate-pulse' : ''}`} />
             <span>{isSaving ? "Saving..." : "Save"}</span>

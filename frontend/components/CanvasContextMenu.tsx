@@ -32,6 +32,7 @@ import {
   Play,
   Square,
 } from "lucide-react";
+import { formatShortcut } from "@/lib/utils";
 
 export type NodeTypeOption =
   | "variable"
@@ -196,7 +197,7 @@ export default function CanvasContextMenu({
                   <Copy className="h-4 w-4" />
                 </span>
                 Copy
-                <span className="ml-auto text-xs text-muted-foreground">⌘C</span>
+                <span className="ml-auto text-xs text-muted-foreground">{formatShortcut("C")}</span>
               </button>
             )}
             {hasSelection && onCut && (
@@ -211,7 +212,7 @@ export default function CanvasContextMenu({
                   <Scissors className="h-4 w-4" />
                 </span>
                 Cut
-                <span className="ml-auto text-xs text-muted-foreground">⌘X</span>
+                <span className="ml-auto text-xs text-muted-foreground">{formatShortcut("X")}</span>
               </button>
             )}
             {hasClipboard && onPaste && (
@@ -226,7 +227,7 @@ export default function CanvasContextMenu({
                   <Clipboard className="h-4 w-4" />
                 </span>
                 Paste
-                <span className="ml-auto text-xs text-muted-foreground">⌘V</span>
+                <span className="ml-auto text-xs text-muted-foreground">{formatShortcut("V")}</span>
               </button>
             )}
             {hasSelection && onDelete && (
