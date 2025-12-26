@@ -749,6 +749,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
       >
         <AgentPropertiesPanel
           agent={agent}
+          nodeId={id}
           connectedAgentName={connectedAgentName}
           connectedPromptName={connectedPromptName}
           connectedToolNames={connectedToolNames}

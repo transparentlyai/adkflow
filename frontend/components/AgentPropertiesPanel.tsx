@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Handle, Position } from "@xyflow/react";
 import type { Agent, AgentType, PlannerConfig, CodeExecutorConfig, HttpOptions, HandleDataType } from "@/lib/types";
+import { isTypeCompatible } from "@/lib/types";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useConnection } from "@/contexts/ConnectionContext";
 
 interface HandleConfig {
   id: string;
@@ -13,6 +15,7 @@ interface HandleConfig {
 
 interface AgentPropertiesPanelProps {
   agent: Agent;
+  nodeId: string;
   connectedAgentName?: string;
   connectedPromptName?: string;
   connectedToolNames?: string[];
@@ -59,6 +62,7 @@ const PLANNER_TYPES: { value: PlannerConfig["type"]; label: string }[] = [
 
 export default function AgentPropertiesPanel({
   agent,
+  nodeId,
   connectedAgentName,
   connectedPromptName,
   connectedToolNames = [],
@@ -68,8 +72,50 @@ export default function AgentPropertiesPanel({
   handleConfigs,
 }: AgentPropertiesPanelProps) {
   const { theme } = useTheme();
+  const { connectionState } = useConnection();
   const [activeTab, setActiveTab] = useState<TabId>("general");
   const [customModel, setCustomModel] = useState("");
+
+  // Compute validity style for a target handle based on connection state
+  const getHandleValidityStyle = useCallback((acceptedTypes?: HandleDataType[]): React.CSSProperties => {
+    if (!connectionState.isDragging || !acceptedTypes) {
+      return {};
+    }
+    // Prevent self-connection
+    if (connectionState.sourceNodeId === nodeId) {
+      return {
+        boxShadow: '0 0 0 2px #ef4444, 0 0 8px 2px #ef4444',
+        cursor: 'not-allowed',
+      };
+    }
+    // Check type compatibility
+    const isValid = isTypeCompatible(connectionState.sourceOutputType, acceptedTypes);
+    if (isValid) {
+      return {
+        boxShadow: '0 0 0 2px #22c55e, 0 0 8px 2px #22c55e',
+        cursor: 'pointer',
+      };
+    } else {
+      return {
+        boxShadow: '0 0 0 2px #ef4444, 0 0 8px 2px #ef4444',
+        cursor: 'not-allowed',
+      };
+    }
+  }, [connectionState, nodeId]);
+
+  // Memoized validity styles for each handle
+  const agentInputValidityStyle = useMemo(
+    () => getHandleValidityStyle(handleConfigs?.agentInput?.acceptedTypes),
+    [getHandleValidityStyle, handleConfigs?.agentInput?.acceptedTypes]
+  );
+  const promptInputValidityStyle = useMemo(
+    () => getHandleValidityStyle(handleConfigs?.promptInput?.acceptedTypes),
+    [getHandleValidityStyle, handleConfigs?.promptInput?.acceptedTypes]
+  );
+  const toolsInputValidityStyle = useMemo(
+    () => getHandleValidityStyle(handleConfigs?.toolsInput?.acceptedTypes),
+    [getHandleValidityStyle, handleConfigs?.toolsInput?.acceptedTypes]
+  );
 
   const handlePlannerUpdate = useCallback(
     (updates: Partial<PlannerConfig>) => {
@@ -117,7 +163,9 @@ export default function AgentPropertiesPanel({
                 left: -5,
                 top: '50%',
                 transform: 'translateY(-50%)',
+                transition: 'box-shadow 0.15s ease',
                 ...handleConfigs.agentInput.style,
+                ...agentInputValidityStyle,
               }}
               title="Agent input"
             />
@@ -241,7 +289,9 @@ export default function AgentPropertiesPanel({
                 left: -5,
                 top: '50%',
                 transform: 'translateY(-50%)',
+                transition: 'box-shadow 0.15s ease',
                 ...handleConfigs.promptInput.style,
+                ...promptInputValidityStyle,
               }}
               title="Prompt input"
             />
@@ -274,7 +324,9 @@ export default function AgentPropertiesPanel({
                 left: -5,
                 top: '50%',
                 transform: 'translateY(-50%)',
+                transition: 'box-shadow 0.15s ease',
                 ...handleConfigs.toolsInput.style,
+                ...toolsInputValidityStyle,
               }}
               title="Tools input"
             />
