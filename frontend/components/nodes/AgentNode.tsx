@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { type NodeProps, useReactFlow, useStore } from "@xyflow/react";
+import { Handle, Position, type NodeProps, useReactFlow, useStore } from "@xyflow/react";
 import type { Agent, AgentType, HandlePositions, NodeExecutionState, HandleDataType } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import ResizeHandle from "@/components/ResizeHandle";
@@ -98,6 +98,33 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
+  // Handle style for input handles (used in expanded view)
+  const inputHandleStyle = useMemo(() => ({
+    width: 10,
+    height: 10,
+    border: `2px solid ${theme.colors.handles.border}`,
+    backgroundColor: theme.colors.handles.input,
+  }), [theme.colors.handles.border, theme.colors.handles.input]);
+
+  // Handle configs for AgentPropertiesPanel in expanded view
+  const handleConfigs = useMemo(() => ({
+    agentInput: {
+      id: 'agent-input',
+      acceptedTypes: resolvedHandleTypes['agent-input']?.acceptedTypes,
+      style: inputHandleStyle,
+    },
+    promptInput: {
+      id: 'prompt-input',
+      acceptedTypes: resolvedHandleTypes['prompt-input']?.acceptedTypes,
+      style: inputHandleStyle,
+    },
+    toolsInput: {
+      id: 'tools-input',
+      acceptedTypes: resolvedHandleTypes['tools-input']?.acceptedTypes,
+      style: inputHandleStyle,
+    },
+  }), [resolvedHandleTypes, inputHandleStyle]);
+
   const size = useMemo(() => expandedSize ?? { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT }, [expandedSize]);
 
   // Optimized selector: only subscribe to parentId changes for this specific node
@@ -110,7 +137,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
   const connectedPromptName = useStore(
     useCallback((state) => {
       for (const edge of state.edges) {
-        if (edge.target === id) {
+        if (edge.target === id && (edge.targetHandle === 'prompt-input' || edge.targetHandle === 'input')) {
           const sourceNode = state.nodes.find((n) => n.id === edge.source);
           if (sourceNode && sourceNode.id.startsWith("prompt_")) {
             const promptData = sourceNode.data as { prompt?: { name?: string } };
@@ -129,7 +156,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
     useCallback((state) => {
       const toolNames: string[] = [];
       for (const edge of state.edges) {
-        if (edge.target === id) {
+        if (edge.target === id && (edge.targetHandle === 'tools-input' || edge.targetHandle === 'input')) {
           const sourceNode = state.nodes.find((n) => n.id === edge.source);
           if (sourceNode) {
             if (sourceNode.id.startsWith("tool_")) {
@@ -148,6 +175,22 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
       }
       connectedToolNamesRef.current = toolNames;
       return toolNames;
+    }, [id])
+  );
+
+  // Optimized selector: compute connected agent name (sub-agent input)
+  const connectedAgentName = useStore(
+    useCallback((state) => {
+      for (const edge of state.edges) {
+        if (edge.target === id && (edge.targetHandle === 'agent-input' || edge.targetHandle === 'input')) {
+          const sourceNode = state.nodes.find((n) => n.id === edge.source);
+          if (sourceNode && sourceNode.id.startsWith("agent_")) {
+            const agentData = sourceNode.data as { agent?: { name?: string } };
+            return agentData?.agent?.name || "Agent";
+          }
+        }
+      }
+      return undefined;
     }, [id])
   );
 
@@ -407,7 +450,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           onDoubleClick={toggleExpand}
           title="Double-click to configure"
         >
-        {/* Input Handle */}
+        {/* Unified Input Handle - visible in collapsed state */}
         <DraggableHandle
           nodeId={id}
           handleId="input"
@@ -417,6 +460,26 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           handlePositions={handlePositions}
           acceptedTypes={resolvedHandleTypes['input']?.acceptedTypes}
           style={{ ...handleStyle, backgroundColor: theme.colors.handles.input }}
+        />
+
+        {/* Hidden specific handles for edge compatibility - edges with specific targetHandle IDs will still render */}
+        <Handle
+          type="target"
+          position={Position.Left}
+          id="agent-input"
+          style={{ opacity: 0, pointerEvents: 'none', top: '50%', left: 0 }}
+        />
+        <Handle
+          type="target"
+          position={Position.Left}
+          id="prompt-input"
+          style={{ opacity: 0, pointerEvents: 'none', top: '50%', left: 0 }}
+        />
+        <Handle
+          type="target"
+          position={Position.Left}
+          id="tools-input"
+          style={{ opacity: 0, pointerEvents: 'none', top: '50%', left: 0 }}
         />
 
         {/* Link Handle - Top */}
@@ -590,16 +653,19 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           ...getExecutionStyle(),
         }}
       >
-      {/* Input Handle */}
-      <DraggableHandle
-        nodeId={id}
-        handleId="input"
+      {/* Hidden unified input handle for edge compatibility - positioned at top for legacy edges */}
+      <Handle
         type="target"
-        defaultEdge="left"
-        defaultPercent={50}
-        handlePositions={handlePositions}
-        acceptedTypes={resolvedHandleTypes['input']?.acceptedTypes}
-        style={{ ...handleStyle, backgroundColor: theme.colors.handles.input }}
+        position={Position.Left}
+        id="input"
+        data-accepted-types={JSON.stringify(resolvedHandleTypes['input']?.acceptedTypes || [])}
+        style={{
+          ...handleStyle,
+          backgroundColor: 'transparent',
+          border: 'none',
+          opacity: 0,
+          pointerEvents: 'none',
+        }}
       />
 
       {/* Link Handle - Top */}
@@ -683,10 +749,13 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
       >
         <AgentPropertiesPanel
           agent={agent}
+          connectedAgentName={connectedAgentName}
           connectedPromptName={connectedPromptName}
           connectedToolNames={connectedToolNames}
           onUpdate={isNodeLocked ? () => {} : handleAgentUpdate}
           disabled={isNodeLocked}
+          showHandles={true}
+          handleConfigs={handleConfigs}
         />
       </div>
 
@@ -784,7 +853,13 @@ export function getDefaultAgentData(): Omit<Agent, "id"> & { handleTypes: Record
     tools: [],
     subagents: [],
     handleTypes: {
-      'input': { acceptedTypes: ['str', 'custom:AgentOutput', 'any'] as HandleDataType[] },
+      // Generic input (collapsed state) - accepts all, auto-routes on connection
+      'input': { acceptedTypes: ['custom:Prompt', 'custom:Tool', 'custom:AgentTool', 'custom:AgentOutput', 'str'] as HandleDataType[] },
+      // Specific inputs (expanded state)
+      'agent-input': { acceptedTypes: ['custom:AgentOutput', 'str'] as HandleDataType[] },
+      'prompt-input': { acceptedTypes: ['custom:Prompt'] as HandleDataType[] },
+      'tools-input': { acceptedTypes: ['custom:Tool', 'custom:AgentTool'] as HandleDataType[] },
+      // Output and links (unchanged)
       'output': { outputType: 'custom:AgentOutput' as HandleDataType },
       'link-top': { outputType: 'custom:Link' as HandleDataType },
       'link-bottom': { acceptedTypes: ['custom:Link'] as HandleDataType[] },

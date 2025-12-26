@@ -289,26 +289,45 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     const onConnect = useCallback((params: Connection) => {
       if (isLocked) return;
 
+      let targetHandle = params.targetHandle;
+
+      // Auto-detect for AgentNode collapsed "input" handle
+      if (params.target?.startsWith('agent_') && params.targetHandle === 'input') {
+        // Look up source handle's output type from registry
+        const sourceKey = `${params.source}:${params.sourceHandle}`;
+        const sourceOutputType = handleTypeRegistry[sourceKey]?.outputType;
+
+        if (sourceOutputType === 'custom:Prompt') {
+          targetHandle = 'prompt-input';
+        } else if (sourceOutputType === 'custom:Tool' || sourceOutputType === 'custom:AgentTool') {
+          targetHandle = 'tools-input';
+        } else {
+          // custom:AgentOutput, str, or any other type
+          targetHandle = 'agent-input';
+        }
+      }
+
       // Check if this is a link connection (from link handles)
       const isLinkConnection =
         params.sourceHandle?.startsWith('link-') &&
-        params.targetHandle?.startsWith('link-');
+        targetHandle?.startsWith('link-');
 
       if (isLinkConnection) {
         // Gray dotted edge for link connections between agents
         const edgeWithStyle = {
           ...params,
+          targetHandle,
           type: 'default',
           style: { strokeWidth: 2, stroke: theme.colors.edges.link, strokeDasharray: '5 5' },
         };
         setEdges((eds) => addEdge(edgeWithStyle, eds));
-      } else if (params.sourceHandle?.startsWith('link-') || params.targetHandle?.startsWith('link-')) {
+      } else if (params.sourceHandle?.startsWith('link-') || targetHandle?.startsWith('link-')) {
         // Prevent mixing link handles with regular handles
         return;
       } else {
-        setEdges((eds) => addEdge(params, eds));
+        setEdges((eds) => addEdge({ ...params, targetHandle }, eds));
       }
-    }, [isLocked, theme.colors.edges.link]);
+    }, [isLocked, theme.colors.edges.link, handleTypeRegistry]);
 
     // Auto-parent/detach nodes from Group on drag stop (handles multi-selection)
     const onNodeDragStop = useCallback(

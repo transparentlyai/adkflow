@@ -1,15 +1,30 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import type { Agent, AgentType, PlannerConfig, CodeExecutorConfig, HttpOptions } from "@/lib/types";
+import { Handle, Position } from "@xyflow/react";
+import type { Agent, AgentType, PlannerConfig, CodeExecutorConfig, HttpOptions, HandleDataType } from "@/lib/types";
 import { useTheme } from "@/contexts/ThemeContext";
+
+interface HandleConfig {
+  id: string;
+  acceptedTypes?: HandleDataType[];
+  style?: React.CSSProperties;
+}
 
 interface AgentPropertiesPanelProps {
   agent: Agent;
+  connectedAgentName?: string;
   connectedPromptName?: string;
   connectedToolNames?: string[];
   onUpdate: (updates: Partial<Agent>) => void;
   disabled?: boolean;
+  // Handle configuration for expanded mode
+  showHandles?: boolean;
+  handleConfigs?: {
+    agentInput?: HandleConfig;
+    promptInput?: HandleConfig;
+    toolsInput?: HandleConfig;
+  };
 }
 
 type TabId = "general" | "execution" | "flow" | "schema" | "callbacks";
@@ -44,10 +59,13 @@ const PLANNER_TYPES: { value: PlannerConfig["type"]; label: string }[] = [
 
 export default function AgentPropertiesPanel({
   agent,
+  connectedAgentName,
   connectedPromptName,
   connectedToolNames = [],
   onUpdate,
   disabled = false,
+  showHandles = false,
+  handleConfigs,
 }: AgentPropertiesPanelProps) {
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<TabId>("general");
@@ -82,6 +100,40 @@ export default function AgentPropertiesPanel({
 
   const renderGeneralTab = () => (
     <div className="space-y-4">
+      {/* Connected Agent - FIRST FIELD */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>Connected Agent</label>
+        <div className="relative flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md" style={{
+          backgroundColor: theme.colors.nodes.common.footer.background,
+          borderColor: theme.colors.nodes.common.container.border
+        }}>
+          {/* Handle rendered inside the input container - scrolls with content */}
+          {showHandles && handleConfigs?.agentInput && (
+            <Handle
+              type="target"
+              position={Position.Left}
+              id={handleConfigs.agentInput.id}
+              style={{
+                position: 'absolute',
+                left: -5,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                ...handleConfigs.agentInput.style,
+              }}
+              title="Agent input"
+            />
+          )}
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.colors.nodes.common.text.muted }}>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+          <span className={connectedAgentName ? "" : "italic"} style={{
+            color: connectedAgentName ? theme.colors.nodes.common.text.primary : theme.colors.nodes.common.text.muted
+          }}>
+            {connectedAgentName || "No agent connected"}
+          </span>
+        </div>
+      </div>
+
       {/* Type */}
       <div className="space-y-1.5">
         <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>Type</label>
@@ -176,10 +228,26 @@ export default function AgentPropertiesPanel({
       {/* Connected Prompt */}
       <div className="space-y-1.5">
         <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>Connected Prompt</label>
-        <div className="flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md" style={{
+        <div className="relative flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md" style={{
           backgroundColor: theme.colors.nodes.common.footer.background,
           borderColor: theme.colors.nodes.common.container.border
         }}>
+          {/* Handle rendered inside the input container - scrolls with content */}
+          {showHandles && handleConfigs?.promptInput && (
+            <Handle
+              type="target"
+              position={Position.Left}
+              id={handleConfigs.promptInput.id}
+              style={{
+                position: 'absolute',
+                left: -5,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                ...handleConfigs.promptInput.style,
+              }}
+              title="Prompt input"
+            />
+          )}
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.colors.nodes.common.text.muted }}>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
@@ -194,10 +262,26 @@ export default function AgentPropertiesPanel({
       {/* Connected Tools */}
       <div className="space-y-1.5">
         <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>Connected Tools</label>
-        <div className="flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md" style={{
+        <div className="relative flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md" style={{
           backgroundColor: theme.colors.nodes.common.footer.background,
           borderColor: theme.colors.nodes.common.container.border
         }}>
+          {/* Handle rendered inside the input container - scrolls with content */}
+          {showHandles && handleConfigs?.toolsInput && (
+            <Handle
+              type="target"
+              position={Position.Left}
+              id={handleConfigs.toolsInput.id}
+              style={{
+                position: 'absolute',
+                left: -5,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                ...handleConfigs.toolsInput.style,
+              }}
+              title="Tools input"
+            />
+          )}
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.colors.nodes.common.text.muted }}>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -739,9 +823,10 @@ export default function AgentPropertiesPanel({
         ))}
       </div>
 
-      {/* Tab Content */}
+      {/* Tab Content - overflow-x visible to prevent clipping of handles positioned with negative left */}
       <div
-        className={`flex-1 overflow-y-auto p-4 nodrag nowheel nopan ${disabled ? "opacity-60 pointer-events-none" : ""}`}
+        className={`flex-1 p-4 nodrag nowheel nopan ${disabled ? "opacity-60 pointer-events-none" : ""}`}
+        style={{ overflowY: 'auto', overflowX: 'visible' }}
         onKeyDown={(e) => e.stopPropagation()}
       >
         {renderTabContent()}
