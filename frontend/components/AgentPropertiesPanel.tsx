@@ -107,7 +107,6 @@ export default function AgentPropertiesPanel({
           backgroundColor: theme.colors.nodes.common.footer.background,
           borderColor: theme.colors.nodes.common.container.border
         }}>
-          {/* Handle rendered inside the input container - scrolls with content */}
           {showHandles && handleConfigs?.agentInput && (
             <Handle
               type="target"
@@ -232,7 +231,6 @@ export default function AgentPropertiesPanel({
           backgroundColor: theme.colors.nodes.common.footer.background,
           borderColor: theme.colors.nodes.common.container.border
         }}>
-          {/* Handle rendered inside the input container - scrolls with content */}
           {showHandles && handleConfigs?.promptInput && (
             <Handle
               type="target"
@@ -266,7 +264,6 @@ export default function AgentPropertiesPanel({
           backgroundColor: theme.colors.nodes.common.footer.background,
           borderColor: theme.colors.nodes.common.container.border
         }}>
-          {/* Handle rendered inside the input container - scrolls with content */}
           {showHandles && handleConfigs?.toolsInput && (
             <Handle
               type="target"
@@ -823,7 +820,7 @@ export default function AgentPropertiesPanel({
         ))}
       </div>
 
-      {/* Tab Content - overflow-x visible to prevent clipping of handles positioned with negative left */}
+      {/* Tab Content */}
       <div
         className={`flex-1 p-4 nodrag nowheel nopan ${disabled ? "opacity-60 pointer-events-none" : ""}`}
         style={{ overflowY: 'auto', overflowX: 'visible' }}

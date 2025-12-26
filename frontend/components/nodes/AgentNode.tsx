@@ -88,7 +88,7 @@ const agentNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): boo
 
 const AgentNode = memo(({ data, id, selected }: NodeProps) => {
   const { agent, handlePositions, handleTypes, expandedSize, expandedPosition, contractedPosition, isExpanded: dataIsExpanded, isNodeLocked, executionState, hasValidationError, hasValidationWarning, duplicateNameError, validationErrors, validationWarnings } = data as unknown as AgentNodeData;
-  const resolvedHandleTypes = (handleTypes || {}) as Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
+  const resolvedHandleTypes = useMemo(() => (handleTypes || {}) as Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>, [handleTypes]);
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
   const { theme } = useTheme();
@@ -450,7 +450,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           onDoubleClick={toggleExpand}
           title="Double-click to configure"
         >
-        {/* Unified Input Handle - visible in collapsed state */}
+        {/* Input Handle */}
         <DraggableHandle
           nodeId={id}
           handleId="input"
@@ -462,7 +462,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           style={{ ...handleStyle, backgroundColor: theme.colors.handles.input }}
         />
 
-        {/* Hidden specific handles for edge compatibility - edges with specific targetHandle IDs will still render */}
+        {/* Hidden handles for typed edges */}
         <Handle
           type="target"
           position={Position.Left}
@@ -653,7 +653,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           ...getExecutionStyle(),
         }}
       >
-      {/* Hidden unified input handle for edge compatibility - positioned at top for legacy edges */}
+      {/* Hidden input handle for edge compatibility */}
       <Handle
         type="target"
         position={Position.Left}
@@ -853,13 +853,10 @@ export function getDefaultAgentData(): Omit<Agent, "id"> & { handleTypes: Record
     tools: [],
     subagents: [],
     handleTypes: {
-      // Generic input (collapsed state) - accepts all, auto-routes on connection
       'input': { acceptedTypes: ['custom:Prompt', 'custom:Tool', 'custom:AgentTool', 'custom:AgentOutput', 'str'] as HandleDataType[] },
-      // Specific inputs (expanded state)
       'agent-input': { acceptedTypes: ['custom:AgentOutput', 'str'] as HandleDataType[] },
       'prompt-input': { acceptedTypes: ['custom:Prompt'] as HandleDataType[] },
       'tools-input': { acceptedTypes: ['custom:Tool', 'custom:AgentTool'] as HandleDataType[] },
-      // Output and links (unchanged)
       'output': { outputType: 'custom:AgentOutput' as HandleDataType },
       'link-top': { outputType: 'custom:Link' as HandleDataType },
       'link-bottom': { acceptedTypes: ['custom:Link'] as HandleDataType[] },
