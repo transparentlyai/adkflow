@@ -83,6 +83,9 @@ const agentNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): boo
   // Compare agent object by reference - if any property changed, re-render
   if (prevData.agent !== nextData.agent) return false;
 
+  // Check expandedSize for resize updates
+  if (prevData.expandedSize !== nextData.expandedSize) return false;
+
   return true;
 };
 
@@ -648,7 +651,6 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         className="rounded-lg shadow-lg relative"
         style={{
           width: size.width,
-          height: size.height,
           backgroundColor: theme.colors.nodes.common.container.background,
           ...getExecutionStyle(),
         }}
