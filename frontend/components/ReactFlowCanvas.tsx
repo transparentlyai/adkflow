@@ -914,16 +914,17 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
      */
     const addAgentNode = useCallback((position?: { x: number; y: number }) => {
       const agentId = generateNodeId("agent");
+      const defaultData = getDefaultAgentData();
       const agent: Agent = {
         id: agentId,
-        ...getDefaultAgentData(),
+        ...defaultData,
       };
 
       const newNode: Node = {
         id: agentId,
         type: "agent",
         position: position || agentPosition,
-        data: { agent },
+        data: { agent, handleTypes: defaultData.handleTypes },
       };
 
       setNodes((nds) => [...nds, newNode]);
@@ -937,9 +938,10 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
      */
     const addPromptNode = useCallback((promptData?: { name: string; file_path: string }, position?: { x: number; y: number }) => {
       const promptId = generateNodeId("prompt");
+      const defaultData = getDefaultPromptData();
       const prompt: Prompt = {
         id: promptId,
-        ...(promptData || getDefaultPromptData()),
+        ...(promptData || defaultData),
       };
 
       const newNode: Node = {
@@ -949,6 +951,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         data: {
           prompt,
           content: "",
+          handleTypes: defaultData.handleTypes,
         },
       };
 
