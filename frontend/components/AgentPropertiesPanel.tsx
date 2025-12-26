@@ -874,8 +874,7 @@ export default function AgentPropertiesPanel({
 
       {/* Tab Content */}
       <div
-        className={`flex-1 p-4 nodrag nowheel nopan ${disabled ? "opacity-60 pointer-events-none" : ""}`}
-        style={{ overflowY: 'auto', overflowX: 'visible' }}
+        className={`p-4 nodrag nowheel nopan ${disabled ? "opacity-60 pointer-events-none" : ""}`}
         onKeyDown={(e) => e.stopPropagation()}
       >
         {renderTabContent()}

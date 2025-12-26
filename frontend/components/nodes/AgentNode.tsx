@@ -4,7 +4,6 @@ import { memo, useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Handle, Position, type NodeProps, useReactFlow, useStore } from "@xyflow/react";
 import type { Agent, AgentType, HandlePositions, NodeExecutionState, HandleDataType } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
-import ResizeHandle from "@/components/ResizeHandle";
 import AgentPropertiesPanel from "@/components/AgentPropertiesPanel";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
@@ -21,14 +20,10 @@ function arraysEqual(a: string[], b: string[]): boolean {
   return true;
 }
 
-const DEFAULT_WIDTH = 450;
-const DEFAULT_HEIGHT = 500;
-
 export interface AgentNodeData {
   agent: Agent;
   handlePositions?: HandlePositions;
   handleTypes?: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
-  expandedSize?: { width: number; height: number };
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
   isExpanded?: boolean;
@@ -83,14 +78,11 @@ const agentNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): boo
   // Compare agent object by reference - if any property changed, re-render
   if (prevData.agent !== nextData.agent) return false;
 
-  // Check expandedSize for resize updates
-  if (prevData.expandedSize !== nextData.expandedSize) return false;
-
   return true;
 };
 
 const AgentNode = memo(({ data, id, selected }: NodeProps) => {
-  const { agent, handlePositions, handleTypes, expandedSize, expandedPosition, contractedPosition, isExpanded: dataIsExpanded, isNodeLocked, executionState, hasValidationError, hasValidationWarning, duplicateNameError, validationErrors, validationWarnings } = data as unknown as AgentNodeData;
+  const { agent, handlePositions, handleTypes, expandedPosition, contractedPosition, isExpanded: dataIsExpanded, isNodeLocked, executionState, hasValidationError, hasValidationWarning, duplicateNameError, validationErrors, validationWarnings } = data as unknown as AgentNodeData;
   const resolvedHandleTypes = useMemo(() => (handleTypes || {}) as Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>, [handleTypes]);
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
@@ -127,8 +119,6 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
       style: inputHandleStyle,
     },
   }), [resolvedHandleTypes, inputHandleStyle]);
-
-  const size = useMemo(() => expandedSize ?? { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT }, [expandedSize]);
 
   // Optimized selector: only subscribe to parentId changes for this specific node
   const parentId = useStore(
@@ -217,25 +207,6 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
       inputRef.current.select();
     }
   }, [isEditing]);
-
-  const handleResize = useCallback((deltaWidth: number, deltaHeight: number) => {
-    setNodes((nodes) =>
-      nodes.map((node) => {
-        if (node.id !== id) return node;
-        const currentSize = (node.data as unknown as AgentNodeData).expandedSize ?? { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT };
-        return {
-          ...node,
-          data: {
-            ...node.data,
-            expandedSize: {
-              width: Math.max(100, currentSize.width + deltaWidth),
-              height: Math.max(100, currentSize.height + deltaHeight),
-            },
-          },
-        };
-      })
-    );
-  }, [id, setNodes]);
 
   const handleNameDoubleClick = (e: React.MouseEvent) => {
     if (isNodeLocked) return;
@@ -650,7 +621,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
       <div
         className="rounded-lg shadow-lg relative"
         style={{
-          width: size.width,
+          minWidth: 400,
           backgroundColor: theme.colors.nodes.common.container.background,
           ...getExecutionStyle(),
         }}
@@ -745,10 +716,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
       </div>
 
       {/* Properties Panel */}
-      <div
-        className="flex-1 nodrag"
-        style={{ height: size.height - 70 }}
-      >
+      <div className="nodrag">
         <AgentPropertiesPanel
           agent={agent}
           nodeId={id}
@@ -764,7 +732,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
 
       {/* Footer */}
       <div
-        className="absolute bottom-0 left-0 right-0 px-2 py-1 rounded-b-lg border-t flex items-center justify-between"
+        className="px-2 py-1 rounded-b-lg border-t flex items-center justify-between"
         style={{
           backgroundColor: theme.colors.nodes.common.footer.background,
           borderColor: theme.colors.nodes.common.footer.border,
@@ -782,9 +750,6 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           {typeBadgeLabel}
         </span>
       </div>
-
-      {/* Resize Handle */}
-      <ResizeHandle onResize={handleResize} />
 
       {/* Link Handle - Bottom */}
       <DraggableHandle
