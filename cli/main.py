@@ -101,8 +101,8 @@ def start_frontend_server(
     """Start the frontend server."""
     frontend_dir = project_root / "frontend"
 
-    # Install dependencies if needed
-    if not (frontend_dir / "node_modules").exists():
+    # Install dependencies if needed (check for .bin/next to ensure npm install completed)
+    if not (frontend_dir / "node_modules" / ".bin" / "next").exists():
         print_msg("Installing frontend dependencies...", "blue")
         subprocess.run(["npm", "install"], cwd=str(frontend_dir), check=True)
 
