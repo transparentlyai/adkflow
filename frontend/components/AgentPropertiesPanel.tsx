@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { Handle, Position, useUpdateNodeInternals } from "@xyflow/react";
 import type { Agent, AgentType, PlannerConfig, CodeExecutorConfig, HttpOptions, HandleDataType } from "@/lib/types";
 import { isTypeCompatible } from "@/lib/types";
@@ -76,49 +76,18 @@ export default function AgentPropertiesPanel({
   const updateNodeInternals = useUpdateNodeInternals();
   const [activeTab, setActiveTab] = useState<TabId>("general");
   const [customModel, setCustomModel] = useState("");
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Refs for scroll tracking and field positions
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const agentFieldRef = useRef<HTMLDivElement>(null);
-  const promptFieldRef = useRef<HTMLDivElement>(null);
-  const toolsFieldRef = useRef<HTMLDivElement>(null);
-  const [scrollOffset, setScrollOffset] = useState(0);
-
-  // Update node internals and track scroll offset
+  // Update node internals on scroll to keep edges aligned with handles
   const handleScroll = useCallback(() => {
-    if (scrollContainerRef.current) {
-      setScrollOffset(scrollContainerRef.current.scrollTop);
+    // Debounce to avoid excessive updates during scroll
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
     }
-    updateNodeInternals(nodeId);
-  }, [nodeId, updateNodeInternals]);
-
-  // Calculate clamped handle Y position
-  // Returns top position relative to scroll container, clamped to visible area
-  const getClampedHandleTop = useCallback((fieldRef: React.RefObject<HTMLDivElement | null>): number | null => {
-    if (!fieldRef.current || !scrollContainerRef.current) return null;
-
-    const containerRect = scrollContainerRef.current.getBoundingClientRect();
-    const fieldRect = fieldRef.current.getBoundingClientRect();
-
-    // Calculate field center Y relative to container
-    const fieldCenterY = fieldRect.top + fieldRect.height / 2 - containerRect.top;
-
-    // Clamp to visible area (with some padding)
-    const minY = 10;
-    const maxY = containerRect.height - 10;
-
-    return Math.max(minY, Math.min(maxY, fieldCenterY));
-  }, []);
-
-  // Force update on mount and when active tab changes to recalculate handle positions
-  useEffect(() => {
-    // Small delay to ensure refs are populated
-    const timer = setTimeout(() => {
-      setScrollOffset((prev) => prev + 0.001); // Trigger re-render
+    scrollTimeoutRef.current = setTimeout(() => {
       updateNodeInternals(nodeId);
-    }, 50);
-    return () => clearTimeout(timer);
-  }, [activeTab, nodeId, updateNodeInternals]);
+    }, 16); // ~60fps
+  }, [nodeId, updateNodeInternals]);
 
   // Compute validity style for a target handle based on connection state
   const getHandleValidityStyle = useCallback((acceptedTypes?: HandleDataType[]): React.CSSProperties => {
@@ -193,23 +162,25 @@ export default function AgentPropertiesPanel({
       {/* Connected Agent - FIRST FIELD */}
       <div className="space-y-1.5">
         <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>Connected Agent</label>
-        <div ref={agentFieldRef} className="relative flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md" style={{
+        <div className="relative flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md" style={{
           backgroundColor: theme.colors.nodes.common.footer.background,
           borderColor: theme.colors.nodes.common.container.border
         }}>
-          {/* Visual indicator dot - handle is rendered outside scroll container */}
           {showHandles && handleConfigs?.agentInput && (
-            <div
+            <Handle
+              type="target"
+              position={Position.Left}
+              id={handleConfigs.agentInput.id}
               style={{
                 position: 'absolute',
                 left: -5,
                 top: '50%',
                 transform: 'translateY(-50%)',
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
+                transition: 'box-shadow 0.15s ease',
                 ...handleConfigs.agentInput.style,
+                ...agentInputValidityStyle,
               }}
+              title="Agent input"
             />
           )}
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.colors.nodes.common.text.muted }}>
@@ -317,23 +288,25 @@ export default function AgentPropertiesPanel({
       {/* Connected Prompt */}
       <div className="space-y-1.5">
         <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>Connected Prompt</label>
-        <div ref={promptFieldRef} className="relative flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md" style={{
+        <div className="relative flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md" style={{
           backgroundColor: theme.colors.nodes.common.footer.background,
           borderColor: theme.colors.nodes.common.container.border
         }}>
-          {/* Visual indicator dot - handle is rendered outside scroll container */}
           {showHandles && handleConfigs?.promptInput && (
-            <div
+            <Handle
+              type="target"
+              position={Position.Left}
+              id={handleConfigs.promptInput.id}
               style={{
                 position: 'absolute',
                 left: -5,
                 top: '50%',
                 transform: 'translateY(-50%)',
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
+                transition: 'box-shadow 0.15s ease',
                 ...handleConfigs.promptInput.style,
+                ...promptInputValidityStyle,
               }}
+              title="Prompt input"
             />
           )}
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.colors.nodes.common.text.muted }}>
@@ -350,23 +323,25 @@ export default function AgentPropertiesPanel({
       {/* Connected Tools */}
       <div className="space-y-1.5">
         <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>Connected Tools</label>
-        <div ref={toolsFieldRef} className="relative flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md" style={{
+        <div className="relative flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md" style={{
           backgroundColor: theme.colors.nodes.common.footer.background,
           borderColor: theme.colors.nodes.common.container.border
         }}>
-          {/* Visual indicator dot - handle is rendered outside scroll container */}
           {showHandles && handleConfigs?.toolsInput && (
-            <div
+            <Handle
+              type="target"
+              position={Position.Left}
+              id={handleConfigs.toolsInput.id}
               style={{
                 position: 'absolute',
                 left: -5,
                 top: '50%',
                 transform: 'translateY(-50%)',
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
+                transition: 'box-shadow 0.15s ease',
                 ...handleConfigs.toolsInput.style,
+                ...toolsInputValidityStyle,
               }}
+              title="Tools input"
             />
           )}
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.colors.nodes.common.text.muted }}>
@@ -912,7 +887,6 @@ export default function AgentPropertiesPanel({
 
       {/* Tab Content */}
       <div
-        ref={scrollContainerRef}
         className={`flex-1 p-4 nodrag nowheel nopan ${disabled ? "opacity-60 pointer-events-none" : ""}`}
         style={{ overflowY: 'auto', overflowX: 'visible' }}
         onKeyDown={(e) => e.stopPropagation()}
@@ -920,59 +894,6 @@ export default function AgentPropertiesPanel({
       >
         {renderTabContent()}
       </div>
-
-      {/* Actual handles - positioned outside scroll container with clamped Y */}
-      {showHandles && handleConfigs?.agentInput && (
-        <Handle
-          type="target"
-          position={Position.Left}
-          id={handleConfigs.agentInput.id}
-          style={{
-            position: 'absolute',
-            left: -5,
-            top: getClampedHandleTop(agentFieldRef) ?? '50%',
-            transform: 'translateY(-50%)',
-            transition: 'top 0.1s ease, box-shadow 0.15s ease',
-            ...handleConfigs.agentInput.style,
-            ...agentInputValidityStyle,
-          }}
-          title="Agent input"
-        />
-      )}
-      {showHandles && handleConfigs?.promptInput && (
-        <Handle
-          type="target"
-          position={Position.Left}
-          id={handleConfigs.promptInput.id}
-          style={{
-            position: 'absolute',
-            left: -5,
-            top: getClampedHandleTop(promptFieldRef) ?? '50%',
-            transform: 'translateY(-50%)',
-            transition: 'top 0.1s ease, box-shadow 0.15s ease',
-            ...handleConfigs.promptInput.style,
-            ...promptInputValidityStyle,
-          }}
-          title="Prompt input"
-        />
-      )}
-      {showHandles && handleConfigs?.toolsInput && (
-        <Handle
-          type="target"
-          position={Position.Left}
-          id={handleConfigs.toolsInput.id}
-          style={{
-            position: 'absolute',
-            left: -5,
-            top: getClampedHandleTop(toolsFieldRef) ?? '50%',
-            transform: 'translateY(-50%)',
-            transition: 'top 0.1s ease, box-shadow 0.15s ease',
-            ...handleConfigs.toolsInput.style,
-            ...toolsInputValidityStyle,
-          }}
-          title="Tools input"
-        />
-      )}
     </div>
   );
 }
