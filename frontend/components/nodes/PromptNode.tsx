@@ -25,6 +25,7 @@ export interface PromptNodeData {
   expandedSize?: { width: number; height: number };
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
+  isExpanded?: boolean;
   isNodeLocked?: boolean;
   duplicateNameError?: string;
   validationErrors?: string[];
@@ -32,7 +33,7 @@ export interface PromptNodeData {
 }
 
 const PromptNode = memo(({ data, id, selected }: NodeProps) => {
-  const { prompt, content = "", handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as unknown as PromptNodeData;
+  const { prompt, content = "", handlePositions, expandedSize, expandedPosition, contractedPosition, isExpanded: dataIsExpanded, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as unknown as PromptNodeData;
   const { setNodes } = useReactFlow();
   const { projectPath, onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
@@ -51,7 +52,7 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
   const handlePaste = useCallback(() => {
     canvasActions?.pasteNodes();
   }, [canvasActions]);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(dataIsExpanded ?? false);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -262,6 +263,7 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
             data: {
               ...nodeData,
               expandedPosition: currentPosition,
+              isExpanded: false,
             },
           };
         } else {
@@ -273,6 +275,7 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
             data: {
               ...nodeData,
               contractedPosition: currentPosition,
+              isExpanded: true,
             },
           };
         }

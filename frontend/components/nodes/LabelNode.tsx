@@ -18,6 +18,7 @@ export interface LabelNodeData extends Record<string, unknown> {
   expandedSize?: { width: number; height: number };
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
+  isExpanded?: boolean;
 }
 
 const DEFAULT_FONT_SIZE = 14;
@@ -60,6 +61,9 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
     fontStyle = "normal",
     textAlign = "left",
     color = "#374151",
+    expandedPosition,
+    contractedPosition,
+    isExpanded: dataIsExpanded,
   } = data as unknown as LabelNodeData;
 
   const { setNodes } = useReactFlow();
@@ -67,7 +71,7 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
   const { theme } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
   const [editedLabel, setEditedLabel] = useState(label);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(dataIsExpanded ?? false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [size, setSize] = useState(EXPANDED_SIZE);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -155,6 +159,7 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
               ...nodeData,
               expandedPosition: currentPosition,
               expandedSize: size,
+              isExpanded: false,
             },
           };
         } else {
@@ -165,6 +170,7 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
             data: {
               ...nodeData,
               contractedPosition: currentPosition,
+              isExpanded: true,
             },
           };
         }

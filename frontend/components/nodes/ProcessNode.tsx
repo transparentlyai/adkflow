@@ -26,6 +26,7 @@ export interface ProcessNodeData extends Record<string, unknown> {
   expandedSize?: { width: number; height: number };
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
+  isExpanded?: boolean;
   isNodeLocked?: boolean;
   duplicateNameError?: string;
   validationErrors?: string[];
@@ -66,7 +67,7 @@ function parseFunctionSignature(code: string): { name: string; params: string; r
 }
 
 const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name, code, file_path, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as unknown as ProcessNodeData;
+  const { name, code, file_path, handlePositions, expandedSize, expandedPosition, contractedPosition, isExpanded: dataIsExpanded, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as unknown as ProcessNodeData;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
@@ -87,7 +88,7 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
   }, [canvasActions]);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(name);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(dataIsExpanded ?? false);
   const [isSaving, setIsSaving] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -232,6 +233,7 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
             data: {
               ...nodeData,
               expandedPosition: currentPosition,
+              isExpanded: false,
             },
           };
         } else {
@@ -243,6 +245,7 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
             data: {
               ...nodeData,
               contractedPosition: currentPosition,
+              isExpanded: true,
             },
           };
         }

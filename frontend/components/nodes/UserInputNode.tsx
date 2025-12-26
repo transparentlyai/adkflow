@@ -21,6 +21,7 @@ interface UserInputNodeData {
   expandedSize?: { width: number; height: number };
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
+  isExpanded?: boolean;
   isNodeLocked?: boolean;
 
   // Configuration
@@ -72,6 +73,7 @@ const UserInputNode = memo(({ data, id, selected }: NodeProps) => {
     expandedSize,
     expandedPosition,
     contractedPosition,
+    isExpanded: dataIsExpanded,
     isNodeLocked,
     timeout = 300,
     timeoutBehavior = "error",
@@ -97,7 +99,7 @@ const UserInputNode = memo(({ data, id, selected }: NodeProps) => {
     canvasActions?.pasteNodes();
   }, [canvasActions]);
 
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(dataIsExpanded ?? false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
@@ -151,6 +153,7 @@ const UserInputNode = memo(({ data, id, selected }: NodeProps) => {
             data: {
               ...nodeData,
               expandedPosition: currentPosition,
+              isExpanded: false,
             },
           };
         } else {
@@ -161,6 +164,7 @@ const UserInputNode = memo(({ data, id, selected }: NodeProps) => {
             data: {
               ...nodeData,
               contractedPosition: currentPosition,
+              isExpanded: true,
             },
           };
         }

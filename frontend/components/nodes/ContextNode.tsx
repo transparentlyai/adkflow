@@ -22,6 +22,9 @@ export interface ContextNodeData {
   content?: string;
   handlePositions?: HandlePositions;
   expandedSize?: { width: number; height: number };
+  expandedPosition?: { x: number; y: number };
+  contractedPosition?: { x: number; y: number };
+  isExpanded?: boolean;
   isNodeLocked?: boolean;
   duplicateNameError?: string;
   validationErrors?: string[];
@@ -29,7 +32,7 @@ export interface ContextNodeData {
 }
 
 const ContextNode = memo(({ data, id, selected }: NodeProps) => {
-  const { prompt, content = "", handlePositions, expandedSize, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as unknown as ContextNodeData;
+  const { prompt, content = "", handlePositions, expandedSize, expandedPosition, contractedPosition, isExpanded: dataIsExpanded, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as unknown as ContextNodeData;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
@@ -48,7 +51,7 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
   const handlePaste = useCallback(() => {
     canvasActions?.pasteNodes();
   }, [canvasActions]);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(dataIsExpanded ?? false);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(prompt.name);
@@ -215,17 +218,33 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
     setNodes((nodes) =>
       nodes.map((node) => {
         if (node.id !== id) return node;
+
+        const nodeData = node.data as unknown as ContextNodeData;
+        const currentPosition = node.position;
+
         if (isExpanded) {
           // Going from expanded → contracted
           return {
             ...node,
+            position: nodeData.contractedPosition ?? currentPosition,
             extent: node.parentId ? "parent" as const : undefined,
+            data: {
+              ...nodeData,
+              expandedPosition: currentPosition,
+              isExpanded: false,
+            },
           };
         } else {
           // Going from contracted → expanded
           return {
             ...node,
+            position: nodeData.expandedPosition ?? currentPosition,
             extent: undefined,
+            data: {
+              ...nodeData,
+              contractedPosition: currentPosition,
+              isExpanded: true,
+            },
           };
         }
       })

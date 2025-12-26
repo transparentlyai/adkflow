@@ -59,6 +59,7 @@ interface OutputFileNodeData {
   expandedSize?: { width: number; height: number };
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
+  isExpanded?: boolean;
   isNodeLocked?: boolean;
 }
 
@@ -68,6 +69,9 @@ const OutputFileNode = memo(({ data, id, selected }: NodeProps) => {
     file_path = "outputs/output.txt",
     handlePositions,
     expandedSize,
+    expandedPosition,
+    contractedPosition,
+    isExpanded: dataIsExpanded,
     isNodeLocked,
   } = (data || {}) as OutputFileNodeData;
 
@@ -90,7 +94,7 @@ const OutputFileNode = memo(({ data, id, selected }: NodeProps) => {
     canvasActions?.pasteNodes();
   }, [canvasActions]);
 
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(dataIsExpanded ?? false);
   const [isEditing, setIsEditing] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [content, setContent] = useState("");
@@ -237,6 +241,7 @@ const OutputFileNode = memo(({ data, id, selected }: NodeProps) => {
             data: {
               ...nodeData,
               expandedPosition: currentPosition,
+              isExpanded: false,
             },
           };
         } else {
@@ -248,6 +253,7 @@ const OutputFileNode = memo(({ data, id, selected }: NodeProps) => {
             data: {
               ...nodeData,
               contractedPosition: currentPosition,
+              isExpanded: true,
             },
           };
         }

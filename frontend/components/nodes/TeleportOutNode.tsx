@@ -14,18 +14,21 @@ import type { HandlePositions } from "@/lib/types";
 export interface TeleportOutNodeData extends Record<string, unknown> {
   name: string;
   handlePositions?: HandlePositions;
+  expandedPosition?: { x: number; y: number };
+  contractedPosition?: { x: number; y: number };
+  isExpanded?: boolean;
   isNodeLocked?: boolean;
 }
 
 const TeleportOutNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name, isNodeLocked } = data as TeleportOutNodeData;
+  const { name, expandedPosition, contractedPosition, isExpanded: dataIsExpanded, isNodeLocked } = data as TeleportOutNodeData;
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
   const { updateTeleporterName, getInputTeleportersByName, getAllInputTeleporters, getColorForName } = useTeleporter();
   const { navigateToNode } = useTabs();
   const { theme } = useTheme();
 
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(dataIsExpanded ?? false);
   const [editedName, setEditedName] = useState(name);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
@@ -54,10 +57,18 @@ const TeleportOutNode = memo(({ data, id, selected }: NodeProps) => {
     canvasActions?.pasteNodes();
   }, [canvasActions]);
 
-  const handleDoubleClick = () => {
+  const handleDoubleClick = useCallback(() => {
     if (isNodeLocked) return;
-    setIsExpanded(!isExpanded);
-  };
+    const newIsExpanded = !isExpanded;
+    setNodes((nodes) =>
+      nodes.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, isExpanded: newIsExpanded } }
+          : node
+      )
+    );
+    setIsExpanded(newIsExpanded);
+  }, [id, isExpanded, isNodeLocked, setNodes]);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();

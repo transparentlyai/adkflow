@@ -346,6 +346,23 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
               };
             }
 
+            // Sync position to the correct field based on expanded state
+            const nodeData = node.data as { isExpanded?: boolean; expandedPosition?: {x: number; y: number}; contractedPosition?: {x: number; y: number} };
+            if (nodeData.isExpanded !== undefined) {
+              // Only sync if this node uses the dual-position pattern
+              if (nodeData.isExpanded) {
+                return {
+                  ...node,
+                  data: { ...node.data, expandedPosition: node.position }
+                };
+              } else {
+                return {
+                  ...node,
+                  data: { ...node.data, contractedPosition: node.position }
+                };
+              }
+            }
+
             return node;
           });
 

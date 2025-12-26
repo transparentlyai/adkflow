@@ -30,6 +30,7 @@ export interface AgentNodeData {
   expandedSize?: { width: number; height: number };
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
+  isExpanded?: boolean;
   isNodeLocked?: boolean;
   executionState?: NodeExecutionState;
   hasValidationError?: boolean;
@@ -85,11 +86,11 @@ const agentNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): boo
 };
 
 const AgentNode = memo(({ data, id, selected }: NodeProps) => {
-  const { agent, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, executionState, hasValidationError, hasValidationWarning, duplicateNameError, validationErrors, validationWarnings } = data as unknown as AgentNodeData;
+  const { agent, handlePositions, expandedSize, expandedPosition, contractedPosition, isExpanded: dataIsExpanded, isNodeLocked, executionState, hasValidationError, hasValidationWarning, duplicateNameError, validationErrors, validationWarnings } = data as unknown as AgentNodeData;
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
   const { theme } = useTheme();
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(dataIsExpanded ?? false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(agent.name);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -281,6 +282,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
             data: {
               ...nodeData,
               expandedPosition: currentPosition,
+              isExpanded: false,
             },
           };
         } else {
@@ -293,6 +295,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
             data: {
               ...nodeData,
               contractedPosition: currentPosition,
+              isExpanded: true,
             },
           };
         }

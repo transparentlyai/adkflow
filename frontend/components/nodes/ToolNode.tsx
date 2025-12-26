@@ -54,6 +54,7 @@ interface ToolNodeData {
   expandedSize?: { width: number; height: number };
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
+  isExpanded?: boolean;
   isNodeLocked?: boolean;
   duplicateNameError?: string;
   validationErrors?: string[];
@@ -88,7 +89,7 @@ const toolNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): bool
 };
 
 const ToolNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name = "Tool", code = DEFAULT_CODE, file_path, error_behavior, executionState, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as ToolNodeData;
+  const { name = "Tool", code = DEFAULT_CODE, file_path, error_behavior, executionState, handlePositions, expandedSize, expandedPosition, contractedPosition, isExpanded: dataIsExpanded, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as ToolNodeData;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
@@ -107,7 +108,7 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
   const handlePaste = useCallback(() => {
     canvasActions?.pasteNodes();
   }, [canvasActions]);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(dataIsExpanded ?? false);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState<"code" | "config">("code");
@@ -168,6 +169,7 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
             data: {
               ...nodeData,
               expandedPosition: currentPosition,
+              isExpanded: false,
             },
           };
         } else {
@@ -179,6 +181,7 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
             data: {
               ...nodeData,
               contractedPosition: currentPosition,
+              isExpanded: true,
             },
           };
         }
