@@ -84,7 +84,10 @@ const toolNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): bool
     prevData.code === nextData.code &&
     prevData.file_path === nextData.file_path &&
     prevData.error_behavior === nextData.error_behavior &&
-    prevData.isNodeLocked === nextData.isNodeLocked
+    prevData.isNodeLocked === nextData.isNodeLocked &&
+    prevData.isExpanded === nextData.isExpanded &&
+    prevData.expandedSize?.width === nextData.expandedSize?.width &&
+    prevData.expandedSize?.height === nextData.expandedSize?.height
   );
 };
 
