@@ -57,7 +57,7 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<Theme>(builtInThemes[0]);
+  const [theme, setThemeState] = useState<Theme>(builtInThemes[1]);
   const [customThemes, setCustomThemes] = useState<Theme[]>([]);
   const [isReady, setIsReady] = useState(false);
 
@@ -74,8 +74,8 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       setThemeState(found);
       applyTheme(found);
     } else {
-      // Fallback to light theme
-      applyTheme(builtInThemes[0]);
+      // Fallback to dark theme
+      applyTheme(builtInThemes[1]);
     }
 
     setIsReady(true);
@@ -111,9 +111,9 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       removeCustomThemeFromStorage(id);
       setCustomThemes(getCustomThemes());
 
-      // If currently using this theme, switch to light
+      // If currently using this theme, switch to dark
       if (theme.id === id) {
-        setTheme("light");
+        setTheme("dark");
       }
     },
     [theme.id, setTheme]

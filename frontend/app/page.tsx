@@ -23,7 +23,8 @@ import { TabsProvider, useTabs } from "@/contexts/TabsContext";
 import { TeleporterProvider, useTeleporter } from "@/contexts/TeleporterContext";
 import TabBar from "@/components/TabBar";
 import type { Node, Edge } from "@xyflow/react";
-import { Lock, Save } from "lucide-react";
+import { Lock, Save, Sun, Moon } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
 import {
   getRecentProjects,
   addRecentProject,
@@ -54,6 +55,7 @@ function HomeContent() {
   } = useTabs();
 
   const { syncTeleportersForTab, updateTabName } = useTeleporter();
+  const { themeId, toggleTheme } = useTheme();
 
   const [workflowName, setWorkflowName] = useState("Untitled Workflow");
   const canvasRef = useRef<ReactFlowCanvasRef>(null);
@@ -1104,6 +1106,17 @@ function HomeContent() {
             )}
           </div>
           <div className="flex items-center gap-4">
+            <button
+              onClick={toggleTheme}
+              className="p-1.5 rounded-md hover:bg-accent transition-colors"
+              title={themeId === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {themeId === "dark" ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </button>
             <input
               type="text"
               value={workflowName}
