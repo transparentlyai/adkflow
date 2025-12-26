@@ -222,6 +222,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       style: { strokeWidth: 1.5, stroke: theme.colors.edges.default },
       animated: false,
       selectable: true,
+      zIndex: 1000,
     }), [theme.colors.edges.default]);
 
     const snapGridValue = useMemo(() => [16, 16] as [number, number], []);
@@ -1970,6 +1971,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             defaultEdgeOptions={defaultEdgeOptions}
             edgesFocusable={true}
             edgesReconnectable={false}
+            elevateEdgesOnSelect={true}
             connectionLineStyle={{ strokeWidth: 1.5, stroke: theme.colors.edges.default }}
             nodesDraggable={!isLocked}
             nodesConnectable={!isLocked}
