@@ -60,6 +60,33 @@ interface ToolNodeData {
   validationWarnings?: string[];
 }
 
+// Custom comparison for memo - always re-render when executionState changes
+const toolNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): boolean => {
+  const prevData = prevProps.data as ToolNodeData;
+  const nextData = nextProps.data as ToolNodeData;
+
+  // Always re-render if executionState changes
+  if (prevData.executionState !== nextData.executionState) {
+    return false;
+  }
+
+  // Always re-render if validation state changes
+  if (prevData.duplicateNameError !== nextData.duplicateNameError) {
+    return false;
+  }
+
+  // Default shallow comparison for other props
+  return (
+    prevProps.id === nextProps.id &&
+    prevProps.selected === nextProps.selected &&
+    prevData.name === nextData.name &&
+    prevData.code === nextData.code &&
+    prevData.file_path === nextData.file_path &&
+    prevData.error_behavior === nextData.error_behavior &&
+    prevData.isNodeLocked === nextData.isNodeLocked
+  );
+};
+
 const ToolNode = memo(({ data, id, selected }: NodeProps) => {
   const { name = "Tool", code = DEFAULT_CODE, file_path, error_behavior, executionState, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as ToolNodeData;
   const { setNodes } = useReactFlow();
@@ -678,7 +705,7 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
       </div>
     </>
   );
-});
+}, toolNodePropsAreEqual);
 
 ToolNode.displayName = "ToolNode";
 
