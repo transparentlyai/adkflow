@@ -102,8 +102,9 @@ def create_agent_callbacks(
         return None
 
     def before_tool_callback(
-        callback_context: Any, tool_name: str, args: dict[str, Any]
+        *, tool: Any, args: dict[str, Any], tool_context: Any
     ) -> dict[str, Any] | None:
+        tool_name = getattr(tool, "name", str(tool))
         _emit_event(
             RunEvent(
                 type=EventType.TOOL_CALL,
@@ -115,8 +116,9 @@ def create_agent_callbacks(
         return None
 
     def after_tool_callback(
-        callback_context: Any, tool_name: str, tool_result: dict[str, Any]
+        *, tool: Any, args: dict[str, Any], tool_context: Any, tool_response: Any
     ) -> dict[str, Any] | None:
+        tool_name = getattr(tool, "name", str(tool))
         _emit_event(
             RunEvent(
                 type=EventType.TOOL_RESULT,
@@ -317,8 +319,12 @@ class AgentFactory:
                     tools.append(tool)
 
             except Exception as e:
-                # Log warning but continue - tool might not be critical
-                print(f"Warning: Failed to load tool '{tool_ir.name}': {e}")
+                if tool_ir.error_behavior == "fail_fast":
+                    # Re-raise to terminate workflow
+                    raise
+                else:
+                    # Log warning but continue - let LLM handle missing tool
+                    print(f"Warning: Failed to load tool '{tool_ir.name}': {e}")
 
         return tools
 

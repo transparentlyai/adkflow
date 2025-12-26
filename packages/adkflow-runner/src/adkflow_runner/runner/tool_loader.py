@@ -5,7 +5,9 @@ for use with ADK agents.
 """
 
 import ast
+import functools
 import importlib.util
+import inspect
 import sys
 import tempfile
 from pathlib import Path
@@ -46,17 +48,22 @@ class ToolLoader:
         if tool_ir.name in BUILTIN_TOOLS:
             return tool_ir.name
 
-        # Load from file
+        # Load the function
+        func: Callable | None = None
         if tool_ir.file_path:
-            return self._load_from_file(tool_ir)
+            func = self._load_from_file(tool_ir)
+        elif tool_ir.code:
+            func = self._load_from_code(tool_ir)
+        else:
+            raise ToolLoadError(
+                f"Tool '{tool_ir.name}' has neither file_path nor code",
+            )
 
-        # Load from inline code
-        if tool_ir.code:
-            return self._load_from_code(tool_ir)
+        # Wrap with error handling if pass_to_model
+        if tool_ir.error_behavior == "pass_to_model":
+            func = self._wrap_with_error_handling(func, tool_ir.name)
 
-        raise ToolLoadError(
-            f"Tool '{tool_ir.name}' has neither file_path nor code",
-        )
+        return func
 
     def load_all(self, tools: list[ToolIR]) -> list[Callable | str]:
         """Load all tools from IR list.
@@ -76,7 +83,14 @@ class ToolLoader:
                 f"Cannot load tool from file without project_path: {tool_ir.file_path}",
             )
 
-        file_path = self.project_path / "tools" / tool_ir.file_path
+        # file_path may already include the directory (e.g., "tools/file.py")
+        # or just the filename. Handle both cases.
+        file_path = (self.project_path / tool_ir.file_path).resolve()
+
+        # If not found, try with tools/ prefix
+        if not file_path.exists():
+            file_path = (self.project_path / "tools" / tool_ir.file_path).resolve()
+
         if not file_path.exists():
             raise ToolLoadError(
                 f"Tool file not found: {file_path}",
@@ -207,3 +221,30 @@ class ToolLoader:
                 # Warning only - don't block, but log
                 # In production, you might want to be stricter
                 pass
+
+    def _wrap_with_error_handling(self, func: Callable, tool_name: str) -> Callable:
+        """Wrap a tool function to catch errors and return them as dict.
+
+        This allows the LLM to see and handle tool errors instead of
+        having them propagate as exceptions.
+        """
+        if inspect.iscoroutinefunction(func):
+
+            @functools.wraps(func)
+            async def async_wrapper(*args: Any, **kwargs: Any) -> dict[str, Any]:
+                try:
+                    return await func(*args, **kwargs)
+                except Exception as e:
+                    return {"error": f"Tool '{tool_name}' failed: {e!s}"}
+
+            return async_wrapper
+        else:
+
+            @functools.wraps(func)
+            def sync_wrapper(*args: Any, **kwargs: Any) -> dict[str, Any]:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    return {"error": f"Tool '{tool_name}' failed: {e!s}"}
+
+            return sync_wrapper

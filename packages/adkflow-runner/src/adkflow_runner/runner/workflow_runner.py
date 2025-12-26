@@ -641,7 +641,9 @@ Original error: {error_msg}"""
                     session_id=session.id,
                     new_message=content,
                 ):
-                    last_author = await self._process_adk_event(event, emit, last_author)
+                    last_author = await self._process_adk_event(
+                        event, emit, last_author
+                    )
 
                     if hasattr(event, "content") and event.content:
                         parts = event.content.parts
@@ -726,19 +728,25 @@ Original error: {error_msg}"""
                 )
             )
 
+        # Emit agent output for non-partial events with text content
+        # or for final responses (complete messages)
+        is_partial = getattr(event, "partial", False)
+        is_final = hasattr(event, "is_final_response") and event.is_final_response()
+
         if hasattr(event, "content") and event.content:
             text = ""
             parts = event.content.parts if event.content.parts else []
             for part in parts:
                 if hasattr(part, "text") and part.text:
                     text += part.text
-            if text and author and author != "user":
+            # Emit for final responses, or non-partial events with text
+            if text and author and author != "user" and (is_final or not is_partial):
                 await emit(
                     RunEvent(
                         type=EventType.AGENT_OUTPUT,
                         timestamp=time.time(),
                         agent_name=author,
-                        data={"output": text[:2000]},
+                        data={"output": text[:2000], "is_final": is_final},
                     )
                 )
 

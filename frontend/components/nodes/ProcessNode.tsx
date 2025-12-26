@@ -32,20 +32,24 @@ export interface ProcessNodeData extends Record<string, unknown> {
   validationWarnings?: string[];
 }
 
-const DEFAULT_CODE = `def process(input_data: dict) -> dict:
+const DEFAULT_CODE = `def process(
+    data: str,
+    options: dict = None,
+) -> dict:
     """
     Process the input data and return the result.
 
     Args:
-        input_data: Dictionary containing input from connected nodes
+        data: The input data to process.
+        options: Optional processing options.
 
     Returns:
-        Dictionary with processed output
+        dict with 'status' key and processed result.
     """
     # Your processing logic here
-    result = input_data
+    result = {"input": data, "options": options}
 
-    return result
+    return {"status": "success", "data": result}
 `;
 
 // Parse function signature from Python code
