@@ -435,6 +435,7 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
         <Handle
           type="source"
           position={Position.Right}
+          id="output"
           style={{ width: '8px', height: '8px', backgroundColor: theme.colors.handles.tool, border: `2px solid ${theme.colors.handles.border}` }}
         />
 
