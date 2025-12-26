@@ -127,20 +127,19 @@ export default function DraggableHandle({
   }, [connectionState, type, acceptedTypes, nodeId]);
 
   // Visual styling based on connection validity
+  // Use boxShadow for glow effect (avoid mixing border shorthand with borderColor)
   const validityStyle: React.CSSProperties = useMemo(() => {
     if (isValidTarget === null) {
       return {}; // No styling when not dragging or this is a source handle
     }
     if (isValidTarget) {
       return {
-        boxShadow: '0 0 8px 2px #22c55e', // Green glow
-        borderColor: '#22c55e',
+        boxShadow: '0 0 0 2px #22c55e, 0 0 8px 2px #22c55e', // Green ring + glow
         cursor: 'pointer',
       };
     } else {
       return {
-        boxShadow: '0 0 8px 2px #ef4444', // Red glow
-        borderColor: '#ef4444',
+        boxShadow: '0 0 0 2px #ef4444, 0 0 8px 2px #ef4444', // Red ring + glow
         cursor: 'not-allowed',
       };
     }
@@ -278,7 +277,7 @@ export default function DraggableHandle({
           ...validityStyle,
           outline: isMoveMode ? "2px solid #3b82f6" : undefined,
           outlineOffset: "2px",
-          transition: 'box-shadow 0.15s ease, border-color 0.15s ease',
+          transition: 'box-shadow 0.15s ease',
         }}
         onContextMenu={handleContextMenu}
       />
