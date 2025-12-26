@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
-import { Handle, Position } from "@xyflow/react";
+import { useState, useCallback, useMemo, useRef } from "react";
+import { Handle, Position, useUpdateNodeInternals } from "@xyflow/react";
 import type { Agent, AgentType, PlannerConfig, CodeExecutorConfig, HttpOptions, HandleDataType } from "@/lib/types";
 import { isTypeCompatible } from "@/lib/types";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -73,8 +73,21 @@ export default function AgentPropertiesPanel({
 }: AgentPropertiesPanelProps) {
   const { theme } = useTheme();
   const { connectionState } = useConnection();
+  const updateNodeInternals = useUpdateNodeInternals();
   const [activeTab, setActiveTab] = useState<TabId>("general");
   const [customModel, setCustomModel] = useState("");
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Update node internals on scroll to keep edges aligned with handles
+  const handleScroll = useCallback(() => {
+    // Debounce to avoid excessive updates during scroll
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    scrollTimeoutRef.current = setTimeout(() => {
+      updateNodeInternals(nodeId);
+    }, 16); // ~60fps
+  }, [nodeId, updateNodeInternals]);
 
   // Compute validity style for a target handle based on connection state
   const getHandleValidityStyle = useCallback((acceptedTypes?: HandleDataType[]): React.CSSProperties => {
@@ -877,6 +890,7 @@ export default function AgentPropertiesPanel({
         className={`flex-1 p-4 nodrag nowheel nopan ${disabled ? "opacity-60 pointer-events-none" : ""}`}
         style={{ overflowY: 'auto', overflowX: 'visible' }}
         onKeyDown={(e) => e.stopPropagation()}
+        onScroll={showHandles ? handleScroll : undefined}
       >
         {renderTabContent()}
       </div>
