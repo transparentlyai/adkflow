@@ -164,10 +164,20 @@ export default function RunPanel({
           return `Agent finished: ${event.agent_name}`;
         case "agent_output":
           return (event.data.output as string) || "";
-        case "tool_call":
+        case "tool_call": {
+          const args = event.data.args as string | undefined;
+          if (args) {
+            return `Calling ${event.data.tool_name}(${args})`;
+          }
           return `Calling tool: ${event.data.tool_name}`;
-        case "tool_result":
+        }
+        case "tool_result": {
+          const result = event.data.result as string | undefined;
+          if (result) {
+            return `Tool ${event.data.tool_name}: ${result}`;
+          }
           return `Tool result: ${event.data.tool_name}`;
+        }
         case "thinking":
           return "Thinking...";
         case "run_error":

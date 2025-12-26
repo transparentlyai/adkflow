@@ -716,17 +716,9 @@ Original error: {error_msg}"""
         Returns the current author for tracking agent changes.
         """
         author = getattr(event, "author", None)
-        turn_complete = getattr(event, "turn_complete", False)
 
-        if author and author != "user" and author != last_author:
-            await emit(
-                RunEvent(
-                    type=EventType.AGENT_START,
-                    timestamp=time.time(),
-                    agent_name=author,
-                    data={"event_type": "agent_change"},
-                )
-            )
+        # Note: AGENT_START/AGENT_END are emitted via ADK callbacks in agent_factory.py
+        # Here we only emit AGENT_OUTPUT since there's no callback for that
 
         # Emit agent output for non-partial events with text content
         # or for final responses (complete messages)
@@ -750,39 +742,7 @@ Original error: {error_msg}"""
                     )
                 )
 
-        if hasattr(event, "content") and event.content:
-            parts = event.content.parts if event.content.parts else []
-            for part in parts:
-                if hasattr(part, "function_call") and part.function_call:
-                    tool_name = getattr(part.function_call, "name", "unknown")
-                    await emit(
-                        RunEvent(
-                            type=EventType.TOOL_CALL,
-                            timestamp=time.time(),
-                            agent_name=author,
-                            data={"tool_name": tool_name},
-                        )
-                    )
-                elif hasattr(part, "function_response") and part.function_response:
-                    tool_name = getattr(part.function_response, "name", "unknown")
-                    await emit(
-                        RunEvent(
-                            type=EventType.TOOL_RESULT,
-                            timestamp=time.time(),
-                            agent_name=author,
-                            data={"tool_name": tool_name},
-                        )
-                    )
-
-        if turn_complete and author and author != "user":
-            await emit(
-                RunEvent(
-                    type=EventType.AGENT_END,
-                    timestamp=time.time(),
-                    agent_name=author,
-                    data={"event_type": "turn_complete"},
-                )
-            )
+        # Note: TOOL_CALL/TOOL_RESULT are emitted via ADK callbacks in agent_factory.py
 
         return author if author and author != "user" else last_author
 

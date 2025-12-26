@@ -105,12 +105,17 @@ def create_agent_callbacks(
         *, tool: Any, args: dict[str, Any], tool_context: Any
     ) -> dict[str, Any] | None:
         tool_name = getattr(tool, "name", str(tool))
+        # Format args preview (truncate if too long)
+        args_preview = ""
+        if args:
+            args_str = str(args)
+            args_preview = args_str[:200] + "..." if len(args_str) > 200 else args_str
         _emit_event(
             RunEvent(
                 type=EventType.TOOL_CALL,
                 timestamp=time.time(),
                 agent_name=agent_name,
-                data={"tool_name": tool_name, "source": "callback"},
+                data={"tool_name": tool_name, "args": args_preview},
             )
         )
         return None
@@ -119,12 +124,19 @@ def create_agent_callbacks(
         *, tool: Any, args: dict[str, Any], tool_context: Any, tool_response: Any
     ) -> dict[str, Any] | None:
         tool_name = getattr(tool, "name", str(tool))
+        # Format result preview (truncate if too long)
+        result_preview = ""
+        if tool_response is not None:
+            result_str = str(tool_response)
+            result_preview = (
+                result_str[:200] + "..." if len(result_str) > 200 else result_str
+            )
         _emit_event(
             RunEvent(
                 type=EventType.TOOL_RESULT,
                 timestamp=time.time(),
                 agent_name=agent_name,
-                data={"tool_name": tool_name, "source": "callback"},
+                data={"tool_name": tool_name, "result": result_preview},
             )
         )
         return None
