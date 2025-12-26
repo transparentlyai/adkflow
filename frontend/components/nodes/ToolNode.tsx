@@ -3,7 +3,7 @@
 import { memo, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Handle, Position, type NodeProps, useReactFlow, useStore } from "@xyflow/react";
 import Editor from "@monaco-editor/react";
-import type { HandlePositions, ToolErrorBehavior } from "@/lib/types";
+import type { HandlePositions, ToolErrorBehavior, NodeExecutionState } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import EditorMenuBar from "@/components/EditorMenuBar";
 import ResizeHandle from "@/components/ResizeHandle";
@@ -49,6 +49,7 @@ interface ToolNodeData {
   code?: string;
   file_path?: string;
   error_behavior?: ToolErrorBehavior;
+  executionState?: NodeExecutionState;
   handlePositions?: HandlePositions;
   expandedSize?: { width: number; height: number };
   expandedPosition?: { x: number; y: number };
@@ -60,7 +61,7 @@ interface ToolNodeData {
 }
 
 const ToolNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name = "Tool", code = DEFAULT_CODE, file_path, error_behavior, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as ToolNodeData;
+  const { name = "Tool", code = DEFAULT_CODE, file_path, error_behavior, executionState, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as ToolNodeData;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
@@ -289,29 +290,53 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
     );
   }, [id, setNodes]);
 
+  const getExecutionStyle = useCallback((): React.CSSProperties => {
+    switch (executionState) {
+      case "running":
+        return {
+          boxShadow: `0 0 0 2px rgba(59, 130, 246, 0.8), 0 0 20px 4px rgba(59, 130, 246, 0.4)`,
+          animation: "tool-execution-pulse 1.5s ease-in-out infinite",
+        };
+      case "completed":
+        return {
+          boxShadow: `0 0 0 2px rgba(34, 197, 94, 0.8), 0 0 10px 2px rgba(34, 197, 94, 0.3)`,
+          transition: "box-shadow 0.3s ease-out",
+        };
+      default:
+        return {};
+    }
+  }, [executionState]);
+
   const lineCount = code?.split("\n").length || 0;
   const editorHeight = size.height - 70;
 
   // Collapsed view - compact tool node
   if (!isExpanded) {
     return (
-      <div
-        onDoubleClick={toggleExpand}
-        onContextMenu={handleHeaderContextMenu}
-        title="Double-click to expand"
-        className={`rounded-lg shadow-md cursor-pointer px-2 py-1 ${
-          !duplicateNameError && selected ? "ring-2 shadow-xl" : ""
-        }`}
-        style={{
-          backgroundColor: theme.colors.nodes.tool.header,
-          color: theme.colors.nodes.tool.text,
-          ...(duplicateNameError ? {
-            boxShadow: `0 0 0 2px #ef4444`,
-          } : selected ? {
-            borderColor: theme.colors.nodes.tool.ring,
-          } : {}),
-        }}
-      >
+      <>
+        <style>{`
+          @keyframes tool-execution-pulse {
+            0%, 100% { box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.8), 0 0 20px 4px rgba(59, 130, 246, 0.4); }
+            50% { box-shadow: 0 0 0 3px rgba(59, 130, 246, 1), 0 0 30px 8px rgba(59, 130, 246, 0.6); }
+          }
+        `}</style>
+        <div
+          onDoubleClick={toggleExpand}
+          onContextMenu={handleHeaderContextMenu}
+          title="Double-click to expand"
+          className={`rounded-lg shadow-md cursor-pointer px-2 py-1 ${
+            !duplicateNameError && !executionState && selected ? "ring-2 shadow-xl" : ""
+          }`}
+          style={{
+            backgroundColor: theme.colors.nodes.tool.header,
+            color: theme.colors.nodes.tool.text,
+            ...(duplicateNameError ? {
+              boxShadow: `0 0 0 2px #ef4444`,
+            } : executionState ? getExecutionStyle() : selected ? {
+              borderColor: theme.colors.nodes.tool.ring,
+            } : {}),
+          }}
+        >
         <div className="flex items-center gap-1.5">
           {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
           <ValidationIndicator
@@ -393,22 +418,30 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
             isCanvasLocked={canvasActions?.isLocked}
           />
         )}
-      </div>
+        </div>
+      </>
     );
   }
 
   // Expanded view - with code editor
   return (
-    <div
-      className={`rounded-lg shadow-lg relative ${
-        !isDirty && !duplicateNameError && selected ? "ring-2 shadow-xl" : ""
+    <>
+      <style>{`
+        @keyframes tool-execution-pulse {
+          0%, 100% { box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.8), 0 0 20px 4px rgba(59, 130, 246, 0.4); }
+          50% { box-shadow: 0 0 0 3px rgba(59, 130, 246, 1), 0 0 30px 8px rgba(59, 130, 246, 0.6); }
+        }
+      `}</style>
+      <div
+        className={`rounded-lg shadow-lg relative ${
+          !isDirty && !duplicateNameError && !executionState && selected ? "ring-2 shadow-xl" : ""
       }`}
       style={{
         width: size.width,
         backgroundColor: theme.colors.nodes.common.container.background,
         ...(duplicateNameError ? {
           boxShadow: `0 0 0 2px #ef4444`,
-        } : isDirty ? {
+        } : executionState ? getExecutionStyle() : isDirty ? {
           boxShadow: `0 0 0 2px #f97316`,
         } : selected ? {
           borderColor: theme.colors.nodes.tool.ring,
@@ -642,7 +675,8 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
           isCanvasLocked={canvasActions?.isLocked}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 });
 

@@ -5,6 +5,7 @@ for use with ADK agents.
 """
 
 import ast
+import asyncio
 import functools
 import importlib.util
 import inspect
@@ -58,6 +59,9 @@ class ToolLoader:
             raise ToolLoadError(
                 f"Tool '{tool_ir.name}' has neither file_path nor code",
             )
+
+        # Wrap sync functions to run in thread pool (prevents event loop blocking)
+        func = self._wrap_for_async(func)
 
         # Wrap with error handling if pass_to_model
         if tool_ir.error_behavior == "pass_to_model":
@@ -221,6 +225,22 @@ class ToolLoader:
                 # Warning only - don't block, but log
                 # In production, you might want to be stricter
                 pass
+
+    def _wrap_for_async(self, func: Callable) -> Callable:
+        """Wrap sync functions to run in thread pool.
+
+        This prevents synchronous tool functions from blocking the event loop,
+        allowing SSE events to be sent in real-time while tools execute.
+        Async functions are returned unchanged.
+        """
+        if inspect.iscoroutinefunction(func):
+            return func  # Already async, no wrapping needed
+
+        @functools.wraps(func)
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+            return await asyncio.to_thread(func, *args, **kwargs)
+
+        return async_wrapper
 
     def _wrap_with_error_handling(self, func: Callable, tool_name: str) -> Callable:
         """Wrap a tool function to catch errors and return them as dict.

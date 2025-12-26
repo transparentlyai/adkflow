@@ -25,6 +25,7 @@ interface RunPanelProps {
   onClose: () => void;
   onRunComplete?: (status: RunStatus, output?: string, error?: string) => void;
   onAgentStateChange?: (agentName: string, state: NodeExecutionState) => void;
+  onToolStateChange?: (toolName: string, state: NodeExecutionState) => void;
   onUserInputStateChange?: (nodeId: string, isWaiting: boolean) => void;
   onClearExecutionState?: () => void;
   events: DisplayEvent[];
@@ -39,6 +40,7 @@ export default function RunPanel({
   onClose,
   onRunComplete,
   onAgentStateChange,
+  onToolStateChange,
   onUserInputStateChange,
   onClearExecutionState,
   events,
@@ -216,6 +218,13 @@ export default function RunPanel({
         onAgentStateChange?.(event.agent_name, "error");
       }
 
+      // Handle tool state changes
+      if (event.type === "tool_call" && event.data.tool_name) {
+        onToolStateChange?.(event.data.tool_name as string, "running");
+      } else if (event.type === "tool_result" && event.data.tool_name) {
+        onToolStateChange?.(event.data.tool_name as string, "completed");
+      }
+
       // Handle user input required event
       if (event.type === "user_input_required") {
         const inputRequest: UserInputRequest = {
@@ -361,7 +370,7 @@ export default function RunPanel({
       eventSource.close();
       eventSourceRef.current = null;
     };
-  }, [runId, onRunComplete, projectPath, onAgentStateChange, onUserInputStateChange, onClearExecutionState, onEventsChange, onStatusChange]);
+  }, [runId, onRunComplete, projectPath, onAgentStateChange, onToolStateChange, onUserInputStateChange, onClearExecutionState, onEventsChange, onStatusChange]);
 
   useEffect(() => {
     if (scrollRef.current) {

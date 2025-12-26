@@ -52,8 +52,9 @@ def create_agent_callbacks(
 ) -> dict[str, Any]:
     """Create ADK callbacks that emit RunEvents for real-time updates.
 
-    ADK callbacks are called synchronously, so we use asyncio.create_task
-    to fire off the async emit without blocking.
+    Tool callbacks are async and await the emit to ensure events are sent
+    before/after tool execution. Agent callbacks use fire-and-forget since
+    their timing is less critical.
 
     Args:
         emit: Async function to emit RunEvent (or None for no-op)
@@ -101,7 +102,7 @@ def create_agent_callbacks(
         )
         return None
 
-    def before_tool_callback(
+    async def before_tool_callback(
         *, tool: Any, args: dict[str, Any], tool_context: Any
     ) -> dict[str, Any] | None:
         tool_name = getattr(tool, "name", str(tool))
@@ -110,7 +111,8 @@ def create_agent_callbacks(
         if args:
             args_str = str(args)
             args_preview = args_str[:200] + "..." if len(args_str) > 200 else args_str
-        _emit_event(
+        # Await emit to ensure event is sent before tool executes
+        await emit(
             RunEvent(
                 type=EventType.TOOL_CALL,
                 timestamp=time.time(),
@@ -120,7 +122,7 @@ def create_agent_callbacks(
         )
         return None
 
-    def after_tool_callback(
+    async def after_tool_callback(
         *, tool: Any, args: dict[str, Any], tool_context: Any, tool_response: Any
     ) -> dict[str, Any] | None:
         tool_name = getattr(tool, "name", str(tool))
@@ -131,7 +133,8 @@ def create_agent_callbacks(
             result_preview = (
                 result_str[:200] + "..." if len(result_str) > 200 else result_str
             )
-        _emit_event(
+        # Await emit to ensure event is sent after tool completes
+        await emit(
             RunEvent(
                 type=EventType.TOOL_RESULT,
                 timestamp=time.time(),
