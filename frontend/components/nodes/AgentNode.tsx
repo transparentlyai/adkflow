@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Handle, Position, type NodeProps, useReactFlow, useStore } from "@xyflow/react";
+import { Handle, Position, type NodeProps, useReactFlow, useStore, useUpdateNodeInternals } from "@xyflow/react";
 import type { Agent, AgentType, HandlePositions, NodeExecutionState, HandleDataType } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import ResizeHandle from "@/components/ResizeHandle";
@@ -90,6 +90,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
   const { agent, handlePositions, handleTypes, expandedSize, expandedPosition, contractedPosition, isExpanded: dataIsExpanded, isNodeLocked, executionState, hasValidationError, hasValidationWarning, duplicateNameError, validationErrors, validationWarnings } = data as unknown as AgentNodeData;
   const resolvedHandleTypes = useMemo(() => (handleTypes || {}) as Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>, [handleTypes]);
   const { setNodes } = useReactFlow();
+  const updateNodeInternals = useUpdateNodeInternals();
   const canvasActions = useCanvasActions();
   const { theme } = useTheme();
   const [isExpanded, setIsExpanded] = useState(dataIsExpanded ?? false);
@@ -232,7 +233,9 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         };
       })
     );
-  }, [id, setNodes]);
+    // Update node internals so edges follow handle positions during resize
+    updateNodeInternals(id);
+  }, [id, setNodes, updateNodeInternals]);
 
   const handleNameDoubleClick = (e: React.MouseEvent) => {
     if (isNodeLocked) return;
