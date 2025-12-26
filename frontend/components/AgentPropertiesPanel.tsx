@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { Handle, Position, useUpdateNodeInternals } from "@xyflow/react";
 import type { Agent, AgentType, PlannerConfig, CodeExecutorConfig, HttpOptions, HandleDataType } from "@/lib/types";
 import { isTypeCompatible } from "@/lib/types";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useConnection } from "@/contexts/ConnectionContext";
+
+// Padding from scroll container edges for clamped handles
+const HANDLE_CLAMP_PADDING = 8;
 
 interface HandleConfig {
   id: string;
@@ -76,18 +79,98 @@ export default function AgentPropertiesPanel({
   const updateNodeInternals = useUpdateNodeInternals();
   const [activeTab, setActiveTab] = useState<TabId>("general");
   const [customModel, setCustomModel] = useState("");
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Update node internals on scroll to keep edges aligned with handles
+  // Refs for scroll container and field elements
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const agentFieldRef = useRef<HTMLDivElement>(null);
+  const promptFieldRef = useRef<HTMLDivElement>(null);
+  const toolsFieldRef = useRef<HTMLDivElement>(null);
+
+  // State for clamped handle Y positions (relative to scroll container)
+  const [handlePositions, setHandlePositions] = useState<{
+    agent: number | null;
+    prompt: number | null;
+    tools: number | null;
+  }>({ agent: null, prompt: null, tools: null });
+
+  // Reference to the wrapper div for accurate position calculation
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Calculate clamped Y position for a handle based on its field position
+  // Returns position relative to the wrapper div, clamped to visible bounds
+  const calculateClampedPosition = useCallback((
+    fieldRef: React.RefObject<HTMLDivElement | null>,
+    wrapperDiv: HTMLDivElement
+  ): number | null => {
+    if (!fieldRef.current) return null;
+
+    const wrapperRect = wrapperDiv.getBoundingClientRect();
+    const fieldRect = fieldRef.current.getBoundingClientRect();
+
+    // Calculate field center Y relative to wrapper (which has position: relative)
+    const fieldCenterY = fieldRect.top + fieldRect.height / 2 - wrapperRect.top;
+
+    // Clamp to visible area with padding
+    const minY = HANDLE_CLAMP_PADDING;
+    const maxY = wrapperRect.height - HANDLE_CLAMP_PADDING;
+
+    // If field is within visible area, use its actual position
+    // Only clamp when field scrolls out of view
+    return Math.max(minY, Math.min(maxY, fieldCenterY));
+  }, []);
+
+  // Update handle positions based on field positions
+  const updateHandlePositions = useCallback(() => {
+    if (!wrapperRef.current) return;
+    // Only calculate when on General tab where the fields exist
+    if (activeTab !== 'general') return;
+
+    const wrapper = wrapperRef.current;
+
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(() => {
+      const newPositions = {
+        agent: calculateClampedPosition(agentFieldRef, wrapper),
+        prompt: calculateClampedPosition(promptFieldRef, wrapper),
+        tools: calculateClampedPosition(toolsFieldRef, wrapper),
+      };
+
+      // Only update if we have valid positions
+      if (newPositions.agent !== null || newPositions.prompt !== null || newPositions.tools !== null) {
+        setHandlePositions(newPositions);
+        updateNodeInternals(nodeId);
+      }
+    });
+  }, [calculateClampedPosition, nodeId, updateNodeInternals, activeTab]);
+
+  // Update positions on scroll
   const handleScroll = useCallback(() => {
-    // Debounce to avoid excessive updates during scroll
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current);
+    updateHandlePositions();
+  }, [updateHandlePositions]);
+
+  // Update positions on mount, tab change, and resize
+  useEffect(() => {
+    if (!showHandles) return;
+
+    // Initial calculation after render - give DOM time to settle
+    const timer = setTimeout(updateHandlePositions, 100);
+
+    // ResizeObserver to handle node resizing
+    const wrapper = wrapperRef.current;
+    let resizeObserver: ResizeObserver | null = null;
+
+    if (wrapper) {
+      resizeObserver = new ResizeObserver(() => {
+        updateHandlePositions();
+      });
+      resizeObserver.observe(wrapper);
     }
-    scrollTimeoutRef.current = setTimeout(() => {
-      updateNodeInternals(nodeId);
-    }, 16); // ~60fps
-  }, [nodeId, updateNodeInternals]);
+
+    return () => {
+      clearTimeout(timer);
+      resizeObserver?.disconnect();
+    };
+  }, [showHandles, activeTab, updateHandlePositions]);
 
   // Compute validity style for a target handle based on connection state
   const getHandleValidityStyle = useCallback((acceptedTypes?: HandleDataType[]): React.CSSProperties => {
@@ -162,27 +245,10 @@ export default function AgentPropertiesPanel({
       {/* Connected Agent - FIRST FIELD */}
       <div className="space-y-1.5">
         <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>Connected Agent</label>
-        <div className="relative flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md" style={{
+        <div ref={agentFieldRef} className="flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md" style={{
           backgroundColor: theme.colors.nodes.common.footer.background,
           borderColor: theme.colors.nodes.common.container.border
         }}>
-          {showHandles && handleConfigs?.agentInput && (
-            <Handle
-              type="target"
-              position={Position.Left}
-              id={handleConfigs.agentInput.id}
-              style={{
-                position: 'absolute',
-                left: -5,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                transition: 'box-shadow 0.15s ease',
-                ...handleConfigs.agentInput.style,
-                ...agentInputValidityStyle,
-              }}
-              title="Agent input"
-            />
-          )}
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.colors.nodes.common.text.muted }}>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
@@ -288,27 +354,10 @@ export default function AgentPropertiesPanel({
       {/* Connected Prompt */}
       <div className="space-y-1.5">
         <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>Connected Prompt</label>
-        <div className="relative flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md" style={{
+        <div ref={promptFieldRef} className="flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md" style={{
           backgroundColor: theme.colors.nodes.common.footer.background,
           borderColor: theme.colors.nodes.common.container.border
         }}>
-          {showHandles && handleConfigs?.promptInput && (
-            <Handle
-              type="target"
-              position={Position.Left}
-              id={handleConfigs.promptInput.id}
-              style={{
-                position: 'absolute',
-                left: -5,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                transition: 'box-shadow 0.15s ease',
-                ...handleConfigs.promptInput.style,
-                ...promptInputValidityStyle,
-              }}
-              title="Prompt input"
-            />
-          )}
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.colors.nodes.common.text.muted }}>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
@@ -323,27 +372,10 @@ export default function AgentPropertiesPanel({
       {/* Connected Tools */}
       <div className="space-y-1.5">
         <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>Connected Tools</label>
-        <div className="relative flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md" style={{
+        <div ref={toolsFieldRef} className="flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md" style={{
           backgroundColor: theme.colors.nodes.common.footer.background,
           borderColor: theme.colors.nodes.common.container.border
         }}>
-          {showHandles && handleConfigs?.toolsInput && (
-            <Handle
-              type="target"
-              position={Position.Left}
-              id={handleConfigs.toolsInput.id}
-              style={{
-                position: 'absolute',
-                left: -5,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                transition: 'box-shadow 0.15s ease',
-                ...handleConfigs.toolsInput.style,
-                ...toolsInputValidityStyle,
-              }}
-              title="Tools input"
-            />
-          )}
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.colors.nodes.common.text.muted }}>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -885,14 +917,70 @@ export default function AgentPropertiesPanel({
         ))}
       </div>
 
-      {/* Tab Content */}
-      <div
-        className={`flex-1 p-4 nodrag nowheel nopan ${disabled ? "opacity-60 pointer-events-none" : ""}`}
-        style={{ overflowY: 'auto', overflowX: 'visible' }}
-        onKeyDown={(e) => e.stopPropagation()}
-        onScroll={showHandles ? handleScroll : undefined}
-      >
-        {renderTabContent()}
+      {/* Tab Content with clamped handles */}
+      <div ref={wrapperRef} className="flex-1 relative" style={{ overflow: 'hidden' }}>
+        <div
+          ref={scrollContainerRef}
+          className={`h-full p-4 nodrag nowheel nopan ${disabled ? "opacity-60 pointer-events-none" : ""}`}
+          style={{ overflowY: 'auto', overflowX: 'hidden' }}
+          onKeyDown={(e) => e.stopPropagation()}
+          onScroll={showHandles ? handleScroll : undefined}
+        >
+          {renderTabContent()}
+        </div>
+
+        {/* Clamped handles - positioned relative to scroll container wrapper */}
+        {showHandles && handleConfigs?.agentInput && handlePositions.agent !== null && (
+          <Handle
+            type="target"
+            position={Position.Left}
+            id={handleConfigs.agentInput.id}
+            style={{
+              position: 'absolute',
+              left: -5,
+              top: handlePositions.agent,
+              transform: 'translateY(-50%)',
+              transition: 'top 0.1s ease-out, box-shadow 0.15s ease',
+              ...handleConfigs.agentInput.style,
+              ...agentInputValidityStyle,
+            }}
+            title="Agent input"
+          />
+        )}
+        {showHandles && handleConfigs?.promptInput && handlePositions.prompt !== null && (
+          <Handle
+            type="target"
+            position={Position.Left}
+            id={handleConfigs.promptInput.id}
+            style={{
+              position: 'absolute',
+              left: -5,
+              top: handlePositions.prompt,
+              transform: 'translateY(-50%)',
+              transition: 'top 0.1s ease-out, box-shadow 0.15s ease',
+              ...handleConfigs.promptInput.style,
+              ...promptInputValidityStyle,
+            }}
+            title="Prompt input"
+          />
+        )}
+        {showHandles && handleConfigs?.toolsInput && handlePositions.tools !== null && (
+          <Handle
+            type="target"
+            position={Position.Left}
+            id={handleConfigs.toolsInput.id}
+            style={{
+              position: 'absolute',
+              left: -5,
+              top: handlePositions.tools,
+              transform: 'translateY(-50%)',
+              transition: 'top 0.1s ease-out, box-shadow 0.15s ease',
+              ...handleConfigs.toolsInput.style,
+              ...toolsInputValidityStyle,
+            }}
+            title="Tools input"
+          />
+        )}
       </div>
     </div>
   );
