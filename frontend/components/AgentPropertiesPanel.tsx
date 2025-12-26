@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { Handle, Position } from "@xyflow/react";
-import type { Agent, AgentType, PlannerConfig, CodeExecutorConfig, HttpOptions, HandleDataType } from "@/lib/types";
+import type { Agent, PlannerConfig, CodeExecutorConfig, HttpOptions, HandleDataType } from "@/lib/types";
 import { isTypeCompatible } from "@/lib/types";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useConnection } from "@/contexts/ConnectionContext";
@@ -38,13 +38,6 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "flow", label: "Flow" },
   { id: "schema", label: "Schema" },
   { id: "callbacks", label: "Callbacks" },
-];
-
-const AGENT_TYPES: { value: AgentType; label: string }[] = [
-  { value: "llm", label: "LLM Agent" },
-  { value: "sequential", label: "Sequential" },
-  { value: "parallel", label: "Parallel" },
-  { value: "loop", label: "Loop" },
 ];
 
 const MODELS = [
@@ -145,11 +138,11 @@ export default function AgentPropertiesPanel({
   );
 
   const renderGeneralTab = () => (
-    <div className="space-y-4">
-      {/* Connected Agent - FIRST FIELD */}
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>Connected Agent</label>
-        <div className="relative flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md" style={{
+    <div className="space-y-2">
+      {/* Source (Connected Agent) - stacked because it has a handle */}
+      <div className="space-y-1">
+        <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>Source</label>
+        <div className="relative flex items-center gap-2 px-2 py-1 text-sm border rounded" style={{
           backgroundColor: theme.colors.nodes.common.footer.background,
           borderColor: theme.colors.nodes.common.container.border
         }}>
@@ -170,41 +163,20 @@ export default function AgentPropertiesPanel({
               title="Agent input"
             />
           )}
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.colors.nodes.common.text.muted }}>
+          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.colors.nodes.common.text.muted }}>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
-          <span className={connectedAgentName ? "" : "italic"} style={{
+          <span className={`text-xs ${connectedAgentName ? "" : "italic"}`} style={{
             color: connectedAgentName ? theme.colors.nodes.common.text.primary : theme.colors.nodes.common.text.muted
           }}>
-            {connectedAgentName || "No agent connected"}
+            {connectedAgentName || "None"}
           </span>
         </div>
       </div>
 
-      {/* Type */}
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>Type</label>
-        <select
-          value={agent.type}
-          onChange={(e) => onUpdate({ type: e.target.value as AgentType })}
-          className="w-full px-3 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-1"
-          style={{
-            backgroundColor: theme.colors.nodes.common.container.background,
-            borderColor: theme.colors.nodes.common.container.border,
-            color: theme.colors.nodes.common.text.primary
-          }}
-        >
-          {AGENT_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
       {/* Model */}
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>Model</label>
+      <div className="flex items-center gap-2">
+        <label className="text-xs font-medium w-14 flex-shrink-0" style={{ color: theme.colors.nodes.common.text.secondary }}>Model</label>
         <select
           value={MODELS.includes(agent.model || "") ? agent.model : "custom"}
           onChange={(e) => {
@@ -214,7 +186,7 @@ export default function AgentPropertiesPanel({
               onUpdate({ model: e.target.value });
             }
           }}
-          className="w-full px-3 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-1"
+          className="flex-1 px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1"
           style={{
             backgroundColor: theme.colors.nodes.common.container.background,
             borderColor: theme.colors.nodes.common.container.border,
@@ -228,7 +200,10 @@ export default function AgentPropertiesPanel({
           ))}
           <option value="custom">Custom...</option>
         </select>
-        {!MODELS.includes(agent.model || "") && (
+      </div>
+      {!MODELS.includes(agent.model || "") && (
+        <div className="flex items-center gap-2">
+          <div className="w-14 flex-shrink-0" />
           <input
             type="text"
             value={customModel || agent.model || ""}
@@ -236,21 +211,21 @@ export default function AgentPropertiesPanel({
               setCustomModel(e.target.value);
               onUpdate({ model: e.target.value });
             }}
-            placeholder="Enter custom model name"
-            className="w-full px-3 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-1 mt-1.5"
+            placeholder="Custom model name"
+            className="flex-1 px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1"
             style={{
               backgroundColor: theme.colors.nodes.common.container.background,
               borderColor: theme.colors.nodes.common.container.border,
               color: theme.colors.nodes.common.text.primary
             }}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Temperature */}
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>
-          Temperature: {agent.temperature?.toFixed(1) ?? "0.7"}
+      <div className="flex items-center gap-2">
+        <label className="text-xs font-medium w-14 flex-shrink-0" style={{ color: theme.colors.nodes.common.text.secondary }}>
+          Temp
         </label>
         <input
           type="range"
@@ -259,23 +234,21 @@ export default function AgentPropertiesPanel({
           step="0.1"
           value={agent.temperature ?? 0.7}
           onChange={(e) => onUpdate({ temperature: parseFloat(e.target.value) })}
-          className="w-full h-2 rounded-lg appearance-none cursor-pointer"
+          className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer"
           style={{
             backgroundColor: theme.colors.ui.muted,
             accentColor: theme.colors.ui.primary
           }}
         />
-        <div className="flex justify-between text-xs" style={{ color: theme.colors.nodes.common.text.muted }}>
-          <span>0</span>
-          <span>1</span>
-          <span>2</span>
-        </div>
+        <span className="text-xs w-6 text-right" style={{ color: theme.colors.nodes.common.text.muted }}>
+          {agent.temperature?.toFixed(1) ?? "0.7"}
+        </span>
       </div>
 
-      {/* Connected Prompt */}
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>Connected Prompt</label>
-        <div className="relative flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md" style={{
+      {/* Prompt - stacked because it has a handle */}
+      <div className="space-y-1">
+        <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>Prompt</label>
+        <div className="relative flex items-center gap-2 px-2 py-1 text-sm border rounded" style={{
           backgroundColor: theme.colors.nodes.common.footer.background,
           borderColor: theme.colors.nodes.common.container.border
         }}>
@@ -296,21 +269,21 @@ export default function AgentPropertiesPanel({
               title="Prompt input"
             />
           )}
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.colors.nodes.common.text.muted }}>
+          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.colors.nodes.common.text.muted }}>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          <span className={connectedPromptName ? "" : "italic"} style={{
+          <span className={`text-xs ${connectedPromptName ? "" : "italic"}`} style={{
             color: connectedPromptName ? theme.colors.nodes.common.text.primary : theme.colors.nodes.common.text.muted
           }}>
-            {connectedPromptName || "No prompt connected"}
+            {connectedPromptName || "None"}
           </span>
         </div>
       </div>
 
-      {/* Connected Tools */}
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>Connected Tools</label>
-        <div className="relative flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md" style={{
+      {/* Tools - stacked because it has a handle */}
+      <div className="space-y-1">
+        <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>Tools</label>
+        <div className="relative flex items-center gap-2 px-2 py-1 text-sm border rounded" style={{
           backgroundColor: theme.colors.nodes.common.footer.background,
           borderColor: theme.colors.nodes.common.container.border
         }}>
@@ -331,30 +304,30 @@ export default function AgentPropertiesPanel({
               title="Tools input"
             />
           )}
-          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.colors.nodes.common.text.muted }}>
+          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: theme.colors.nodes.common.text.muted }}>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
-          <span className={connectedToolNames.length > 0 ? "truncate" : "italic"} style={{
+          <span className={`text-xs ${connectedToolNames.length > 0 ? "truncate" : "italic"}`} style={{
             color: connectedToolNames.length > 0 ? theme.colors.nodes.common.text.primary : theme.colors.nodes.common.text.muted
           }}>
-            {connectedToolNames.length > 0 ? connectedToolNames.join(", ") : "No tools connected"}
+            {connectedToolNames.length > 0 ? connectedToolNames.join(", ") : "None"}
           </span>
         </div>
       </div>
 
       {/* Description */}
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         <label className="text-xs font-medium" style={{ color: theme.colors.nodes.common.text.secondary }}>
           Description
-          <span className="font-normal ml-1" style={{ color: theme.colors.nodes.common.text.muted }}>(for multi-agent routing)</span>
+          <span className="font-normal ml-1" style={{ color: theme.colors.nodes.common.text.muted }}>(for routing)</span>
         </label>
         <textarea
           value={agent.description || ""}
           onChange={(e) => onUpdate({ description: e.target.value })}
           placeholder="Describe what this agent does..."
-          rows={3}
-          className="w-full px-3 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-1 resize-none"
+          rows={2}
+          className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 resize-none"
           style={{
             backgroundColor: theme.colors.nodes.common.container.background,
             borderColor: theme.colors.nodes.common.container.border,
@@ -874,7 +847,7 @@ export default function AgentPropertiesPanel({
 
       {/* Tab Content */}
       <div
-        className={`p-4 nodrag nowheel nopan ${disabled ? "opacity-60 pointer-events-none" : ""}`}
+        className={`p-3 nodrag nowheel nopan ${disabled ? "opacity-60 pointer-events-none" : ""}`}
         onKeyDown={(e) => e.stopPropagation()}
       >
         {renderTabContent()}
