@@ -342,6 +342,12 @@ const ContextNode = memo(({ data, id, selected }: NodeProps) => {
               value={content}
               onChange={handleContentChange}
               theme={theme.colors.monaco}
+              onMount={(editor, monaco) => {
+                editor.addCommand(
+                  monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
+                  () => handleSave()
+                );
+              }}
               options={{
                 minimap: { enabled: false },
                 fontSize: 12,

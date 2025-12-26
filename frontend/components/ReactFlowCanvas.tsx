@@ -106,6 +106,7 @@ interface ReactFlowCanvasProps {
   isLocked?: boolean;
   onToggleLock?: () => void;
   activeTabId?: string;
+  onSave?: () => void;
 }
 
 export interface ReactFlowCanvasRef {
@@ -148,7 +149,7 @@ export interface ReactFlowCanvasRef {
  * Replaces the Drawflow-based canvas with native React Flow implementation.
  */
 const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
-  ({ onWorkflowChange, onRequestPromptCreation, onRequestContextCreation, onRequestToolCreation, onRequestProcessCreation, onRequestOutputFileCreation, isLocked, onToggleLock, activeTabId }, ref) => {
+  ({ onWorkflowChange, onRequestPromptCreation, onRequestContextCreation, onRequestToolCreation, onRequestProcessCreation, onRequestOutputFileCreation, isLocked, onToggleLock, activeTabId, onSave }, ref) => {
     const [nodes, setNodes] = useState<Node[]>([]);
     const [edges, setEdges] = useState<Edge[]>([]);
     const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
@@ -755,6 +756,13 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
         const modifier = isMac ? e.metaKey : e.ctrlKey;
 
+        // Save: Ctrl/Cmd+S
+        if (modifier && e.key.toLowerCase() === "s") {
+          e.preventDefault();
+          onSave?.();
+          return;
+        }
+
         // Copy: Ctrl/Cmd+C
         if (modifier && e.key.toLowerCase() === "c" && !e.shiftKey) {
           handleCopy();
@@ -796,7 +804,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
       window.addEventListener("keydown", handleKeyDown);
       return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [isLocked, handleCopy, handleCut, handlePaste, handleDelete, handleUndo, handleRedo]);
+    }, [isLocked, handleCopy, handleCut, handlePaste, handleDelete, handleUndo, handleRedo, onSave]);
 
     const addGroupNode = useCallback((position?: { x: number; y: number }) => {
       const groupId = generateNodeId("group");

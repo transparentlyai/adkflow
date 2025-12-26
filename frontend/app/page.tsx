@@ -1174,6 +1174,7 @@ function HomeContent() {
                   isLocked={isCanvasLocked}
                   onToggleLock={() => setIsCanvasLocked(!isCanvasLocked)}
                   activeTabId={activeTabId ?? undefined}
+                  onSave={handleSaveCurrentProject}
                 />
               </RunWorkflowProvider>
             </ProjectProvider>

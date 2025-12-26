@@ -432,6 +432,12 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
               value={code}
               onChange={handleCodeChange}
               theme={theme.colors.monaco}
+              onMount={(editor, monaco) => {
+                editor.addCommand(
+                  monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
+                  () => handleSaveFile()
+                );
+              }}
               options={{
                 minimap: { enabled: false },
                 fontSize: 12,
