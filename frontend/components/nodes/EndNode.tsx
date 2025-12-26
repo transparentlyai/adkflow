@@ -6,7 +6,7 @@ import NodeContextMenu from "@/components/NodeContextMenu";
 import { Square } from "lucide-react";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import type { HandlePositions } from "@/lib/types";
+import type { HandlePositions, HandleDataType } from "@/lib/types";
 
 export interface EndNodeData extends Record<string, unknown> {
   handlePositions?: HandlePositions;
@@ -117,5 +117,9 @@ EndNode.displayName = "EndNode";
 export default EndNode;
 
 export function getDefaultEndData(): EndNodeData {
-  return {};
+  return {
+    handleTypes: {
+      'input': { acceptedTypes: ['str', 'custom:AgentOutput', 'any'] as HandleDataType[] },
+    },
+  };
 }

@@ -2,7 +2,7 @@
 
 import { memo, useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { type NodeProps, useReactFlow, useStore } from "@xyflow/react";
-import type { Agent, AgentType, HandlePositions, NodeExecutionState } from "@/lib/types";
+import type { Agent, AgentType, HandlePositions, NodeExecutionState, HandleDataType } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import ResizeHandle from "@/components/ResizeHandle";
 import AgentPropertiesPanel from "@/components/AgentPropertiesPanel";
@@ -27,6 +27,7 @@ const DEFAULT_HEIGHT = 500;
 export interface AgentNodeData {
   agent: Agent;
   handlePositions?: HandlePositions;
+  handleTypes?: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
   expandedSize?: { width: number; height: number };
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
@@ -86,7 +87,8 @@ const agentNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): boo
 };
 
 const AgentNode = memo(({ data, id, selected }: NodeProps) => {
-  const { agent, handlePositions, expandedSize, expandedPosition, contractedPosition, isExpanded: dataIsExpanded, isNodeLocked, executionState, hasValidationError, hasValidationWarning, duplicateNameError, validationErrors, validationWarnings } = data as unknown as AgentNodeData;
+  const { agent, handlePositions, handleTypes, expandedSize, expandedPosition, contractedPosition, isExpanded: dataIsExpanded, isNodeLocked, executionState, hasValidationError, hasValidationWarning, duplicateNameError, validationErrors, validationWarnings } = data as unknown as AgentNodeData;
+  const resolvedHandleTypes = (handleTypes || {}) as Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
   const { theme } = useTheme();
@@ -413,6 +415,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           defaultEdge="left"
           defaultPercent={50}
           handlePositions={handlePositions}
+          acceptedTypes={resolvedHandleTypes['input']?.acceptedTypes}
           style={{ ...handleStyle, backgroundColor: theme.colors.handles.input }}
         />
 
@@ -424,6 +427,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           defaultEdge="top"
           defaultPercent={50}
           handlePositions={handlePositions}
+          outputType={resolvedHandleTypes['link-top']?.outputType}
           title="Chain with other agents for parallel execution"
           style={{ ...linkHandleStyle, backgroundColor: theme.colors.handles.link }}
         />
@@ -522,6 +526,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           defaultEdge="bottom"
           defaultPercent={50}
           handlePositions={handlePositions}
+          acceptedTypes={resolvedHandleTypes['link-bottom']?.acceptedTypes}
           title="Chain with other agents for parallel execution"
           style={{ ...linkHandleStyle, backgroundColor: theme.colors.handles.link }}
         />
@@ -534,6 +539,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           defaultEdge="right"
           defaultPercent={50}
           handlePositions={handlePositions}
+          outputType={resolvedHandleTypes['output']?.outputType}
           style={{ ...handleStyle, backgroundColor: theme.colors.handles.output }}
         />
 
@@ -592,6 +598,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="left"
         defaultPercent={50}
         handlePositions={handlePositions}
+        acceptedTypes={resolvedHandleTypes['input']?.acceptedTypes}
         style={{ ...handleStyle, backgroundColor: theme.colors.handles.input }}
       />
 
@@ -603,6 +610,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="top"
         defaultPercent={50}
         handlePositions={handlePositions}
+        outputType={resolvedHandleTypes['link-top']?.outputType}
         title="Chain with other agents for parallel execution"
         style={{ ...linkHandleStyle, backgroundColor: theme.colors.handles.link }}
       />
@@ -714,6 +722,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="bottom"
         defaultPercent={50}
         handlePositions={handlePositions}
+        acceptedTypes={resolvedHandleTypes['link-bottom']?.acceptedTypes}
         title="Chain with other agents for parallel execution"
         style={{ ...linkHandleStyle, backgroundColor: theme.colors.handles.link }}
       />
@@ -726,6 +735,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="right"
         defaultPercent={50}
         handlePositions={handlePositions}
+        outputType={resolvedHandleTypes['output']?.outputType}
         style={{ ...handleStyle, backgroundColor: theme.colors.handles.output }}
       />
 
@@ -753,7 +763,7 @@ AgentNode.displayName = "AgentNode";
 
 export default AgentNode;
 
-export function getDefaultAgentData(): Omit<Agent, "id"> {
+export function getDefaultAgentData(): Omit<Agent, "id"> & { handleTypes: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }> } {
   return {
     name: "New Agent",
     type: "llm",
@@ -773,5 +783,11 @@ export function getDefaultAgentData(): Omit<Agent, "id"> {
     },
     tools: [],
     subagents: [],
+    handleTypes: {
+      'input': { acceptedTypes: ['str', 'custom:AgentOutput', 'any'] as HandleDataType[] },
+      'output': { outputType: 'custom:AgentOutput' as HandleDataType },
+      'link-top': { outputType: 'custom:Link' as HandleDataType },
+      'link-bottom': { acceptedTypes: ['custom:Link'] as HandleDataType[] },
+    },
   };
 }

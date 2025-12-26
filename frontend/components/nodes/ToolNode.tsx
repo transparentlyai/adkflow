@@ -3,7 +3,7 @@
 import { memo, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Handle, Position, type NodeProps, useReactFlow, useStore } from "@xyflow/react";
 import Editor from "@monaco-editor/react";
-import type { HandlePositions, ToolErrorBehavior, NodeExecutionState } from "@/lib/types";
+import type { HandlePositions, ToolErrorBehavior, NodeExecutionState, HandleDataType } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import EditorMenuBar from "@/components/EditorMenuBar";
 import ResizeHandle from "@/components/ResizeHandle";
@@ -51,6 +51,7 @@ interface ToolNodeData {
   error_behavior?: ToolErrorBehavior;
   executionState?: NodeExecutionState;
   handlePositions?: HandlePositions;
+  handleTypes?: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
   expandedSize?: { width: number; height: number };
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
@@ -92,7 +93,8 @@ const toolNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): bool
 };
 
 const ToolNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name = "Tool", code = DEFAULT_CODE, file_path, error_behavior, executionState, handlePositions, expandedSize, expandedPosition, contractedPosition, isExpanded: dataIsExpanded, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as ToolNodeData;
+  const { name = "Tool", code = DEFAULT_CODE, file_path, error_behavior, executionState, handlePositions, handleTypes, expandedSize, expandedPosition, contractedPosition, isExpanded: dataIsExpanded, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as ToolNodeData;
+  const resolvedHandleTypes = (handleTypes || {}) as Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
@@ -696,6 +698,7 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="right"
         defaultPercent={50}
         handlePositions={handlePositions}
+        outputType={resolvedHandleTypes['output']?.outputType}
         style={{ width: '10px', height: '10px', backgroundColor: theme.colors.handles.tool, border: `2px solid ${theme.colors.handles.border}` }}
       />
 
@@ -730,5 +733,8 @@ export function getDefaultToolData() {
   return {
     name: "my_tool",
     code: DEFAULT_CODE,
+    handleTypes: {
+      'output': { outputType: 'custom:Tool' as HandleDataType },
+    },
   };
 }

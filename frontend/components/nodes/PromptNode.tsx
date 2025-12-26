@@ -3,7 +3,7 @@
 import { memo, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { type NodeProps, useReactFlow, useStore } from "@xyflow/react";
 import Editor from "@monaco-editor/react";
-import type { Prompt, HandlePositions } from "@/lib/types";
+import type { Prompt, HandlePositions, HandleDataType } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import EditorMenuBar from "@/components/EditorMenuBar";
 import ResizeHandle from "@/components/ResizeHandle";
@@ -22,6 +22,7 @@ export interface PromptNodeData {
   prompt: Prompt;
   content?: string;
   handlePositions?: HandlePositions;
+  handleTypes?: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
   expandedSize?: { width: number; height: number };
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
@@ -33,7 +34,8 @@ export interface PromptNodeData {
 }
 
 const PromptNode = memo(({ data, id, selected }: NodeProps) => {
-  const { prompt, content = "", handlePositions, expandedSize, expandedPosition, contractedPosition, isExpanded: dataIsExpanded, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as unknown as PromptNodeData;
+  const { prompt, content = "", handlePositions, handleTypes, expandedSize, expandedPosition, contractedPosition, isExpanded: dataIsExpanded, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as unknown as PromptNodeData;
+  const resolvedHandleTypes = (handleTypes || {}) as Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
   const { setNodes } = useReactFlow();
   const { projectPath, onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
@@ -454,6 +456,7 @@ const PromptNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="right"
         defaultPercent={50}
         handlePositions={handlePositions}
+        outputType={resolvedHandleTypes['output']?.outputType}
         style={{
           width: '10px',
           height: '10px',
@@ -488,9 +491,12 @@ export default PromptNode;
 /**
  * Default prompt data for new nodes
  */
-export function getDefaultPromptData(): Omit<Prompt, "id"> {
+export function getDefaultPromptData(): Omit<Prompt, "id"> & { handleTypes: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }> } {
   return {
     name: "New Prompt",
     file_path: "",
+    handleTypes: {
+      'output': { outputType: 'custom:Prompt' as HandleDataType },
+    },
   };
 }

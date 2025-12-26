@@ -9,7 +9,7 @@ import { useTeleporter } from "@/contexts/TeleporterContext";
 import { useTabs } from "@/contexts/TabsContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import type { HandlePositions } from "@/lib/types";
+import type { HandlePositions, HandleDataType } from "@/lib/types";
 
 export interface TeleportInNodeData extends Record<string, unknown> {
   name: string;
@@ -18,6 +18,7 @@ export interface TeleportInNodeData extends Record<string, unknown> {
   contractedPosition?: { x: number; y: number };
   isExpanded?: boolean;
   isNodeLocked?: boolean;
+  handleTypes?: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
 }
 
 const TeleportInNode = memo(({ data, id, selected }: NodeProps) => {
@@ -417,5 +418,8 @@ export default TeleportInNode;
 export function getDefaultTeleportInData(): TeleportInNodeData {
   return {
     name: "Connector",
+    handleTypes: {
+      'output': { outputType: 'any' as HandleDataType },
+    },
   };
 }

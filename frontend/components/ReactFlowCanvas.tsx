@@ -27,12 +27,14 @@ import {
   type EdgeChange,
   type Connection,
   type ReactFlowInstance,
+  type OnConnectStartParams,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
 import { useClipboard } from "@/contexts/ClipboardContext";
 import { CanvasActionsProvider } from "@/contexts/CanvasActionsContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { ConnectionProvider, useConnection } from "@/contexts/ConnectionContext";
 import { Lock, LockOpen, Grid3X3 } from "lucide-react";
 
 import GroupNode from "./nodes/GroupNode";
@@ -72,7 +74,8 @@ import { getDefaultAgentToolData } from "./nodes/AgentToolNode";
 import { getDefaultVariableData } from "./nodes/VariableNode";
 import { getDefaultProcessData } from "./nodes/ProcessNode";
 import { getDefaultLabelData } from "./nodes/LabelNode";
-import type { Agent, Prompt, NodeExecutionState } from "@/lib/types";
+import type { Agent, Prompt, NodeExecutionState, HandleDataType, HandleTypes } from "@/lib/types";
+import { isTypeCompatible } from "@/lib/types";
 
 // Register custom node types
 const nodeTypes = {
@@ -157,6 +160,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     const { screenToFlowPosition } = useReactFlow();
     const { clipboard, copy, hasClipboard } = useClipboard();
     const { theme } = useTheme();
+    const { startConnection, endConnection } = useConnection();
 
     // Context menu state
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; flowPosition: { x: number; y: number }; parentGroupId?: string } | null>(null);
@@ -221,6 +225,49 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     }), [theme.colors.edges.default]);
 
     const snapGridValue = useMemo(() => [16, 16] as [number, number], []);
+
+    // Build registry of handle types from node data for connection validation
+    const handleTypeRegistry = useMemo(() => {
+      const registry: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }> = {};
+      for (const node of nodes) {
+        const data = node.data as Record<string, unknown>;
+        const handleTypes = data.handleTypes as HandleTypes | undefined;
+        if (handleTypes) {
+          for (const [handleId, typeInfo] of Object.entries(handleTypes)) {
+            registry[`${node.id}:${handleId}`] = typeInfo;
+          }
+        }
+      }
+      return registry;
+    }, [nodes]);
+
+    // Track drag start to update connection context for visual feedback
+    const onConnectStart = useCallback((_event: MouseEvent | TouchEvent, params: OnConnectStartParams) => {
+      const key = `${params.nodeId}:${params.handleId}`;
+      const typeInfo = handleTypeRegistry[key];
+      if (typeInfo?.outputType && params.nodeId && params.handleId) {
+        startConnection(params.nodeId, params.handleId, typeInfo.outputType);
+      }
+    }, [handleTypeRegistry, startConnection]);
+
+    // Clear drag state when connection ends
+    const onConnectEnd = useCallback(() => {
+      endConnection();
+    }, [endConnection]);
+
+    // Validate connection types - centralized validation for performance
+    const isValidConnection = useCallback((connection: Edge | Connection) => {
+      // Prevent self-connections
+      if (connection.source === connection.target) return false;
+
+      const sourceKey = `${connection.source}:${connection.sourceHandle ?? ''}`;
+      const targetKey = `${connection.target}:${connection.targetHandle ?? ''}`;
+
+      const sourceType = handleTypeRegistry[sourceKey]?.outputType;
+      const targetTypes = handleTypeRegistry[targetKey]?.acceptedTypes;
+
+      return isTypeCompatible(sourceType, targetTypes);
+    }, [handleTypeRegistry]);
 
     // Handle node changes (drag, select, etc.)
     const onNodesChange = useCallback(
@@ -1885,6 +1932,9 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onConnectStart={onConnectStart}
+            onConnectEnd={onConnectEnd}
+            isValidConnection={isValidConnection}
             onNodeDragStop={onNodeDragStop}
             onInit={setRfInstance}
             onPaneContextMenu={onPaneContextMenu}
@@ -2090,7 +2140,9 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
   (props, ref) => {
     return (
       <ReactFlowProvider>
-        <ReactFlowCanvasInner {...props} ref={ref} />
+        <ConnectionProvider>
+          <ReactFlowCanvasInner {...props} ref={ref} />
+        </ConnectionProvider>
       </ReactFlowProvider>
     );
   }

@@ -3,7 +3,7 @@
 import { memo, useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { type NodeProps, useReactFlow, useStore } from "@xyflow/react";
 import Editor from "@monaco-editor/react";
-import type { HandlePositions } from "@/lib/types";
+import type { HandlePositions, HandleDataType } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import EditorMenuBar from "@/components/EditorMenuBar";
 import ResizeHandle from "@/components/ResizeHandle";
@@ -288,6 +288,7 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
   // Calculate lines of code for display
   const lineCount = code?.split("\n").length || 0;
   const editorHeight = size.height - 100;
+  const handleTypes = ((data as ProcessNodeData & { handleTypes?: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }> }).handleTypes || {}) as Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
 
   return (
     <div
@@ -504,6 +505,7 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="right"
         defaultPercent={50}
         handlePositions={handlePositions}
+        outputType={handleTypes['output']?.outputType}
         style={{ width: '10px', height: '10px', backgroundColor: theme.colors.handles.process, border: `2px solid ${theme.colors.handles.border}` }}
       />
 
@@ -535,5 +537,8 @@ export function getDefaultProcessData(): ProcessNodeData {
     name: "Process",
     code: DEFAULT_CODE,
     description: "",
+    handleTypes: {
+      'output': { outputType: 'any' as HandleDataType },
+    },
   };
 }

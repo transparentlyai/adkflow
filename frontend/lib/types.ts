@@ -156,6 +156,56 @@ export interface HandlePosition {
 export type HandlePositions = Record<string, HandlePosition>;
 
 /**
+ * Handle Data Type System
+ * Supports Python built-in types, 'any' wildcard, and custom types
+ */
+export const PYTHON_BUILTIN_TYPES = [
+  'str', 'int', 'float', 'bool',
+  'list', 'dict', 'tuple', 'set',
+  'None'
+] as const;
+
+export type PythonBuiltinType = typeof PYTHON_BUILTIN_TYPES[number];
+
+/**
+ * Handle type can be:
+ * - Python builtin: 'str', 'int', etc.
+ * - Any wildcard: 'any'
+ * - Custom type: 'custom:TypeName'
+ */
+export type HandleDataType = PythonBuiltinType | 'any' | `custom:${string}`;
+
+/**
+ * Handle type information for connection validation
+ */
+export interface HandleTypeInfo {
+  outputType?: HandleDataType;       // For source handles: what type this outputs
+  acceptedTypes?: HandleDataType[];  // For target handles: what types are accepted
+}
+
+/**
+ * Registry mapping handleId -> HandleTypeInfo for a node
+ */
+export type HandleTypes = Record<string, HandleTypeInfo>;
+
+/**
+ * Helper to check if a type matches accepted types
+ */
+export function isTypeCompatible(
+  outputType: HandleDataType | undefined | null,
+  acceptedTypes: HandleDataType[] | undefined
+): boolean {
+  // Missing type info = connection NOT allowed (strict mode)
+  if (!outputType || !acceptedTypes || acceptedTypes.length === 0) return false;
+
+  // 'any' on either side = compatible
+  if (outputType === 'any' || acceptedTypes.includes('any')) return true;
+
+  // Exact match
+  return acceptedTypes.includes(outputType);
+}
+
+/**
  * Extended node data for Drawflow integration
  */
 export interface NodeData {

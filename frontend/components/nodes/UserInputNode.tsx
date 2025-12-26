@@ -2,7 +2,7 @@
 
 import { memo, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { type NodeProps, useReactFlow, useStore } from "@xyflow/react";
-import type { HandlePositions } from "@/lib/types";
+import type { HandlePositions, HandleDataType } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import ResizeHandle from "@/components/ResizeHandle";
 import NodeContextMenu from "@/components/NodeContextMenu";
@@ -240,6 +240,7 @@ const UserInputNode = memo(({ data, id, selected }: NodeProps) => {
   };
 
   const variableName = deriveVariableName(name);
+  const handleTypes = ((data as UserInputNodeData & { handleTypes?: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }> }).handleTypes || {}) as Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
 
   const handleCopyVariable = useCallback(() => {
     navigator.clipboard.writeText(`{${variableName}}`);
@@ -340,6 +341,7 @@ const UserInputNode = memo(({ data, id, selected }: NodeProps) => {
           defaultEdge="right"
           defaultPercent={50}
           handlePositions={handlePositions}
+          outputType={handleTypes['output']?.outputType}
           style={{
             width: '8px',
             height: '8px',
@@ -595,6 +597,7 @@ const UserInputNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="right"
         defaultPercent={50}
         handlePositions={handlePositions}
+        outputType={handleTypes['output']?.outputType}
         style={{
           width: '10px',
           height: '10px',
@@ -632,5 +635,8 @@ export function getDefaultUserInputData() {
     timeout: 300,
     timeoutBehavior: "error" as TimeoutBehavior,
     predefinedText: "",
+    handleTypes: {
+      'output': { outputType: 'str' as HandleDataType },
+    },
   };
 }

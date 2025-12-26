@@ -3,7 +3,7 @@
 import { memo, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { type NodeProps, useReactFlow, useStore } from "@xyflow/react";
 import Editor from "@monaco-editor/react";
-import type { HandlePositions } from "@/lib/types";
+import type { HandlePositions, HandleDataType } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import EditorMenuBar from "@/components/EditorMenuBar";
 import ResizeHandle from "@/components/ResizeHandle";
@@ -38,7 +38,10 @@ const OutputProbeNode = memo(({ data, id, selected }: NodeProps) => {
     contractedPosition,
     isExpanded: dataIsExpanded,
     isNodeLocked,
-  } = (data || {}) as OutputProbeNodeData;
+    handleTypes: rawHandleTypes,
+  } = (data || {}) as OutputProbeNodeData & { handleTypes?: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }> };
+
+  const handleTypes = (rawHandleTypes || {}) as Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
 
   const { setNodes } = useReactFlow();
   const { projectPath, onRequestFilePicker } = useProject();
@@ -275,6 +278,7 @@ const OutputProbeNode = memo(({ data, id, selected }: NodeProps) => {
           defaultEdge="bottom"
           defaultPercent={50}
           handlePositions={handlePositions}
+          acceptedTypes={handleTypes['input']?.acceptedTypes}
           style={{ width: '8px', height: '8px', backgroundColor: theme.colors.handles.probe, border: `2px solid ${theme.colors.handles.border}` }}
         />
 
@@ -443,6 +447,7 @@ const OutputProbeNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="bottom"
         defaultPercent={50}
         handlePositions={handlePositions}
+        acceptedTypes={handleTypes['input']?.acceptedTypes}
         style={{ width: '10px', height: '10px', backgroundColor: theme.colors.handles.probe, border: `2px solid ${theme.colors.handles.border}` }}
       />
 
@@ -472,5 +477,8 @@ export default OutputProbeNode;
 export function getDefaultOutputProbeData() {
   return {
     name: "Output",
+    handleTypes: {
+      'input': { acceptedTypes: ['str', 'custom:AgentOutput', 'any'] as HandleDataType[] },
+    },
   };
 }

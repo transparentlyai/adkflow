@@ -7,6 +7,7 @@ import { Lock } from "lucide-react";
 import ValidationIndicator from "@/components/nodes/ValidationIndicator";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import type { HandleDataType } from "@/lib/types";
 
 interface VariableNodeData {
   name?: string;
@@ -264,5 +265,8 @@ export function getDefaultVariableData() {
   return {
     name: "variable",
     value: "",
+    handleTypes: {
+      'output': { outputType: 'any' as HandleDataType },
+    },
   };
 }

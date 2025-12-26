@@ -4,7 +4,7 @@ import { memo, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { type NodeProps, useReactFlow, useStore } from "@xyflow/react";
 import Editor, { type OnMount, type BeforeMount } from "@monaco-editor/react";
 import { registerLogLanguage, LOG_LANGUAGE_ID, LOG_THEME_ID } from "@/lib/monaco";
-import type { HandlePositions } from "@/lib/types";
+import type { HandlePositions, HandleDataType } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import EditorMenuBar from "@/components/EditorMenuBar";
 import ResizeHandle from "@/components/ResizeHandle";
@@ -41,7 +41,10 @@ const LogProbeNode = memo(({ data, id, selected }: NodeProps) => {
     contractedPosition,
     isExpanded: dataIsExpanded,
     isNodeLocked,
-  } = (data || {}) as LogProbeNodeData;
+    handleTypes: rawHandleTypes,
+  } = (data || {}) as LogProbeNodeData & { handleTypes?: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }> };
+
+  const handleTypes = (rawHandleTypes || {}) as Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
 
   const { setNodes } = useReactFlow();
   const { projectPath, onRequestFilePicker } = useProject();
@@ -341,6 +344,7 @@ const LogProbeNode = memo(({ data, id, selected }: NodeProps) => {
           defaultEdge="bottom"
           defaultPercent={50}
           handlePositions={handlePositions}
+          acceptedTypes={handleTypes['input']?.acceptedTypes}
           style={{
             width: '8px',
             height: '8px',
@@ -544,6 +548,7 @@ const LogProbeNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="bottom"
         defaultPercent={50}
         handlePositions={handlePositions}
+        acceptedTypes={handleTypes['input']?.acceptedTypes}
         style={{
           width: '10px',
           height: '10px',
@@ -578,5 +583,8 @@ export default LogProbeNode;
 export function getDefaultLogProbeData() {
   return {
     name: "Log",
+    handleTypes: {
+      'input': { acceptedTypes: ['str', 'custom:AgentOutput', 'any'] as HandleDataType[] },
+    },
   };
 }

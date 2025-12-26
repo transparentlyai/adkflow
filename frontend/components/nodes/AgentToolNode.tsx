@@ -2,7 +2,7 @@
 
 import { memo, useState, useCallback } from "react";
 import { type NodeProps, useReactFlow, useStore } from "@xyflow/react";
-import type { HandlePositions } from "@/lib/types";
+import type { HandlePositions, HandleDataType } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import { Lock } from "lucide-react";
@@ -117,6 +117,8 @@ const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
     }
   };
 
+  const handleTypes = ((data as AgentToolNodeData & { handleTypes?: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }> }).handleTypes || {}) as Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
+
   return (
     <>
       <div
@@ -166,6 +168,7 @@ const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
           defaultEdge="right"
           defaultPercent={50}
           handlePositions={handlePositions}
+          outputType={handleTypes['output']?.outputType}
           style={{ width: '8px', height: '8px', backgroundColor: theme.colors.handles.agentTool, border: `2px solid ${theme.colors.handles.border}` }}
         />
       </div>
@@ -275,5 +278,8 @@ export default AgentToolNode;
 export function getDefaultAgentToolData() {
   return {
     name: "Agent Tool",
+    handleTypes: {
+      'output': { outputType: 'custom:AgentTool' as HandleDataType },
+    },
   };
 }

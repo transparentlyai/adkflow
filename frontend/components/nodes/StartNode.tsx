@@ -8,7 +8,7 @@ import ValidationIndicator from "@/components/nodes/ValidationIndicator";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 import { useRunWorkflow } from "@/contexts/RunWorkflowContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import type { HandlePositions } from "@/lib/types";
+import type { HandlePositions, HandleDataType } from "@/lib/types";
 
 export interface StartNodeData extends Record<string, unknown> {
   handlePositions?: HandlePositions;
@@ -157,5 +157,9 @@ StartNode.displayName = "StartNode";
 export default StartNode;
 
 export function getDefaultStartData(): StartNodeData {
-  return {};
+  return {
+    handleTypes: {
+      'output': { outputType: 'str' as HandleDataType },
+    },
+  };
 }

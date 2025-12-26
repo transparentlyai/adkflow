@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useRef, useLayoutEffect, useState, useEffect } from "react";
+import { useCallback, useRef, useLayoutEffect, useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Handle, Position, useReactFlow, useUpdateNodeInternals } from "@xyflow/react";
-import type { HandleEdge, HandlePosition, HandlePositions } from "@/lib/types";
+import type { HandleEdge, HandlePosition, HandlePositions, HandleDataType } from "@/lib/types";
+import { isTypeCompatible } from "@/lib/types";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useConnection } from "@/contexts/ConnectionContext";
 
 interface DraggableHandleProps {
   nodeId: string;
@@ -16,6 +18,8 @@ interface DraggableHandleProps {
   style?: React.CSSProperties;
   title?: string;
   isConnectable?: boolean;
+  outputType?: HandleDataType;       // For source handles: what type this outputs
+  acceptedTypes?: HandleDataType[];  // For target handles: what types are accepted
 }
 
 interface ContextMenuState {
@@ -97,13 +101,50 @@ export default function DraggableHandle({
   style,
   title,
   isConnectable = true,
+  outputType,
+  acceptedTypes,
 }: DraggableHandleProps) {
   const { theme } = useTheme();
   const { setNodes } = useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
+  const { connectionState } = useConnection();
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [isMoveMode, setIsMoveMode] = useState(false);
   const nodeRef = useRef<HTMLElement | null>(null);
+
+  // Determine if this target handle is compatible with current drag source
+  const isValidTarget = useMemo(() => {
+    // Only applies to target handles when a drag is in progress
+    if (!connectionState.isDragging || type !== 'target' || !acceptedTypes) {
+      return null; // null means "not applicable" (no visual feedback)
+    }
+    // Prevent self-connection
+    if (connectionState.sourceNodeId === nodeId) {
+      return false;
+    }
+    // Check type compatibility
+    return isTypeCompatible(connectionState.sourceOutputType, acceptedTypes);
+  }, [connectionState, type, acceptedTypes, nodeId]);
+
+  // Visual styling based on connection validity
+  const validityStyle: React.CSSProperties = useMemo(() => {
+    if (isValidTarget === null) {
+      return {}; // No styling when not dragging or this is a source handle
+    }
+    if (isValidTarget) {
+      return {
+        boxShadow: '0 0 8px 2px #22c55e', // Green glow
+        borderColor: '#22c55e',
+        cursor: 'pointer',
+      };
+    } else {
+      return {
+        boxShadow: '0 0 8px 2px #ef4444', // Red glow
+        borderColor: '#ef4444',
+        cursor: 'not-allowed',
+      };
+    }
+  }, [isValidTarget]);
 
   const currentPosition: HandlePosition = handlePositions?.[handleId] ?? {
     edge: defaultEdge,
@@ -234,8 +275,10 @@ export default function DraggableHandle({
         isConnectable={!isMoveMode && isConnectable}
         style={{
           ...computedStyle,
+          ...validityStyle,
           outline: isMoveMode ? "2px solid #3b82f6" : undefined,
           outlineOffset: "2px",
+          transition: 'box-shadow 0.15s ease, border-color 0.15s ease',
         }}
         onContextMenu={handleContextMenu}
       />
