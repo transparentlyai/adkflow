@@ -262,6 +262,7 @@ class IRTransformer:
 
                 if source_node.type in ("tool", "agentTool"):
                     file_path = source_node.data.get("file_path")
+                    error_behavior = source_node.data.get("error_behavior", "fail_fast")
                     if file_path:
                         loaded = project.get_tool(file_path)
                         if loaded:
@@ -270,6 +271,7 @@ class IRTransformer:
                                     name=loaded.name,
                                     file_path=file_path,
                                     code=loaded.code,
+                                    error_behavior=error_behavior,
                                 )
                             )
                     else:
@@ -282,6 +284,7 @@ class IRTransformer:
                                         "name", f"tool_{source_node.id[:8]}"
                                     ),
                                     code=code,
+                                    error_behavior=error_behavior,
                                 )
                             )
 

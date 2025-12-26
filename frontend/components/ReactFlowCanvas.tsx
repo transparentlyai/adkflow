@@ -135,6 +135,7 @@ export interface ReactFlowCanvasRef {
   fitView: () => void;
   focusNode: (nodeId: string) => void;
   updateNodeExecutionState: (agentName: string, state: NodeExecutionState) => void;
+  updateToolExecutionState: (toolName: string, state: NodeExecutionState) => void;
   updateUserInputWaitingState: (nodeId: string, isWaiting: boolean) => void;
   clearExecutionState: () => void;
   highlightErrorNodes: (nodeErrors: Record<string, string[]>) => void;
@@ -1516,12 +1517,41 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       );
     }, [setNodes]);
 
+    // Update tool execution state for real-time highlighting
+    const updateToolExecutionState = useCallback((toolName: string, state: NodeExecutionState) => {
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.type !== "tool") return node;
+          const data = node.data as Record<string, unknown>;
+          const nodeName = (data.name as string) || "";
+          if (nodeName.toLowerCase() === toolName.toLowerCase()) {
+            return {
+              ...node,
+              data: {
+                ...data,
+                executionState: state,
+              },
+            };
+          }
+          return node;
+        })
+      );
+    }, [setNodes]);
+
     // Clear all execution states (when run completes)
     const clearExecutionState = useCallback(() => {
       setNodes((nds) =>
         nds.map((node) => {
           if (node.type === "agent") {
             const data = node.data as unknown as AgentNodeData;
+            if (data.executionState && data.executionState !== "idle") {
+              return {
+                ...node,
+                data: { ...data, executionState: "idle" as NodeExecutionState },
+              };
+            }
+          } else if (node.type === "tool") {
+            const data = node.data as Record<string, unknown>;
             if (data.executionState && data.executionState !== "idle") {
               return {
                 ...node,
@@ -1781,6 +1811,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       fitView: fitViewHandler,
       focusNode,
       updateNodeExecutionState,
+      updateToolExecutionState,
       updateUserInputWaitingState,
       clearExecutionState,
       highlightErrorNodes,

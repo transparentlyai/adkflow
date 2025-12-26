@@ -376,6 +376,9 @@ export type NodeExecutionState = "idle" | "running" | "completed" | "error";
 // User Input types for interactive workflow pausing
 export type TimeoutBehavior = "pass_through" | "predefined_text" | "error";
 
+// Tool error handling behavior
+export type ToolErrorBehavior = "fail_fast" | "pass_to_model";
+
 export interface UserInputRequest {
   request_id: string;
   node_id: string;

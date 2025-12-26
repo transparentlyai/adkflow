@@ -26,10 +26,11 @@ interface RunPanelProps {
   onClose: () => void;
   onRunComplete?: (status: RunStatus, output?: string, error?: string) => void;
   onAgentStateChange?: (agentName: string, state: NodeExecutionState) => void;
+  onToolStateChange?: (toolName: string, state: NodeExecutionState) => void;
   onUserInputStateChange?: (nodeId: string, isWaiting: boolean) => void;
   onClearExecutionState?: () => void;
   events: DisplayEvent[];
-  onEventsChange: (events: DisplayEvent[]) => void;
+  onEventsChange: React.Dispatch<React.SetStateAction<DisplayEvent[]>>;
   lastRunStatus: RunStatus;
   onStatusChange: (status: RunStatus) => void;
 }
@@ -40,6 +41,7 @@ export default function RunPanel({
   onClose,
   onRunComplete,
   onAgentStateChange,
+  onToolStateChange,
   onUserInputStateChange,
   onClearExecutionState,
   events,
@@ -83,9 +85,6 @@ export default function RunPanel({
     };
   }, [isResizing]);
 
-  const eventsRef = useRef<DisplayEvent[]>(events);
-  eventsRef.current = events;
-
   // Periodic status polling as fallback for missed events
   useEffect(() => {
     if (!runId || status !== "running") return;
@@ -97,8 +96,8 @@ export default function RunPanel({
         // Handle failed status (with or without error message)
         if (statusResponse.status === "failed") {
           const errorMsg = statusResponse.error || "Workflow execution failed";
-          onEventsChange([
-            ...eventsRef.current,
+          onEventsChange((prev) => [
+            ...prev,
             {
               id: `polled-error-${Date.now()}`,
               type: "run_error",
@@ -133,8 +132,8 @@ export default function RunPanel({
 
         if (statusResponse.status === "failed") {
           const errorMsg = statusResponse.error || "Workflow execution failed";
-          onEventsChange([
-            ...eventsRef.current,
+          onEventsChange((prev) => [
+            ...prev,
             {
               id: `early-error-${Date.now()}`,
               type: "run_error",
@@ -168,10 +167,20 @@ export default function RunPanel({
           return `Agent finished: ${event.agent_name}`;
         case "agent_output":
           return (event.data.output as string) || "";
-        case "tool_call":
+        case "tool_call": {
+          const args = event.data.args as string | undefined;
+          if (args) {
+            return `Calling ${event.data.tool_name}(${args})`;
+          }
           return `Calling tool: ${event.data.tool_name}`;
-        case "tool_result":
+        }
+        case "tool_result": {
+          const result = event.data.result as string | undefined;
+          if (result) {
+            return `Tool ${event.data.tool_name}: ${result}`;
+          }
           return `Tool result: ${event.data.tool_name}`;
+        }
         case "thinking":
           return "Thinking...";
         case "run_error":
@@ -191,15 +200,16 @@ export default function RunPanel({
 
     const handleEvent = (event: RunEvent) => {
       eventCounter++;
+      const content = formatEventContent(event);
       const displayEvent: DisplayEvent = {
         id: `${event.type}-${event.timestamp}-${eventCounter}-${Math.random().toString(36).slice(2, 7)}`,
         type: event.type,
-        content: formatEventContent(event),
+        content,
         agentName: event.agent_name,
         timestamp: event.timestamp,
       };
 
-      onEventsChange([...eventsRef.current, displayEvent]);
+      onEventsChange((prev) => [...prev, displayEvent]);
 
       if (event.type === "agent_start" && event.agent_name) {
         onAgentStateChange?.(event.agent_name, "running");
@@ -207,6 +217,13 @@ export default function RunPanel({
         onAgentStateChange?.(event.agent_name, "completed");
       } else if (event.type === "run_error" && event.agent_name) {
         onAgentStateChange?.(event.agent_name, "error");
+      }
+
+      // Handle tool state changes
+      if (event.type === "tool_call" && event.data.tool_name) {
+        onToolStateChange?.(event.data.tool_name as string, "running");
+      } else if (event.type === "tool_result" && event.data.tool_name) {
+        onToolStateChange?.(event.data.tool_name as string, "completed");
       }
 
       // Handle user input required event
@@ -304,8 +321,8 @@ export default function RunPanel({
 
         if (statusResponse.status === "failed" && statusResponse.error) {
           // Got an error from the backend - show it to the user
-          onEventsChange([
-            ...eventsRef.current,
+          onEventsChange((prev) => [
+            ...prev,
             {
               id: `error-${Date.now()}`,
               type: "run_error",
@@ -322,8 +339,8 @@ export default function RunPanel({
           onRunComplete?.(statusResponse.status, statusResponse.output, statusResponse.error);
         } else {
           // Still running or unknown state - show connection lost
-          onEventsChange([
-            ...eventsRef.current,
+          onEventsChange((prev) => [
+            ...prev,
             {
               id: `error-${Date.now()}`,
               type: "run_error",
@@ -336,8 +353,8 @@ export default function RunPanel({
         }
       } catch {
         // Couldn't reach server at all
-        onEventsChange([
-          ...eventsRef.current,
+        onEventsChange((prev) => [
+          ...prev,
           {
             id: `error-${Date.now()}`,
             type: "run_error",
@@ -354,7 +371,7 @@ export default function RunPanel({
       eventSource.close();
       eventSourceRef.current = null;
     };
-  }, [runId, onRunComplete, projectPath, onAgentStateChange, onUserInputStateChange, onClearExecutionState, onEventsChange, onStatusChange]);
+  }, [runId, onRunComplete, projectPath, onAgentStateChange, onToolStateChange, onUserInputStateChange, onClearExecutionState, onEventsChange, onStatusChange]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -368,8 +385,8 @@ export default function RunPanel({
         await cancelRun(runId);
         onStatusChange("cancelled");
         setPendingInput(null);
-        onEventsChange([
-          ...eventsRef.current,
+        onEventsChange((prev) => [
+          ...prev,
           {
             id: `cancel-${Date.now()}`,
             type: "info",
@@ -395,8 +412,8 @@ export default function RunPanel({
       // The pendingInput will be cleared when we receive the user_input_received event
     } catch (err) {
       console.error("Failed to submit user input:", err);
-      onEventsChange([
-        ...eventsRef.current,
+      onEventsChange((prev) => [
+        ...prev,
         {
           id: `input-error-${Date.now()}`,
           type: "run_error",

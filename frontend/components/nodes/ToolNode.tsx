@@ -3,7 +3,7 @@
 import { memo, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Handle, Position, type NodeProps, useReactFlow, useStore } from "@xyflow/react";
 import Editor from "@monaco-editor/react";
-import type { HandlePositions } from "@/lib/types";
+import type { HandlePositions, ToolErrorBehavior, NodeExecutionState } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import EditorMenuBar from "@/components/EditorMenuBar";
 import ResizeHandle from "@/components/ResizeHandle";
@@ -17,26 +17,39 @@ import { useTheme } from "@/contexts/ThemeContext";
 const DEFAULT_WIDTH = 500;
 const DEFAULT_HEIGHT = 320;
 
-const DEFAULT_CODE = `def tool(input_data: dict) -> dict:
+const DEFAULT_CODE = `from google.adk.tools import ToolContext
+
+
+def my_tool(
+    query: str,
+    limit: int = 10,
+    tool_context: ToolContext = None,
+) -> dict:
     """
-    Tool function that processes input and returns output.
+    Brief description of what this tool does.
+
+    Use this tool when the user wants to [describe use case].
+    Do NOT use for [describe when not to use].
 
     Args:
-        input_data: Dictionary containing input parameters
+        query: Description of what this parameter is for.
+        limit: Maximum number of results. Defaults to 10.
 
     Returns:
-        Dictionary with tool output
+        dict with 'status' key and result data.
     """
-    # Your tool logic here
-    result = input_data
+    # Your implementation here
+    result = {"query": query, "limit": limit}
 
-    return result
+    return {"status": "success", "data": result}
 `;
 
 interface ToolNodeData {
   name?: string;
   code?: string;
   file_path?: string;
+  error_behavior?: ToolErrorBehavior;
+  executionState?: NodeExecutionState;
   handlePositions?: HandlePositions;
   expandedSize?: { width: number; height: number };
   expandedPosition?: { x: number; y: number };
@@ -47,8 +60,35 @@ interface ToolNodeData {
   validationWarnings?: string[];
 }
 
+// Custom comparison for memo - always re-render when executionState changes
+const toolNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): boolean => {
+  const prevData = prevProps.data as ToolNodeData;
+  const nextData = nextProps.data as ToolNodeData;
+
+  // Always re-render if executionState changes
+  if (prevData.executionState !== nextData.executionState) {
+    return false;
+  }
+
+  // Always re-render if validation state changes
+  if (prevData.duplicateNameError !== nextData.duplicateNameError) {
+    return false;
+  }
+
+  // Default shallow comparison for other props
+  return (
+    prevProps.id === nextProps.id &&
+    prevProps.selected === nextProps.selected &&
+    prevData.name === nextData.name &&
+    prevData.code === nextData.code &&
+    prevData.file_path === nextData.file_path &&
+    prevData.error_behavior === nextData.error_behavior &&
+    prevData.isNodeLocked === nextData.isNodeLocked
+  );
+};
+
 const ToolNode = memo(({ data, id, selected }: NodeProps) => {
-  const { name = "Tool", code = DEFAULT_CODE, file_path, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as ToolNodeData;
+  const { name = "Tool", code = DEFAULT_CODE, file_path, error_behavior, executionState, handlePositions, expandedSize, expandedPosition, contractedPosition, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as ToolNodeData;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
@@ -70,6 +110,7 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState<"code" | "config">("code");
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [savedCode, setSavedCode] = useState(code);
 
@@ -266,29 +307,63 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
     }, { extensions: ['.py'], filterLabel: 'Python files' });
   }, [onRequestFilePicker, file_path, id, setNodes]);
 
+  const handleConfigChange = useCallback((updates: Partial<ToolNodeData>) => {
+    setNodes((nodes) =>
+      nodes.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, ...updates } }
+          : node
+      )
+    );
+  }, [id, setNodes]);
+
+  const getExecutionStyle = useCallback((): React.CSSProperties => {
+    switch (executionState) {
+      case "running":
+        return {
+          boxShadow: `0 0 0 2px rgba(59, 130, 246, 0.8), 0 0 20px 4px rgba(59, 130, 246, 0.4)`,
+          animation: "tool-execution-pulse 1.5s ease-in-out infinite",
+        };
+      case "completed":
+        return {
+          boxShadow: `0 0 0 2px rgba(34, 197, 94, 0.8), 0 0 10px 2px rgba(34, 197, 94, 0.3)`,
+          transition: "box-shadow 0.3s ease-out",
+        };
+      default:
+        return {};
+    }
+  }, [executionState]);
+
   const lineCount = code?.split("\n").length || 0;
   const editorHeight = size.height - 70;
 
   // Collapsed view - compact tool node
   if (!isExpanded) {
     return (
-      <div
-        onDoubleClick={toggleExpand}
-        onContextMenu={handleHeaderContextMenu}
-        title="Double-click to expand"
-        className={`rounded-lg shadow-md cursor-pointer px-2 py-1 ${
-          !duplicateNameError && selected ? "ring-2 shadow-xl" : ""
-        }`}
-        style={{
-          backgroundColor: theme.colors.nodes.tool.header,
-          color: theme.colors.nodes.tool.text,
-          ...(duplicateNameError ? {
-            boxShadow: `0 0 0 2px #ef4444`,
-          } : selected ? {
-            borderColor: theme.colors.nodes.tool.ring,
-          } : {}),
-        }}
-      >
+      <>
+        <style>{`
+          @keyframes tool-execution-pulse {
+            0%, 100% { box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.8), 0 0 20px 4px rgba(59, 130, 246, 0.4); }
+            50% { box-shadow: 0 0 0 3px rgba(59, 130, 246, 1), 0 0 30px 8px rgba(59, 130, 246, 0.6); }
+          }
+        `}</style>
+        <div
+          onDoubleClick={toggleExpand}
+          onContextMenu={handleHeaderContextMenu}
+          title="Double-click to expand"
+          className={`rounded-lg shadow-md cursor-pointer px-2 py-1 ${
+            !duplicateNameError && !executionState && selected ? "ring-2 shadow-xl" : ""
+          }`}
+          style={{
+            backgroundColor: theme.colors.nodes.tool.header,
+            color: theme.colors.nodes.tool.text,
+            ...(duplicateNameError ? {
+              boxShadow: `0 0 0 2px #ef4444`,
+            } : executionState ? getExecutionStyle() : selected ? {
+              borderColor: theme.colors.nodes.tool.ring,
+            } : {}),
+          }}
+        >
         <div className="flex items-center gap-1.5">
           {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
           <ValidationIndicator
@@ -370,22 +445,30 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
             isCanvasLocked={canvasActions?.isLocked}
           />
         )}
-      </div>
+        </div>
+      </>
     );
   }
 
   // Expanded view - with code editor
   return (
-    <div
-      className={`rounded-lg shadow-lg relative ${
-        !isDirty && !duplicateNameError && selected ? "ring-2 shadow-xl" : ""
+    <>
+      <style>{`
+        @keyframes tool-execution-pulse {
+          0%, 100% { box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.8), 0 0 20px 4px rgba(59, 130, 246, 0.4); }
+          50% { box-shadow: 0 0 0 3px rgba(59, 130, 246, 1), 0 0 30px 8px rgba(59, 130, 246, 0.6); }
+        }
+      `}</style>
+      <div
+        className={`rounded-lg shadow-lg relative ${
+          !isDirty && !duplicateNameError && !executionState && selected ? "ring-2 shadow-xl" : ""
       }`}
       style={{
         width: size.width,
         backgroundColor: theme.colors.nodes.common.container.background,
         ...(duplicateNameError ? {
           boxShadow: `0 0 0 2px #ef4444`,
-        } : isDirty ? {
+        } : executionState ? getExecutionStyle() : isDirty ? {
           boxShadow: `0 0 0 2px #f97316`,
         } : selected ? {
           borderColor: theme.colors.nodes.tool.ring,
@@ -459,60 +542,131 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
         </button>
       </div>
 
-      {/* Menu Bar */}
-      <EditorMenuBar
-        onSave={handleSave}
-        onChangeFile={handleChangeFile}
-        filePath={file_path}
-        isSaving={isSaving}
-        isDirty={!!isDirty}
-      />
-
-      {/* Code Editor */}
+      {/* Tab Bar */}
       <div
-        className="nodrag nowheel nopan"
-        style={{
-          height: editorHeight,
-          borderBottom: `1px solid ${theme.colors.nodes.common.container.border}`
-        }}
-        onKeyDown={(e) => e.stopPropagation()}
+        className="flex border-b"
+        style={{ borderColor: theme.colors.nodes.common.container.border }}
       >
-        <Editor
-          height="100%"
-          defaultLanguage="python"
-          value={code}
-          onChange={handleCodeChange}
-          theme={theme.colors.monaco}
-          onMount={(editor, monaco) => {
-            editor.addCommand(
-              monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
-              () => handleSave()
-            );
+        <button
+          className={`px-3 py-1.5 text-xs font-medium ${activeTab === "code" ? "border-b-2" : ""}`}
+          style={{
+            borderColor: activeTab === "code" ? theme.colors.nodes.tool.header : "transparent",
+            color: activeTab === "code" ? theme.colors.nodes.common.text.primary : theme.colors.nodes.common.text.secondary,
+            backgroundColor: "transparent",
           }}
-          options={{
-            minimap: { enabled: false },
-            fontSize: 12,
-            lineNumbers: "on",
-            scrollBeyondLastLine: false,
-            folding: false,
-            lineDecorationsWidth: 10,
-            lineNumbersMinChars: 4,
-            renderLineHighlight: "none",
-            overviewRulerLanes: 0,
-            hideCursorInOverviewRuler: true,
-            overviewRulerBorder: false,
-            scrollbar: {
-              vertical: "auto",
-              horizontal: "hidden",
-              verticalScrollbarSize: 8,
-            },
-            wordWrap: "on",
-            automaticLayout: true,
-            padding: { top: 8, bottom: 8 },
-            readOnly: isNodeLocked,
+          onClick={() => setActiveTab("code")}
+        >
+          Code
+        </button>
+        <button
+          className={`px-3 py-1.5 text-xs font-medium ${activeTab === "config" ? "border-b-2" : ""}`}
+          style={{
+            borderColor: activeTab === "config" ? theme.colors.nodes.tool.header : "transparent",
+            color: activeTab === "config" ? theme.colors.nodes.common.text.primary : theme.colors.nodes.common.text.secondary,
+            backgroundColor: "transparent",
           }}
-        />
+          onClick={() => setActiveTab("config")}
+        >
+          Config
+        </button>
       </div>
+
+      {activeTab === "code" ? (
+        <>
+          {/* Menu Bar */}
+          <EditorMenuBar
+            onSave={handleSave}
+            onChangeFile={handleChangeFile}
+            filePath={file_path}
+            isSaving={isSaving}
+            isDirty={!!isDirty}
+          />
+
+          {/* Code Editor */}
+          <div
+            className="nodrag nowheel nopan"
+            style={{
+              height: editorHeight,
+              borderBottom: `1px solid ${theme.colors.nodes.common.container.border}`
+            }}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <Editor
+              height="100%"
+              defaultLanguage="python"
+              value={code}
+              onChange={handleCodeChange}
+              theme={theme.colors.monaco}
+              onMount={(editor, monaco) => {
+                editor.addCommand(
+                  monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
+                  () => handleSave()
+                );
+              }}
+              options={{
+                minimap: { enabled: false },
+                fontSize: 12,
+                lineNumbers: "on",
+                scrollBeyondLastLine: false,
+                folding: false,
+                lineDecorationsWidth: 10,
+                lineNumbersMinChars: 4,
+                renderLineHighlight: "none",
+                overviewRulerLanes: 0,
+                hideCursorInOverviewRuler: true,
+                overviewRulerBorder: false,
+                scrollbar: {
+                  vertical: "auto",
+                  horizontal: "hidden",
+                  verticalScrollbarSize: 8,
+                },
+                wordWrap: "on",
+                automaticLayout: true,
+                padding: { top: 8, bottom: 8 },
+                readOnly: isNodeLocked,
+              }}
+            />
+          </div>
+        </>
+      ) : (
+        /* Config Panel */
+        <div
+          className="p-3 overflow-y-auto nodrag nowheel"
+          style={{
+            height: editorHeight + 28,
+            borderBottom: `1px solid ${theme.colors.nodes.common.container.border}`
+          }}
+        >
+          {/* Error Handling Section */}
+          <div className="mb-4">
+            <label
+              className="block text-xs font-medium mb-2 uppercase tracking-wide"
+              style={{ color: theme.colors.nodes.common.text.secondary }}
+            >
+              Error Handling
+            </label>
+            <select
+              value={error_behavior || "fail_fast"}
+              onChange={(e) => handleConfigChange({ error_behavior: e.target.value as ToolErrorBehavior })}
+              className="w-full px-2 py-1.5 rounded text-xs border"
+              style={{
+                backgroundColor: theme.colors.nodes.common.container.background,
+                borderColor: theme.colors.nodes.common.container.border,
+                color: theme.colors.nodes.common.text.primary,
+              }}
+              disabled={isNodeLocked}
+            >
+              <option value="fail_fast">Fail fast (terminate workflow)</option>
+              <option value="pass_to_model">Pass error to model (let LLM handle)</option>
+            </select>
+            <p className="mt-1.5 text-xs" style={{ color: theme.colors.nodes.common.text.secondary }}>
+              {error_behavior === "pass_to_model"
+                ? "Tool errors will be returned to the LLM as {'error': message} for it to decide how to proceed."
+                : "Tool errors will raise an exception and terminate the workflow immediately."}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <div
@@ -554,9 +708,10 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
           isCanvasLocked={canvasActions?.isLocked}
         />
       )}
-    </div>
+      </div>
+    </>
   );
-});
+}, toolNodePropsAreEqual);
 
 ToolNode.displayName = "ToolNode";
 
@@ -567,7 +722,7 @@ export default ToolNode;
  */
 export function getDefaultToolData() {
   return {
-    name: "Tool",
+    name: "my_tool",
     code: DEFAULT_CODE,
   };
 }

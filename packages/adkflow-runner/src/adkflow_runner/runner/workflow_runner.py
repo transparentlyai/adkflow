@@ -641,7 +641,9 @@ Original error: {error_msg}"""
                     session_id=session.id,
                     new_message=content,
                 ):
-                    last_author = await self._process_adk_event(event, emit, last_author)
+                    last_author = await self._process_adk_event(
+                        event, emit, last_author
+                    )
 
                     if hasattr(event, "content") and event.content:
                         parts = event.content.parts
@@ -714,17 +716,14 @@ Original error: {error_msg}"""
         Returns the current author for tracking agent changes.
         """
         author = getattr(event, "author", None)
-        turn_complete = getattr(event, "turn_complete", False)
 
-        if author and author != "user" and author != last_author:
-            await emit(
-                RunEvent(
-                    type=EventType.AGENT_START,
-                    timestamp=time.time(),
-                    agent_name=author,
-                    data={"event_type": "agent_change"},
-                )
-            )
+        # Note: AGENT_START/AGENT_END are emitted via ADK callbacks in agent_factory.py
+        # Here we only emit AGENT_OUTPUT since there's no callback for that
+
+        # Emit agent output for non-partial events with text content
+        # or for final responses (complete messages)
+        is_partial = getattr(event, "partial", False)
+        is_final = hasattr(event, "is_final_response") and event.is_final_response()
 
         if hasattr(event, "content") and event.content:
             text = ""
@@ -732,49 +731,18 @@ Original error: {error_msg}"""
             for part in parts:
                 if hasattr(part, "text") and part.text:
                     text += part.text
-            if text and author and author != "user":
+            # Emit for final responses, or non-partial events with text
+            if text and author and author != "user" and (is_final or not is_partial):
                 await emit(
                     RunEvent(
                         type=EventType.AGENT_OUTPUT,
                         timestamp=time.time(),
                         agent_name=author,
-                        data={"output": text[:2000]},
+                        data={"output": text[:2000], "is_final": is_final},
                     )
                 )
 
-        if hasattr(event, "content") and event.content:
-            parts = event.content.parts if event.content.parts else []
-            for part in parts:
-                if hasattr(part, "function_call") and part.function_call:
-                    tool_name = getattr(part.function_call, "name", "unknown")
-                    await emit(
-                        RunEvent(
-                            type=EventType.TOOL_CALL,
-                            timestamp=time.time(),
-                            agent_name=author,
-                            data={"tool_name": tool_name},
-                        )
-                    )
-                elif hasattr(part, "function_response") and part.function_response:
-                    tool_name = getattr(part.function_response, "name", "unknown")
-                    await emit(
-                        RunEvent(
-                            type=EventType.TOOL_RESULT,
-                            timestamp=time.time(),
-                            agent_name=author,
-                            data={"tool_name": tool_name},
-                        )
-                    )
-
-        if turn_complete and author and author != "user":
-            await emit(
-                RunEvent(
-                    type=EventType.AGENT_END,
-                    timestamp=time.time(),
-                    agent_name=author,
-                    data={"event_type": "turn_complete"},
-                )
-            )
+        # Note: TOOL_CALL/TOOL_RESULT are emitted via ADK callbacks in agent_factory.py
 
         return author if author and author != "user" else last_author
 

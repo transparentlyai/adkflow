@@ -52,8 +52,9 @@ def create_agent_callbacks(
 ) -> dict[str, Any]:
     """Create ADK callbacks that emit RunEvents for real-time updates.
 
-    ADK callbacks are called synchronously, so we use asyncio.create_task
-    to fire off the async emit without blocking.
+    Tool callbacks are async and await the emit to ensure events are sent
+    before/after tool execution. Agent callbacks use fire-and-forget since
+    their timing is less critical.
 
     Args:
         emit: Async function to emit RunEvent (or None for no-op)
@@ -101,28 +102,44 @@ def create_agent_callbacks(
         )
         return None
 
-    def before_tool_callback(
-        callback_context: Any, tool_name: str, args: dict[str, Any]
+    async def before_tool_callback(
+        *, tool: Any, args: dict[str, Any], tool_context: Any
     ) -> dict[str, Any] | None:
-        _emit_event(
+        tool_name = getattr(tool, "name", str(tool))
+        # Format args preview (truncate if too long)
+        args_preview = ""
+        if args:
+            args_str = str(args)
+            args_preview = args_str[:200] + "..." if len(args_str) > 200 else args_str
+        # Await emit to ensure event is sent before tool executes
+        await emit(
             RunEvent(
                 type=EventType.TOOL_CALL,
                 timestamp=time.time(),
                 agent_name=agent_name,
-                data={"tool_name": tool_name, "source": "callback"},
+                data={"tool_name": tool_name, "args": args_preview},
             )
         )
         return None
 
-    def after_tool_callback(
-        callback_context: Any, tool_name: str, tool_result: dict[str, Any]
+    async def after_tool_callback(
+        *, tool: Any, args: dict[str, Any], tool_context: Any, tool_response: Any
     ) -> dict[str, Any] | None:
-        _emit_event(
+        tool_name = getattr(tool, "name", str(tool))
+        # Format result preview (truncate if too long)
+        result_preview = ""
+        if tool_response is not None:
+            result_str = str(tool_response)
+            result_preview = (
+                result_str[:200] + "..." if len(result_str) > 200 else result_str
+            )
+        # Await emit to ensure event is sent after tool completes
+        await emit(
             RunEvent(
                 type=EventType.TOOL_RESULT,
                 timestamp=time.time(),
                 agent_name=agent_name,
-                data={"tool_name": tool_name, "source": "callback"},
+                data={"tool_name": tool_name, "result": result_preview},
             )
         )
         return None
@@ -317,8 +334,12 @@ class AgentFactory:
                     tools.append(tool)
 
             except Exception as e:
-                # Log warning but continue - tool might not be critical
-                print(f"Warning: Failed to load tool '{tool_ir.name}': {e}")
+                if tool_ir.error_behavior == "fail_fast":
+                    # Re-raise to terminate workflow
+                    raise
+                else:
+                    # Log warning but continue - let LLM handle missing tool
+                    print(f"Warning: Failed to load tool '{tool_ir.name}': {e}")
 
         return tools
 

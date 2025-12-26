@@ -11,6 +11,9 @@ that can be:
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+# Tool error handling behavior
+ToolErrorBehavior = Literal["fail_fast", "pass_to_model"]
+
 
 @dataclass
 class PlannerConfig:
@@ -61,6 +64,7 @@ class ToolIR:
     file_path: str | None = None
     code: str | None = None
     description: str | None = None
+    error_behavior: ToolErrorBehavior = "fail_fast"
 
     def __post_init__(self) -> None:
         if not self.file_path and not self.code:
