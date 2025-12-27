@@ -171,7 +171,7 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
         parentId={toolState.parentId}
         canvasActions={toolState.canvasActions}
         toggleExpand={toolState.toggleExpand}
-        handleNameDoubleClick={toolState.handleNameDoubleClick}
+        handleNameClick={toolState.handleNameClick}
         handleHeaderContextMenu={toolState.handleHeaderContextMenu}
         handleToggleNodeLock={toolState.handleToggleNodeLock}
         handleDetach={toolState.handleDetach}
@@ -217,7 +217,7 @@ const ToolNode = memo(({ data, id, selected }: NodeProps) => {
       canvasActions={toolState.canvasActions}
       isSaving={toolState.isSaving}
       toggleExpand={toolState.toggleExpand}
-      handleNameDoubleClick={toolState.handleNameDoubleClick}
+      handleNameClick={toolState.handleNameClick}
       handleHeaderContextMenu={toolState.handleHeaderContextMenu}
       handleToggleNodeLock={toolState.handleToggleNodeLock}
       handleDetach={toolState.handleDetach}

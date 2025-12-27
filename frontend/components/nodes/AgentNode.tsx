@@ -211,7 +211,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
     }
   }, [isEditing]);
 
-  const handleNameDoubleClick = (e: React.MouseEvent) => {
+  const handleNameClick = (e: React.MouseEvent) => {
     if (isNodeLocked) return;
     e.stopPropagation();
     setIsEditing(true);
@@ -505,7 +505,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           ) : (
             <span
               className="font-medium text-xs hover:opacity-80 truncate max-w-[200px]"
-              onDoubleClick={handleNameDoubleClick}
+              onClick={handleNameClick}
             >
               {agent.name}
             </span>
@@ -697,7 +697,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           ) : (
             <span
               className="font-medium text-xs truncate hover:opacity-80"
-              onDoubleClick={handleNameDoubleClick}
+              onClick={handleNameClick}
             >
               {agent.name}
             </span>

@@ -28,7 +28,10 @@ const StartNode = memo(({ data, id, selected }: NodeProps) => {
   } = data as StartNodeData;
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
-  const { runWorkflow, isRunning, hasProjectPath } = useRunWorkflow();
+  const runWorkflowContext = useRunWorkflow();
+  const runWorkflow = runWorkflowContext?.runWorkflow;
+  const isRunning = runWorkflowContext?.isRunning ?? false;
+  const hasProjectPath = runWorkflowContext?.hasProjectPath ?? false;
   const { theme } = useTheme();
 
   const [contextMenu, setContextMenu] = useState<{
@@ -70,7 +73,7 @@ const StartNode = memo(({ data, id, selected }: NodeProps) => {
 
   const handlePlayClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (hasProjectPath && !isRunning) {
+    if (hasProjectPath && !isRunning && runWorkflow) {
       runWorkflow();
     }
   };

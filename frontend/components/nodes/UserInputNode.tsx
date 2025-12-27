@@ -173,7 +173,7 @@ const UserInputNode = memo(({ data, id, selected }: NodeProps) => {
     setIsExpanded(!isExpanded);
   }, [id, isExpanded, setNodes]);
 
-  const handleNameDoubleClick = (e: React.MouseEvent) => {
+  const handleNameClick = (e: React.MouseEvent) => {
     if (isNodeLocked) return;
     e.stopPropagation();
     setIsEditingName(true);
@@ -439,8 +439,8 @@ const UserInputNode = memo(({ data, id, selected }: NodeProps) => {
             />
           ) : (
             <span
-              className="font-medium text-xs truncate hover:opacity-80"
-              onDoubleClick={handleNameDoubleClick}
+              className="font-medium text-xs truncate hover:opacity-80 cursor-pointer"
+              onClick={handleNameClick}
             >
               {name}
             </span>
