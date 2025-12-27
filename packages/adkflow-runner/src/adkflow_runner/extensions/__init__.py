@@ -8,6 +8,11 @@ from adkflow_runner.extensions.flow_unit import (
     FieldDefinition,
     WidgetType,
     ExecutionContext,
+    # Layout configuration
+    NodeLayout,
+    CollapsedDisplay,
+    HandleLayout,
+    AdditionalHandle,
 )
 from adkflow_runner.extensions.discovery import (
     ExtensionScope,
@@ -29,6 +34,11 @@ __all__ = [
     "FieldDefinition",
     "WidgetType",
     "ExecutionContext",
+    # Layout configuration
+    "NodeLayout",
+    "CollapsedDisplay",
+    "HandleLayout",
+    "AdditionalHandle",
     # Extension scope
     "ExtensionScope",
     # Registry and paths

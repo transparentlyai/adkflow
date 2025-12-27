@@ -8,7 +8,13 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from adkflow_runner.extensions.flow_unit import FlowUnit, UISchema
+from adkflow_runner.extensions.flow_unit import (
+    FlowUnit,
+    UISchema,
+    CollapsedDisplay,
+    HandleLayout,
+    AdditionalHandle,
+)
 
 
 class ExtensionScope(Enum):
@@ -380,6 +386,35 @@ class ExtensionRegistry:
                 "section": field.section,
             }
 
+        def collapsed_display_to_dict(cd: CollapsedDisplay | None):
+            if cd is None:
+                return None
+            return {
+                "summary_fields": cd.summary_fields,
+                "format": cd.format,
+                "show_connections": cd.show_connections,
+            }
+
+        def handle_layout_to_dict(hl: HandleLayout | None):
+            if hl is None:
+                return None
+            additional = None
+            if hl.additional_handles:
+                additional = [
+                    {
+                        "id": h.id,
+                        "type": h.type,
+                        "position": h.position,
+                        "label": h.label,
+                    }
+                    for h in hl.additional_handles
+                ]
+            return {
+                "input_position": hl.input_position,
+                "output_position": hl.output_position,
+                "additional_handles": additional,
+            }
+
         return {
             "unit_id": unit_cls.UNIT_ID,
             "label": unit_cls.UI_LABEL,
@@ -400,6 +435,13 @@ class ExtensionRegistry:
                 "expandable": ui_schema.expandable,
                 "default_width": ui_schema.default_width,
                 "default_height": ui_schema.default_height,
+                # Layout configuration
+                "layout": ui_schema.layout.value
+                if hasattr(ui_schema.layout, "value")
+                else ui_schema.layout,
+                "theme_key": ui_schema.theme_key,
+                "collapsed_display": collapsed_display_to_dict(ui_schema.collapsed_display),
+                "handle_layout": handle_layout_to_dict(ui_schema.handle_layout),
             },
         }
 

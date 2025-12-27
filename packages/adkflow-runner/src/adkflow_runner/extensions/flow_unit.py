@@ -23,6 +23,52 @@ class WidgetType(str, Enum):
     CHAT_LOG = "chat_log"
 
 
+class NodeLayout(str, Enum):
+    """Layout types for different node visual styles."""
+
+    STANDARD = "standard"  # Standard expandable panel (default)
+    PILL = "pill"  # Pill-shaped compact node
+    CIRCLE = "circle"  # Circular button
+    OCTAGON = "octagon"  # Octagonal shape
+    DIAMOND = "diamond"  # Diamond connector
+    COMPACT = "compact"  # Small compact pill
+    PANEL = "panel"  # Full panel with sections
+
+
+@dataclass
+class CollapsedDisplay:
+    """Configuration for what to display when a node is collapsed."""
+
+    # Field IDs to show as summary text
+    summary_fields: list[str] | None = None
+    # Format string using {{field_id}} placeholders (e.g., "{{name}}" or "Model: {{model}}")
+    format: str | None = None
+    # Show connected input names
+    show_connections: bool = False
+
+
+@dataclass
+class AdditionalHandle:
+    """Configuration for an additional handle (beyond main input/output)."""
+
+    id: str  # Handle ID
+    type: str  # "source" or "target"
+    position: str  # "left", "top", "right", or "bottom"
+    label: str | None = None  # Tooltip label
+
+
+@dataclass
+class HandleLayout:
+    """Configuration for handle positions on a node."""
+
+    # Position for main input handle
+    input_position: str = "left"  # "left", "top", "right", or "bottom"
+    # Position for main output handle
+    output_position: str = "right"  # "left", "top", "right", or "bottom"
+    # Additional positioned handles (e.g., for agent chaining)
+    additional_handles: list[AdditionalHandle] | None = None
+
+
 @dataclass
 class PortDefinition:
     """Defines an input or output port on a node."""
@@ -90,6 +136,11 @@ class UISchema:
     expandable: bool = True
     default_width: int = 250
     default_height: int = 150
+    # Layout configuration
+    layout: NodeLayout = NodeLayout.STANDARD  # Visual layout style
+    theme_key: str | None = None  # Key to lookup theme colors
+    collapsed_display: CollapsedDisplay | None = None  # What to show when collapsed
+    handle_layout: HandleLayout | None = None  # Custom handle positions
 
 
 class EmitFn(Protocol):
