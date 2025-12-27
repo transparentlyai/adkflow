@@ -28,10 +28,7 @@ export function RunWorkflowProvider({
   );
 }
 
-export function useRunWorkflow() {
+export function useRunWorkflow(): RunWorkflowContextValue | null {
   const context = useContext(RunWorkflowContext);
-  if (!context) {
-    throw new Error("useRunWorkflow must be used within RunWorkflowProvider");
-  }
   return context;
 }
