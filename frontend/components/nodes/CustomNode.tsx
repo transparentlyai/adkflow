@@ -1,12 +1,24 @@
 "use client";
 
 import { memo, useState, useCallback, useMemo, useRef, useEffect } from "react";
-import { Handle, Position, type NodeProps, useReactFlow, useStore } from "@xyflow/react";
+import {
+  Handle,
+  Position,
+  type NodeProps,
+  useReactFlow,
+  useStore,
+} from "@xyflow/react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useConnection } from "@/contexts/ConnectionContext";
 import { isTypeCompatible } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
-import { ChevronDown, ChevronUp, Circle } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Circle,
+  ArrowDownToLine,
+  Zap,
+} from "lucide-react";
 import type { HandlePositions, NodeExecutionState } from "@/lib/types";
 import ValidationIndicator from "@/components/nodes/ValidationIndicator";
 import { renderWidget } from "@/components/nodes/widgets/WidgetRenderer";
@@ -56,6 +68,9 @@ export interface CustomNodeSchema {
   menu_location: string;
   description: string;
   version: string;
+  // Execution control properties
+  output_node?: boolean; // True = sink node (triggers execution trace)
+  always_execute?: boolean; // True = skip cache, always run
   ui: {
     inputs: PortDefinition[];
     outputs: PortDefinition[];
@@ -73,12 +88,15 @@ export interface CustomNodeData {
   name?: string;
   config: Record<string, unknown>;
   handlePositions?: HandlePositions;
-  handleTypes?: Record<string, {
-    outputSource?: string;
-    outputType?: string;
-    acceptedSources?: string[];
-    acceptedTypes?: string[];
-  }>;
+  handleTypes?: Record<
+    string,
+    {
+      outputSource?: string;
+      outputType?: string;
+      acceptedSources?: string[];
+      acceptedTypes?: string[];
+    }
+  >;
   expandedSize?: { width: number; height: number };
   isExpanded?: boolean;
   isNodeLocked?: boolean;
@@ -89,7 +107,16 @@ export interface CustomNodeData {
 
 const CustomNode = memo(({ data, id }: NodeProps) => {
   const nodeData = data as unknown as CustomNodeData;
-  const { schema, name: dataName, config = {}, handlePositions, isExpanded: dataIsExpanded, isNodeLocked, validationErrors, validationWarnings } = nodeData;
+  const {
+    schema,
+    name: dataName,
+    config = {},
+    handlePositions,
+    isExpanded: dataIsExpanded,
+    isNodeLocked,
+    validationErrors,
+    validationWarnings,
+  } = nodeData;
   const name = dataName || schema.label;
   const { setNodes } = useReactFlow();
   const { theme } = useTheme();
@@ -125,8 +152,8 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
                   name: editedName.trim(),
                 },
               }
-            : node
-        )
+            : node,
+        ),
       );
     }
     setIsEditing(false);
@@ -144,9 +171,9 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
   // Compute tabs from schema
   const tabs = useMemo(() => {
     const tabSet = new Set<string>();
-    schema.ui.inputs.forEach(i => i.tab && tabSet.add(i.tab));
-    schema.ui.fields.forEach(f => f.tab && tabSet.add(f.tab));
-    schema.ui.outputs.forEach(o => o.tab && tabSet.add(o.tab));
+    schema.ui.inputs.forEach((i) => i.tab && tabSet.add(i.tab));
+    schema.ui.fields.forEach((f) => f.tab && tabSet.add(f.tab));
+    schema.ui.outputs.forEach((o) => o.tab && tabSet.add(o.tab));
 
     if (tabSet.size === 0) return null;
 
@@ -163,24 +190,36 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
 
   // Build handle types from schema
   const handleTypes = useMemo(() => {
-    const types: Record<string, { outputSource?: string; outputType?: string; acceptedSources?: string[]; acceptedTypes?: string[] }> = {};
+    const types: Record<
+      string,
+      {
+        outputSource?: string;
+        outputType?: string;
+        acceptedSources?: string[];
+        acceptedTypes?: string[];
+      }
+    > = {};
 
     const allAcceptedSources = new Set<string>();
     const allAcceptedTypes = new Set<string>();
-    schema.ui.inputs.forEach(input => {
-      (input.accepted_sources || [input.source_type]).forEach(s => allAcceptedSources.add(s));
-      (input.accepted_types || [input.data_type]).forEach(t => allAcceptedTypes.add(t));
+    schema.ui.inputs.forEach((input) => {
+      (input.accepted_sources || [input.source_type]).forEach((s) =>
+        allAcceptedSources.add(s),
+      );
+      (input.accepted_types || [input.data_type]).forEach((t) =>
+        allAcceptedTypes.add(t),
+      );
       types[input.id] = {
         acceptedSources: input.accepted_sources || [input.source_type],
         acceptedTypes: input.accepted_types || [input.data_type],
       };
     });
-    types['input'] = {
+    types["input"] = {
       acceptedSources: Array.from(allAcceptedSources),
       acceptedTypes: Array.from(allAcceptedTypes),
     };
 
-    schema.ui.outputs.forEach(output => {
+    schema.ui.outputs.forEach((output) => {
       types[output.id] = {
         outputSource: output.source_type,
         outputType: output.data_type,
@@ -192,75 +231,114 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
 
   // Track connected source names for each input
   const connectedInputs = useStore(
-    useCallback((state) => {
-      const connections: Record<string, string> = {};
-      for (const input of schema.ui.inputs) {
-        for (const edge of state.edges) {
-          if (edge.target === id && (edge.targetHandle === input.id || edge.targetHandle === 'input')) {
-            const sourceNode = state.nodes.find(n => n.id === edge.source);
-            if (sourceNode) {
-              const sourceData = sourceNode.data as Record<string, unknown>;
-              const name = (sourceData?.agent as { name?: string })?.name
-                || (sourceData?.prompt as { name?: string })?.name
-                || (sourceData?.schema as { label?: string })?.label
-                || sourceNode.type
-                || 'Connected';
-              connections[input.id] = name;
-              break;
+    useCallback(
+      (state) => {
+        const connections: Record<string, string> = {};
+        for (const input of schema.ui.inputs) {
+          for (const edge of state.edges) {
+            if (
+              edge.target === id &&
+              (edge.targetHandle === input.id || edge.targetHandle === "input")
+            ) {
+              const sourceNode = state.nodes.find((n) => n.id === edge.source);
+              if (sourceNode) {
+                const sourceData = sourceNode.data as Record<string, unknown>;
+                const name =
+                  (sourceData?.agent as { name?: string })?.name ||
+                  (sourceData?.prompt as { name?: string })?.name ||
+                  (sourceData?.schema as { label?: string })?.label ||
+                  sourceNode.type ||
+                  "Connected";
+                connections[input.id] = name;
+                break;
+              }
             }
           }
         }
-      }
-      return connections;
-    }, [id, schema.ui.inputs])
+        return connections;
+      },
+      [id, schema.ui.inputs],
+    ),
   );
 
-  const getHandleValidityStyle = useCallback((acceptedSources?: string[], acceptedTypes?: string[]): React.CSSProperties => {
-    if (!connectionState.isDragging || !acceptedSources || !acceptedTypes) {
-      return {};
-    }
-    if (connectionState.sourceNodeId === id) {
-      return { boxShadow: '0 0 0 2px #ef4444, 0 0 8px 2px #ef4444', cursor: 'not-allowed' };
-    }
-    const isValid = isTypeCompatible(
-      connectionState.sourceOutputSource,
-      connectionState.sourceOutputType,
-      acceptedSources,
-      acceptedTypes
-    );
-    if (isValid) {
-      return { boxShadow: '0 0 0 2px #22c55e, 0 0 8px 2px #22c55e', cursor: 'pointer' };
-    }
-    return { boxShadow: '0 0 0 2px #ef4444, 0 0 8px 2px #ef4444', cursor: 'not-allowed' };
-  }, [connectionState, id]);
+  const getHandleValidityStyle = useCallback(
+    (
+      acceptedSources?: string[],
+      acceptedTypes?: string[],
+    ): React.CSSProperties => {
+      if (!connectionState.isDragging || !acceptedSources || !acceptedTypes) {
+        return {};
+      }
+      if (connectionState.sourceNodeId === id) {
+        return {
+          boxShadow: "0 0 0 2px #ef4444, 0 0 8px 2px #ef4444",
+          cursor: "not-allowed",
+        };
+      }
+      const isValid = isTypeCompatible(
+        connectionState.sourceOutputSource,
+        connectionState.sourceOutputType,
+        acceptedSources,
+        acceptedTypes,
+      );
+      if (isValid) {
+        return {
+          boxShadow: "0 0 0 2px #22c55e, 0 0 8px 2px #22c55e",
+          cursor: "pointer",
+        };
+      }
+      return {
+        boxShadow: "0 0 0 2px #ef4444, 0 0 8px 2px #ef4444",
+        cursor: "not-allowed",
+      };
+    },
+    [connectionState, id],
+  );
 
-  const handleConfigChange = useCallback((fieldId: string, value: unknown) => {
-    setNodes(nodes => nodes.map(node =>
-      node.id === id
-        ? { ...node, data: { ...node.data, config: { ...config, [fieldId]: value } } }
-        : node
-    ));
-  }, [id, config, setNodes]);
+  const handleConfigChange = useCallback(
+    (fieldId: string, value: unknown) => {
+      setNodes((nodes) =>
+        nodes.map((node) =>
+          node.id === id
+            ? {
+                ...node,
+                data: { ...node.data, config: { ...config, [fieldId]: value } },
+              }
+            : node,
+        ),
+      );
+    },
+    [id, config, setNodes],
+  );
 
   const toggleExpand = useCallback(() => {
     const newExpanded = !isExpanded;
-    setNodes(nodes => nodes.map(node =>
-      node.id === id
-        ? { ...node, data: { ...node.data, isExpanded: newExpanded } }
-        : node
-    ));
+    setNodes((nodes) =>
+      nodes.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, isExpanded: newExpanded } }
+          : node,
+      ),
+    );
     setIsExpanded(newExpanded);
   }, [id, isExpanded, setNodes]);
 
-  const isFieldVisible = useCallback((field: FieldDefinition) => {
-    if (!field.show_if) return true;
-    return Object.entries(field.show_if).every(([key, value]) => config[key] === value);
-  }, [config]);
+  const isFieldVisible = useCallback(
+    (field: FieldDefinition) => {
+      if (!field.show_if) return true;
+      return Object.entries(field.show_if).every(
+        ([key, value]) => config[key] === value,
+      );
+    },
+    [config],
+  );
 
   // Group elements by section
-  const groupBySection = <T extends { section?: string }>(items: T[]): Map<string | null, T[]> => {
+  const groupBySection = <T extends { section?: string }>(
+    items: T[],
+  ): Map<string | null, T[]> => {
     const groups = new Map<string | null, T[]>();
-    items.forEach(item => {
+    items.forEach((item) => {
       const key = item.section || null;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(item);
@@ -269,26 +347,33 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
   };
 
   // Get elements for a specific tab
-  const getElementsForTab = useCallback((tab: string | null) => {
-    const tabFilter = <T extends { tab?: string }>(el: T) =>
-      tab === null ? !el.tab : el.tab === tab;
+  const getElementsForTab = useCallback(
+    (tab: string | null) => {
+      const tabFilter = <T extends { tab?: string }>(el: T) =>
+        tab === null ? !el.tab : el.tab === tab;
 
-    return {
-      inputs: schema.ui.inputs.filter(tabFilter),
-      fields: schema.ui.fields.filter(isFieldVisible).filter(tabFilter),
-      outputs: schema.ui.outputs.filter(tabFilter),
-    };
-  }, [schema, isFieldVisible]);
+      return {
+        inputs: schema.ui.inputs.filter(tabFilter),
+        fields: schema.ui.fields.filter(isFieldVisible).filter(tabFilter),
+        outputs: schema.ui.outputs.filter(tabFilter),
+      };
+    },
+    [schema, isFieldVisible],
+  );
 
   const headerColor = schema.ui.color || theme.colors.nodes.agent.header;
-  const handleStyle = { width: 10, height: 10, border: `2px solid ${theme.colors.handles.border}` };
+  const handleStyle = {
+    width: 10,
+    height: 10,
+    border: `2px solid ${theme.colors.handles.border}`,
+  };
 
   // Render input port with handle
   const renderInput = (input: PortDefinition) => {
     const isConnected = !!connectedInputs[input.id];
     const validityStyle = getHandleValidityStyle(
       handleTypes[input.id]?.acceptedSources,
-      handleTypes[input.id]?.acceptedTypes
+      handleTypes[input.id]?.acceptedTypes,
     );
     const handleColor = input.handle_color || theme.colors.handles.input;
     const connectionOnly = input.connection_only !== false; // Default to true
@@ -316,11 +401,11 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
               position={Position.Left}
               id={input.id}
               style={{
-                position: 'absolute',
+                position: "absolute",
                 left: -5,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                transition: 'box-shadow 0.15s ease',
+                top: "50%",
+                transform: "translateY(-50%)",
+                transition: "box-shadow 0.15s ease",
                 width: 10,
                 height: 10,
                 border: `2px solid ${theme.colors.handles.border}`,
@@ -334,14 +419,14 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
               style={{ color: theme.colors.nodes.common.text.muted }}
             />
             <span
-              className={`text-xs truncate ${isConnected ? '' : 'italic'}`}
+              className={`text-xs truncate ${isConnected ? "" : "italic"}`}
               style={{
                 color: isConnected
                   ? theme.colors.nodes.common.text.primary
-                  : theme.colors.nodes.common.text.muted
+                  : theme.colors.nodes.common.text.muted,
               }}
             >
-              {isConnected ? connectedInputs[input.id] : 'None'}
+              {isConnected ? connectedInputs[input.id] : "None"}
             </span>
           </div>
         </div>
@@ -353,7 +438,7 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
     const inputAsField: FieldDefinition = {
       id: input.id,
       label: input.label,
-      widget: input.widget || 'text_input',
+      widget: input.widget || "text_input",
       default: input.default,
       placeholder: input.placeholder,
       options: input.options,
@@ -377,11 +462,11 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
             position={Position.Left}
             id={input.id}
             style={{
-              position: 'absolute',
+              position: "absolute",
               left: -5,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              transition: 'box-shadow 0.15s ease',
+              top: "50%",
+              transform: "translateY(-50%)",
+              transition: "box-shadow 0.15s ease",
               width: 10,
               height: 10,
               border: `2px solid ${theme.colors.handles.border}`,
@@ -418,7 +503,7 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
                 inputAsField,
                 config[input.id] ?? input.default,
                 (value) => handleConfigChange(input.id, value),
-                { disabled: isNodeLocked, theme }
+                { disabled: isNodeLocked, theme },
               )}
             </div>
           )}
@@ -442,7 +527,7 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
             field,
             config[field.id] ?? field.default,
             (value) => handleConfigChange(field.id, value),
-            { disabled: isNodeLocked, theme }
+            { disabled: isNodeLocked, theme },
           )}
         </div>
       </div>
@@ -450,11 +535,19 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
   };
 
   // Render section with header and separator
-  const renderSection = (sectionName: string | null, content: React.ReactNode, isFirst: boolean = false) => (
+  const renderSection = (
+    sectionName: string | null,
+    content: React.ReactNode,
+    isFirst: boolean = false,
+  ) => (
     <div
-      key={sectionName || 'default'}
-      className={isFirst ? '' : 'mt-3 pt-3 border-t'}
-      style={isFirst ? undefined : { borderColor: theme.colors.nodes.common.container.border }}
+      key={sectionName || "default"}
+      className={isFirst ? "" : "mt-3 pt-3 border-t"}
+      style={
+        isFirst
+          ? undefined
+          : { borderColor: theme.colors.nodes.common.container.border }
+      }
     >
       {sectionName && (
         <div
@@ -467,15 +560,15 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
           {sectionName}
         </div>
       )}
-      <div className="space-y-2">
-        {content}
-      </div>
+      <div className="space-y-2">{content}</div>
     </div>
   );
 
   // Render tab content
   const renderTabContent = () => {
-    const elements = tabs ? getElementsForTab(activeTab) : getElementsForTab(null);
+    const elements = tabs
+      ? getElementsForTab(activeTab)
+      : getElementsForTab(null);
     const inputSections = groupBySection(elements.inputs);
     const fieldSections = groupBySection(elements.fields);
 
@@ -486,12 +579,12 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
       <>
         {/* Inputs grouped by section */}
         {Array.from(inputSections.entries()).map(([section, inputs]) =>
-          renderSection(section, inputs.map(renderInput), sectionIndex++ === 0)
+          renderSection(section, inputs.map(renderInput), sectionIndex++ === 0),
         )}
 
         {/* Fields grouped by section */}
         {Array.from(fieldSections.entries()).map(([section, fields]) =>
-          renderSection(section, fields.map(renderField), sectionIndex++ === 0)
+          renderSection(section, fields.map(renderField), sectionIndex++ === 0),
         )}
 
         {elements.inputs.length === 0 && elements.fields.length === 0 && (
@@ -518,7 +611,10 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
         onDoubleClick={toggleExpand}
         title="Double-click to configure"
       >
-        <ValidationIndicator errors={validationErrors} warnings={validationWarnings} />
+        <ValidationIndicator
+          errors={validationErrors}
+          warnings={validationWarnings}
+        />
 
         <DraggableHandle
           nodeId={id}
@@ -527,47 +623,72 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
           defaultEdge="left"
           defaultPercent={50}
           handlePositions={handlePositions}
-          acceptedSources={handleTypes['input']?.acceptedSources}
-          acceptedTypes={handleTypes['input']?.acceptedTypes}
-          style={{ ...handleStyle, backgroundColor: theme.colors.handles.input }}
+          acceptedSources={handleTypes["input"]?.acceptedSources}
+          acceptedTypes={handleTypes["input"]?.acceptedTypes}
+          style={{
+            ...handleStyle,
+            backgroundColor: theme.colors.handles.input,
+          }}
         />
 
-        {schema.ui.inputs.map(input => (
+        {schema.ui.inputs.map((input) => (
           <Handle
             key={input.id}
             type="target"
             position={Position.Left}
             id={input.id}
-            style={{ opacity: 0, pointerEvents: 'none', top: '50%', left: 0 }}
+            style={{ opacity: 0, pointerEvents: "none", top: "50%", left: 0 }}
           />
         ))}
 
         <div className="px-3 py-2 flex items-center justify-between gap-2">
-          {isEditing ? (
-            <input
-              ref={inputRef}
-              type="text"
-              value={editedName}
-              onChange={(e) => setEditedName(e.target.value)}
-              onBlur={handleNameSave}
-              onKeyDown={handleNameKeyDown}
-              onClick={(e) => e.stopPropagation()}
-              className="flex-1 px-1 py-0.5 rounded text-xs font-medium outline-none min-w-0"
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.2)',
-                color: 'white',
-              }}
-            />
-          ) : (
-            <span
-              className="font-medium text-xs text-white truncate cursor-text"
-              onClick={handleNameClick}
-              title="Click to rename"
-            >
-              {name}
-            </span>
-          )}
-          <ChevronDown className="w-3 h-3 text-white opacity-60" />
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            {/* Output node indicator */}
+            {schema.output_node && (
+              <div
+                className="flex-shrink-0 rounded-full p-0.5"
+                style={{ backgroundColor: "#22c55e" }}
+                title="Output Node - triggers execution"
+              >
+                <ArrowDownToLine className="w-2.5 h-2.5 text-white" />
+              </div>
+            )}
+            {/* Always execute indicator */}
+            {schema.always_execute && (
+              <div
+                className="flex-shrink-0 rounded-full p-0.5"
+                style={{ backgroundColor: "#f59e0b" }}
+                title="Always Execute - skips cache"
+              >
+                <Zap className="w-2.5 h-2.5 text-white" />
+              </div>
+            )}
+            {isEditing ? (
+              <input
+                ref={inputRef}
+                type="text"
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                onBlur={handleNameSave}
+                onKeyDown={handleNameKeyDown}
+                onClick={(e) => e.stopPropagation()}
+                className="flex-1 px-1 py-0.5 rounded text-xs font-medium outline-none min-w-0"
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.2)",
+                  color: "white",
+                }}
+              />
+            ) : (
+              <span
+                className="font-medium text-xs text-white truncate cursor-text"
+                onClick={handleNameClick}
+                title="Click to rename"
+              >
+                {name}
+              </span>
+            )}
+          </div>
+          <ChevronDown className="w-3 h-3 text-white opacity-60 flex-shrink-0" />
         </div>
 
         {schema.ui.outputs.map((output, i) => (
@@ -599,10 +720,13 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
         backgroundColor: theme.colors.nodes.common.container.background,
         borderColor: theme.colors.nodes.common.container.border,
         borderWidth: 1,
-        borderStyle: 'solid',
+        borderStyle: "solid",
       }}
     >
-      <ValidationIndicator errors={validationErrors} warnings={validationWarnings} />
+      <ValidationIndicator
+        errors={validationErrors}
+        warnings={validationWarnings}
+      />
 
       {/* Header */}
       <div
@@ -610,31 +734,53 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
         style={{ backgroundColor: headerColor }}
         onDoubleClick={toggleExpand}
       >
-        {isEditing ? (
-          <input
-            ref={inputRef}
-            type="text"
-            value={editedName}
-            onChange={(e) => setEditedName(e.target.value)}
-            onBlur={handleNameSave}
-            onKeyDown={handleNameKeyDown}
-            onClick={(e) => e.stopPropagation()}
-            className="flex-1 px-1 py-0.5 rounded text-xs font-medium outline-none min-w-0"
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.2)',
-              color: 'white',
-            }}
-          />
-        ) : (
-          <span
-            className="font-medium text-xs text-white truncate cursor-text"
-            onClick={handleNameClick}
-            title="Click to rename"
-          >
-            {name}
-          </span>
-        )}
-        <ChevronUp className="w-3 h-3 text-white opacity-60" />
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+          {/* Output node indicator */}
+          {schema.output_node && (
+            <div
+              className="flex-shrink-0 rounded-full p-0.5"
+              style={{ backgroundColor: "#22c55e" }}
+              title="Output Node - triggers execution"
+            >
+              <ArrowDownToLine className="w-2.5 h-2.5 text-white" />
+            </div>
+          )}
+          {/* Always execute indicator */}
+          {schema.always_execute && (
+            <div
+              className="flex-shrink-0 rounded-full p-0.5"
+              style={{ backgroundColor: "#f59e0b" }}
+              title="Always Execute - skips cache"
+            >
+              <Zap className="w-2.5 h-2.5 text-white" />
+            </div>
+          )}
+          {isEditing ? (
+            <input
+              ref={inputRef}
+              type="text"
+              value={editedName}
+              onChange={(e) => setEditedName(e.target.value)}
+              onBlur={handleNameSave}
+              onKeyDown={handleNameKeyDown}
+              onClick={(e) => e.stopPropagation()}
+              className="flex-1 px-1 py-0.5 rounded text-xs font-medium outline-none min-w-0"
+              style={{
+                backgroundColor: "rgba(255,255,255,0.2)",
+                color: "white",
+              }}
+            />
+          ) : (
+            <span
+              className="font-medium text-xs text-white truncate cursor-text"
+              onClick={handleNameClick}
+              title="Click to rename"
+            >
+              {name}
+            </span>
+          )}
+        </div>
+        <ChevronUp className="w-3 h-3 text-white opacity-60 flex-shrink-0" />
       </div>
 
       {/* Tab bar */}
@@ -643,18 +789,20 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
           className="flex border-b"
           style={{ borderColor: theme.colors.nodes.common.container.border }}
         >
-          {tabs.map(tab => (
+          {tabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className="px-2 py-1 text-xs font-medium transition-colors"
               style={{
-                color: activeTab === tab
-                  ? theme.colors.ui.primary
-                  : theme.colors.nodes.common.text.secondary,
-                borderBottom: activeTab === tab
-                  ? `2px solid ${theme.colors.ui.primary}`
-                  : '2px solid transparent',
+                color:
+                  activeTab === tab
+                    ? theme.colors.ui.primary
+                    : theme.colors.nodes.common.text.secondary,
+                borderBottom:
+                  activeTab === tab
+                    ? `2px solid ${theme.colors.ui.primary}`
+                    : "2px solid transparent",
               }}
             >
               {tab}
@@ -669,8 +817,11 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
 
         {/* Output ports - always visible */}
         {schema.ui.outputs.length > 0 && (
-          <div className="pt-1 border-t" style={{ borderColor: theme.colors.nodes.common.container.border }}>
-            {schema.ui.outputs.map(output => (
+          <div
+            className="pt-1 border-t"
+            style={{ borderColor: theme.colors.nodes.common.container.border }}
+          >
+            {schema.ui.outputs.map((output) => (
               <div
                 key={output.id}
                 className="relative flex items-center justify-end gap-2 py-0.5 pr-3"
@@ -686,14 +837,15 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
                   position={Position.Right}
                   id={output.id}
                   style={{
-                    position: 'absolute',
+                    position: "absolute",
                     right: -5,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
+                    top: "50%",
+                    transform: "translateY(-50%)",
                     width: 10,
                     height: 10,
                     border: `2px solid ${theme.colors.handles.border}`,
-                    backgroundColor: output.handle_color || theme.colors.handles.output,
+                    backgroundColor:
+                      output.handle_color || theme.colors.handles.output,
                   }}
                   title={output.label}
                 />
@@ -710,39 +862,53 @@ CustomNode.displayName = "CustomNode";
 
 export default CustomNode;
 
-export function getDefaultCustomNodeData(schema: CustomNodeSchema): CustomNodeData {
+export function getDefaultCustomNodeData(
+  schema: CustomNodeSchema,
+): CustomNodeData {
   const config: Record<string, unknown> = {};
   // Initialize field defaults
-  schema.ui.fields.forEach(field => {
+  schema.ui.fields.forEach((field) => {
     if (field.default !== undefined) {
       config[field.id] = field.default;
     }
   });
   // Initialize input defaults (for inputs with connection_only=false)
-  schema.ui.inputs.forEach(input => {
+  schema.ui.inputs.forEach((input) => {
     if (input.connection_only === false && input.default !== undefined) {
       config[input.id] = input.default;
     }
   });
 
-  const handleTypes: Record<string, { outputSource?: string; outputType?: string; acceptedSources?: string[]; acceptedTypes?: string[] }> = {};
+  const handleTypes: Record<
+    string,
+    {
+      outputSource?: string;
+      outputType?: string;
+      acceptedSources?: string[];
+      acceptedTypes?: string[];
+    }
+  > = {};
 
   const allAcceptedSources = new Set<string>();
   const allAcceptedTypes = new Set<string>();
-  schema.ui.inputs.forEach(input => {
-    (input.accepted_sources || [input.source_type]).forEach(s => allAcceptedSources.add(s));
-    (input.accepted_types || [input.data_type]).forEach(t => allAcceptedTypes.add(t));
+  schema.ui.inputs.forEach((input) => {
+    (input.accepted_sources || [input.source_type]).forEach((s) =>
+      allAcceptedSources.add(s),
+    );
+    (input.accepted_types || [input.data_type]).forEach((t) =>
+      allAcceptedTypes.add(t),
+    );
     handleTypes[input.id] = {
       acceptedSources: input.accepted_sources || [input.source_type],
       acceptedTypes: input.accepted_types || [input.data_type],
     };
   });
-  handleTypes['input'] = {
+  handleTypes["input"] = {
     acceptedSources: Array.from(allAcceptedSources),
     acceptedTypes: Array.from(allAcceptedTypes),
   };
 
-  schema.ui.outputs.forEach(output => {
+  schema.ui.outputs.forEach((output) => {
     handleTypes[output.id] = {
       outputSource: output.source_type,
       outputType: output.data_type,
