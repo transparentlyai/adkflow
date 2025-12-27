@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Monitor,
   SquareDashed,
@@ -33,6 +33,8 @@ import {
   Square,
 } from "lucide-react";
 import { formatShortcut } from "@/lib/utils";
+import { type CustomNodeSchema } from "@/components/nodes/CustomNode";
+import { Puzzle } from "lucide-react";
 
 export type NodeTypeOption =
   | "variable"
@@ -68,6 +70,8 @@ interface ContextMenuProps {
   onCut?: () => void;
   onPaste?: () => void;
   onDelete?: () => void;
+  customNodeSchemas?: CustomNodeSchema[];
+  onSelectCustom?: (schema: CustomNodeSchema) => void;
 }
 
 interface NodeOption {
@@ -150,8 +154,27 @@ export default function CanvasContextMenu({
   onCut,
   onPaste,
   onDelete,
+  customNodeSchemas = [],
+  onSelectCustom,
 }: ContextMenuProps) {
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
+
+  // Build custom node menu groups from schemas
+  const customMenuGroups = useMemo(() => {
+    const groups: Record<string, { label: string; items: CustomNodeSchema[] }> = {};
+
+    for (const schema of customNodeSchemas) {
+      const parts = schema.menu_location.split("/");
+      const groupLabel = parts.slice(0, -1).join("/") || "Extensions";
+
+      if (!groups[groupLabel]) {
+        groups[groupLabel] = { label: groupLabel, items: [] };
+      }
+      groups[groupLabel].items.push(schema);
+    }
+
+    return Object.values(groups);
+  }, [customNodeSchemas]);
 
   const adjustedX = Math.min(x, window.innerWidth - 160);
   const adjustedY = Math.min(y, window.innerHeight - 200);
@@ -309,6 +332,57 @@ export default function CanvasContextMenu({
                 )}
               </div>
             ))}
+
+            {/* Custom extension node groups */}
+            {customMenuGroups.length > 0 && (
+              <>
+                <div className="-mx-1 my-1 h-px bg-border" />
+                {customMenuGroups.map((group) => (
+                  <div
+                    key={group.label}
+                    className="relative"
+                    onMouseEnter={() => setOpenSubmenu(`custom:${group.label}`)}
+                    onMouseLeave={() => setOpenSubmenu(null)}
+                  >
+                    <button className="relative flex w-full cursor-default select-none items-center justify-between rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground">
+                      <span className="flex items-center">
+                        <span className="mr-2 text-muted-foreground">
+                          <Puzzle className="h-4 w-4" />
+                        </span>
+                        {group.label}
+                      </span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </button>
+
+                    {openSubmenu === `custom:${group.label}` && (
+                      <>
+                        <div className="absolute left-full top-0 h-full w-2" />
+                        <div
+                          className="absolute left-full top-0 z-50 min-w-[9rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+                          style={{ marginLeft: 8 }}
+                        >
+                          {group.items.map((schema) => (
+                            <button
+                              key={schema.unit_id}
+                              onClick={() => {
+                                onSelectCustom?.(schema);
+                                onClose();
+                              }}
+                              className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                            >
+                              <span className="mr-2 text-muted-foreground">
+                                <Puzzle className="h-4 w-4" />
+                              </span>
+                              {schema.label}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
           </>
         )}
 

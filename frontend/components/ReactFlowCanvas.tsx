@@ -55,8 +55,10 @@ import TeleportInNode, { getDefaultTeleportInData } from "./nodes/TeleportInNode
 import UserInputNode, { getDefaultUserInputData } from "./nodes/UserInputNode";
 import StartNode, { getDefaultStartData } from "./nodes/StartNode";
 import EndNode, { getDefaultEndData } from "./nodes/EndNode";
+import CustomNode, { type CustomNodeSchema, getDefaultCustomNodeData } from "@/components/nodes/CustomNode";
 
 import { generateNodeId } from "@/lib/workflowHelpers";
+import { getExtensionNodes } from "@/lib/api";
 import { sanitizeAgentName } from "@/lib/utils";
 import CanvasContextMenu, { type NodeTypeOption } from "./CanvasContextMenu";
 import ConfirmDialog from "./ConfirmDialog";
@@ -74,11 +76,11 @@ import { getDefaultAgentToolData } from "./nodes/AgentToolNode";
 import { getDefaultVariableData } from "./nodes/VariableNode";
 import { getDefaultProcessData } from "./nodes/ProcessNode";
 import { getDefaultLabelData } from "./nodes/LabelNode";
-import type { Agent, Prompt, NodeExecutionState, HandleDataType, HandleTypes } from "@/lib/types";
+import type { Agent, Prompt, NodeExecutionState, HandleTypes, HandleTypeInfo } from "@/lib/types";
 import { isTypeCompatible } from "@/lib/types";
 
-// Register custom node types
-const nodeTypes = {
+// Static node types - base types that are always available
+const staticNodeTypes = {
   group: GroupNode,
   agent: AgentNode,
   prompt: PromptNode,
@@ -97,7 +99,7 @@ const nodeTypes = {
   userInput: UserInputNode,
   start: StartNode,
   end: EndNode,
-} as any; // eslint-disable-line
+} as const;
 
 interface ReactFlowCanvasProps {
   onWorkflowChange?: (data: { nodes: Node[]; edges: Edge[] }) => void;
@@ -130,6 +132,8 @@ export interface ReactFlowCanvasRef {
   addUserInputNode: (position?: { x: number; y: number }) => void;
   addStartNode: (position?: { x: number; y: number }) => void;
   addEndNode: (position?: { x: number; y: number }) => void;
+  addCustomNode: (schema: CustomNodeSchema, position?: { x: number; y: number }) => string;
+  customNodeSchemas: CustomNodeSchema[];
   clearCanvas: () => void;
   saveFlow: () => { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } } | null;
   restoreFlow: (flow: { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }) => void;
@@ -157,6 +161,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     const [nodes, setNodes] = useState<Node[]>([]);
     const [edges, setEdges] = useState<Edge[]>([]);
     const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
+    const [customNodeSchemas, setCustomNodeSchemas] = useState<CustomNodeSchema[]>([]);
     const { screenToFlowPosition } = useReactFlow();
     const { clipboard, copy, hasClipboard } = useClipboard();
     const { theme } = useTheme();
@@ -217,6 +222,29 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
     const spacing = 350;
 
+    // Load custom node schemas from backend
+    useEffect(() => {
+      async function loadCustomNodes() {
+        try {
+          const data = await getExtensionNodes();
+          setCustomNodeSchemas(data.nodes as CustomNodeSchema[]);
+        } catch (error) {
+          console.log('[ReactFlowCanvas] No custom nodes available');
+        }
+      }
+      loadCustomNodes();
+    }, []);
+
+    // Dynamic node types - includes static types plus custom types from extensions
+    const nodeTypes = useMemo(() => ({
+      // Static types that are always available
+      ...staticNodeTypes,
+      // Dynamic custom types - all use the same CustomNode component
+      ...Object.fromEntries(
+        customNodeSchemas.map(schema => [`custom:${schema.unit_id}`, CustomNode])
+      ),
+    }), [customNodeSchemas]);
+
     // Memoized props for ReactFlow to prevent unnecessary re-renders
     const defaultEdgeOptions = useMemo(() => ({
       style: { strokeWidth: 1.5, stroke: theme.colors.edges.default },
@@ -229,7 +257,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
     // Build registry of handle types from node data for connection validation
     const handleTypeRegistry = useMemo(() => {
-      const registry: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }> = {};
+      const registry: Record<string, HandleTypeInfo> = {};
       for (const node of nodes) {
         const data = node.data as Record<string, unknown>;
         const handleTypes = data.handleTypes as HandleTypes | undefined;
@@ -246,8 +274,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     const onConnectStart = useCallback((_event: MouseEvent | TouchEvent, params: OnConnectStartParams) => {
       const key = `${params.nodeId}:${params.handleId}`;
       const typeInfo = handleTypeRegistry[key];
-      if (typeInfo?.outputType && params.nodeId && params.handleId) {
-        startConnection(params.nodeId, params.handleId, typeInfo.outputType);
+      if (typeInfo?.outputSource && typeInfo?.outputType && params.nodeId && params.handleId) {
+        startConnection(params.nodeId, params.handleId, typeInfo.outputSource, typeInfo.outputType);
       }
     }, [handleTypeRegistry, startConnection]);
 
@@ -264,10 +292,15 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       const sourceKey = `${connection.source}:${connection.sourceHandle ?? ''}`;
       const targetKey = `${connection.target}:${connection.targetHandle ?? ''}`;
 
-      const sourceType = handleTypeRegistry[sourceKey]?.outputType;
-      const targetTypes = handleTypeRegistry[targetKey]?.acceptedTypes;
+      const sourceInfo = handleTypeRegistry[sourceKey];
+      const targetInfo = handleTypeRegistry[targetKey];
 
-      return isTypeCompatible(sourceType, targetTypes);
+      return isTypeCompatible(
+        sourceInfo?.outputSource,
+        sourceInfo?.outputType,
+        targetInfo?.acceptedSources,
+        targetInfo?.acceptedTypes
+      );
     }, [handleTypeRegistry]);
 
     // Handle node changes (drag, select, etc.)
@@ -294,16 +327,17 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
       // Auto-detect for AgentNode collapsed "input" handle
       if (params.target?.startsWith('agent_') && params.targetHandle === 'input') {
-        // Look up source handle's output type from registry
+        // Look up source handle's source type from registry
         const sourceKey = `${params.source}:${params.sourceHandle}`;
-        const sourceOutputType = handleTypeRegistry[sourceKey]?.outputType;
+        const sourceInfo = handleTypeRegistry[sourceKey];
+        const outputSource = sourceInfo?.outputSource;
 
-        if (sourceOutputType === 'custom:Prompt') {
+        if (outputSource === 'prompt') {
           targetHandle = 'prompt-input';
-        } else if (sourceOutputType === 'custom:Tool' || sourceOutputType === 'custom:AgentTool') {
+        } else if (outputSource === 'tool') {
           targetHandle = 'tools-input';
         } else {
-          // custom:AgentOutput, str, or any other type
+          // agent, context, or any other source type
           targetHandle = 'agent-input';
         }
       }
@@ -1253,6 +1287,44 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       setNodes((nds) => [...nds, newNode]);
     }, []);
 
+    /**
+     * Get the center of the current viewport in flow coordinates
+     */
+    const getViewportCenter = useCallback(() => {
+      if (!rfInstance) {
+        return { x: 400, y: 300 };
+      }
+      const { x, y, zoom } = rfInstance.getViewport();
+      // Get the dimensions of the React Flow container
+      const domNode = document.querySelector('.react-flow');
+      if (!domNode) {
+        return { x: 400, y: 300 };
+      }
+      const { width, height } = domNode.getBoundingClientRect();
+      // Calculate center in flow coordinates
+      const centerX = (-x + width / 2) / zoom;
+      const centerY = (-y + height / 2) / zoom;
+      return { x: centerX, y: centerY };
+    }, [rfInstance]);
+
+    /**
+     * Add a custom node to the canvas
+     */
+    const addCustomNode = useCallback((schema: CustomNodeSchema, position?: { x: number; y: number }) => {
+      const id = `custom_${schema.unit_id}_${Date.now()}`;
+      const pos = position || getViewportCenter();
+
+      const newNode: Node = {
+        id,
+        type: `custom:${schema.unit_id}`,
+        position: pos,
+        data: getDefaultCustomNodeData(schema) as unknown as Record<string, unknown>,
+      };
+
+      setNodes((nodes) => [...nodes, newNode]);
+      return id;
+    }, [setNodes, getViewportCenter]);
+
     // Handle right-click on canvas pane
     const onPaneContextMenu = useCallback((event: MouseEvent | React.MouseEvent) => {
       event.preventDefault();
@@ -1890,6 +1962,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       addUserInputNode,
       addStartNode,
       addEndNode,
+      addCustomNode,
+      customNodeSchemas,
       clearCanvas,
       saveFlow,
       restoreFlow,
@@ -2060,6 +2134,11 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             onCut={handleCut}
             onPaste={() => handlePaste(contextMenu.flowPosition)}
             onDelete={handleDelete}
+            customNodeSchemas={customNodeSchemas}
+            onSelectCustom={(schema) => {
+              addCustomNode(schema, contextMenu.flowPosition);
+              closeContextMenu();
+            }}
           />
         )}
         <ConfirmDialog

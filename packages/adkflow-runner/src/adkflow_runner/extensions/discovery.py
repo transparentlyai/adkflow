@@ -586,8 +586,11 @@ class ExtensionRegistry:
                     if part not in current:
                         current[part] = {}
                     current = current[part]
-                # Leaf node contains the unit_id
-                current[parts[-1]] = schema["unit_id"]
+                # Leaf node contains list of unit_ids
+                leaf = parts[-1]
+                if leaf not in current:
+                    current[leaf] = []
+                current[leaf].append(schema["unit_id"])
             return tree
 
     def reload_all(self) -> int:
