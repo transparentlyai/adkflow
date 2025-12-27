@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useCallback, useMemo } from "react";
+import { memo, useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { Handle, Position, type NodeProps, useReactFlow, useStore } from "@xyflow/react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useConnection } from "@/contexts/ConnectionContext";
@@ -70,6 +70,7 @@ export interface CustomNodeSchema {
 
 export interface CustomNodeData {
   schema: CustomNodeSchema;
+  name?: string;
   config: Record<string, unknown>;
   handlePositions?: HandlePositions;
   handleTypes?: Record<string, {
@@ -88,11 +89,57 @@ export interface CustomNodeData {
 
 const CustomNode = memo(({ data, id }: NodeProps) => {
   const nodeData = data as unknown as CustomNodeData;
-  const { schema, config = {}, handlePositions, isExpanded: dataIsExpanded, isNodeLocked, validationErrors, validationWarnings } = nodeData;
+  const { schema, name: dataName, config = {}, handlePositions, isExpanded: dataIsExpanded, isNodeLocked, validationErrors, validationWarnings } = nodeData;
+  const name = dataName || schema.label;
   const { setNodes } = useReactFlow();
   const { theme } = useTheme();
   const { connectionState } = useConnection();
   const [isExpanded, setIsExpanded] = useState(dataIsExpanded ?? false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedName, setEditedName] = useState(name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleNameClick = (e: React.MouseEvent) => {
+    if (isNodeLocked) return;
+    e.stopPropagation();
+    setIsEditing(true);
+    setEditedName(name);
+  };
+
+  const handleNameSave = () => {
+    if (editedName.trim()) {
+      setNodes((nodes) =>
+        nodes.map((node) =>
+          node.id === id
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  name: editedName.trim(),
+                },
+              }
+            : node
+        )
+      );
+    }
+    setIsEditing(false);
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleNameSave();
+    } else if (e.key === "Escape") {
+      setEditedName(name);
+      setIsEditing(false);
+    }
+  };
 
   // Compute tabs from schema
   const tabs = useMemo(() => {
@@ -496,9 +543,30 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
         ))}
 
         <div className="px-3 py-2 flex items-center justify-between gap-2">
-          <span className="font-medium text-xs text-white truncate">
-            {schema.label}
-          </span>
+          {isEditing ? (
+            <input
+              ref={inputRef}
+              type="text"
+              value={editedName}
+              onChange={(e) => setEditedName(e.target.value)}
+              onBlur={handleNameSave}
+              onKeyDown={handleNameKeyDown}
+              onClick={(e) => e.stopPropagation()}
+              className="flex-1 px-1 py-0.5 rounded text-xs font-medium outline-none min-w-0"
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                color: 'white',
+              }}
+            />
+          ) : (
+            <span
+              className="font-medium text-xs text-white truncate cursor-text"
+              onClick={handleNameClick}
+              title="Click to rename"
+            >
+              {name}
+            </span>
+          )}
           <ChevronDown className="w-3 h-3 text-white opacity-60" />
         </div>
 
@@ -542,9 +610,30 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
         style={{ backgroundColor: headerColor }}
         onDoubleClick={toggleExpand}
       >
-        <span className="font-medium text-xs text-white truncate">
-          {schema.label}
-        </span>
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={editedName}
+            onChange={(e) => setEditedName(e.target.value)}
+            onBlur={handleNameSave}
+            onKeyDown={handleNameKeyDown}
+            onClick={(e) => e.stopPropagation()}
+            className="flex-1 px-1 py-0.5 rounded text-xs font-medium outline-none min-w-0"
+            style={{
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              color: 'white',
+            }}
+          />
+        ) : (
+          <span
+            className="font-medium text-xs text-white truncate cursor-text"
+            onClick={handleNameClick}
+            title="Click to rename"
+          >
+            {name}
+          </span>
+        )}
         <ChevronUp className="w-3 h-3 text-white opacity-60" />
       </div>
 
