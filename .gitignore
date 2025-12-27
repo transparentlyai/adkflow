@@ -64,4 +64,7 @@ htmlcov/
 
 # Temporary files
 temp/
-tmp/
+tmp
+
+# Local extension development
+adkflow_extensions/
