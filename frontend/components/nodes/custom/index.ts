@@ -15,6 +15,11 @@ export {
   type UseCustomNodeNameOptions,
   type UseCustomNodeNameResult,
 } from "@/components/nodes/custom/hooks/useCustomNodeName";
+export {
+  useFileOperations,
+  type FilePickerOptions,
+  type UseFileOperationsResult,
+} from "@/components/nodes/custom/hooks/useFileOperations";
 
 // Components
 export {
