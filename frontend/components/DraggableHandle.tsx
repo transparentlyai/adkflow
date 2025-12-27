@@ -1,12 +1,25 @@
 "use client";
 
-import { useCallback, useRef, useLayoutEffect, useState, useEffect, useMemo } from "react";
+import {
+  useCallback,
+  useRef,
+  useLayoutEffect,
+  useState,
+  useEffect,
+  useMemo,
+} from "react";
 import { createPortal } from "react-dom";
-import { Handle, Position, useReactFlow, useUpdateNodeInternals } from "@xyflow/react";
+import {
+  Handle,
+  Position,
+  useReactFlow,
+  useUpdateNodeInternals,
+} from "@xyflow/react";
 import type { HandleEdge, HandlePosition, HandlePositions } from "@/lib/types";
 import { isTypeCompatible } from "@/lib/types";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useConnection } from "@/contexts/ConnectionContext";
+import HandleTooltip from "@/components/HandleTooltip";
 
 interface DraggableHandleProps {
   nodeId: string;
@@ -18,10 +31,10 @@ interface DraggableHandleProps {
   style?: React.CSSProperties;
   title?: string;
   isConnectable?: boolean;
-  outputSource?: string;        // For source handles: what source type (e.g., 'prompt', 'agent')
-  outputType?: string;          // For source handles: what Python type (e.g., 'str', 'dict')
-  acceptedSources?: string[];   // For target handles: which sources accepted
-  acceptedTypes?: string[];     // For target handles: which types accepted
+  outputSource?: string; // For source handles: what source type (e.g., 'prompt', 'agent')
+  outputType?: string; // For source handles: what Python type (e.g., 'str', 'dict')
+  acceptedSources?: string[]; // For target handles: which sources accepted
+  acceptedTypes?: string[]; // For target handles: which types accepted
 }
 
 interface ContextMenuState {
@@ -34,10 +47,14 @@ interface ContextMenuState {
  */
 function edgeToPosition(edge: HandleEdge): Position {
   switch (edge) {
-    case "top": return Position.Top;
-    case "right": return Position.Right;
-    case "bottom": return Position.Bottom;
-    case "left": return Position.Left;
+    case "top":
+      return Position.Top;
+    case "right":
+      return Position.Right;
+    case "bottom":
+      return Position.Bottom;
+    case "left":
+      return Position.Left;
   }
 }
 
@@ -47,7 +64,7 @@ function edgeToPosition(edge: HandleEdge): Position {
 function calculateHandlePosition(
   mouseX: number,
   mouseY: number,
-  nodeRect: DOMRect
+  nodeRect: DOMRect,
 ): HandlePosition {
   const distances = {
     top: Math.abs(mouseY - nodeRect.top),
@@ -56,8 +73,9 @@ function calculateHandlePosition(
     right: Math.abs(mouseX - nodeRect.right),
   };
 
-  const edge = (Object.entries(distances) as [HandleEdge, number][])
-    .sort(([, a], [, b]) => a - b)[0][0];
+  const edge = (Object.entries(distances) as [HandleEdge, number][]).sort(
+    ([, a], [, b]) => a - b,
+  )[0][0];
 
   let percent: number;
   if (edge === "top" || edge === "bottom") {
@@ -74,7 +92,7 @@ function calculateHandlePosition(
  */
 function getHandleStyle(
   position: HandlePosition,
-  baseStyle?: React.CSSProperties
+  baseStyle?: React.CSSProperties,
 ): React.CSSProperties {
   const base: React.CSSProperties = {
     ...baseStyle,
@@ -83,13 +101,33 @@ function getHandleStyle(
 
   switch (position.edge) {
     case "top":
-      return { ...base, top: 0, left: `${position.percent}%`, transform: "translate(-50%, -50%)" };
+      return {
+        ...base,
+        top: 0,
+        left: `${position.percent}%`,
+        transform: "translate(-50%, -50%)",
+      };
     case "bottom":
-      return { ...base, bottom: 0, left: `${position.percent}%`, transform: "translate(-50%, 50%)" };
+      return {
+        ...base,
+        bottom: 0,
+        left: `${position.percent}%`,
+        transform: "translate(-50%, 50%)",
+      };
     case "left":
-      return { ...base, left: 0, top: `${position.percent}%`, transform: "translate(-50%, -50%)" };
+      return {
+        ...base,
+        left: 0,
+        top: `${position.percent}%`,
+        transform: "translate(-50%, -50%)",
+      };
     case "right":
-      return { ...base, right: 0, top: `${position.percent}%`, transform: "translate(50%, -50%)" };
+      return {
+        ...base,
+        right: 0,
+        top: `${position.percent}%`,
+        transform: "translate(50%, -50%)",
+      };
   }
 }
 
@@ -119,7 +157,12 @@ export default function DraggableHandle({
   // Determine if this target handle is compatible with current drag source
   const isValidTarget = useMemo(() => {
     // Only applies to target handles when a drag is in progress
-    if (!connectionState.isDragging || type !== 'target' || !acceptedSources || !acceptedTypes) {
+    if (
+      !connectionState.isDragging ||
+      type !== "target" ||
+      !acceptedSources ||
+      !acceptedTypes
+    ) {
       return null; // null means "not applicable" (no visual feedback)
     }
     // Prevent self-connection
@@ -131,7 +174,7 @@ export default function DraggableHandle({
       connectionState.sourceOutputSource,
       connectionState.sourceOutputType,
       acceptedSources,
-      acceptedTypes
+      acceptedTypes,
     );
   }, [connectionState, type, acceptedSources, acceptedTypes, nodeId]);
 
@@ -143,13 +186,13 @@ export default function DraggableHandle({
     }
     if (isValidTarget) {
       return {
-        boxShadow: '0 0 0 2px #22c55e, 0 0 8px 2px #22c55e', // Green ring + glow
-        cursor: 'pointer',
+        boxShadow: "0 0 0 2px #22c55e, 0 0 8px 2px #22c55e", // Green ring + glow
+        cursor: "pointer",
       };
     } else {
       return {
-        boxShadow: '0 0 0 2px #ef4444, 0 0 8px 2px #ef4444', // Red ring + glow
-        cursor: 'not-allowed',
+        boxShadow: "0 0 0 2px #ef4444, 0 0 8px 2px #ef4444", // Red ring + glow
+        cursor: "not-allowed",
       };
     }
   }, [isValidTarget]);
@@ -174,10 +217,10 @@ export default function DraggableHandle({
               },
             },
           };
-        })
+        }),
       );
     },
-    [nodeId, handleId, setNodes]
+    [nodeId, handleId, setNodes],
   );
 
   useLayoutEffect(() => {
@@ -219,7 +262,7 @@ export default function DraggableHandle({
       const newPosition = calculateHandlePosition(
         e.clientX,
         e.clientY,
-        nodeRect
+        nodeRect,
       );
 
       updatePosition(newPosition);
@@ -273,49 +316,74 @@ export default function DraggableHandle({
     cursor: isMoveMode ? "move" : "crosshair",
   });
 
+  // Determine tooltip content based on handle type
+  const tooltipLabel = title || handleId;
+  const tooltipSourceType =
+    type === "source" ? outputSource || "any" : acceptedSources?.[0] || "any";
+  const tooltipDataType =
+    type === "source" ? outputType || "any" : acceptedTypes?.[0] || "any";
+  const tooltipType = type === "source" ? "output" : "input";
+
   return (
     <>
-      <Handle
-        type={type}
-        position={edgeToPosition(currentPosition.edge)}
-        id={handleId}
-        title={isMoveMode ? "Click to place handle (Esc to cancel)" : title}
-        isConnectable={!isMoveMode && isConnectable}
-        style={{
-          ...computedStyle,
-          ...validityStyle,
-          outline: isMoveMode ? "2px solid #3b82f6" : undefined,
-          outlineOffset: "2px",
-          transition: 'box-shadow 0.15s ease',
-        }}
-        onContextMenu={handleContextMenu}
-      />
+      <HandleTooltip
+        label={tooltipLabel}
+        sourceType={tooltipSourceType}
+        dataType={tooltipDataType}
+        type={tooltipType}
+      >
+        <Handle
+          type={type}
+          position={edgeToPosition(currentPosition.edge)}
+          id={handleId}
+          isConnectable={!isMoveMode && isConnectable}
+          style={{
+            ...computedStyle,
+            ...validityStyle,
+            outline: isMoveMode ? "2px solid #3b82f6" : undefined,
+            outlineOffset: "2px",
+            transition: "box-shadow 0.15s ease",
+          }}
+          onContextMenu={handleContextMenu}
+        />
+      </HandleTooltip>
 
       {/* Context Menu - rendered via portal to escape React Flow transforms */}
-      {contextMenu && createPortal(
-        <div
-          className="fixed z-[9999] rounded-lg shadow-lg border py-1 min-w-[120px]"
-          style={{
-            left: contextMenu.x,
-            top: contextMenu.y,
-            backgroundColor: theme.colors.nodes.common.container.background,
-            borderColor: theme.colors.nodes.common.container.border
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            className="w-full px-3 py-1.5 text-left text-sm flex items-center gap-2 hover:opacity-80 transition-opacity"
-            style={{ color: theme.colors.nodes.common.text.secondary }}
-            onClick={handleMoveClick}
+      {contextMenu &&
+        createPortal(
+          <div
+            className="fixed z-[9999] rounded-lg shadow-lg border py-1 min-w-[120px]"
+            style={{
+              left: contextMenu.x,
+              top: contextMenu.y,
+              backgroundColor: theme.colors.nodes.common.container.background,
+              borderColor: theme.colors.nodes.common.container.border,
+            }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-            </svg>
-            Move
-          </button>
-        </div>,
-        document.body
-      )}
+            <button
+              className="w-full px-3 py-1.5 text-left text-sm flex items-center gap-2 hover:opacity-80 transition-opacity"
+              style={{ color: theme.colors.nodes.common.text.secondary }}
+              onClick={handleMoveClick}
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+                />
+              </svg>
+              Move
+            </button>
+          </div>,
+          document.body,
+        )}
     </>
   );
 }

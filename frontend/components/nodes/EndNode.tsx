@@ -6,6 +6,7 @@ import NodeContextMenu from "@/components/NodeContextMenu";
 import { Square } from "lucide-react";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import HandleTooltip from "@/components/HandleTooltip";
 import type { HandlePositions, HandleDataType } from "@/lib/types";
 
 export interface EndNodeData extends Record<string, unknown> {
@@ -19,7 +20,10 @@ const EndNode = memo(({ data, id, selected }: NodeProps) => {
   const canvasActions = useCanvasActions();
   const { theme } = useTheme();
 
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -32,8 +36,8 @@ const EndNode = memo(({ data, id, selected }: NodeProps) => {
       nodes.map((node) =>
         node.id === id
           ? { ...node, data: { ...node.data, isNodeLocked: !isNodeLocked } }
-          : node
-      )
+          : node,
+      ),
     );
   }, [id, isNodeLocked, setNodes]);
 
@@ -60,18 +64,20 @@ const EndNode = memo(({ data, id, selected }: NodeProps) => {
         style={{ width: size, height: size }}
       >
         {/* Input handle on left */}
-        <Handle
-          type="target"
-          position={Position.Left}
-          id="input"
-          style={{
-            background: theme.colors.handles.input,
-            border: `2px solid ${theme.colors.handles.border}`,
-            width: 10,
-            height: 10,
-            left: -5,
-          }}
-        />
+        <HandleTooltip label="End" sourceType="any" dataType="any" type="input">
+          <Handle
+            type="target"
+            position={Position.Left}
+            id="input"
+            style={{
+              background: theme.colors.handles.input,
+              border: `2px solid ${theme.colors.handles.border}`,
+              width: 10,
+              height: 10,
+              left: -5,
+            }}
+          />
+        </HandleTooltip>
 
         {/* Octagon shape */}
         <svg
@@ -89,9 +95,7 @@ const EndNode = memo(({ data, id, selected }: NodeProps) => {
         </svg>
 
         {/* Icon overlay */}
-        <div
-          className="absolute inset-0 flex items-center justify-center"
-        >
+        <div className="absolute inset-0 flex items-center justify-center">
           <Square className="w-5 h-5" style={{ color: colors.text }} />
         </div>
       </div>
@@ -119,7 +123,10 @@ export default EndNode;
 export function getDefaultEndData(): EndNodeData {
   return {
     handleTypes: {
-      'input': { acceptedSources: ['*'], acceptedTypes: ['str', 'dict', 'any'] as HandleDataType[] },
+      input: {
+        acceptedSources: ["*"],
+        acceptedTypes: ["str", "dict", "any"] as HandleDataType[],
+      },
     },
   };
 }

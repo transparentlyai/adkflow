@@ -19,6 +19,7 @@ import {
   ArrowDownToLine,
   Zap,
 } from "lucide-react";
+import HandleTooltip from "@/components/HandleTooltip";
 import type { HandlePositions, NodeExecutionState } from "@/lib/types";
 import ValidationIndicator from "@/components/nodes/ValidationIndicator";
 import { renderWidget } from "@/components/nodes/widgets/WidgetRenderer";
@@ -396,24 +397,30 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
               borderColor: theme.colors.nodes.common.container.border,
             }}
           >
-            <Handle
-              type="target"
-              position={Position.Left}
-              id={input.id}
-              style={{
-                position: "absolute",
-                left: -5,
-                top: "50%",
-                transform: "translateY(-50%)",
-                transition: "box-shadow 0.15s ease",
-                width: 10,
-                height: 10,
-                border: `2px solid ${theme.colors.handles.border}`,
-                backgroundColor: handleColor,
-                ...validityStyle,
-              }}
-              title={input.label}
-            />
+            <HandleTooltip
+              label={input.label}
+              sourceType={input.source_type}
+              dataType={input.data_type}
+              type="input"
+            >
+              <Handle
+                type="target"
+                position={Position.Left}
+                id={input.id}
+                style={{
+                  position: "absolute",
+                  left: -5,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  transition: "box-shadow 0.15s ease",
+                  width: 10,
+                  height: 10,
+                  border: `2px solid ${theme.colors.handles.border}`,
+                  backgroundColor: handleColor,
+                  ...validityStyle,
+                }}
+              />
+            </HandleTooltip>
             <Circle
               className="w-3 h-3 flex-shrink-0"
               style={{ color: theme.colors.nodes.common.text.muted }}
@@ -457,24 +464,30 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
           className="relative flex items-center gap-2"
           style={{ paddingLeft: 4 }}
         >
-          <Handle
-            type="target"
-            position={Position.Left}
-            id={input.id}
-            style={{
-              position: "absolute",
-              left: -5,
-              top: "50%",
-              transform: "translateY(-50%)",
-              transition: "box-shadow 0.15s ease",
-              width: 10,
-              height: 10,
-              border: `2px solid ${theme.colors.handles.border}`,
-              backgroundColor: handleColor,
-              ...validityStyle,
-            }}
-            title={input.label}
-          />
+          <HandleTooltip
+            label={input.label}
+            sourceType={input.source_type}
+            dataType={input.data_type}
+            type="input"
+          >
+            <Handle
+              type="target"
+              position={Position.Left}
+              id={input.id}
+              style={{
+                position: "absolute",
+                left: -5,
+                top: "50%",
+                transform: "translateY(-50%)",
+                transition: "box-shadow 0.15s ease",
+                width: 10,
+                height: 10,
+                border: `2px solid ${theme.colors.handles.border}`,
+                backgroundColor: handleColor,
+                ...validityStyle,
+              }}
+            />
+          </HandleTooltip>
           {isConnected ? (
             // When connected, show source name (read-only)
             <div
@@ -832,23 +845,29 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
                 >
                   {output.label}
                 </span>
-                <Handle
-                  type="source"
-                  position={Position.Right}
-                  id={output.id}
-                  style={{
-                    position: "absolute",
-                    right: -5,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    width: 10,
-                    height: 10,
-                    border: `2px solid ${theme.colors.handles.border}`,
-                    backgroundColor:
-                      output.handle_color || theme.colors.handles.output,
-                  }}
-                  title={output.label}
-                />
+                <HandleTooltip
+                  label={output.label}
+                  sourceType={output.source_type}
+                  dataType={output.data_type}
+                  type="output"
+                >
+                  <Handle
+                    type="source"
+                    position={Position.Right}
+                    id={output.id}
+                    style={{
+                      position: "absolute",
+                      right: -5,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      width: 10,
+                      height: 10,
+                      border: `2px solid ${theme.colors.handles.border}`,
+                      backgroundColor:
+                        output.handle_color || theme.colors.handles.output,
+                    }}
+                  />
+                </HandleTooltip>
               </div>
             ))}
           </div>

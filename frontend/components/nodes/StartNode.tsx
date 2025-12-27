@@ -8,6 +8,7 @@ import ValidationIndicator from "@/components/nodes/ValidationIndicator";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 import { useRunWorkflow } from "@/contexts/RunWorkflowContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import HandleTooltip from "@/components/HandleTooltip";
 import type { HandlePositions, HandleDataType } from "@/lib/types";
 
 export interface StartNodeData extends Record<string, unknown> {
@@ -19,13 +20,21 @@ export interface StartNodeData extends Record<string, unknown> {
 }
 
 const StartNode = memo(({ data, id, selected }: NodeProps) => {
-  const { isNodeLocked, hasValidationError, validationErrors, validationWarnings } = data as StartNodeData;
+  const {
+    isNodeLocked,
+    hasValidationError,
+    validationErrors,
+    validationWarnings,
+  } = data as StartNodeData;
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
   const { runWorkflow, isRunning, hasProjectPath } = useRunWorkflow();
   const { theme } = useTheme();
 
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   // Get validation error glow style
   const getValidationStyle = useCallback((): React.CSSProperties => {
@@ -49,8 +58,8 @@ const StartNode = memo(({ data, id, selected }: NodeProps) => {
       nodes.map((node) =>
         node.id === id
           ? { ...node, data: { ...node.data, isNodeLocked: !isNodeLocked } }
-          : node
-      )
+          : node,
+      ),
     );
   }, [id, isNodeLocked, setNodes]);
 
@@ -115,25 +124,35 @@ const StartNode = memo(({ data, id, selected }: NodeProps) => {
           onClick={handlePlayClick}
         >
           {isRunning ? (
-            <Loader2 className="w-6 h-6 animate-spin" style={{ color: colors.text }} />
+            <Loader2
+              className="w-6 h-6 animate-spin"
+              style={{ color: colors.text }}
+            />
           ) : (
             <Play className="w-6 h-6 ml-0.5" style={{ color: colors.text }} />
           )}
         </div>
 
         {/* Output handle on right */}
-        <Handle
-          type="source"
-          position={Position.Right}
-          id="output"
-          style={{
-            background: theme.colors.handles.output,
-            border: `2px solid ${theme.colors.handles.border}`,
-            width: 10,
-            height: 10,
-            right: -5,
-          }}
-        />
+        <HandleTooltip
+          label="Start"
+          sourceType="flow"
+          dataType="trigger"
+          type="output"
+        >
+          <Handle
+            type="source"
+            position={Position.Right}
+            id="output"
+            style={{
+              background: theme.colors.handles.output,
+              border: `2px solid ${theme.colors.handles.border}`,
+              width: 10,
+              height: 10,
+              right: -5,
+            }}
+          />
+        </HandleTooltip>
       </div>
 
       {contextMenu && (
@@ -159,7 +178,7 @@ export default StartNode;
 export function getDefaultStartData(): StartNodeData {
   return {
     handleTypes: {
-      'output': { outputSource: 'start', outputType: 'str' as HandleDataType },
+      output: { outputSource: "start", outputType: "str" as HandleDataType },
     },
   };
 }
