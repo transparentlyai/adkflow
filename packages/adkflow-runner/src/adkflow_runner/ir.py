@@ -199,6 +199,25 @@ class UserInputIR:
 
 
 @dataclass
+class CustomNodeIR:
+    """IR for custom FlowUnit nodes."""
+
+    id: str  # Node ID
+    unit_id: str  # References the FlowUnit class (e.g., "tools.web_search")
+    name: str  # Display name
+    config: dict[str, Any]  # Field values from UI
+    source_node_id: str  # Original ReactFlow node ID
+
+    # Connection info (resolved at transform time)
+    input_connections: dict[str, list[str]] = field(
+        default_factory=dict
+    )  # port_id -> [source_node_ids]
+    output_connections: dict[str, list[str]] = field(
+        default_factory=dict
+    )  # port_id -> [target_node_ids]
+
+
+@dataclass
 class WorkflowIR:
     """Complete intermediate representation for a workflow.
 
@@ -215,6 +234,7 @@ class WorkflowIR:
     output_files: list[OutputFileIR] = field(default_factory=list)
     teleporters: dict[str, TeleporterIR] = field(default_factory=dict)
     user_inputs: list[UserInputIR] = field(default_factory=list)
+    custom_nodes: list[CustomNodeIR] = field(default_factory=list)
     variables: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
 

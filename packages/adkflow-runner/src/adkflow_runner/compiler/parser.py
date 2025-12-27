@@ -208,12 +208,19 @@ class FlowParser:
         """Parse a single node."""
         position = node_data.get("position", {})
         measured = node_data.get("measured")
+        node_type = node_data.get("type", "unknown")
+        data = node_data.get("data", {})
+
+        # Handle custom node types (prefixed with "custom:")
+        if node_type.startswith("custom:"):
+            unit_id = node_type[7:]  # Remove "custom:" prefix
+            data["_unit_id"] = unit_id
 
         return ParsedNode(
             id=node_data["id"],
-            type=node_data.get("type", "unknown"),
+            type=node_type,
             position=(position.get("x", 0), position.get("y", 0)),
-            data=node_data.get("data", {}),
+            data=data,
             parent_id=node_data.get("parentId"),
             extent=node_data.get("extent"),
             style=node_data.get("style", {}),

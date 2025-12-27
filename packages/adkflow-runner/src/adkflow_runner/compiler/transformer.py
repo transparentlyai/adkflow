@@ -13,6 +13,7 @@ from adkflow_runner.ir import (
     AgentIR,
     CallbackConfig,
     CodeExecutorConfig,
+    CustomNodeIR,
     HttpOptionsConfig,
     OutputFileIR,
     PlannerConfig,
@@ -103,6 +104,9 @@ class IRTransformer:
         # Transform user input nodes
         user_inputs = self._transform_user_inputs(graph, all_agents)
 
+        # Transform custom nodes
+        custom_nodes = self._transform_custom_nodes(graph)
+
         # Detect flow control nodes (for topology visualization)
         has_start_node = any(n.type == "start" for n in graph.nodes.values())
         has_end_node = any(n.type == "end" for n in graph.nodes.values())
@@ -113,6 +117,7 @@ class IRTransformer:
             output_files=output_files,
             teleporters=teleporters,
             user_inputs=user_inputs,
+            custom_nodes=custom_nodes,
             has_start_node=has_start_node,
             has_end_node=has_end_node,
             project_path=str(project.path),
@@ -511,3 +516,41 @@ class IRTransformer:
             )
 
         return user_inputs
+
+    def _transform_custom_nodes(self, graph: WorkflowGraph) -> list[CustomNodeIR]:
+        """Transform custom FlowUnit nodes to IR."""
+        custom_nodes: list[CustomNodeIR] = []
+
+        for node in graph.nodes.values():
+            if node.type.startswith("custom:"):
+                unit_id = node.data.get("_unit_id") or node.type[7:]
+
+                # Gather input connections
+                input_connections: dict[str, list[str]] = {}
+                for edge in node.incoming:
+                    target_handle = edge.target_handle or "input"
+                    if target_handle not in input_connections:
+                        input_connections[target_handle] = []
+                    input_connections[target_handle].append(edge.source_id)
+
+                # Gather output connections
+                output_connections: dict[str, list[str]] = {}
+                for edge in node.outgoing:
+                    source_handle = edge.source_handle or "output"
+                    if source_handle not in output_connections:
+                        output_connections[source_handle] = []
+                    output_connections[source_handle].append(edge.target_id)
+
+                custom_nodes.append(
+                    CustomNodeIR(
+                        id=node.id,
+                        unit_id=unit_id,
+                        name=node.name or unit_id,
+                        config=node.data.get("config", {}),
+                        source_node_id=node.id,
+                        input_connections=input_connections,
+                        output_connections=output_connections,
+                    )
+                )
+
+        return custom_nodes
