@@ -9,6 +9,9 @@ from adkflow_runner.extensions import (
     FieldDefinition,
     WidgetType,
     ExecutionContext,
+    # Layout configuration (optional)
+    NodeLayout,
+    CollapsedDisplay,
 )
 
 
@@ -63,6 +66,12 @@ class UppercaseNode(FlowUnit):
             expandable=True,
             default_width=200,
             default_height=100,
+            # Layout configuration (optional - uses STANDARD by default)
+            layout=NodeLayout.STANDARD,
+            # Optional: customize collapsed display
+            collapsed_display=CollapsedDisplay(
+                format="UPPERCASE",  # Static text shown when collapsed
+            ),
         )
 
     async def run_process(
