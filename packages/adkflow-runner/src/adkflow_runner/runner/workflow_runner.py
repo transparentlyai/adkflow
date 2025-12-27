@@ -22,6 +22,8 @@ from adkflow_runner.compiler import Compiler
 from adkflow_runner.ir import WorkflowIR
 from adkflow_runner.runner.agent_factory import AgentFactory
 from adkflow_runner.runner.custom_executor import CustomNodeExecutor
+from adkflow_runner.runner.graph_builder import GraphBuilder
+from adkflow_runner.runner.graph_executor import GraphExecutor
 
 
 class RunStatus(Enum):
@@ -370,6 +372,9 @@ Original error: {error_msg}"""
         emit: Any,
     ) -> str:
         """Execute the compiled workflow."""
+        run_id = str(uuid.uuid4())[:8]
+        session_state: dict[str, Any] = {}
+
         # Track accumulated outputs for variable substitution
         accumulated_outputs: dict[str, str] = {}
 
@@ -384,6 +389,17 @@ Original error: {error_msg}"""
             )
             if user_response is not None:
                 accumulated_outputs[user_input.variable_name] = user_response
+
+        # Execute custom nodes using graph-based execution if any exist
+        custom_node_outputs: dict[str, dict[str, Any]] = {}
+        if ir.custom_nodes:
+            custom_node_outputs = await self._execute_custom_nodes_graph(
+                ir=ir,
+                config=config,
+                emit=emit,
+                session_state=session_state,
+                run_id=run_id,
+            )
 
         factory = AgentFactory(config.project_path)
         root_agent = factory.create_from_workflow(ir, emit=emit)
@@ -411,6 +427,17 @@ Original error: {error_msg}"""
                 f"{name}: {value}" for name, value in accumulated_outputs.items()
             )
             prompt = f"{trigger_context}\n\n{prompt}"
+
+        # If we have custom node outputs, include them as context
+        if custom_node_outputs:
+            custom_context_parts = []
+            for node_id, outputs in custom_node_outputs.items():
+                for port_id, value in outputs.items():
+                    if isinstance(value, str):
+                        custom_context_parts.append(f"[{node_id}.{port_id}]: {value}")
+            if custom_context_parts:
+                custom_context = "\n".join(custom_context_parts)
+                prompt = f"{custom_context}\n\n{prompt}"
 
         content = types.Content(
             role="user",
@@ -561,6 +588,84 @@ Original error: {error_msg}"""
             node_outputs[node_ir.id] = outputs
 
         return node_outputs
+
+    async def _execute_custom_nodes_graph(
+        self,
+        ir: WorkflowIR,
+        config: RunConfig,
+        emit: Any,
+        session_state: dict[str, Any],
+        run_id: str,
+    ) -> dict[str, dict[str, Any]]:
+        """Execute custom nodes using graph-based execution with topological sort.
+
+        This method uses the GraphBuilder and GraphExecutor to execute custom
+        nodes in dependency order, with parallel execution of independent nodes.
+
+        Args:
+            ir: Compiled workflow IR
+            config: Run configuration
+            emit: Event emitter function
+            session_state: Shared state across the run
+            run_id: Current run ID
+
+        Returns:
+            Dict mapping node IDs to their output values
+        """
+        if not ir.custom_nodes:
+            return {}
+
+        # Create emit wrapper that converts graph executor events to RunEvents
+        async def graph_emit(event: dict[str, Any]) -> None:
+            event_type_str = event.get("type", "")
+            event_type_map = {
+                "custom_node_start": EventType.CUSTOM_NODE_START,
+                "custom_node_end": EventType.CUSTOM_NODE_END,
+                "custom_node_error": EventType.CUSTOM_NODE_ERROR,
+                "custom_node_cache_hit": EventType.CUSTOM_NODE_END,  # Treat cache hit as end
+                "layer_start": EventType.AGENT_START,  # Reuse for layer events
+                "layer_end": EventType.AGENT_END,
+            }
+            if event_type_str in event_type_map:
+                await emit(
+                    RunEvent(
+                        type=event_type_map[event_type_str],
+                        timestamp=event.get("timestamp", time.time()),
+                        agent_id=event.get("node_id"),
+                        agent_name=event.get("node_name"),
+                        data={
+                            k: v
+                            for k, v in event.items()
+                            if k not in ("type", "timestamp")
+                        },
+                    )
+                )
+
+        # Build execution graph from IR
+        graph_builder = GraphBuilder()
+        execution_graph = graph_builder.build(ir)
+
+        # Create graph executor
+        cache_dir = self._cache_dir or (config.project_path / ".cache" / "custom_nodes")
+        executor = GraphExecutor(
+            emit=graph_emit,
+            cache_dir=cache_dir,
+            enable_cache=self._enable_cache,
+        )
+
+        # Generate session_id
+        session_id = str(uuid.uuid4())[:8]
+
+        # Execute the graph
+        results = await executor.execute(
+            graph=execution_graph,
+            session_state=session_state,
+            project_path=config.project_path,
+            session_id=session_id,
+            run_id=run_id,
+        )
+
+        return results
 
     async def _handle_user_input(
         self,

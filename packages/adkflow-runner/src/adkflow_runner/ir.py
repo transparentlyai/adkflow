@@ -216,6 +216,11 @@ class CustomNodeIR:
         default_factory=dict
     )  # port_id -> [target_node_ids]
 
+    # Execution control (from FlowUnit class attributes)
+    output_node: bool = False  # Sink node - triggers execution trace
+    always_execute: bool = False  # Skip cache, always run
+    lazy_inputs: list[str] = field(default_factory=list)  # Port IDs marked lazy
+
 
 @dataclass
 class WorkflowIR:

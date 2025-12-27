@@ -50,6 +50,8 @@ class PortDefinition:
     default: Any = None
     placeholder: str | None = None
     options: list[dict[str, str]] | None = None  # For SELECT widget
+    # Execution control
+    lazy: bool = False  # Defer evaluation until check_lazy_status() requests it
 
 
 @dataclass
@@ -151,6 +153,10 @@ class FlowUnit(ABC):
     DESCRIPTION: str = ""
     VERSION: str = "1.0.0"
 
+    # Execution control (ComfyUI-style)
+    OUTPUT_NODE: bool = False  # True = sink node (writes file, sends API, etc.)
+    ALWAYS_EXECUTE: bool = False  # True = skip cache, always run
+
     @classmethod
     @abstractmethod
     def setup_interface(cls) -> UISchema:
@@ -220,5 +226,45 @@ class FlowUnit(ABC):
 
         Returns:
             List of error messages (empty if valid)
+        """
+        return []
+
+    @classmethod
+    def is_changed(cls, config: dict[str, Any], inputs: dict[str, Any]) -> Any:
+        """Control when the node should re-execute.
+
+        Override to implement custom change detection. The return value is
+        compared to the previous run's return value. If different, the node
+        re-executes even if inputs/config hash matches.
+
+        Special values:
+            - Return float('nan') to always execute (NaN != NaN)
+            - Return None to rely solely on input/config hash (default)
+
+        Args:
+            config: Configuration values
+            inputs: Input values from connected ports
+
+        Returns:
+            Any value for comparison with previous run
+        """
+        return None
+
+    @classmethod
+    def check_lazy_status(
+        cls, config: dict[str, Any], available_inputs: dict[str, Any]
+    ) -> list[str]:
+        """Determine which lazy inputs are actually needed.
+
+        Called when some inputs are marked as lazy and haven't been evaluated.
+        Override to implement conditional input evaluation.
+
+        Args:
+            config: Configuration values
+            available_inputs: Dict of inputs where lazy unevaluated inputs are None
+
+        Returns:
+            List of input port IDs that must be evaluated.
+            Return [] if all currently available inputs are sufficient.
         """
         return []

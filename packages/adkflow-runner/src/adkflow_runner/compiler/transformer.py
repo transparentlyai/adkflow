@@ -521,6 +521,14 @@ class IRTransformer:
         """Transform custom FlowUnit nodes to IR."""
         custom_nodes: list[CustomNodeIR] = []
 
+        # Import registry to get FlowUnit class metadata
+        try:
+            from adkflow_runner.extensions import get_registry
+
+            registry = get_registry()
+        except ImportError:
+            registry = None
+
         for node in graph.nodes.values():
             if node.type.startswith("custom:"):
                 unit_id = node.data.get("_unit_id") or node.type[7:]
@@ -541,6 +549,26 @@ class IRTransformer:
                         output_connections[source_handle] = []
                     output_connections[source_handle].append(edge.target_id)
 
+                # Get execution control properties from FlowUnit class
+                output_node = False
+                always_execute = False
+                lazy_inputs: list[str] = []
+
+                if registry:
+                    flow_unit_cls = registry.get_unit(unit_id)
+                    if flow_unit_cls:
+                        output_node = getattr(flow_unit_cls, "OUTPUT_NODE", False)
+                        always_execute = getattr(flow_unit_cls, "ALWAYS_EXECUTE", False)
+
+                        # Find lazy input ports from UI schema
+                        try:
+                            ui_schema = flow_unit_cls.setup_interface()
+                            lazy_inputs = [
+                                port.id for port in ui_schema.inputs if port.lazy
+                            ]
+                        except Exception:
+                            pass
+
                 custom_nodes.append(
                     CustomNodeIR(
                         id=node.id,
@@ -550,6 +578,9 @@ class IRTransformer:
                         source_node_id=node.id,
                         input_connections=input_connections,
                         output_connections=output_connections,
+                        output_node=output_node,
+                        always_execute=always_execute,
+                        lazy_inputs=lazy_inputs,
                     )
                 )
 
