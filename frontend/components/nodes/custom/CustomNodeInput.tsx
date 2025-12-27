@@ -8,6 +8,7 @@ import { useConnection } from "@/contexts/ConnectionContext";
 import { isTypeCompatible } from "@/lib/types";
 import HandleTooltip from "@/components/HandleTooltip";
 import { renderWidget } from "@/components/nodes/widgets/WidgetRenderer";
+import NodeIcon from "@/components/nodes/custom/NodeIcon";
 import type {
   PortDefinition,
   FieldDefinition,
@@ -126,10 +127,18 @@ const CustomNodeInput = memo(
                 }}
               />
             </HandleTooltip>
-            <Circle
-              className="w-3 h-3 flex-shrink-0"
-              style={{ color: theme.colors.nodes.common.text.muted }}
-            />
+            {input.icon ? (
+              <NodeIcon
+                icon={input.icon}
+                className="w-3 h-3"
+                style={{ color: isConnected ? handleColor : theme.colors.nodes.common.text.muted }}
+              />
+            ) : (
+              <Circle
+                className="w-3 h-3 flex-shrink-0"
+                style={{ color: theme.colors.nodes.common.text.muted }}
+              />
+            )}
             <span
               className={`text-xs truncate ${isConnected ? "" : "italic"}`}
               style={{
@@ -203,10 +212,18 @@ const CustomNodeInput = memo(
                 opacity: 0.7,
               }}
             >
-              <Circle
-                className="w-3 h-3 flex-shrink-0"
-                style={{ color: theme.colors.ui.primary }}
-              />
+              {input.icon ? (
+                <NodeIcon
+                  icon={input.icon}
+                  className="w-3 h-3"
+                  style={{ color: handleColor }}
+                />
+              ) : (
+                <Circle
+                  className="w-3 h-3 flex-shrink-0"
+                  style={{ color: theme.colors.ui.primary }}
+                />
+              )}
               <span
                 className="text-xs truncate"
                 style={{ color: theme.colors.nodes.common.text.primary }}

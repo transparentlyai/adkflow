@@ -3,6 +3,7 @@
 import { memo } from "react";
 import { ChevronDown, ChevronUp, ArrowDownToLine, Zap } from "lucide-react";
 import type { CustomNodeSchema } from "@/components/nodes/CustomNode";
+import NodeIcon from "@/components/nodes/custom/NodeIcon";
 
 export interface CustomNodeHeaderProps {
   name: string;
@@ -68,6 +69,8 @@ const CustomNodeHeader = memo(
               <Zap className="w-2.5 h-2.5 text-white" />
             </div>
           )}
+          {/* Node type icon */}
+          <NodeIcon icon={schema.ui.icon} className="w-3 h-3" />
           {isEditing ? (
             <input
               ref={inputRef}

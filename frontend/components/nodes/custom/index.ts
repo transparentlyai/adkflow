@@ -7,6 +7,10 @@ export {
 } from "@/components/nodes/custom/hooks/useCustomNodeHandleTypes";
 export { useConnectedInputs } from "@/components/nodes/custom/hooks/useConnectedInputs";
 export {
+  useConnectedHandleNames,
+  useConnectedHandleName,
+} from "@/components/nodes/custom/hooks/useConnectedHandleNames";
+export {
   useCustomNodeName,
   type UseCustomNodeNameOptions,
   type UseCustomNodeNameResult,
@@ -33,3 +37,8 @@ export {
   default as CustomNodeExpanded,
   type CustomNodeExpandedProps,
 } from "@/components/nodes/custom/CustomNodeExpanded";
+export {
+  default as NodeIcon,
+  type NodeIconProps,
+  hasIcon,
+} from "@/components/nodes/custom/NodeIcon";
