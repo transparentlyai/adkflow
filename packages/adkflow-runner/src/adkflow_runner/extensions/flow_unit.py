@@ -1,0 +1,207 @@
+"""FlowUnit base class for custom ADKFlow nodes."""
+
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
+from typing import Any, Protocol
+import hashlib
+
+
+class WidgetType(str, Enum):
+    """Available widget types for custom node UI."""
+
+    TEXT_INPUT = "text_input"
+    TEXT_AREA = "text_area"
+    NUMBER_INPUT = "number_input"
+    SELECT = "select"
+    CHECKBOX = "checkbox"
+    SLIDER = "slider"
+    FILE_PICKER = "file_picker"
+    CODE_EDITOR = "code_editor"
+    JSON_TREE = "json_tree"
+    CHAT_LOG = "chat_log"
+
+
+@dataclass
+class PortDefinition:
+    """Defines an input or output port on a node."""
+
+    id: str
+    label: str
+    source_type: str  # e.g., 'prompt', 'agent', 'custom_mynode'
+    data_type: str  # Python type: 'str', 'dict', 'list', 'callable'
+    # For inputs only - if None, uses source_type/data_type as single accepted
+    accepted_sources: list[str] | None = None
+    accepted_types: list[str] | None = None
+    required: bool = True
+    multiple: bool = False  # Allow multiple connections
+
+
+@dataclass
+class FieldDefinition:
+    """Defines a configuration field in the node's UI."""
+
+    id: str
+    label: str
+    widget: WidgetType
+    default: Any = None
+    options: list[dict[str, str]] | None = (
+        None  # For SELECT: [{"value": "x", "label": "X"}]
+    )
+    min_value: float | None = None
+    max_value: float | None = None
+    step: float | None = None
+    placeholder: str | None = None
+    help_text: str | None = None
+    # Conditional visibility
+    show_if: dict[str, Any] | None = None  # e.g., {"field_id": "value"}
+
+
+@dataclass
+class UISchema:
+    """Complete UI schema for a custom node."""
+
+    inputs: list[PortDefinition] = field(default_factory=list)
+    outputs: list[PortDefinition] = field(default_factory=list)
+    fields: list[FieldDefinition] = field(default_factory=list)
+    # Appearance
+    color: str = "#6366f1"  # Header color (hex)
+    icon: str | None = None  # Lucide icon name
+    expandable: bool = True
+    default_width: int = 250
+    default_height: int = 150
+
+
+class EmitFn(Protocol):
+    """Protocol for event emission function."""
+
+    async def __call__(self, event: Any) -> None: ...
+
+
+@dataclass
+class ExecutionContext:
+    """Context passed to FlowUnit during execution."""
+
+    session_id: str
+    run_id: str
+    node_id: str
+    node_name: str
+    state: dict[str, Any]  # Shared state across nodes in this run
+    emit: EmitFn  # Emit events for real-time updates
+    project_path: Path
+
+    def get_state(self, key: str, default: Any = None) -> Any:
+        """Get a value from shared state."""
+        return self.state.get(key, default)
+
+    def set_state(self, key: str, value: Any) -> None:
+        """Set a value in shared state."""
+        self.state[key] = value
+
+
+class FlowUnit(ABC):
+    """Base class for custom ADKFlow nodes.
+
+    Subclass this to create custom nodes that integrate with
+    the ADKFlow visual editor and execution pipeline.
+
+    Example:
+        class MyNode(FlowUnit):
+            UNIT_ID = "my_category.my_node"
+            UI_LABEL = "My Node"
+            MENU_LOCATION = "Custom/My Category"
+
+            @classmethod
+            def setup_interface(cls) -> UISchema:
+                return UISchema(
+                    inputs=[PortDefinition(id="input", label="Input", source_type="*", data_type="str")],
+                    outputs=[PortDefinition(id="output", label="Output", source_type="my_node", data_type="str")],
+                    fields=[FieldDefinition(id="prefix", label="Prefix", widget=WidgetType.TEXT_INPUT)],
+                )
+
+            async def run_process(self, inputs, config, context):
+                prefix = config.get("prefix", "")
+                return {"output": prefix + inputs.get("input", "")}
+    """
+
+    # Required class attributes - must be defined by subclass
+    UNIT_ID: str  # Unique identifier: "category.node_name"
+    UI_LABEL: str  # Display name in UI
+    MENU_LOCATION: str  # Category path: "Custom/My Category"
+
+    # Optional class attributes
+    DESCRIPTION: str = ""
+    VERSION: str = "1.0.0"
+
+    @classmethod
+    @abstractmethod
+    def setup_interface(cls) -> UISchema:
+        """Define the node's UI schema.
+
+        Returns:
+            UISchema defining inputs, outputs, and config fields
+        """
+        pass
+
+    @abstractmethod
+    async def run_process(
+        self,
+        inputs: dict[str, Any],
+        config: dict[str, Any],
+        context: ExecutionContext,
+    ) -> dict[str, Any]:
+        """Execute the node's logic.
+
+        Args:
+            inputs: Values from connected input ports, keyed by port ID
+            config: Values from configuration fields, keyed by field ID
+            context: Execution context with session state, emit, etc.
+
+        Returns:
+            Dict mapping output port IDs to their values
+        """
+        pass
+
+    # Optional lifecycle hooks
+    async def on_before_execute(self, context: ExecutionContext) -> None:
+        """Called before run_process. Override for setup logic."""
+        pass
+
+    async def on_after_execute(
+        self, context: ExecutionContext, outputs: dict[str, Any]
+    ) -> None:
+        """Called after run_process completes. Override for cleanup logic."""
+        pass
+
+    @classmethod
+    def compute_state_hash(cls, inputs: dict[str, Any], config: dict[str, Any]) -> str:
+        """Compute a hash of inputs and config for caching.
+
+        Override this method for custom caching behavior.
+        Return the same hash for inputs/config that should use cached results.
+
+        Args:
+            inputs: Input values
+            config: Configuration values
+
+        Returns:
+            Hash string for cache lookup
+        """
+        # Default implementation: hash the string representation
+        data = str((sorted(inputs.items()), sorted(config.items())))
+        return hashlib.sha256(data.encode()).hexdigest()
+
+    @classmethod
+    def validate_config(cls, config: dict[str, Any]) -> list[str]:
+        """Validate configuration values.
+
+        Override to add custom validation logic.
+
+        Args:
+            config: Configuration values to validate
+
+        Returns:
+            List of error messages (empty if valid)
+        """
+        return []

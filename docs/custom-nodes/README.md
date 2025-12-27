@@ -1,0 +1,698 @@
+# ADKFlow Custom Nodes
+
+Create custom nodes to extend ADKFlow with your own functionality. Custom nodes integrate seamlessly with the visual editor and execution pipeline.
+
+## Quick Links
+
+- [Extension Locations](#extension-locations)
+- [Getting Started](#getting-started)
+- [FlowUnit API Reference](#flowunit-api-reference)
+- [UI Schema Reference](#ui-schema-reference)
+- [Widget Types](#widget-types)
+- [Type System](#type-system)
+- [Execution Context](#execution-context)
+- [Best Practices](#best-practices)
+- [Examples](./examples/)
+
+---
+
+## Extension Locations
+
+ADKFlow supports **two locations** for custom nodes:
+
+| Location | Path | Scope | Description |
+|----------|------|-------|-------------|
+| **Global** | `~/.adkflow/adkflow_extensions/` | All projects | Shared utilities, company-wide tools |
+| **Project** | `{project}/adkflow_extensions/` | Single project | Project-specific integrations |
+
+### Directory Structure
+
+```
+~/.adkflow/
+└── adkflow_extensions/
+    ├── __init__.py
+    ├── shared_utils.py          # Available in all projects
+    └── company_integrations.py  # Team-wide tools
+
+~/projects/my-project/
+├── adkflow_extensions/
+│   ├── __init__.py
+│   └── project_nodes.py         # Only for this project
+├── prompts/
+├── tools/
+└── pages/
+```
+
+### Precedence Rules
+
+1. **Project-level takes precedence**: If the same `UNIT_ID` exists in both locations, the project version is used
+2. **Global loaded at startup**: Global extensions are loaded when the server starts
+3. **Project loaded on-demand**: Project extensions are loaded when you open a project
+4. **Hot-reload both**: File changes in either location trigger automatic reload
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/extensions/nodes` | GET | List all nodes (global + project) |
+| `/api/extensions/reload?scope=all` | POST | Reload all extensions |
+| `/api/extensions/reload?scope=global` | POST | Reload only global extensions |
+| `/api/extensions/reload?scope=project` | POST | Reload only project extensions |
+| `/api/extensions/init-project` | POST | Initialize project extensions |
+| `/api/extensions/project` | DELETE | Clear project extensions |
+
+### Scope Information
+
+Each node schema includes a `scope` field indicating its origin:
+
+```json
+{
+    "unit_id": "tools.web_search",
+    "label": "Web Search",
+    "scope": "global",
+    "source_file": "~/.adkflow/adkflow_extensions/web_tools.py"
+}
+```
+
+---
+
+## Getting Started
+
+### 1. Choose Your Extension Location
+
+**For project-specific nodes:**
+Create `adkflow_extensions/` in your project root:
+
+```
+your-project/
+├── adkflow_extensions/
+│   └── my_extension/
+│       ├── __init__.py
+│       └── nodes.py
+├── prompts/
+├── tools/
+└── pages/
+```
+
+**For shared/global nodes:**
+Create `~/.adkflow/adkflow_extensions/`:
+
+```bash
+mkdir -p ~/.adkflow/adkflow_extensions/my_extension
+touch ~/.adkflow/adkflow_extensions/my_extension/__init__.py
+```
+
+### 2. Create an Extension Package
+
+Each extension is a **directory** (Python package) with an `__init__.py`:
+
+```
+adkflow_extensions/
+└── hello_world/
+    ├── __init__.py    # Entry point - exports FlowUnit classes
+    └── nodes.py       # Node definitions
+```
+
+**`nodes.py`** - Define your node:
+
+```python
+# adkflow_extensions/hello_world/nodes.py
+
+from adkflow_runner.extensions import (
+    FlowUnit,
+    UISchema,
+    PortDefinition,
+    FieldDefinition,
+    WidgetType,
+    ExecutionContext,
+)
+
+class HelloWorldNode(FlowUnit):
+    """A simple node that greets the user."""
+
+    # Required: Unique identifier (category.name format)
+    UNIT_ID = "examples.hello_world"
+
+    # Required: Display name in the UI
+    UI_LABEL = "Hello World"
+
+    # Required: Menu path for the node palette
+    MENU_LOCATION = "Examples/Basic"
+
+    # Optional: Description shown in tooltips
+    DESCRIPTION = "Outputs a greeting message"
+
+    # Optional: Version string
+    VERSION = "1.0.0"
+
+    @classmethod
+    def setup_interface(cls) -> UISchema:
+        """Define the node's inputs, outputs, and configuration fields."""
+        return UISchema(
+            inputs=[
+                PortDefinition(
+                    id="name",
+                    label="Name",
+                    source_type="*",      # Accept from any source
+                    data_type="str",      # Expect string data
+                    accepted_sources=["*"],
+                    accepted_types=["str"],
+                ),
+            ],
+            outputs=[
+                PortDefinition(
+                    id="greeting",
+                    label="Greeting",
+                    source_type="hello_world",  # This node's source type
+                    data_type="str",
+                ),
+            ],
+            fields=[
+                FieldDefinition(
+                    id="prefix",
+                    label="Greeting Prefix",
+                    widget=WidgetType.TEXT_INPUT,
+                    default="Hello",
+                    placeholder="e.g., Hello, Hi, Hey",
+                ),
+            ],
+            color="#3b82f6",  # Blue header
+        )
+
+    async def run_process(
+        self,
+        inputs: dict[str, Any],
+        config: dict[str, Any],
+        context: ExecutionContext,
+    ) -> dict[str, Any]:
+        """Execute the node's logic."""
+        name = inputs.get("name", "World")
+        prefix = config.get("prefix", "Hello")
+
+        greeting = f"{prefix}, {name}!"
+
+        return {"greeting": greeting}
+```
+
+**`__init__.py`** - Export your node classes:
+
+```python
+# adkflow_extensions/hello_world/__init__.py
+
+from hello_world.nodes import HelloWorldNode
+
+__all__ = ["HelloWorldNode"]
+```
+
+The `__init__.py` must export the FlowUnit classes you want to register. Only classes exported here will be discovered.
+
+### 3. Reload Extensions
+
+After creating your node, reload extensions in ADKFlow:
+
+```bash
+# Reload all extensions (global + project)
+curl -X POST http://localhost:8000/api/extensions/reload
+
+# Reload only project extensions
+curl -X POST http://localhost:8000/api/extensions/reload?scope=project
+
+# Reload only global extensions
+curl -X POST http://localhost:8000/api/extensions/reload?scope=global
+```
+
+Or simply restart the backend server.
+
+Your node will appear in the "Examples/Basic" menu.
+
+---
+
+## FlowUnit API Reference
+
+### Required Class Attributes
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `UNIT_ID` | `str` | Unique identifier in `category.name` format |
+| `UI_LABEL` | `str` | Display name shown in the UI |
+| `MENU_LOCATION` | `str` | Menu path using `/` as separator |
+
+### Optional Class Attributes
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `DESCRIPTION` | `str` | `""` | Tooltip description |
+| `VERSION` | `str` | `"1.0.0"` | Version string |
+
+### Required Methods
+
+#### `setup_interface() -> UISchema`
+
+Define the node's visual interface. Called once when the node type is registered.
+
+```python
+@classmethod
+def setup_interface(cls) -> UISchema:
+    return UISchema(
+        inputs=[...],
+        outputs=[...],
+        fields=[...],
+        color="#hex",
+        icon="IconName",
+    )
+```
+
+#### `run_process(inputs, config, context) -> dict`
+
+Execute the node's logic. Called during workflow execution.
+
+```python
+async def run_process(
+    self,
+    inputs: dict[str, Any],    # Values from connected input ports
+    config: dict[str, Any],    # Values from configuration fields
+    context: ExecutionContext, # Execution context
+) -> dict[str, Any]:           # Output values keyed by port ID
+    # Your logic here
+    return {"output_port_id": result}
+```
+
+### Optional Lifecycle Hooks
+
+```python
+async def on_before_execute(self, context: ExecutionContext) -> None:
+    """Called before run_process. Use for setup/initialization."""
+    pass
+
+async def on_after_execute(
+    self,
+    context: ExecutionContext,
+    outputs: dict[str, Any]
+) -> None:
+    """Called after run_process. Use for cleanup."""
+    pass
+
+@classmethod
+def compute_state_hash(cls, inputs: dict, config: dict) -> str:
+    """Compute hash for caching. Override for custom cache keys."""
+    # Default: hash of inputs + config
+    pass
+
+@classmethod
+def validate_config(cls, config: dict[str, Any]) -> list[str]:
+    """Validate configuration. Return list of error messages."""
+    return []
+```
+
+---
+
+## UI Schema Reference
+
+### UISchema
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `inputs` | `list[PortDefinition]` | `[]` | Input port definitions |
+| `outputs` | `list[PortDefinition]` | `[]` | Output port definitions |
+| `fields` | `list[FieldDefinition]` | `[]` | Configuration field definitions |
+| `color` | `str` | `"#6366f1"` | Header background color (hex) |
+| `icon` | `str \| None` | `None` | Lucide icon name |
+| `expandable` | `bool` | `True` | Allow expand/collapse |
+| `default_width` | `int` | `250` | Default width in pixels |
+| `default_height` | `int` | `150` | Default height in pixels |
+
+### PortDefinition
+
+Defines an input or output connection point.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `str` | Yes | Unique port identifier |
+| `label` | `str` | Yes | Display label |
+| `source_type` | `str` | Yes | Semantic source type (e.g., `"agent"`, `"prompt"`, `"*"`) |
+| `data_type` | `str` | Yes | Python data type (e.g., `"str"`, `"dict"`, `"list"`) |
+| `accepted_sources` | `list[str] \| None` | No | For inputs: accepted source types (`["*"]` = any) |
+| `accepted_types` | `list[str] \| None` | No | For inputs: accepted data types (`["*"]` = any) |
+| `required` | `bool` | No | Whether connection is required (default: `True`) |
+| `multiple` | `bool` | No | Allow multiple connections (default: `False`) |
+
+**Example:**
+
+```python
+# Input that accepts strings from any source
+PortDefinition(
+    id="query",
+    label="Search Query",
+    source_type="*",
+    data_type="str",
+    accepted_sources=["*"],
+    accepted_types=["str"],
+)
+
+# Input that only accepts agent outputs
+PortDefinition(
+    id="agent_response",
+    label="Agent Response",
+    source_type="agent",
+    data_type="dict",
+    accepted_sources=["agent"],
+    accepted_types=["dict"],
+)
+
+# Output
+PortDefinition(
+    id="result",
+    label="Result",
+    source_type="my_node",  # Your node's source type
+    data_type="str",
+)
+```
+
+### FieldDefinition
+
+Defines a configuration field in the node's expanded view.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `str` | Yes | Unique field identifier |
+| `label` | `str` | Yes | Display label |
+| `widget` | `WidgetType` | Yes | Widget type to render |
+| `default` | `Any` | No | Default value |
+| `options` | `list[dict]` | No | For SELECT: `[{"value": "x", "label": "X"}]` |
+| `min_value` | `float` | No | For NUMBER/SLIDER: minimum value |
+| `max_value` | `float` | No | For NUMBER/SLIDER: maximum value |
+| `step` | `float` | No | For NUMBER/SLIDER: step increment |
+| `placeholder` | `str` | No | Placeholder text |
+| `help_text` | `str` | No | Help text below the field |
+| `show_if` | `dict` | No | Conditional visibility: `{"field_id": "value"}` |
+
+---
+
+## Widget Types
+
+Available widget types for configuration fields:
+
+| Widget | WidgetType | Description | Config Options |
+|--------|-----------|-------------|----------------|
+| Text Input | `TEXT_INPUT` | Single-line text | `placeholder` |
+| Text Area | `TEXT_AREA` | Multi-line text | `placeholder` |
+| Number | `NUMBER_INPUT` | Numeric input | `min_value`, `max_value`, `step` |
+| Select | `SELECT` | Dropdown select | `options` (required) |
+| Checkbox | `CHECKBOX` | Boolean toggle | - |
+| Slider | `SLIDER` | Range slider | `min_value`, `max_value`, `step` |
+| File Picker | `FILE_PICKER` | File selection | - |
+| Code Editor | `CODE_EDITOR` | Monaco code editor | - |
+| JSON Tree | `JSON_TREE` | Collapsible JSON viewer | - |
+| Chat Log | `CHAT_LOG` | Message history display | - |
+
+### Widget Examples
+
+```python
+# Text input
+FieldDefinition(
+    id="api_key",
+    label="API Key",
+    widget=WidgetType.TEXT_INPUT,
+    placeholder="Enter your API key",
+)
+
+# Select dropdown
+FieldDefinition(
+    id="model",
+    label="Model",
+    widget=WidgetType.SELECT,
+    default="gpt-4",
+    options=[
+        {"value": "gpt-4", "label": "GPT-4"},
+        {"value": "gpt-3.5-turbo", "label": "GPT-3.5 Turbo"},
+        {"value": "claude-3", "label": "Claude 3"},
+    ],
+)
+
+# Slider with range
+FieldDefinition(
+    id="temperature",
+    label="Temperature",
+    widget=WidgetType.SLIDER,
+    default=0.7,
+    min_value=0.0,
+    max_value=2.0,
+    step=0.1,
+    help_text="Higher values = more creative",
+)
+
+# Conditional field (only shown when format == "custom")
+FieldDefinition(
+    id="custom_format",
+    label="Custom Format",
+    widget=WidgetType.TEXT_INPUT,
+    show_if={"format": "custom"},
+)
+```
+
+---
+
+## Type System
+
+ADKFlow uses a `source:type` format for connection validation.
+
+### Source Types
+
+The semantic origin of data:
+- `prompt` - From a Prompt node
+- `context` - From a Context node
+- `agent` - From an Agent node
+- `tool` - From a Tool node
+- `variable` - From a Variable node
+- `user_input` - From a User Input node
+- `*` - Wildcard (accepts any source)
+- `your_node_name` - Custom source type for your nodes
+
+### Data Types
+
+Python types:
+- `str` - String
+- `int` - Integer
+- `float` - Float
+- `bool` - Boolean
+- `list` - List/Array
+- `dict` - Dictionary/Object
+- `callable` - Function/Tool
+- `any` - Any type (wildcard)
+
+### Connection Validation
+
+A connection is valid when:
+1. Output's `source_type` ∈ Input's `accepted_sources`
+2. Output's `data_type` ∈ Input's `accepted_types`
+
+```python
+# This output...
+PortDefinition(
+    id="result",
+    source_type="my_node",
+    data_type="str",
+)
+
+# ...can connect to this input:
+PortDefinition(
+    id="text",
+    accepted_sources=["my_node", "prompt"],  # Includes "my_node"
+    accepted_types=["str"],                   # Includes "str"
+)
+```
+
+---
+
+## Execution Context
+
+The `ExecutionContext` provides runtime information and utilities.
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `session_id` | `str` | Current session ID |
+| `run_id` | `str` | Current run ID |
+| `node_id` | `str` | This node's ID |
+| `node_name` | `str` | This node's name |
+| `state` | `dict` | Shared state across nodes |
+| `project_path` | `Path` | Project directory path |
+| `emit` | `Callable` | Emit events for real-time updates |
+
+### Methods
+
+```python
+# Get shared state
+value = context.get_state("my_key", default=None)
+
+# Set shared state (available to downstream nodes)
+context.set_state("my_key", value)
+
+# Emit progress event
+await context.emit({
+    "type": "progress",
+    "message": "Processing step 1...",
+    "percent": 25,
+})
+```
+
+### Example: Using Shared State
+
+```python
+class ProducerNode(FlowUnit):
+    async def run_process(self, inputs, config, context):
+        # Store data for other nodes
+        context.set_state("api_response", {"data": "..."})
+        return {"status": "done"}
+
+class ConsumerNode(FlowUnit):
+    async def run_process(self, inputs, config, context):
+        # Retrieve data from earlier nodes
+        response = context.get_state("api_response", {})
+        return {"result": response.get("data")}
+```
+
+---
+
+## Best Practices
+
+### 1. Naming Conventions
+
+```python
+# UNIT_ID: lowercase with dots
+UNIT_ID = "category.node_name"  # ✓
+UNIT_ID = "Category.NodeName"   # ✗
+
+# MENU_LOCATION: Title case with slashes
+MENU_LOCATION = "My Tools/Data Processing"  # ✓
+```
+
+### 2. Error Handling
+
+```python
+async def run_process(self, inputs, config, context):
+    try:
+        result = await self.do_work(inputs)
+        return {"output": result}
+    except ValueError as e:
+        # Return error information
+        return {"output": None, "error": str(e)}
+    except Exception as e:
+        # Log and re-raise for critical errors
+        await context.emit({"type": "error", "message": str(e)})
+        raise
+```
+
+### 3. Progress Updates
+
+```python
+async def run_process(self, inputs, config, context):
+    items = inputs.get("items", [])
+    results = []
+
+    for i, item in enumerate(items):
+        # Emit progress
+        await context.emit({
+            "type": "progress",
+            "message": f"Processing {i+1}/{len(items)}",
+            "percent": (i + 1) / len(items) * 100,
+        })
+
+        results.append(await self.process_item(item))
+
+    return {"results": results}
+```
+
+### 4. Caching Expensive Operations
+
+```python
+class LLMNode(FlowUnit):
+    @classmethod
+    def compute_state_hash(cls, inputs: dict, config: dict) -> str:
+        """Cache based on prompt + model + temperature."""
+        import hashlib
+        cache_key = f"{inputs.get('prompt')}:{config.get('model')}:{config.get('temperature')}"
+        return hashlib.sha256(cache_key.encode()).hexdigest()
+
+    async def run_process(self, inputs, config, context):
+        # This will be cached if inputs+config hash matches
+        response = await call_llm(inputs["prompt"], config)
+        return {"response": response}
+```
+
+### 5. Type Validation
+
+```python
+@classmethod
+def validate_config(cls, config: dict) -> list[str]:
+    """Validate configuration before execution."""
+    errors = []
+
+    if not config.get("api_key"):
+        errors.append("API key is required")
+
+    temp = config.get("temperature", 0.7)
+    if not 0 <= temp <= 2:
+        errors.append("Temperature must be between 0 and 2")
+
+    return errors
+```
+
+### 6. Resource Cleanup
+
+```python
+class DatabaseNode(FlowUnit):
+    async def on_before_execute(self, context):
+        """Initialize database connection."""
+        self.connection = await create_connection()
+
+    async def run_process(self, inputs, config, context):
+        result = await self.connection.query(inputs["sql"])
+        return {"result": result}
+
+    async def on_after_execute(self, context, outputs):
+        """Close database connection."""
+        if hasattr(self, 'connection'):
+            await self.connection.close()
+```
+
+---
+
+## Troubleshooting
+
+### Node Not Appearing
+
+1. Check for Python syntax errors: `python -m py_compile your_file.py`
+2. Verify `UNIT_ID`, `UI_LABEL`, and `MENU_LOCATION` are defined
+3. Reload extensions: `POST /api/extensions/reload`
+4. Check backend logs for import errors
+5. Verify the file is in the correct location:
+   - Global: `~/.adkflow/adkflow_extensions/`
+   - Project: `{project_path}/adkflow_extensions/`
+
+### Node Scope Issues
+
+1. Check the `scope` field in the API response to see where a node is loaded from
+2. If a project node should override a global node, ensure the `UNIT_ID` matches exactly
+3. When switching projects, call `DELETE /api/extensions/project` to clear old project nodes
+
+### Connection Not Allowed
+
+1. Verify `source_type` matches `accepted_sources`
+2. Verify `data_type` matches `accepted_types`
+3. Use `"*"` for wildcard matching
+
+### Execution Errors
+
+1. Check that `run_process` returns a dict
+2. Ensure output keys match port IDs
+3. Handle missing inputs gracefully
+
+---
+
+## Next Steps
+
+- See [Examples](./examples/) for complete working nodes
+- Check the [Simple Example](./examples/simple_uppercase.py) to get started
+- See the [Complex Example](./examples/advanced_api_client.py) for advanced patterns
