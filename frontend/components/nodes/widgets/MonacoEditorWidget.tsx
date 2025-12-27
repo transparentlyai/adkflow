@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -40,7 +40,7 @@ export default function MonacoEditorWidget({
     (newValue: string | undefined) => {
       onChange(newValue ?? "");
     },
-    [onChange]
+    [onChange],
   );
 
   const handleEditorMount = useCallback(
@@ -49,24 +49,13 @@ export default function MonacoEditorWidget({
 
       // Register Ctrl+S / Cmd+S keyboard shortcut for save
       if (onSave) {
-        editor.addCommand(
-          monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
-          () => onSave()
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () =>
+          onSave(),
         );
       }
     },
-    [onSave]
+    [onSave],
   );
-
-  // Update Ctrl+S command when onSave changes
-  useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor || !onSave) return;
-
-    // The command is already registered on mount, but if onSave changes
-    // we need to handle it. Monaco doesn't easily support updating commands,
-    // so we rely on the closure capturing the latest onSave.
-  }, [onSave]);
 
   const computedHeight = typeof height === "number" ? `${height}px` : height;
 
