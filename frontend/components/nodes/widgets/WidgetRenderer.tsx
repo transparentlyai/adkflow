@@ -9,6 +9,8 @@ import CheckboxWidget from "@/components/nodes/widgets/CheckboxWidget";
 import SliderWidget from "@/components/nodes/widgets/SliderWidget";
 import JsonTreeWidget from "@/components/nodes/widgets/JsonTreeWidget";
 import ChatLogWidget from "@/components/nodes/widgets/ChatLogWidget";
+import RadioGroupWidget from "@/components/nodes/widgets/RadioGroupWidget";
+import FilePickerWidget from "@/components/nodes/widgets/FilePickerWidget";
 
 /**
  * Widget type identifiers for form field rendering.
@@ -28,7 +30,11 @@ export type WidgetType =
   | "file_picker"
   | "code_editor"
   | "json_tree"
-  | "chat_log";
+  | "chat_log"
+  | "radio_group"
+  | "monaco_editor"
+  | "file_display"
+  | "variable_display";
 
 /**
  * Option for select widgets.
@@ -89,9 +95,13 @@ const WIDGET_MAP: Record<string, React.ComponentType<WidgetProps>> = {
   slider: SliderWidget,
   json_tree: JsonTreeWidget,
   chat_log: ChatLogWidget,
-  // Rich widgets to be added later:
-  // file_picker: FilePickerWidget,
-  // code_editor: CodeEditorWidget,
+  radio_group: RadioGroupWidget,
+  file_picker: FilePickerWidget,
+  // Note: monaco_editor, file_display, and variable_display require special props
+  // and should be rendered directly using their components:
+  // - MonacoEditorWidget: import from "@/components/nodes/widgets/MonacoEditorWidget"
+  // - FileDisplayWidget: import from "@/components/nodes/widgets/FileDisplayWidget"
+  // - VariableDisplayWidget: import from "@/components/nodes/widgets/VariableDisplayWidget"
 };
 
 /**
