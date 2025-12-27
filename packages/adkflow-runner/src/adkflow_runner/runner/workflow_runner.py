@@ -21,6 +21,7 @@ from google.genai import types
 from adkflow_runner.compiler import Compiler
 from adkflow_runner.ir import WorkflowIR
 from adkflow_runner.runner.agent_factory import AgentFactory
+from adkflow_runner.runner.custom_executor import CustomNodeExecutor
 
 
 class RunStatus(Enum):
@@ -50,6 +51,11 @@ class EventType(Enum):
     USER_INPUT_REQUIRED = "user_input_required"
     USER_INPUT_RECEIVED = "user_input_received"
     USER_INPUT_TIMEOUT = "user_input_timeout"
+
+    # Custom node events
+    CUSTOM_NODE_START = "custom_node_start"
+    CUSTOM_NODE_END = "custom_node_end"
+    CUSTOM_NODE_ERROR = "custom_node_error"
 
 
 @dataclass
@@ -189,9 +195,11 @@ class WorkflowRunner:
         ))
     """
 
-    def __init__(self):
+    def __init__(self, enable_cache: bool = True, cache_dir: Path | None = None):
         self.compiler = Compiler()
         self._active_runs: dict[str, asyncio.Task] = {}
+        self._enable_cache = enable_cache
+        self._cache_dir = cache_dir
 
     async def run(self, config: RunConfig) -> RunResult:
         """Run a workflow.
@@ -470,6 +478,89 @@ Original error: {error_msg}"""
         await self._write_output_files(ir, output, config.project_path, emit)
 
         return output
+
+    async def _execute_custom_nodes(
+        self,
+        ir: WorkflowIR,
+        config: RunConfig,
+        emit: Any,
+        session_state: dict[str, Any],
+        run_id: str,
+        session_id: str,
+    ) -> dict[str, dict[str, Any]]:
+        """Execute all custom nodes in the workflow.
+
+        Args:
+            ir: Compiled workflow IR
+            config: Run configuration
+            emit: Event emitter function
+            session_state: Shared state across the run
+            run_id: Current run ID
+            session_id: Current session ID
+
+        Returns:
+            Dict mapping node IDs to their output values
+        """
+        if not ir.custom_nodes:
+            return {}
+
+        # Create emit wrapper that converts custom executor events to RunEvents
+        async def custom_emit(event: dict[str, Any]) -> None:
+            event_type_str = event.get("type", "")
+            event_type_map = {
+                "custom_node_start": EventType.CUSTOM_NODE_START,
+                "custom_node_end": EventType.CUSTOM_NODE_END,
+                "custom_node_error": EventType.CUSTOM_NODE_ERROR,
+            }
+            if event_type_str in event_type_map:
+                await emit(
+                    RunEvent(
+                        type=event_type_map[event_type_str],
+                        timestamp=event.get("timestamp", time.time()),
+                        agent_id=event.get("node_id"),
+                        agent_name=event.get("node_name"),
+                        data=event.get("data", {}),
+                    )
+                )
+
+        # Create executor with cache settings
+        cache_dir = self._cache_dir or (config.project_path / ".cache" / "custom_nodes")
+        executor = CustomNodeExecutor(
+            emit=custom_emit,
+            enable_cache=self._enable_cache,
+            cache_dir=cache_dir,
+        )
+
+        # Build node outputs map
+        node_outputs: dict[str, dict[str, Any]] = {}
+
+        # Execute custom nodes (currently in sequence - could be optimized later)
+        for node_ir in ir.custom_nodes:
+            # Gather inputs from connected nodes
+            inputs: dict[str, Any] = {}
+            for port_id, source_ids in node_ir.input_connections.items():
+                # For now, take the first connected source's output
+                for source_id in source_ids:
+                    if source_id in node_outputs:
+                        # Get the output value from source node
+                        source_outputs = node_outputs[source_id]
+                        # Use the first output port value as input
+                        if source_outputs:
+                            inputs[port_id] = next(iter(source_outputs.values()))
+
+            # Execute the node
+            outputs = await executor.execute(
+                node_ir=node_ir,
+                inputs=inputs,
+                session_state=session_state,
+                project_path=config.project_path,
+                session_id=session_id,
+                run_id=run_id,
+            )
+
+            node_outputs[node_ir.id] = outputs
+
+        return node_outputs
 
     async def _handle_user_input(
         self,

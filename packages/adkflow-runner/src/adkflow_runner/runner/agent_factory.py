@@ -326,9 +326,9 @@ class AgentFactory:
 
                         tools.append(google_search)
                     elif tool == "code_execution":
-                        from google.adk.tools import built_in_code_execution
+                        from google.genai.types import ToolCodeExecution
 
-                        tools.append(built_in_code_execution)
+                        tools.append(ToolCodeExecution())
                     # Add more built-in tools as needed
                 else:
                     tools.append(tool)
