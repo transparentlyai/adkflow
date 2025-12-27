@@ -65,7 +65,7 @@ interface ToolNodeExpandedProps {
 
   // Handlers
   toggleExpand: () => void;
-  handleNameDoubleClick: (e: React.MouseEvent) => void;
+  handleNameClick: (e: React.MouseEvent) => void;
   handleHeaderContextMenu: (e: React.MouseEvent) => void;
   handleToggleNodeLock: () => void;
   handleDetach: () => void;
@@ -112,7 +112,7 @@ export default function ToolNodeExpanded({
   canvasActions,
   isSaving,
   toggleExpand,
-  handleNameDoubleClick,
+  handleNameClick,
   handleHeaderContextMenu,
   handleToggleNodeLock,
   handleDetach,
@@ -222,8 +222,8 @@ export default function ToolNodeExpanded({
               />
             ) : (
               <span
-                className="font-medium text-xs truncate hover:opacity-80"
-                onDoubleClick={handleNameDoubleClick}
+                className="font-medium text-xs truncate hover:opacity-80 cursor-pointer"
+                onClick={handleNameClick}
               >
                 {name}
               </span>

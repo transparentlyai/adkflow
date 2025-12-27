@@ -42,7 +42,7 @@ interface ToolNodeCollapsedProps {
 
   // Handlers
   toggleExpand: () => void;
-  handleNameDoubleClick: (e: React.MouseEvent) => void;
+  handleNameClick: (e: React.MouseEvent) => void;
   handleHeaderContextMenu: (e: React.MouseEvent) => void;
   handleToggleNodeLock: () => void;
   handleDetach: () => void;
@@ -72,7 +72,7 @@ export default function ToolNodeCollapsed({
   parentId,
   canvasActions,
   toggleExpand,
-  handleNameDoubleClick,
+  handleNameClick,
   handleHeaderContextMenu,
   handleToggleNodeLock,
   handleDetach,
@@ -165,8 +165,8 @@ export default function ToolNodeCollapsed({
             />
           ) : (
             <span
-              className="font-medium text-xs truncate hover:opacity-80"
-              onDoubleClick={handleNameDoubleClick}
+              className="font-medium text-xs truncate hover:opacity-80 cursor-pointer"
+              onClick={handleNameClick}
             >
               {name}
             </span>

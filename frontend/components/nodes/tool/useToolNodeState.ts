@@ -140,7 +140,7 @@ export function useToolNodeState({
     setIsExpanded(!isExpanded);
   }, [id, isExpanded, setNodes, setIsExpanded]);
 
-  const handleNameDoubleClick = useCallback(
+  const handleNameClick = useCallback(
     (e: React.MouseEvent) => {
       if (isNodeLocked) return;
       e.stopPropagation();
@@ -326,7 +326,7 @@ export function useToolNodeState({
     handleCut,
     handlePaste,
     toggleExpand,
-    handleNameDoubleClick,
+    handleNameClick,
     handleHeaderContextMenu,
     handleToggleNodeLock,
     handleDetach,
