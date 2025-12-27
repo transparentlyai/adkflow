@@ -4,6 +4,7 @@ Components:
 - WorkflowRunner: Main execution engine
 - AgentFactory: Creates ADK agents from IR
 - ToolLoader: Loads tools dynamically from Python files
+- CustomNodeExecutor: Executes custom FlowUnit nodes
 """
 
 from adkflow_runner.runner.workflow_runner import (
@@ -17,6 +18,7 @@ from adkflow_runner.runner.workflow_runner import (
     UserInputProvider,
 )
 from adkflow_runner.runner.agent_factory import AgentFactory
+from adkflow_runner.runner.custom_executor import CustomNodeExecutor
 from adkflow_runner.runner.tool_loader import ToolLoader
 
 __all__ = [
@@ -29,5 +31,6 @@ __all__ = [
     "UserInputRequest",
     "UserInputProvider",
     "AgentFactory",
+    "CustomNodeExecutor",
     "ToolLoader",
 ]

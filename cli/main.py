@@ -78,7 +78,9 @@ def load_env():
         load_dotenv(env_file)
 
 
-def start_backend_server(project_root: Path, port: int, dev_mode: bool = False) -> subprocess.Popen:
+def start_backend_server(
+    project_root: Path, port: int, dev_mode: bool = False
+) -> subprocess.Popen:
     """Start the backend server."""
     env = os.environ.copy()
     env["PYTHONPATH"] = str(project_root)

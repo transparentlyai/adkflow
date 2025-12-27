@@ -27,6 +27,9 @@ class EdgeSemantics(Enum):
     # Cross-tab
     TELEPORT = "teleport"  # Cross-tab connection via named teleporter
 
+    # Custom nodes
+    CUSTOM = "custom"  # Custom node connections
+
     # Unknown/ignored
     UNKNOWN = "unknown"
 
