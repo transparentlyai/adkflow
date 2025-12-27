@@ -10,6 +10,16 @@ import CustomNodeOutput from "@/components/nodes/custom/CustomNodeOutput";
 import MonacoEditorWidget from "@/components/nodes/widgets/MonacoEditorWidget";
 import ResizeHandle from "@/components/ResizeHandle";
 import { renderWidget } from "@/components/nodes/widgets/WidgetRenderer";
+import {
+  getExecutionStyle,
+  getDuplicateNameStyle,
+} from "@/components/nodes/custom/layouts/collapsedLayoutUtils";
+import {
+  groupBySection,
+  hasCodeEditorWidget,
+  getCodeEditorField,
+  extractTabsInOrder,
+} from "@/components/nodes/custom/expandedNodeUtils";
 import type {
   CustomNodeSchema,
   CustomNodeData,
@@ -54,109 +64,6 @@ export interface CustomNodeExpandedProps {
   selected?: boolean;
   // Optional: resize handler for resizable nodes
   onResize?: (deltaWidth: number, deltaHeight: number) => void;
-}
-
-/**
- * Group elements by their section property.
- */
-function groupBySection<T extends { section?: string }>(
-  items: T[],
-): Map<string | null, T[]> {
-  const groups = new Map<string | null, T[]>();
-  items.forEach((item) => {
-    const key = item.section || null;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(item);
-  });
-  return groups;
-}
-
-/**
- * Check if schema has a code_editor widget field
- */
-function hasCodeEditorWidget(schema: CustomNodeSchema): boolean {
-  return schema.ui.fields.some((field) => field.widget === "code_editor");
-}
-
-/**
- * Get the code_editor field from schema if it exists
- */
-function getCodeEditorField(schema: CustomNodeSchema): FieldDefinition | null {
-  return (
-    schema.ui.fields.find((field) => field.widget === "code_editor") || null
-  );
-}
-
-/**
- * Get execution style based on execution state
- */
-function getExecutionStyle(executionState?: string): React.CSSProperties {
-  switch (executionState) {
-    case "running":
-      return {
-        boxShadow: `0 0 0 2px rgba(59, 130, 246, 0.8), 0 0 20px 4px rgba(59, 130, 246, 0.4)`,
-        animation: "custom-node-execution-pulse 1.5s ease-in-out infinite",
-      };
-    case "completed":
-      return {
-        boxShadow: `0 0 0 2px rgba(34, 197, 94, 0.8), 0 0 10px 2px rgba(34, 197, 94, 0.3)`,
-        transition: "box-shadow 0.3s ease-out",
-      };
-    case "error":
-      return {
-        boxShadow: `0 0 0 2px rgba(239, 68, 68, 0.8), 0 0 15px 3px rgba(239, 68, 68, 0.4)`,
-      };
-    default:
-      return {};
-  }
-}
-
-/**
- * Get duplicate name error style (static red glow, no animation)
- */
-function getDuplicateNameStyle(
-  duplicateNameError?: string,
-): React.CSSProperties {
-  if (duplicateNameError) {
-    return {
-      boxShadow: `0 0 0 2px #ef4444`,
-    };
-  }
-  return {};
-}
-
-/**
- * Extract unique tabs from schema in definition order
- */
-function extractTabsInOrder(schema: CustomNodeSchema): string[] {
-  const tabs: string[] = [];
-  const seen = new Set<string>();
-
-  // Process inputs first
-  for (const input of schema.ui.inputs) {
-    if (input.tab && !seen.has(input.tab)) {
-      seen.add(input.tab);
-      tabs.push(input.tab);
-    }
-  }
-
-  // Process fields next
-  for (const field of schema.ui.fields) {
-    if (field.tab && !seen.has(field.tab)) {
-      seen.add(field.tab);
-      tabs.push(field.tab);
-    }
-  }
-
-  // Process outputs last
-  for (const output of schema.ui.outputs) {
-    if (output.tab && !seen.has(output.tab)) {
-      seen.add(output.tab);
-      tabs.push(output.tab);
-    }
-  }
-
-  return tabs;
 }
 
 /**
