@@ -304,6 +304,11 @@ body {
   background: transparent !important;
 }
 
+/* Make all handles square instead of circular */
+.react-flow__handle {
+  border-radius: 2px !important;
+}
+
 /* Monaco Editor - theme-aware styling */
 .monaco-editor .margin {
   background-color: var(--node-footer-bg) !important;

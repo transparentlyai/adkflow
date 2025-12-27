@@ -360,10 +360,11 @@ function HomeContent() {
     const filePath = `prompts/${sanitizedName}.prompt.md`;
 
     if (canvasRef.current) {
-      canvasRef.current.addPromptNode({
+      // Use schema-driven node creation with config overrides
+      canvasRef.current.addBuiltinSchemaNode("prompt", pendingPromptPosition, {
         name: promptName,
         file_path: filePath,
-      }, pendingPromptPosition);
+      });
     }
 
     setIsPromptNameDialogOpen(false);
@@ -384,10 +385,11 @@ function HomeContent() {
     const name = fileName.replace(/\.prompt\.md$/, "").replace(/\.md$/, "");
 
     if (canvasRef.current) {
-      canvasRef.current.addPromptNode({
+      // Use schema-driven node creation with config overrides
+      canvasRef.current.addBuiltinSchemaNode("prompt", pendingPromptPosition, {
         name: name,
         file_path: filePath,
-      }, pendingPromptPosition);
+      });
     }
 
     setIsPromptNameDialogOpen(false);
@@ -408,10 +410,11 @@ function HomeContent() {
     const filePath = `static/${sanitizedName}.context.md`;
 
     if (canvasRef.current) {
-      canvasRef.current.addContextNode({
+      // Use schema-driven node creation with config overrides
+      canvasRef.current.addBuiltinSchemaNode("context", pendingContextPosition, {
         name: contextName,
         file_path: filePath,
-      }, pendingContextPosition);
+      });
     }
 
     setIsContextNameDialogOpen(false);
@@ -431,10 +434,11 @@ function HomeContent() {
     const name = fileName.replace(/\.context\.md$/, "").replace(/\.md$/, "");
 
     if (canvasRef.current) {
-      canvasRef.current.addContextNode({
+      // Use schema-driven node creation with config overrides
+      canvasRef.current.addBuiltinSchemaNode("context", pendingContextPosition, {
         name: name,
         file_path: filePath,
-      }, pendingContextPosition);
+      });
     }
 
     setIsContextNameDialogOpen(false);
@@ -455,10 +459,11 @@ function HomeContent() {
     const filePath = `tools/${sanitizedName}.py`;
 
     if (canvasRef.current) {
-      canvasRef.current.addToolNode({
+      // Use schema-driven node creation with config overrides
+      canvasRef.current.addBuiltinSchemaNode("tool", pendingToolPosition, {
         name: toolName,
         file_path: filePath,
-      }, pendingToolPosition);
+      });
     }
 
     setIsToolNameDialogOpen(false);
@@ -478,10 +483,11 @@ function HomeContent() {
     const name = fileName.replace(/\.py$/, "");
 
     if (canvasRef.current) {
-      canvasRef.current.addToolNode({
+      // Use schema-driven node creation with config overrides
+      canvasRef.current.addBuiltinSchemaNode("tool", pendingToolPosition, {
         name: name,
         file_path: filePath,
-      }, pendingToolPosition);
+      });
     }
 
     setIsToolNameDialogOpen(false);
@@ -502,10 +508,11 @@ function HomeContent() {
     const filePath = `tools/${sanitizedName}.py`;
 
     if (canvasRef.current) {
-      canvasRef.current.addProcessNode({
+      // Use schema-driven node creation with config overrides
+      canvasRef.current.addBuiltinSchemaNode("process", pendingProcessPosition, {
         name: processName,
         file_path: filePath,
-      }, pendingProcessPosition);
+      });
     }
 
     setIsProcessNameDialogOpen(false);
@@ -525,10 +532,11 @@ function HomeContent() {
     const name = fileName.replace(/\.py$/, "");
 
     if (canvasRef.current) {
-      canvasRef.current.addProcessNode({
+      // Use schema-driven node creation with config overrides
+      canvasRef.current.addBuiltinSchemaNode("process", pendingProcessPosition, {
         name: name,
         file_path: filePath,
-      }, pendingProcessPosition);
+      });
     }
 
     setIsProcessNameDialogOpen(false);
@@ -549,10 +557,11 @@ function HomeContent() {
     const filePath = `outputs/${sanitizedName}.txt`;
 
     if (canvasRef.current) {
-      canvasRef.current.addOutputFileNode({
+      // Use schema-driven node creation with config overrides
+      canvasRef.current.addBuiltinSchemaNode("outputFile", pendingOutputFilePosition, {
         name: outputFileName,
         file_path: filePath,
-      }, pendingOutputFilePosition);
+      });
     }
 
     setIsOutputFileNameDialogOpen(false);
@@ -573,10 +582,11 @@ function HomeContent() {
     const name = fileName.replace(/\.[^/.]+$/, "");
 
     if (canvasRef.current) {
-      canvasRef.current.addOutputFileNode({
+      // Use schema-driven node creation with config overrides
+      canvasRef.current.addBuiltinSchemaNode("outputFile", pendingOutputFilePosition, {
         name: name,
         file_path: filePath,
-      }, pendingOutputFilePosition);
+      });
     }
 
     setIsOutputFileNameDialogOpen(false);
