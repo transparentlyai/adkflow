@@ -402,12 +402,16 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
     );
   };
 
-  // Render section with header
-  const renderSection = (sectionName: string | null, content: React.ReactNode) => (
-    <div key={sectionName || 'default'}>
+  // Render section with header and separator
+  const renderSection = (sectionName: string | null, content: React.ReactNode, isFirst: boolean = false) => (
+    <div
+      key={sectionName || 'default'}
+      className={isFirst ? '' : 'mt-3 pt-3 border-t'}
+      style={isFirst ? undefined : { borderColor: theme.colors.nodes.common.container.border }}
+    >
       {sectionName && (
         <div
-          className="text-xs font-semibold uppercase tracking-wide mt-2 mb-1 pl-1 border-l-2"
+          className="text-xs font-semibold uppercase tracking-wide mb-1.5 pl-1 border-l-2"
           style={{
             color: theme.colors.nodes.common.text.muted,
             borderColor: theme.colors.ui.primary,
@@ -428,16 +432,19 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
     const inputSections = groupBySection(elements.inputs);
     const fieldSections = groupBySection(elements.fields);
 
+    // Track section index across both inputs and fields
+    let sectionIndex = 0;
+
     return (
       <>
         {/* Inputs grouped by section */}
         {Array.from(inputSections.entries()).map(([section, inputs]) =>
-          renderSection(section, inputs.map(renderInput))
+          renderSection(section, inputs.map(renderInput), sectionIndex++ === 0)
         )}
 
         {/* Fields grouped by section */}
         {Array.from(fieldSections.entries()).map(([section, fields]) =>
-          renderSection(section, fields.map(renderField))
+          renderSection(section, fields.map(renderField), sectionIndex++ === 0)
         )}
 
         {elements.inputs.length === 0 && elements.fields.length === 0 && (

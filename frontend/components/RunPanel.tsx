@@ -326,7 +326,7 @@ export default function RunPanel({
             {
               id: `error-${Date.now()}`,
               type: "run_error",
-              content: statusResponse.error,
+              content: statusResponse.error ?? "Unknown error",
               timestamp: Date.now(),
             },
           ]);
