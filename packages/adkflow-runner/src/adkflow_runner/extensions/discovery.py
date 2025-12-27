@@ -358,6 +358,7 @@ class ExtensionRegistry:
                 "default": port.default,
                 "placeholder": port.placeholder,
                 "options": port.options,
+                "lazy": port.lazy,
             }
 
         def field_to_dict(field):
@@ -387,6 +388,9 @@ class ExtensionRegistry:
             "version": getattr(unit_cls, "VERSION", "1.0.0"),
             "scope": scope.value,  # Include scope in schema
             "source_file": str(file_path),
+            # Execution control properties
+            "output_node": getattr(unit_cls, "OUTPUT_NODE", False),
+            "always_execute": getattr(unit_cls, "ALWAYS_EXECUTE", False),
             "ui": {
                 "inputs": [port_to_dict(p) for p in ui_schema.inputs],
                 "outputs": [port_to_dict(p) for p in ui_schema.outputs],

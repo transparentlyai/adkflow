@@ -1,6 +1,7 @@
 """ADKFlow Extension System for Custom Nodes."""
 
 from adkflow_runner.extensions.flow_unit import (
+    EmitFn,
     FlowUnit,
     UISchema,
     PortDefinition,
@@ -21,6 +22,7 @@ from adkflow_runner.extensions.discovery import (
 
 __all__ = [
     # FlowUnit base classes and types
+    "EmitFn",
     "FlowUnit",
     "UISchema",
     "PortDefinition",

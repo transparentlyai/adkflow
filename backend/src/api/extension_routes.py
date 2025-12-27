@@ -44,6 +44,7 @@ class PortSchema(BaseModel):
     default: Any = None
     placeholder: str | None = None
     options: list[dict[str, str]] | None = None
+    lazy: bool = False  # Defer evaluation until check_lazy_status() requests it
 
 
 class FieldSchema(BaseModel):
@@ -81,6 +82,9 @@ class NodeSchemaResponse(BaseModel):
     version: str
     scope: Literal["global", "project"] = "project"
     source_file: str | None = None
+    # Execution control properties
+    output_node: bool = False  # True = sink node (triggers execution trace)
+    always_execute: bool = False  # True = skip cache, always run
     ui: UISchemaResponse
 
 
