@@ -348,6 +348,16 @@ class ExtensionRegistry:
                 "accepted_types": port.accepted_types,
                 "required": port.required,
                 "multiple": port.multiple,
+                "tab": port.tab,
+                "section": port.section,
+                "handle_color": port.handle_color,
+                "connection_only": port.connection_only,
+                "widget": port.widget.value
+                if port.widget and hasattr(port.widget, "value")
+                else port.widget,
+                "default": port.default,
+                "placeholder": port.placeholder,
+                "options": port.options,
             }
 
         def field_to_dict(field):
@@ -365,6 +375,8 @@ class ExtensionRegistry:
                 "placeholder": field.placeholder,
                 "help_text": field.help_text,
                 "show_if": field.show_if,
+                "tab": field.tab,
+                "section": field.section,
             }
 
         return {

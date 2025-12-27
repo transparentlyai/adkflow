@@ -9,6 +9,8 @@ Create custom nodes to extend ADKFlow with your own functionality. Custom nodes 
 - [FlowUnit API Reference](#flowunit-api-reference)
 - [UI Schema Reference](#ui-schema-reference)
 - [Widget Types](#widget-types)
+- [UI Organization](#ui-organization) (tabs & sections)
+- [Visual Customization](#visual-customization) (handle colors, manual input)
 - [Type System](#type-system)
 - [Execution Context](#execution-context)
 - [Best Practices](#best-practices)
@@ -335,6 +337,14 @@ Defines an input or output connection point.
 | `accepted_types` | `list[str] \| None` | No | For inputs: accepted data types (`["*"]` = any) |
 | `required` | `bool` | No | Whether connection is required (default: `True`) |
 | `multiple` | `bool` | No | Allow multiple connections (default: `False`) |
+| `tab` | `str \| None` | No | Tab name for UI organization (e.g., `"General"`, `"Advanced"`) |
+| `section` | `str \| None` | No | Section within tab (e.g., `"Authentication"`) |
+| `handle_color` | `str \| None` | No | Custom handle color (hex, e.g., `"#ff6b6b"`) |
+| `connection_only` | `bool` | No | For inputs: `True` = only accepts connections (default), `False` = allows manual input |
+| `widget` | `WidgetType \| None` | No | For inputs with `connection_only=False`: widget for manual input |
+| `default` | `Any` | No | For inputs with `connection_only=False`: default value |
+| `placeholder` | `str \| None` | No | For inputs with `connection_only=False`: placeholder text |
+| `options` | `list[dict] \| None` | No | For inputs with `connection_only=False` and SELECT widget |
 
 **Example:**
 
@@ -385,6 +395,8 @@ Defines a configuration field in the node's expanded view.
 | `placeholder` | `str` | No | Placeholder text |
 | `help_text` | `str` | No | Help text below the field |
 | `show_if` | `dict` | No | Conditional visibility: `{"field_id": "value"}` |
+| `tab` | `str \| None` | No | Tab name for UI organization (e.g., `"General"`, `"Advanced"`) |
+| `section` | `str \| None` | No | Section within tab (e.g., `"Retry"`) |
 
 ---
 
@@ -449,6 +461,188 @@ FieldDefinition(
     show_if={"format": "custom"},
 )
 ```
+
+---
+
+## UI Organization
+
+Use `tab` and `section` properties to organize complex nodes into a tabbed interface with logical groupings.
+
+### Tabs
+
+Add the `tab` property to inputs, outputs, or fields to group them into tabs:
+
+```python
+FieldDefinition(
+    id="timeout",
+    label="Timeout",
+    widget=WidgetType.NUMBER_INPUT,
+    tab="Advanced",  # Shows in "Advanced" tab
+)
+
+PortDefinition(
+    id="headers",
+    label="Headers",
+    source_type="*",
+    data_type="dict",
+    tab="Advanced",  # Input port in "Advanced" tab
+)
+```
+
+**Behavior:**
+- If **any** element has a `tab` property, the node displays a tabbed interface
+- Elements **without** a `tab` property appear in a default "General" tab
+- Tabs are ordered by first occurrence, with "General" always first if it exists
+- Outputs typically don't need tabs - they appear in a footer section below the tabs
+
+### Sections
+
+Use `section` to create visual groupings within a tab:
+
+```python
+# Both fields appear in the "Retry" section under "Advanced" tab
+FieldDefinition(
+    id="max_retries",
+    label="Max Retries",
+    widget=WidgetType.SLIDER,
+    tab="Advanced",
+    section="Retry",
+)
+
+FieldDefinition(
+    id="retry_delay",
+    label="Retry Delay",
+    widget=WidgetType.SLIDER,
+    tab="Advanced",
+    section="Retry",
+)
+```
+
+Sections display a header with a left border accent. Section order follows the order elements are defined in the schema.
+
+### Complete Example
+
+See the [API Client example](./examples/api_client/nodes.py) for a complete implementation with tabs and sections:
+
+```python
+UISchema(
+    inputs=[
+        PortDefinition(id="url", ..., tab="General"),
+        PortDefinition(id="body", ..., tab="General"),
+        PortDefinition(id="headers", ..., tab="Advanced", section="Headers"),
+    ],
+    fields=[
+        # General tab - Request section
+        FieldDefinition(id="method", ..., tab="General", section="Request"),
+        FieldDefinition(id="content_type", ..., tab="General", section="Request"),
+        FieldDefinition(id="response_type", ..., tab="General", section="Response"),
+
+        # Auth tab - conditional fields by auth type
+        FieldDefinition(id="auth_type", ..., tab="Auth"),
+        FieldDefinition(id="api_key", ..., tab="Auth", section="API Key", show_if={"auth_type": "api_key"}),
+        FieldDefinition(id="bearer_token", ..., tab="Auth", section="Bearer Token", show_if={"auth_type": "bearer"}),
+
+        # Advanced tab - multiple sections
+        FieldDefinition(id="timeout", ..., tab="Advanced", section="Timeouts"),
+        FieldDefinition(id="max_retries", ..., tab="Advanced", section="Retry"),
+        FieldDefinition(id="enable_cache", ..., tab="Advanced", section="Options"),
+    ],
+    outputs=[...],  # Outputs appear in footer, no tab needed
+)
+```
+
+### Backward Compatibility
+
+- Nodes without any `tab` properties render with the original flat layout
+- Existing extensions continue to work without modification
+- `show_if` conditional visibility works within tabs - hidden fields don't appear
+
+---
+
+## Visual Customization
+
+### Handle Colors
+
+Use `handle_color` to visually distinguish different port types:
+
+```python
+# Color-coded outputs for different data types
+PortDefinition(
+    id="response",
+    label="Response",
+    source_type="api_client",
+    data_type="dict",
+    handle_color="#22c55e",  # Green for success data
+)
+
+PortDefinition(
+    id="error",
+    label="Error",
+    source_type="api_client",
+    data_type="str",
+    handle_color="#ef4444",  # Red for error output
+)
+
+# Color-coded input
+PortDefinition(
+    id="headers",
+    label="Headers",
+    source_type="*",
+    data_type="dict",
+    handle_color="#8b5cf6",  # Purple for headers
+)
+```
+
+Common color conventions:
+- `#22c55e` (green) - Success/data outputs
+- `#ef4444` (red) - Error outputs
+- `#3b82f6` (blue) - Status/metadata
+- `#8b5cf6` (purple) - Configuration/headers
+- `#f59e0b` (amber) - Warnings
+
+### Manual Input for Ports
+
+By default, input ports only accept connections. Use `connection_only=False` to allow users to manually enter values when no connection is made:
+
+```python
+# URL input: can be typed manually OR connected
+PortDefinition(
+    id="url",
+    label="URL",
+    source_type="*",
+    data_type="str",
+    connection_only=False,  # Allow manual input
+    widget=WidgetType.TEXT_INPUT,
+    placeholder="https://api.example.com/endpoint",
+)
+
+# Body input: can be edited as JSON OR connected
+PortDefinition(
+    id="body",
+    label="Body",
+    source_type="*",
+    data_type="dict",
+    connection_only=False,
+    widget=WidgetType.TEXT_AREA,
+    default="{}",
+    placeholder='{"key": "value"}',
+)
+
+# Connection-only input (default behavior)
+PortDefinition(
+    id="params",
+    label="Query Params",
+    source_type="*",
+    data_type="dict",
+    # connection_only=True is the default
+)
+```
+
+**Behavior:**
+- `connection_only=True` (default): Only accepts connections, shows "None" when disconnected
+- `connection_only=False`: Shows an editable widget when disconnected, disabled when connected
+- When connected, the input shows the connected source name and the widget is hidden
+- When disconnected, the editable widget reappears with its last value
 
 ---
 

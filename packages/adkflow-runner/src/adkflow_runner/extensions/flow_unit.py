@@ -36,6 +36,20 @@ class PortDefinition:
     accepted_types: list[str] | None = None
     required: bool = True
     multiple: bool = False  # Allow multiple connections
+    # UI organization
+    tab: str | None = None  # Tab name (e.g., "General", "Advanced")
+    section: str | None = None  # Section within tab (e.g., "Authentication")
+    # Visual customization
+    handle_color: str | None = None  # Custom handle color (hex, e.g., "#ff6b6b")
+    # For inputs only - manual input behavior
+    # When True: only accepts connections (no manual input)
+    # When False: shows editable field, disabled when connected
+    connection_only: bool = True
+    # Widget configuration for manual input (when connection_only=False)
+    widget: "WidgetType | None" = None  # Defaults to TEXT_INPUT if not specified
+    default: Any = None
+    placeholder: str | None = None
+    options: list[dict[str, str]] | None = None  # For SELECT widget
 
 
 @dataclass
@@ -56,6 +70,9 @@ class FieldDefinition:
     help_text: str | None = None
     # Conditional visibility
     show_if: dict[str, Any] | None = None  # e.g., {"field_id": "value"}
+    # UI organization
+    tab: str | None = None  # Tab name (e.g., "General", "Advanced")
+    section: str | None = None  # Section within tab (e.g., "Retry")
 
 
 @dataclass

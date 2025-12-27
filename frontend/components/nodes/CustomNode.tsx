@@ -21,6 +21,17 @@ export interface PortDefinition {
   accepted_types?: string[];
   required: boolean;
   multiple: boolean;
+  tab?: string;
+  section?: string;
+  handle_color?: string;
+  // When true: only accepts connections (no manual input)
+  // When false: shows editable field, disabled when connected
+  connection_only?: boolean;
+  // Widget configuration for manual input (when connection_only=false)
+  widget?: string;
+  default?: unknown;
+  placeholder?: string;
+  options?: { value: string; label: string }[];
 }
 
 export interface FieldDefinition {
@@ -35,6 +46,8 @@ export interface FieldDefinition {
   placeholder?: string;
   help_text?: string;
   show_if?: Record<string, unknown>;
+  tab?: string;
+  section?: string;
 }
 
 export interface CustomNodeSchema {
@@ -73,19 +86,38 @@ export interface CustomNodeData {
   validationWarnings?: string[];
 }
 
-const CustomNode = memo(({ data, id, selected }: NodeProps) => {
+const CustomNode = memo(({ data, id }: NodeProps) => {
   const nodeData = data as unknown as CustomNodeData;
-  const { schema, config = {}, handlePositions, isExpanded: dataIsExpanded, isNodeLocked, executionState, validationErrors, validationWarnings } = nodeData;
+  const { schema, config = {}, handlePositions, isExpanded: dataIsExpanded, isNodeLocked, validationErrors, validationWarnings } = nodeData;
   const { setNodes } = useReactFlow();
   const { theme } = useTheme();
   const { connectionState } = useConnection();
   const [isExpanded, setIsExpanded] = useState(dataIsExpanded ?? false);
 
+  // Compute tabs from schema
+  const tabs = useMemo(() => {
+    const tabSet = new Set<string>();
+    schema.ui.inputs.forEach(i => i.tab && tabSet.add(i.tab));
+    schema.ui.fields.forEach(f => f.tab && tabSet.add(f.tab));
+    schema.ui.outputs.forEach(o => o.tab && tabSet.add(o.tab));
+
+    if (tabSet.size === 0) return null;
+
+    const sorted = Array.from(tabSet);
+    const generalIdx = sorted.indexOf("General");
+    if (generalIdx > 0) {
+      sorted.splice(generalIdx, 1);
+      sorted.unshift("General");
+    }
+    return sorted;
+  }, [schema]);
+
+  const [activeTab, setActiveTab] = useState<string>(tabs?.[0] || "General");
+
   // Build handle types from schema
   const handleTypes = useMemo(() => {
     const types: Record<string, { outputSource?: string; outputType?: string; acceptedSources?: string[]; acceptedTypes?: string[] }> = {};
 
-    // Add unified input handle type that accepts all input types
     const allAcceptedSources = new Set<string>();
     const allAcceptedTypes = new Set<string>();
     schema.ui.inputs.forEach(input => {
@@ -120,7 +152,6 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
           if (edge.target === id && (edge.targetHandle === input.id || edge.targetHandle === 'input')) {
             const sourceNode = state.nodes.find(n => n.id === edge.source);
             if (sourceNode) {
-              // Try to get a meaningful name from the source node
               const sourceData = sourceNode.data as Record<string, unknown>;
               const name = (sourceData?.agent as { name?: string })?.name
                 || (sourceData?.prompt as { name?: string })?.name
@@ -137,7 +168,6 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
     }, [id, schema.ui.inputs])
   );
 
-  // Compute validity style for a target handle based on connection state
   const getHandleValidityStyle = useCallback((acceptedSources?: string[], acceptedTypes?: string[]): React.CSSProperties => {
     if (!connectionState.isDragging || !acceptedSources || !acceptedTypes) {
       return {};
@@ -175,22 +205,254 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
     setIsExpanded(newExpanded);
   }, [id, isExpanded, setNodes]);
 
-  // Check if field should be visible based on show_if
   const isFieldVisible = useCallback((field: FieldDefinition) => {
     if (!field.show_if) return true;
     return Object.entries(field.show_if).every(([key, value]) => config[key] === value);
   }, [config]);
 
+  // Group elements by section
+  const groupBySection = <T extends { section?: string }>(items: T[]): Map<string | null, T[]> => {
+    const groups = new Map<string | null, T[]>();
+    items.forEach(item => {
+      const key = item.section || null;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(item);
+    });
+    return groups;
+  };
+
+  // Get elements for a specific tab
+  const getElementsForTab = useCallback((tab: string | null) => {
+    const tabFilter = <T extends { tab?: string }>(el: T) =>
+      tab === null ? !el.tab : el.tab === tab;
+
+    return {
+      inputs: schema.ui.inputs.filter(tabFilter),
+      fields: schema.ui.fields.filter(isFieldVisible).filter(tabFilter),
+      outputs: schema.ui.outputs.filter(tabFilter),
+    };
+  }, [schema, isFieldVisible]);
+
   const headerColor = schema.ui.color || theme.colors.nodes.agent.header;
   const handleStyle = { width: 10, height: 10, border: `2px solid ${theme.colors.handles.border}` };
-  const inputHandleStyle = useMemo(() => ({
-    width: 10,
-    height: 10,
-    border: `2px solid ${theme.colors.handles.border}`,
-    backgroundColor: theme.colors.handles.input,
-  }), [theme.colors.handles.border, theme.colors.handles.input]);
 
-  // Collapsed view - single unified handle
+  // Render input port with handle
+  const renderInput = (input: PortDefinition) => {
+    const isConnected = !!connectedInputs[input.id];
+    const validityStyle = getHandleValidityStyle(
+      handleTypes[input.id]?.acceptedSources,
+      handleTypes[input.id]?.acceptedTypes
+    );
+    const handleColor = input.handle_color || theme.colors.handles.input;
+    const connectionOnly = input.connection_only !== false; // Default to true
+
+    // Connection-only input (no manual editing)
+    if (connectionOnly) {
+      return (
+        <div key={input.id} className="space-y-1">
+          <label
+            className="text-xs font-medium"
+            style={{ color: theme.colors.nodes.common.text.secondary }}
+          >
+            {input.label}
+            {input.required && <span className="text-red-400 ml-0.5">*</span>}
+          </label>
+          <div
+            className="relative flex items-center gap-2 px-2 py-1 text-sm border rounded"
+            style={{
+              backgroundColor: theme.colors.nodes.common.footer.background,
+              borderColor: theme.colors.nodes.common.container.border,
+            }}
+          >
+            <Handle
+              type="target"
+              position={Position.Left}
+              id={input.id}
+              style={{
+                position: 'absolute',
+                left: -5,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                transition: 'box-shadow 0.15s ease',
+                width: 10,
+                height: 10,
+                border: `2px solid ${theme.colors.handles.border}`,
+                backgroundColor: handleColor,
+                ...validityStyle,
+              }}
+              title={input.label}
+            />
+            <Circle
+              className="w-3 h-3 flex-shrink-0"
+              style={{ color: theme.colors.nodes.common.text.muted }}
+            />
+            <span
+              className={`text-xs truncate ${isConnected ? '' : 'italic'}`}
+              style={{
+                color: isConnected
+                  ? theme.colors.nodes.common.text.primary
+                  : theme.colors.nodes.common.text.muted
+              }}
+            >
+              {isConnected ? connectedInputs[input.id] : 'None'}
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    // Input with inline editor (connection_only=false)
+    // Create a pseudo-field for the widget renderer
+    const inputAsField: FieldDefinition = {
+      id: input.id,
+      label: input.label,
+      widget: input.widget || 'text_input',
+      default: input.default,
+      placeholder: input.placeholder,
+      options: input.options,
+    };
+
+    return (
+      <div key={input.id} className="space-y-1">
+        <label
+          className="text-xs font-medium"
+          style={{ color: theme.colors.nodes.common.text.secondary }}
+        >
+          {input.label}
+          {input.required && <span className="text-red-400 ml-0.5">*</span>}
+        </label>
+        <div
+          className="relative flex items-center gap-2"
+          style={{ paddingLeft: 4 }}
+        >
+          <Handle
+            type="target"
+            position={Position.Left}
+            id={input.id}
+            style={{
+              position: 'absolute',
+              left: -5,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              transition: 'box-shadow 0.15s ease',
+              width: 10,
+              height: 10,
+              border: `2px solid ${theme.colors.handles.border}`,
+              backgroundColor: handleColor,
+              ...validityStyle,
+            }}
+            title={input.label}
+          />
+          {isConnected ? (
+            // When connected, show source name (read-only)
+            <div
+              className="flex-1 flex items-center gap-2 px-2 py-1 text-sm border rounded"
+              style={{
+                backgroundColor: theme.colors.nodes.common.footer.background,
+                borderColor: theme.colors.nodes.common.container.border,
+                opacity: 0.7,
+              }}
+            >
+              <Circle
+                className="w-3 h-3 flex-shrink-0"
+                style={{ color: theme.colors.ui.primary }}
+              />
+              <span
+                className="text-xs truncate"
+                style={{ color: theme.colors.nodes.common.text.primary }}
+              >
+                {connectedInputs[input.id]}
+              </span>
+            </div>
+          ) : (
+            // When not connected, show editable widget
+            <div className="flex-1 min-w-0">
+              {renderWidget(
+                inputAsField,
+                config[input.id] ?? input.default,
+                (value) => handleConfigChange(input.id, value),
+                { disabled: isNodeLocked, theme }
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Render config field
+  const renderField = (field: FieldDefinition) => {
+    return (
+      <div key={field.id} className="flex items-center gap-2">
+        <label
+          className="text-xs font-medium w-20 flex-shrink-0"
+          style={{ color: theme.colors.nodes.common.text.secondary }}
+        >
+          {field.label}
+        </label>
+        <div className="flex-1 min-w-0">
+          {renderWidget(
+            field,
+            config[field.id] ?? field.default,
+            (value) => handleConfigChange(field.id, value),
+            { disabled: isNodeLocked, theme }
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Render section with header
+  const renderSection = (sectionName: string | null, content: React.ReactNode) => (
+    <div key={sectionName || 'default'}>
+      {sectionName && (
+        <div
+          className="text-xs font-semibold uppercase tracking-wide mt-2 mb-1 pl-1 border-l-2"
+          style={{
+            color: theme.colors.nodes.common.text.muted,
+            borderColor: theme.colors.ui.primary,
+          }}
+        >
+          {sectionName}
+        </div>
+      )}
+      <div className="space-y-2">
+        {content}
+      </div>
+    </div>
+  );
+
+  // Render tab content
+  const renderTabContent = () => {
+    const elements = tabs ? getElementsForTab(activeTab) : getElementsForTab(null);
+    const inputSections = groupBySection(elements.inputs);
+    const fieldSections = groupBySection(elements.fields);
+
+    return (
+      <>
+        {/* Inputs grouped by section */}
+        {Array.from(inputSections.entries()).map(([section, inputs]) =>
+          renderSection(section, inputs.map(renderInput))
+        )}
+
+        {/* Fields grouped by section */}
+        {Array.from(fieldSections.entries()).map(([section, fields]) =>
+          renderSection(section, fields.map(renderField))
+        )}
+
+        {elements.inputs.length === 0 && elements.fields.length === 0 && (
+          <p
+            className="text-xs text-center py-1"
+            style={{ color: theme.colors.nodes.common.text.muted }}
+          >
+            No configuration options
+          </p>
+        )}
+      </>
+    );
+  };
+
+  // Collapsed view
   if (!isExpanded && schema.ui.expandable) {
     return (
       <div
@@ -204,7 +466,6 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
       >
         <ValidationIndicator errors={validationErrors} warnings={validationWarnings} />
 
-        {/* Single unified input handle */}
         <DraggableHandle
           nodeId={id}
           handleId="input"
@@ -217,7 +478,6 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
           style={{ ...handleStyle, backgroundColor: theme.colors.handles.input }}
         />
 
-        {/* Hidden handles for typed edges */}
         {schema.ui.inputs.map(input => (
           <Handle
             key={input.id}
@@ -235,7 +495,6 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
           <ChevronDown className="w-3 h-3 text-white opacity-60" />
         </div>
 
-        {/* Output handles */}
         {schema.ui.outputs.map((output, i) => (
           <DraggableHandle
             key={output.id}
@@ -282,96 +541,37 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
         <ChevronUp className="w-3 h-3 text-white opacity-60" />
       </div>
 
+      {/* Tab bar */}
+      {tabs && (
+        <div
+          className="flex border-b"
+          style={{ borderColor: theme.colors.nodes.common.container.border }}
+        >
+          {tabs.map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className="px-2 py-1 text-xs font-medium transition-colors"
+              style={{
+                color: activeTab === tab
+                  ? theme.colors.ui.primary
+                  : theme.colors.nodes.common.text.secondary,
+                borderBottom: activeTab === tab
+                  ? `2px solid ${theme.colors.ui.primary}`
+                  : '2px solid transparent',
+              }}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Form content */}
       <div className="p-2 space-y-2 nodrag nowheel">
-        {/* Input ports as form fields with handles - stacked labels */}
-        {schema.ui.inputs.map(input => {
-          const isConnected = !!connectedInputs[input.id];
-          const validityStyle = getHandleValidityStyle(
-            handleTypes[input.id]?.acceptedSources,
-            handleTypes[input.id]?.acceptedTypes
-          );
+        {renderTabContent()}
 
-          return (
-            <div key={input.id} className="space-y-1">
-              <label
-                className="text-xs font-medium"
-                style={{ color: theme.colors.nodes.common.text.secondary }}
-              >
-                {input.label}
-                {input.required && <span className="text-red-400 ml-0.5">*</span>}
-              </label>
-              <div
-                className="relative flex items-center gap-2 px-2 py-1 text-sm border rounded"
-                style={{
-                  backgroundColor: theme.colors.nodes.common.footer.background,
-                  borderColor: theme.colors.nodes.common.container.border,
-                }}
-              >
-                <Handle
-                  type="target"
-                  position={Position.Left}
-                  id={input.id}
-                  style={{
-                    position: 'absolute',
-                    left: -5,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    transition: 'box-shadow 0.15s ease',
-                    ...inputHandleStyle,
-                    ...validityStyle,
-                  }}
-                  title={input.label}
-                />
-                <Circle
-                  className="w-3 h-3 flex-shrink-0"
-                  style={{ color: theme.colors.nodes.common.text.muted }}
-                />
-                <span
-                  className={`text-xs truncate ${isConnected ? '' : 'italic'}`}
-                  style={{
-                    color: isConnected
-                      ? theme.colors.nodes.common.text.primary
-                      : theme.colors.nodes.common.text.muted
-                  }}
-                >
-                  {isConnected ? connectedInputs[input.id] : 'None'}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-
-        {/* Config fields - inline labels */}
-        {schema.ui.fields.filter(isFieldVisible).map(field => (
-          <div key={field.id} className="flex items-center gap-2">
-            <label
-              className="text-xs font-medium w-20 flex-shrink-0"
-              style={{ color: theme.colors.nodes.common.text.secondary }}
-            >
-              {field.label}
-            </label>
-            <div className="flex-1 min-w-0">
-              {renderWidget(
-                field,
-                config[field.id] ?? field.default,
-                (value) => handleConfigChange(field.id, value),
-                { disabled: isNodeLocked, theme }
-              )}
-            </div>
-          </div>
-        ))}
-
-        {schema.ui.inputs.length === 0 && schema.ui.fields.length === 0 && (
-          <p
-            className="text-xs text-center py-1"
-            style={{ color: theme.colors.nodes.common.text.muted }}
-          >
-            No configuration options
-          </p>
-        )}
-
-        {/* Output ports with labels - right aligned */}
+        {/* Output ports - always visible */}
         {schema.ui.outputs.length > 0 && (
           <div className="pt-1 border-t" style={{ borderColor: theme.colors.nodes.common.container.border }}>
             {schema.ui.outputs.map(output => (
@@ -397,7 +597,7 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
                     width: 10,
                     height: 10,
                     border: `2px solid ${theme.colors.handles.border}`,
-                    backgroundColor: theme.colors.handles.output,
+                    backgroundColor: output.handle_color || theme.colors.handles.output,
                   }}
                   title={output.label}
                 />
@@ -415,18 +615,22 @@ CustomNode.displayName = "CustomNode";
 export default CustomNode;
 
 export function getDefaultCustomNodeData(schema: CustomNodeSchema): CustomNodeData {
-  // Build initial config from field defaults
   const config: Record<string, unknown> = {};
+  // Initialize field defaults
   schema.ui.fields.forEach(field => {
     if (field.default !== undefined) {
       config[field.id] = field.default;
     }
   });
+  // Initialize input defaults (for inputs with connection_only=false)
+  schema.ui.inputs.forEach(input => {
+    if (input.connection_only === false && input.default !== undefined) {
+      config[input.id] = input.default;
+    }
+  });
 
-  // Build handleTypes from schema
   const handleTypes: Record<string, { outputSource?: string; outputType?: string; acceptedSources?: string[]; acceptedTypes?: string[] }> = {};
 
-  // Unified input handle
   const allAcceptedSources = new Set<string>();
   const allAcceptedTypes = new Set<string>();
   schema.ui.inputs.forEach(input => {

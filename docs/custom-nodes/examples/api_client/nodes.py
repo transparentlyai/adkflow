@@ -45,6 +45,8 @@ class APIClientNode(FlowUnit):
     def setup_interface(cls) -> UISchema:
         return UISchema(
             inputs=[
+                # Tab: General - Core request configuration
+                # URL: Can be typed manually OR connected (connection_only=False)
                 PortDefinition(
                     id="url",
                     label="URL",
@@ -53,7 +55,12 @@ class APIClientNode(FlowUnit):
                     accepted_sources=["*"],
                     accepted_types=["str"],
                     required=True,
+                    tab="General",
+                    connection_only=False,  # Allow manual input
+                    widget=WidgetType.TEXT_INPUT,
+                    placeholder="https://api.example.com/endpoint",
                 ),
+                # Body: Can be typed as JSON OR connected
                 PortDefinition(
                     id="body",
                     label="Body",
@@ -62,24 +69,35 @@ class APIClientNode(FlowUnit):
                     accepted_sources=["*"],
                     accepted_types=["dict", "str"],
                     required=False,
+                    tab="General",
+                    connection_only=False,
+                    widget=WidgetType.TEXT_AREA,
+                    default="{}",
+                    placeholder='{"key": "value"}',
                 ),
-                PortDefinition(
-                    id="headers",
-                    label="Headers",
-                    source_type="*",
-                    data_type="dict",
-                    accepted_sources=["*"],
-                    accepted_types=["dict"],
-                    required=False,
-                ),
+                # Params: Connection only (complex data)
                 PortDefinition(
                     id="params",
-                    label="Params",
+                    label="Query Params",
                     source_type="*",
                     data_type="dict",
                     accepted_sources=["*"],
                     accepted_types=["dict"],
                     required=False,
+                    tab="General",
+                ),
+                # Tab: Advanced - Headers input (connection only)
+                PortDefinition(
+                    id="headers",
+                    label="Headers Input",
+                    source_type="*",
+                    data_type="dict",
+                    accepted_sources=["*"],
+                    accepted_types=["dict"],
+                    required=False,
+                    tab="Advanced",
+                    section="Headers",
+                    handle_color="#8b5cf6",  # Purple handle for headers
                 ),
             ],
             outputs=[
@@ -88,27 +106,32 @@ class APIClientNode(FlowUnit):
                     label="Response",
                     source_type="api_client",
                     data_type="dict",
+                    handle_color="#22c55e",  # Green for success data
                 ),
                 PortDefinition(
                     id="status_code",
                     label="Status",
                     source_type="api_client",
                     data_type="int",
+                    handle_color="#3b82f6",  # Blue for status
                 ),
                 PortDefinition(
                     id="response_headers",
                     label="Headers",
                     source_type="api_client",
                     data_type="dict",
+                    handle_color="#8b5cf6",  # Purple for headers
                 ),
                 PortDefinition(
                     id="error",
                     label="Error",
                     source_type="api_client",
                     data_type="str",
+                    handle_color="#ef4444",  # Red for errors
                 ),
             ],
             fields=[
+                # === Tab: General ===
                 FieldDefinition(
                     id="method",
                     label="HTTP Method",
@@ -121,54 +144,8 @@ class APIClientNode(FlowUnit):
                         {"value": "PATCH", "label": "PATCH"},
                         {"value": "DELETE", "label": "DELETE"},
                     ],
-                ),
-                FieldDefinition(
-                    id="auth_type",
-                    label="Authentication",
-                    widget=WidgetType.SELECT,
-                    default="none",
-                    options=[
-                        {"value": "none", "label": "None"},
-                        {"value": "api_key", "label": "API Key"},
-                        {"value": "bearer", "label": "Bearer Token"},
-                        {"value": "basic", "label": "Basic Auth"},
-                    ],
-                ),
-                FieldDefinition(
-                    id="api_key",
-                    label="API Key",
-                    widget=WidgetType.TEXT_INPUT,
-                    placeholder="Enter your API key",
-                    show_if={"auth_type": "api_key"},
-                ),
-                FieldDefinition(
-                    id="bearer_token",
-                    label="Bearer Token",
-                    widget=WidgetType.TEXT_INPUT,
-                    placeholder="Enter Bearer token",
-                    show_if={"auth_type": "bearer"},
-                ),
-                FieldDefinition(
-                    id="basic_username",
-                    label="Username",
-                    widget=WidgetType.TEXT_INPUT,
-                    placeholder="Username",
-                    show_if={"auth_type": "basic"},
-                ),
-                FieldDefinition(
-                    id="basic_password",
-                    label="Password",
-                    widget=WidgetType.TEXT_INPUT,
-                    placeholder="Password",
-                    show_if={"auth_type": "basic"},
-                ),
-                FieldDefinition(
-                    id="api_key_header",
-                    label="API Key Header Name",
-                    widget=WidgetType.TEXT_INPUT,
-                    default="X-API-Key",
-                    help_text="Header name for the API key",
-                    show_if={"auth_type": "api_key"},
+                    tab="General",
+                    section="Request",
                 ),
                 FieldDefinition(
                     id="content_type",
@@ -184,6 +161,8 @@ class APIClientNode(FlowUnit):
                         {"value": "multipart/form-data", "label": "Multipart Form"},
                         {"value": "text/plain", "label": "Plain Text"},
                     ],
+                    tab="General",
+                    section="Request",
                 ),
                 FieldDefinition(
                     id="response_type",
@@ -195,7 +174,73 @@ class APIClientNode(FlowUnit):
                         {"value": "text", "label": "Text"},
                         {"value": "binary", "label": "Binary (base64)"},
                     ],
+                    tab="General",
+                    section="Response",
                 ),
+                # === Tab: Auth ===
+                FieldDefinition(
+                    id="auth_type",
+                    label="Authentication Type",
+                    widget=WidgetType.SELECT,
+                    default="none",
+                    options=[
+                        {"value": "none", "label": "None"},
+                        {"value": "api_key", "label": "API Key"},
+                        {"value": "bearer", "label": "Bearer Token"},
+                        {"value": "basic", "label": "Basic Auth"},
+                    ],
+                    tab="Auth",
+                ),
+                # API Key auth fields
+                FieldDefinition(
+                    id="api_key",
+                    label="API Key",
+                    widget=WidgetType.TEXT_INPUT,
+                    placeholder="Enter your API key",
+                    show_if={"auth_type": "api_key"},
+                    tab="Auth",
+                    section="API Key",
+                ),
+                FieldDefinition(
+                    id="api_key_header",
+                    label="Header Name",
+                    widget=WidgetType.TEXT_INPUT,
+                    default="X-API-Key",
+                    help_text="Header name for the API key",
+                    show_if={"auth_type": "api_key"},
+                    tab="Auth",
+                    section="API Key",
+                ),
+                # Bearer token auth fields
+                FieldDefinition(
+                    id="bearer_token",
+                    label="Bearer Token",
+                    widget=WidgetType.TEXT_INPUT,
+                    placeholder="Enter Bearer token",
+                    show_if={"auth_type": "bearer"},
+                    tab="Auth",
+                    section="Bearer Token",
+                ),
+                # Basic auth fields
+                FieldDefinition(
+                    id="basic_username",
+                    label="Username",
+                    widget=WidgetType.TEXT_INPUT,
+                    placeholder="Username",
+                    show_if={"auth_type": "basic"},
+                    tab="Auth",
+                    section="Basic Auth",
+                ),
+                FieldDefinition(
+                    id="basic_password",
+                    label="Password",
+                    widget=WidgetType.TEXT_INPUT,
+                    placeholder="Password",
+                    show_if={"auth_type": "basic"},
+                    tab="Auth",
+                    section="Basic Auth",
+                ),
+                # === Tab: Advanced ===
                 FieldDefinition(
                     id="timeout",
                     label="Timeout (seconds)",
@@ -204,6 +249,8 @@ class APIClientNode(FlowUnit):
                     min_value=1,
                     max_value=300,
                     step=1,
+                    tab="Advanced",
+                    section="Timeouts",
                 ),
                 FieldDefinition(
                     id="max_retries",
@@ -214,6 +261,8 @@ class APIClientNode(FlowUnit):
                     max_value=10,
                     step=1,
                     help_text="Number of retry attempts on failure",
+                    tab="Advanced",
+                    section="Retry",
                 ),
                 FieldDefinition(
                     id="retry_delay",
@@ -223,6 +272,8 @@ class APIClientNode(FlowUnit):
                     min_value=0.5,
                     max_value=10.0,
                     step=0.5,
+                    tab="Advanced",
+                    section="Retry",
                 ),
                 FieldDefinition(
                     id="enable_cache",
@@ -230,18 +281,24 @@ class APIClientNode(FlowUnit):
                     widget=WidgetType.CHECKBOX,
                     default=True,
                     help_text="Cache responses for identical requests",
+                    tab="Advanced",
+                    section="Options",
                 ),
                 FieldDefinition(
                     id="verify_ssl",
                     label="Verify SSL Certificate",
                     widget=WidgetType.CHECKBOX,
                     default=True,
+                    tab="Advanced",
+                    section="Options",
                 ),
                 FieldDefinition(
                     id="follow_redirects",
                     label="Follow Redirects",
                     widget=WidgetType.CHECKBOX,
                     default=True,
+                    tab="Advanced",
+                    section="Options",
                 ),
                 FieldDefinition(
                     id="custom_headers",
@@ -250,6 +307,8 @@ class APIClientNode(FlowUnit):
                     default="{}",
                     placeholder='{"X-Custom-Header": "value"}',
                     help_text="Additional headers as JSON object",
+                    tab="Advanced",
+                    section="Headers",
                 ),
             ],
             color="#f59e0b",
