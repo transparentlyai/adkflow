@@ -2,14 +2,15 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { Handle, Position } from "@xyflow/react";
-import type { Agent, PlannerConfig, CodeExecutorConfig, HttpOptions, HandleDataType } from "@/lib/types";
+import type { Agent, PlannerConfig, CodeExecutorConfig, HttpOptions } from "@/lib/types";
 import { isTypeCompatible } from "@/lib/types";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useConnection } from "@/contexts/ConnectionContext";
 
 interface HandleConfig {
   id: string;
-  acceptedTypes?: HandleDataType[];
+  acceptedSources?: string[];
+  acceptedTypes?: string[];
   style?: React.CSSProperties;
 }
 
@@ -70,8 +71,8 @@ export default function AgentPropertiesPanel({
   const [customModel, setCustomModel] = useState("");
 
   // Compute validity style for a target handle based on connection state
-  const getHandleValidityStyle = useCallback((acceptedTypes?: HandleDataType[]): React.CSSProperties => {
-    if (!connectionState.isDragging || !acceptedTypes) {
+  const getHandleValidityStyle = useCallback((acceptedSources?: string[], acceptedTypes?: string[]): React.CSSProperties => {
+    if (!connectionState.isDragging || !acceptedSources || !acceptedTypes) {
       return {};
     }
     // Prevent self-connection
@@ -81,8 +82,13 @@ export default function AgentPropertiesPanel({
         cursor: 'not-allowed',
       };
     }
-    // Check type compatibility
-    const isValid = isTypeCompatible(connectionState.sourceOutputType, acceptedTypes);
+    // Check type compatibility using source:type format
+    const isValid = isTypeCompatible(
+      connectionState.sourceOutputSource,
+      connectionState.sourceOutputType,
+      acceptedSources,
+      acceptedTypes
+    );
     if (isValid) {
       return {
         boxShadow: '0 0 0 2px #22c55e, 0 0 8px 2px #22c55e',
@@ -98,16 +104,16 @@ export default function AgentPropertiesPanel({
 
   // Memoized validity styles for each handle
   const agentInputValidityStyle = useMemo(
-    () => getHandleValidityStyle(handleConfigs?.agentInput?.acceptedTypes),
-    [getHandleValidityStyle, handleConfigs?.agentInput?.acceptedTypes]
+    () => getHandleValidityStyle(handleConfigs?.agentInput?.acceptedSources, handleConfigs?.agentInput?.acceptedTypes),
+    [getHandleValidityStyle, handleConfigs?.agentInput?.acceptedSources, handleConfigs?.agentInput?.acceptedTypes]
   );
   const promptInputValidityStyle = useMemo(
-    () => getHandleValidityStyle(handleConfigs?.promptInput?.acceptedTypes),
-    [getHandleValidityStyle, handleConfigs?.promptInput?.acceptedTypes]
+    () => getHandleValidityStyle(handleConfigs?.promptInput?.acceptedSources, handleConfigs?.promptInput?.acceptedTypes),
+    [getHandleValidityStyle, handleConfigs?.promptInput?.acceptedSources, handleConfigs?.promptInput?.acceptedTypes]
   );
   const toolsInputValidityStyle = useMemo(
-    () => getHandleValidityStyle(handleConfigs?.toolsInput?.acceptedTypes),
-    [getHandleValidityStyle, handleConfigs?.toolsInput?.acceptedTypes]
+    () => getHandleValidityStyle(handleConfigs?.toolsInput?.acceptedSources, handleConfigs?.toolsInput?.acceptedTypes),
+    [getHandleValidityStyle, handleConfigs?.toolsInput?.acceptedSources, handleConfigs?.toolsInput?.acceptedTypes]
   );
 
   const handlePlannerUpdate = useCallback(

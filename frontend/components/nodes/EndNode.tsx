@@ -119,7 +119,7 @@ export default EndNode;
 export function getDefaultEndData(): EndNodeData {
   return {
     handleTypes: {
-      'input': { acceptedTypes: ['str', 'custom:AgentOutput', 'any'] as HandleDataType[] },
+      'input': { acceptedSources: ['*'], acceptedTypes: ['str', 'dict', 'any'] as HandleDataType[] },
     },
   };
 }

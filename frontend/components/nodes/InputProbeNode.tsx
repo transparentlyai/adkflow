@@ -492,7 +492,7 @@ export function getDefaultInputProbeData() {
   return {
     name: "Input",
     handleTypes: {
-      'output': { outputType: 'str' as HandleDataType },
+      'output': { outputSource: 'input_probe', outputType: 'str' as HandleDataType },
     },
   };
 }

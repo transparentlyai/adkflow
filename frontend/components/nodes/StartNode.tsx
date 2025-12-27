@@ -159,7 +159,7 @@ export default StartNode;
 export function getDefaultStartData(): StartNodeData {
   return {
     handleTypes: {
-      'output': { outputType: 'str' as HandleDataType },
+      'output': { outputSource: 'start', outputType: 'str' as HandleDataType },
     },
   };
 }

@@ -157,30 +157,26 @@ export type HandlePositions = Record<string, HandlePosition>;
 
 /**
  * Handle Data Type System
- * Supports Python built-in types, 'any' wildcard, and custom types
+ * Uses source:type pattern for connection validation
+ * - Source: semantic origin (e.g., 'prompt', 'agent', 'tool', 'context')
+ * - Type: Python type (e.g., 'str', 'dict', 'list', 'callable')
  */
-export const PYTHON_BUILTIN_TYPES = [
-  'str', 'int', 'float', 'bool',
-  'list', 'dict', 'tuple', 'set',
-  'None'
-] as const;
 
-export type PythonBuiltinType = typeof PYTHON_BUILTIN_TYPES[number];
-
-/**
- * Handle type can be:
- * - Python builtin: 'str', 'int', etc.
- * - Any wildcard: 'any'
- * - Custom type: 'custom:TypeName'
- */
-export type HandleDataType = PythonBuiltinType | 'any' | `custom:${string}`;
+// DEPRECATED: Use outputSource + outputType instead
+// Kept as type alias for backwards compatibility during migration
+export type HandleDataType = string;
 
 /**
  * Handle type information for connection validation
  */
 export interface HandleTypeInfo {
-  outputType?: HandleDataType;       // For source handles: what type this outputs
-  acceptedTypes?: HandleDataType[];  // For target handles: what types are accepted
+  // For source handles (outputs)
+  outputSource?: string;      // e.g., 'prompt', 'agent', 'tool', 'context'
+  outputType?: string;        // Python type: 'str', 'dict', 'list', 'callable', etc.
+
+  // For target handles (inputs)
+  acceptedSources?: string[]; // Which sources accepted (or ['*'] for any)
+  acceptedTypes?: string[];   // Which Python types accepted (or ['*'] for any)
 }
 
 /**
@@ -189,20 +185,24 @@ export interface HandleTypeInfo {
 export type HandleTypes = Record<string, HandleTypeInfo>;
 
 /**
- * Helper to check if a type matches accepted types
+ * Helper to check if a connection is valid based on source and type
+ * Both source and type must match for a valid connection
  */
 export function isTypeCompatible(
-  outputType: HandleDataType | undefined | null,
-  acceptedTypes: HandleDataType[] | undefined
+  outputSource: string | undefined | null,
+  outputType: string | undefined | null,
+  acceptedSources: string[] | undefined,
+  acceptedTypes: string[] | undefined
 ): boolean {
-  // Missing type info = connection NOT allowed (strict mode)
-  if (!outputType || !acceptedTypes || acceptedTypes.length === 0) return false;
+  // Missing source or type info = connection NOT allowed
+  if (!outputSource || !outputType) return false;
+  if (!acceptedSources?.length || !acceptedTypes?.length) return false;
 
-  // 'any' on either side = compatible
-  if (outputType === 'any' || acceptedTypes.includes('any')) return true;
+  // '*' on either side = wildcard match
+  const sourceMatch = acceptedSources.includes('*') || acceptedSources.includes(outputSource);
+  const typeMatch = acceptedTypes.includes('*') || acceptedTypes.includes(outputType);
 
-  // Exact match
-  return acceptedTypes.includes(outputType);
+  return sourceMatch && typeMatch;
 }
 
 /**

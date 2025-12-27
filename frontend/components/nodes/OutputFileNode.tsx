@@ -684,7 +684,7 @@ export function getDefaultOutputFileData() {
     name: "Output",
     file_path: "outputs/output.txt",
     handleTypes: {
-      'input': { acceptedTypes: ['str', 'custom:AgentOutput', 'any'] as HandleDataType[] },
+      'input': { acceptedSources: ['*'], acceptedTypes: ['str', 'dict', 'any'] as HandleDataType[] },
     },
   };
 }

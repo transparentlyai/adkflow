@@ -266,7 +266,7 @@ export function getDefaultVariableData() {
     name: "variable",
     value: "",
     handleTypes: {
-      'output': { outputType: 'any' as HandleDataType },
+      'output': { outputSource: 'variable', outputType: 'any' as HandleDataType },
     },
   };
 }

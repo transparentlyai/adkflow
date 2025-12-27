@@ -636,7 +636,7 @@ export function getDefaultUserInputData() {
     timeoutBehavior: "error" as TimeoutBehavior,
     predefinedText: "",
     handleTypes: {
-      'output': { outputType: 'str' as HandleDataType },
+      'output': { outputSource: 'user_input', outputType: 'str' as HandleDataType },
     },
   };
 }

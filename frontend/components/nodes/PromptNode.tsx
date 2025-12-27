@@ -22,7 +22,7 @@ export interface PromptNodeData {
   prompt: Prompt;
   content?: string;
   handlePositions?: HandlePositions;
-  handleTypes?: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
+  handleTypes?: Record<string, { outputSource?: string; outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
   expandedSize?: { width: number; height: number };
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
@@ -35,7 +35,7 @@ export interface PromptNodeData {
 
 const PromptNode = memo(({ data, id, selected }: NodeProps) => {
   const { prompt, content = "", handlePositions, handleTypes, expandedSize, expandedPosition, contractedPosition, isExpanded: dataIsExpanded, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as unknown as PromptNodeData;
-  const resolvedHandleTypes = (handleTypes || {}) as Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
+  const resolvedHandleTypes = (handleTypes || {}) as Record<string, { outputSource?: string; outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
   const { setNodes } = useReactFlow();
   const { projectPath, onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
@@ -491,12 +491,12 @@ export default PromptNode;
 /**
  * Default prompt data for new nodes
  */
-export function getDefaultPromptData(): Omit<Prompt, "id"> & { handleTypes: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }> } {
+export function getDefaultPromptData(): Omit<Prompt, "id"> & { handleTypes: Record<string, { outputSource?: string; outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }> } {
   return {
     name: "New Prompt",
     file_path: "",
     handleTypes: {
-      'output': { outputType: 'custom:Prompt' as HandleDataType },
+      'output': { outputSource: 'prompt', outputType: 'str' as HandleDataType },
     },
   };
 }

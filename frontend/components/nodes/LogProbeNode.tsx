@@ -584,7 +584,7 @@ export function getDefaultLogProbeData() {
   return {
     name: "Log",
     handleTypes: {
-      'input': { acceptedTypes: ['str', 'custom:AgentOutput', 'any'] as HandleDataType[] },
+      'input': { acceptedSources: ['*'], acceptedTypes: ['str', 'dict', 'any'] as HandleDataType[] },
     },
   };
 }

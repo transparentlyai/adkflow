@@ -2,7 +2,7 @@
 
 import { memo, useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Handle, Position, type NodeProps, useReactFlow, useStore } from "@xyflow/react";
-import type { Agent, AgentType, HandlePositions, NodeExecutionState, HandleDataType } from "@/lib/types";
+import type { Agent, AgentType, HandlePositions, NodeExecutionState } from "@/lib/types";
 import DraggableHandle from "@/components/DraggableHandle";
 import AgentPropertiesPanel from "@/components/AgentPropertiesPanel";
 import NodeContextMenu from "@/components/NodeContextMenu";
@@ -23,7 +23,7 @@ function arraysEqual(a: string[], b: string[]): boolean {
 export interface AgentNodeData {
   agent: Agent;
   handlePositions?: HandlePositions;
-  handleTypes?: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
+  handleTypes?: Record<string, { outputSource?: string; outputType?: string; acceptedSources?: string[]; acceptedTypes?: string[] }>;
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
   isExpanded?: boolean;
@@ -83,7 +83,7 @@ const agentNodePropsAreEqual = (prevProps: NodeProps, nextProps: NodeProps): boo
 
 const AgentNode = memo(({ data, id, selected }: NodeProps) => {
   const { agent, handlePositions, handleTypes, expandedPosition, contractedPosition, isExpanded: dataIsExpanded, isNodeLocked, executionState, hasValidationError, hasValidationWarning, duplicateNameError, validationErrors, validationWarnings } = data as unknown as AgentNodeData;
-  const resolvedHandleTypes = useMemo(() => (handleTypes || {}) as Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>, [handleTypes]);
+  const resolvedHandleTypes = useMemo(() => (handleTypes || {}) as Record<string, { outputSource?: string; outputType?: string; acceptedSources?: string[]; acceptedTypes?: string[] }>, [handleTypes]);
   const { setNodes } = useReactFlow();
   const canvasActions = useCanvasActions();
   const { theme } = useTheme();
@@ -105,16 +105,19 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
   const handleConfigs = useMemo(() => ({
     agentInput: {
       id: 'agent-input',
+      acceptedSources: resolvedHandleTypes['agent-input']?.acceptedSources,
       acceptedTypes: resolvedHandleTypes['agent-input']?.acceptedTypes,
       style: inputHandleStyle,
     },
     promptInput: {
       id: 'prompt-input',
+      acceptedSources: resolvedHandleTypes['prompt-input']?.acceptedSources,
       acceptedTypes: resolvedHandleTypes['prompt-input']?.acceptedTypes,
       style: inputHandleStyle,
     },
     toolsInput: {
       id: 'tools-input',
+      acceptedSources: resolvedHandleTypes['tools-input']?.acceptedSources,
       acceptedTypes: resolvedHandleTypes['tools-input']?.acceptedTypes,
       style: inputHandleStyle,
     },
@@ -432,6 +435,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           defaultEdge="left"
           defaultPercent={50}
           handlePositions={handlePositions}
+          acceptedSources={resolvedHandleTypes['input']?.acceptedSources}
           acceptedTypes={resolvedHandleTypes['input']?.acceptedTypes}
           style={{ ...handleStyle, backgroundColor: theme.colors.handles.input }}
         />
@@ -464,6 +468,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           defaultEdge="top"
           defaultPercent={50}
           handlePositions={handlePositions}
+          outputSource={resolvedHandleTypes['link-top']?.outputSource}
           outputType={resolvedHandleTypes['link-top']?.outputType}
           title="Chain with other agents for parallel execution"
           style={{ ...linkHandleStyle, backgroundColor: theme.colors.handles.link }}
@@ -563,6 +568,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           defaultEdge="bottom"
           defaultPercent={50}
           handlePositions={handlePositions}
+          acceptedSources={resolvedHandleTypes['link-bottom']?.acceptedSources}
           acceptedTypes={resolvedHandleTypes['link-bottom']?.acceptedTypes}
           title="Chain with other agents for parallel execution"
           style={{ ...linkHandleStyle, backgroundColor: theme.colors.handles.link }}
@@ -576,6 +582,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
           defaultEdge="right"
           defaultPercent={50}
           handlePositions={handlePositions}
+          outputSource={resolvedHandleTypes['output']?.outputSource}
           outputType={resolvedHandleTypes['output']?.outputType}
           style={{ ...handleStyle, backgroundColor: theme.colors.handles.output }}
         />
@@ -649,6 +656,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="top"
         defaultPercent={50}
         handlePositions={handlePositions}
+        outputSource={resolvedHandleTypes['link-top']?.outputSource}
         outputType={resolvedHandleTypes['link-top']?.outputType}
         title="Chain with other agents for parallel execution"
         style={{ ...linkHandleStyle, backgroundColor: theme.colors.handles.link }}
@@ -759,6 +767,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="bottom"
         defaultPercent={50}
         handlePositions={handlePositions}
+        acceptedSources={resolvedHandleTypes['link-bottom']?.acceptedSources}
         acceptedTypes={resolvedHandleTypes['link-bottom']?.acceptedTypes}
         title="Chain with other agents for parallel execution"
         style={{ ...linkHandleStyle, backgroundColor: theme.colors.handles.link }}
@@ -772,6 +781,7 @@ const AgentNode = memo(({ data, id, selected }: NodeProps) => {
         defaultEdge="right"
         defaultPercent={50}
         handlePositions={handlePositions}
+        outputSource={resolvedHandleTypes['output']?.outputSource}
         outputType={resolvedHandleTypes['output']?.outputType}
         style={{ ...handleStyle, backgroundColor: theme.colors.handles.output }}
       />
@@ -800,7 +810,7 @@ AgentNode.displayName = "AgentNode";
 
 export default AgentNode;
 
-export function getDefaultAgentData(): Omit<Agent, "id"> & { handleTypes: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }> } {
+export function getDefaultAgentData(): Omit<Agent, "id"> & { handleTypes: Record<string, { outputSource?: string; outputType?: string; acceptedSources?: string[]; acceptedTypes?: string[] }> } {
   return {
     name: "New Agent",
     type: "llm",
@@ -821,13 +831,13 @@ export function getDefaultAgentData(): Omit<Agent, "id"> & { handleTypes: Record
     tools: [],
     subagents: [],
     handleTypes: {
-      'input': { acceptedTypes: ['custom:Prompt', 'custom:Tool', 'custom:AgentTool', 'custom:AgentOutput', 'str'] as HandleDataType[] },
-      'agent-input': { acceptedTypes: ['custom:AgentOutput', 'str'] as HandleDataType[] },
-      'prompt-input': { acceptedTypes: ['custom:Prompt'] as HandleDataType[] },
-      'tools-input': { acceptedTypes: ['custom:Tool', 'custom:AgentTool'] as HandleDataType[] },
-      'output': { outputType: 'custom:AgentOutput' as HandleDataType },
-      'link-top': { outputType: 'custom:Link' as HandleDataType },
-      'link-bottom': { acceptedTypes: ['custom:Link'] as HandleDataType[] },
+      'output': { outputSource: 'agent', outputType: 'dict' },
+      'link-top': { outputSource: 'agent', outputType: 'link' },
+      'input': { acceptedSources: ['agent', 'prompt', 'tool', 'agent_tool', 'context'], acceptedTypes: ['dict', 'link', 'str', 'callable'] },
+      'agent-input': { acceptedSources: ['agent'], acceptedTypes: ['dict', 'link'] },
+      'prompt-input': { acceptedSources: ['prompt', 'context'], acceptedTypes: ['str'] },
+      'tools-input': { acceptedSources: ['tool', 'agent_tool'], acceptedTypes: ['callable'] },
+      'link-bottom': { acceptedSources: ['agent'], acceptedTypes: ['link'] },
     },
   };
 }

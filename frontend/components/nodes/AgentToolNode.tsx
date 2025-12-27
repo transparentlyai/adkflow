@@ -117,7 +117,7 @@ const AgentToolNode = memo(({ data, id, selected }: NodeProps) => {
     }
   };
 
-  const handleTypes = ((data as AgentToolNodeData & { handleTypes?: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }> }).handleTypes || {}) as Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
+  const handleTypes = ((data as AgentToolNodeData & { handleTypes?: Record<string, { outputSource?: string; outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }> }).handleTypes || {}) as Record<string, { outputSource?: string; outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
 
   return (
     <>
@@ -279,7 +279,7 @@ export function getDefaultAgentToolData() {
   return {
     name: "Agent Tool",
     handleTypes: {
-      'output': { outputType: 'custom:AgentTool' as HandleDataType },
+      'output': { outputSource: 'agent_tool', outputType: 'callable' as HandleDataType },
     },
   };
 }

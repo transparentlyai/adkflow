@@ -3,7 +3,7 @@
 import { useCallback, useRef, useLayoutEffect, useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Handle, Position, useReactFlow, useUpdateNodeInternals } from "@xyflow/react";
-import type { HandleEdge, HandlePosition, HandlePositions, HandleDataType } from "@/lib/types";
+import type { HandleEdge, HandlePosition, HandlePositions } from "@/lib/types";
 import { isTypeCompatible } from "@/lib/types";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useConnection } from "@/contexts/ConnectionContext";
@@ -18,8 +18,10 @@ interface DraggableHandleProps {
   style?: React.CSSProperties;
   title?: string;
   isConnectable?: boolean;
-  outputType?: HandleDataType;       // For source handles: what type this outputs
-  acceptedTypes?: HandleDataType[];  // For target handles: what types are accepted
+  outputSource?: string;        // For source handles: what source type (e.g., 'prompt', 'agent')
+  outputType?: string;          // For source handles: what Python type (e.g., 'str', 'dict')
+  acceptedSources?: string[];   // For target handles: which sources accepted
+  acceptedTypes?: string[];     // For target handles: which types accepted
 }
 
 interface ContextMenuState {
@@ -101,7 +103,9 @@ export default function DraggableHandle({
   style,
   title,
   isConnectable = true,
+  outputSource,
   outputType,
+  acceptedSources,
   acceptedTypes,
 }: DraggableHandleProps) {
   const { theme } = useTheme();
@@ -115,16 +119,21 @@ export default function DraggableHandle({
   // Determine if this target handle is compatible with current drag source
   const isValidTarget = useMemo(() => {
     // Only applies to target handles when a drag is in progress
-    if (!connectionState.isDragging || type !== 'target' || !acceptedTypes) {
+    if (!connectionState.isDragging || type !== 'target' || !acceptedSources || !acceptedTypes) {
       return null; // null means "not applicable" (no visual feedback)
     }
     // Prevent self-connection
     if (connectionState.sourceNodeId === nodeId) {
       return false;
     }
-    // Check type compatibility
-    return isTypeCompatible(connectionState.sourceOutputType, acceptedTypes);
-  }, [connectionState, type, acceptedTypes, nodeId]);
+    // Check type compatibility using source:type format
+    return isTypeCompatible(
+      connectionState.sourceOutputSource,
+      connectionState.sourceOutputType,
+      acceptedSources,
+      acceptedTypes
+    );
+  }, [connectionState, type, acceptedSources, acceptedTypes, nodeId]);
 
   // Visual styling based on connection validity
   // Use boxShadow for glow effect (avoid mixing border shorthand with borderColor)

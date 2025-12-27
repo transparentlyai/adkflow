@@ -18,7 +18,7 @@ export interface TeleportOutNodeData extends Record<string, unknown> {
   contractedPosition?: { x: number; y: number };
   isExpanded?: boolean;
   isNodeLocked?: boolean;
-  handleTypes?: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
+  handleTypes?: Record<string, { outputSource?: string; outputType?: HandleDataType; acceptedSources?: string[]; acceptedTypes?: HandleDataType[] }>;
 }
 
 const TeleportOutNode = memo(({ data, id, selected }: NodeProps) => {
@@ -406,7 +406,7 @@ export function getDefaultTeleportOutData(): TeleportOutNodeData {
   return {
     name: "Connector",
     handleTypes: {
-      'input': { acceptedTypes: ['any'] as HandleDataType[] },
+      'input': { acceptedSources: ['*'], acceptedTypes: ['any'] as HandleDataType[] },
     },
   };
 }

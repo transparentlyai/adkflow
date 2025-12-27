@@ -288,7 +288,7 @@ const ProcessNode = memo(({ data, id, selected }: NodeProps) => {
   // Calculate lines of code for display
   const lineCount = code?.split("\n").length || 0;
   const editorHeight = size.height - 100;
-  const handleTypes = ((data as ProcessNodeData & { handleTypes?: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }> }).handleTypes || {}) as Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
+  const handleTypes = ((data as ProcessNodeData & { handleTypes?: Record<string, { outputSource?: string; outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }> }).handleTypes || {}) as Record<string, { outputSource?: string; outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
 
   return (
     <div
@@ -538,7 +538,7 @@ export function getDefaultProcessData(): ProcessNodeData {
     code: DEFAULT_CODE,
     description: "",
     handleTypes: {
-      'output': { outputType: 'any' as HandleDataType },
+      'output': { outputSource: 'process', outputType: 'any' as HandleDataType },
     },
   };
 }

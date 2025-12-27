@@ -21,7 +21,7 @@ export interface ContextNodeData {
   prompt: Prompt;
   content?: string;
   handlePositions?: HandlePositions;
-  handleTypes?: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
+  handleTypes?: Record<string, { outputSource?: string; outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
   expandedSize?: { width: number; height: number };
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
@@ -34,7 +34,7 @@ export interface ContextNodeData {
 
 const ContextNode = memo(({ data, id, selected }: NodeProps) => {
   const { prompt, content = "", handlePositions, handleTypes, expandedSize, expandedPosition, contractedPosition, isExpanded: dataIsExpanded, isNodeLocked, duplicateNameError, validationErrors, validationWarnings } = data as unknown as ContextNodeData;
-  const resolvedHandleTypes = (handleTypes || {}) as Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
+  const resolvedHandleTypes = (handleTypes || {}) as Record<string, { outputSource?: string; outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }>;
   const { setNodes } = useReactFlow();
   const { onSaveFile, onRequestFilePicker } = useProject();
   const canvasActions = useCanvasActions();
@@ -463,12 +463,12 @@ export default ContextNode;
 /**
  * Default context data for new nodes
  */
-export function getDefaultContextData(): Omit<Prompt, "id"> & { handleTypes: Record<string, { outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }> } {
+export function getDefaultContextData(): Omit<Prompt, "id"> & { handleTypes: Record<string, { outputSource?: string; outputType?: HandleDataType; acceptedTypes?: HandleDataType[] }> } {
   return {
     name: "New Context",
     file_path: "",
     handleTypes: {
-      'output': { outputType: 'custom:Context' as HandleDataType },
+      'output': { outputSource: 'context', outputType: 'str' as HandleDataType },
     },
   };
 }
