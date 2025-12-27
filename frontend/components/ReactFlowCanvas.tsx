@@ -34,7 +34,10 @@ import "@xyflow/react/dist/style.css";
 import { useClipboard } from "@/contexts/ClipboardContext";
 import { CanvasActionsProvider } from "@/contexts/CanvasActionsContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { ConnectionProvider, useConnection } from "@/contexts/ConnectionContext";
+import {
+  ConnectionProvider,
+  useConnection,
+} from "@/contexts/ConnectionContext";
 import { Lock, LockOpen, Grid3X3 } from "lucide-react";
 
 import GroupNode from "./nodes/GroupNode";
@@ -50,12 +53,24 @@ import AgentToolNode from "./nodes/AgentToolNode";
 import VariableNode from "./nodes/VariableNode";
 import ProcessNode from "./nodes/ProcessNode";
 import LabelNode from "./nodes/LabelNode";
-import TeleportOutNode, { getDefaultTeleportOutData } from "./nodes/TeleportOutNode";
-import TeleportInNode, { getDefaultTeleportInData } from "./nodes/TeleportInNode";
+import TeleportOutNode, {
+  getDefaultTeleportOutData,
+} from "./nodes/TeleportOutNode";
+import TeleportInNode, {
+  getDefaultTeleportInData,
+} from "./nodes/TeleportInNode";
 import UserInputNode, { getDefaultUserInputData } from "./nodes/UserInputNode";
 import StartNode, { getDefaultStartData } from "./nodes/StartNode";
 import EndNode, { getDefaultEndData } from "./nodes/EndNode";
-import CustomNode, { type CustomNodeSchema, getDefaultCustomNodeData } from "@/components/nodes/CustomNode";
+import CustomNode, {
+  type CustomNodeSchema,
+  getDefaultCustomNodeData,
+} from "@/components/nodes/CustomNode";
+import {
+  builtinTypeToSchema,
+  builtinNodeSchemas,
+} from "@/lib/builtinNodeHelpers";
+import { migrateWorkflow, workflowNeedsMigration } from "@/lib/nodeMigration";
 
 import { generateNodeId } from "@/lib/workflowHelpers";
 import { getExtensionNodes } from "@/lib/api";
@@ -76,29 +91,38 @@ import { getDefaultAgentToolData } from "./nodes/AgentToolNode";
 import { getDefaultVariableData } from "./nodes/VariableNode";
 import { getDefaultProcessData } from "./nodes/ProcessNode";
 import { getDefaultLabelData } from "./nodes/LabelNode";
-import type { Agent, Prompt, NodeExecutionState, HandleTypes, HandleTypeInfo } from "@/lib/types";
+import type {
+  Agent,
+  Prompt,
+  NodeExecutionState,
+  HandleTypes,
+  HandleTypeInfo,
+} from "@/lib/types";
 import { isTypeCompatible } from "@/lib/types";
 
 // Static node types - base types that are always available
+// Layout nodes use their own components, all other built-in nodes use CustomNode
 const staticNodeTypes = {
+  // Layout nodes (not schema-driven)
   group: GroupNode,
-  agent: AgentNode,
-  prompt: PromptNode,
-  context: ContextNode,
-  inputProbe: InputProbeNode,
-  outputProbe: OutputProbeNode,
-  logProbe: LogProbeNode,
-  outputFile: OutputFileNode,
-  tool: ToolNode,
-  agentTool: AgentToolNode,
-  variable: VariableNode,
-  process: ProcessNode,
   label: LabelNode,
-  teleportOut: TeleportOutNode,
-  teleportIn: TeleportInNode,
-  userInput: UserInputNode,
-  start: StartNode,
-  end: EndNode,
+  // All built-in nodes use CustomNode (schema-driven)
+  agent: CustomNode,
+  prompt: CustomNode,
+  context: CustomNode,
+  inputProbe: CustomNode,
+  outputProbe: CustomNode,
+  logProbe: CustomNode,
+  outputFile: CustomNode,
+  tool: CustomNode,
+  agentTool: CustomNode,
+  variable: CustomNode,
+  process: CustomNode,
+  teleportOut: CustomNode,
+  teleportIn: CustomNode,
+  userInput: CustomNode,
+  start: CustomNode,
+  end: CustomNode,
 } as const;
 
 interface ReactFlowCanvasProps {
@@ -115,34 +139,81 @@ interface ReactFlowCanvasProps {
 }
 
 export interface ReactFlowCanvasRef {
+  // Legacy add functions (for backward compatibility)
   addGroupNode: (position?: { x: number; y: number }) => void;
   addAgentNode: (position?: { x: number; y: number }) => void;
-  addPromptNode: (promptData?: { name: string; file_path: string }, position?: { x: number; y: number }) => void;
-  addContextNode: (contextData?: { name: string; file_path: string }, position?: { x: number; y: number }) => void;
+  addPromptNode: (
+    promptData?: { name: string; file_path: string },
+    position?: { x: number; y: number },
+  ) => void;
+  addContextNode: (
+    contextData?: { name: string; file_path: string },
+    position?: { x: number; y: number },
+  ) => void;
   addInputProbeNode: (position?: { x: number; y: number }) => void;
   addOutputProbeNode: (position?: { x: number; y: number }) => void;
   addLogProbeNode: (position?: { x: number; y: number }) => void;
-  addOutputFileNode: (outputFileData?: { name: string; file_path: string }, position?: { x: number; y: number }) => void;
-  addToolNode: (toolData?: { name: string; file_path: string }, position?: { x: number; y: number }) => void;
+  addOutputFileNode: (
+    outputFileData?: { name: string; file_path: string },
+    position?: { x: number; y: number },
+  ) => void;
+  addToolNode: (
+    toolData?: { name: string; file_path: string },
+    position?: { x: number; y: number },
+  ) => void;
   addAgentToolNode: (position?: { x: number; y: number }) => void;
   addVariableNode: (position?: { x: number; y: number }) => void;
-  addProcessNode: (processData?: { name: string; file_path: string }, position?: { x: number; y: number }) => void;
-  addTeleportOutNode: (name: string, position?: { x: number; y: number }) => void;
-  addTeleportInNode: (name: string, position?: { x: number; y: number }) => void;
+  addProcessNode: (
+    processData?: { name: string; file_path: string },
+    position?: { x: number; y: number },
+  ) => void;
+  addTeleportOutNode: (
+    name: string,
+    position?: { x: number; y: number },
+  ) => void;
+  addTeleportInNode: (
+    name: string,
+    position?: { x: number; y: number },
+  ) => void;
   addUserInputNode: (position?: { x: number; y: number }) => void;
   addStartNode: (position?: { x: number; y: number }) => void;
   addEndNode: (position?: { x: number; y: number }) => void;
-  addCustomNode: (schema: CustomNodeSchema, position?: { x: number; y: number }) => string;
+  // Schema-driven node creation
+  addCustomNode: (
+    schema: CustomNodeSchema,
+    position?: { x: number; y: number },
+  ) => string;
+  addBuiltinSchemaNode: (
+    nodeType: string,
+    position?: { x: number; y: number },
+    configOverrides?: Record<string, unknown>,
+    parentGroupId?: string,
+  ) => string | null;
   customNodeSchemas: CustomNodeSchema[];
+  builtinNodeSchemas: readonly CustomNodeSchema[];
   clearCanvas: () => void;
-  saveFlow: () => { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } } | null;
-  restoreFlow: (flow: { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }) => void;
+  saveFlow: () => {
+    nodes: Node[];
+    edges: Edge[];
+    viewport: { x: number; y: number; zoom: number };
+  } | null;
+  restoreFlow: (flow: {
+    nodes: Node[];
+    edges: Edge[];
+    viewport: { x: number; y: number; zoom: number };
+  }) => void;
   zoomIn: () => void;
   zoomOut: () => void;
   fitView: () => void;
   focusNode: (nodeId: string) => void;
-  updateNodeExecutionState: (agentName: string, state: NodeExecutionState) => void;
-  updateToolExecutionState: (toolName: string, state: NodeExecutionState) => void;
+  updateNodeExecutionState: (
+    agentName: string,
+    state: NodeExecutionState,
+  ) => void;
+  updateToolExecutionState: (
+    toolName: string,
+    state: NodeExecutionState,
+  ) => void;
   updateUserInputWaitingState: (nodeId: string, isWaiting: boolean) => void;
   clearExecutionState: () => void;
   highlightErrorNodes: (nodeErrors: Record<string, string[]>) => void;
@@ -156,19 +227,45 @@ export interface ReactFlowCanvasRef {
  * Main canvas component using React Flow for visual workflow editing.
  * Replaces the Drawflow-based canvas with native React Flow implementation.
  */
-const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
-  ({ onWorkflowChange, onRequestPromptCreation, onRequestContextCreation, onRequestToolCreation, onRequestProcessCreation, onRequestOutputFileCreation, isLocked, onToggleLock, activeTabId, onSave }, ref) => {
+const ReactFlowCanvasInner = forwardRef<
+  ReactFlowCanvasRef,
+  ReactFlowCanvasProps
+>(
+  (
+    {
+      onWorkflowChange,
+      onRequestPromptCreation,
+      onRequestContextCreation,
+      onRequestToolCreation,
+      onRequestProcessCreation,
+      onRequestOutputFileCreation,
+      isLocked,
+      onToggleLock,
+      activeTabId,
+      onSave,
+    },
+    ref,
+  ) => {
     const [nodes, setNodes] = useState<Node[]>([]);
     const [edges, setEdges] = useState<Edge[]>([]);
-    const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
-    const [customNodeSchemas, setCustomNodeSchemas] = useState<CustomNodeSchema[]>([]);
+    const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(
+      null,
+    );
+    const [customNodeSchemas, setCustomNodeSchemas] = useState<
+      CustomNodeSchema[]
+    >([]);
     const { screenToFlowPosition } = useReactFlow();
     const { clipboard, copy, hasClipboard } = useClipboard();
     const { theme } = useTheme();
     const { startConnection, endConnection } = useConnection();
 
     // Context menu state
-    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; flowPosition: { x: number; y: number }; parentGroupId?: string } | null>(null);
+    const [contextMenu, setContextMenu] = useState<{
+      x: number;
+      y: number;
+      flowPosition: { x: number; y: number };
+      parentGroupId?: string;
+    } | null>(null);
 
     // Delete confirmation state
     const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -186,7 +283,10 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     } | null>(null);
 
     // Track mouse position for paste at cursor
-    const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
+    const [mousePosition, setMousePosition] = useState<{
+      x: number;
+      y: number;
+    } | null>(null);
     const [snapToGrid, setSnapToGrid] = useState(false);
 
     // Teleporter name prompt dialog state
@@ -207,18 +307,45 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     const [agentPosition, setAgentPosition] = useState({ x: 150, y: 150 });
     const [promptPosition, setPromptPosition] = useState({ x: 150, y: 350 });
     const [contextPosition, setContextPosition] = useState({ x: 150, y: 400 });
-    const [inputProbePosition, setInputProbePosition] = useState({ x: 150, y: 450 });
-    const [outputProbePosition, setOutputProbePosition] = useState({ x: 150, y: 500 });
-    const [logProbePosition, setLogProbePosition] = useState({ x: 150, y: 550 });
-    const [outputFilePosition, setOutputFilePosition] = useState({ x: 150, y: 600 });
+    const [inputProbePosition, setInputProbePosition] = useState({
+      x: 150,
+      y: 450,
+    });
+    const [outputProbePosition, setOutputProbePosition] = useState({
+      x: 150,
+      y: 500,
+    });
+    const [logProbePosition, setLogProbePosition] = useState({
+      x: 150,
+      y: 550,
+    });
+    const [outputFilePosition, setOutputFilePosition] = useState({
+      x: 150,
+      y: 600,
+    });
     const [toolPosition, setToolPosition] = useState({ x: 150, y: 650 });
-    const [agentToolPosition, setAgentToolPosition] = useState({ x: 150, y: 600 });
-    const [variablePosition, setVariablePosition] = useState({ x: 150, y: 650 });
+    const [agentToolPosition, setAgentToolPosition] = useState({
+      x: 150,
+      y: 600,
+    });
+    const [variablePosition, setVariablePosition] = useState({
+      x: 150,
+      y: 650,
+    });
     const [processPosition, setProcessPosition] = useState({ x: 150, y: 700 });
     const [labelPosition, setLabelPosition] = useState({ x: 150, y: 750 });
-    const [teleportOutPosition, setTeleportOutPosition] = useState({ x: 150, y: 800 });
-    const [teleportInPosition, setTeleportInPosition] = useState({ x: 150, y: 850 });
-    const [userInputPosition, setUserInputPosition] = useState({ x: 150, y: 900 });
+    const [teleportOutPosition, setTeleportOutPosition] = useState({
+      x: 150,
+      y: 800,
+    });
+    const [teleportInPosition, setTeleportInPosition] = useState({
+      x: 150,
+      y: 850,
+    });
+    const [userInputPosition, setUserInputPosition] = useState({
+      x: 150,
+      y: 900,
+    });
 
     const spacing = 350;
 
@@ -229,29 +356,38 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           const data = await getExtensionNodes();
           setCustomNodeSchemas(data.nodes as CustomNodeSchema[]);
         } catch (error) {
-          console.log('[ReactFlowCanvas] No custom nodes available');
+          console.log("[ReactFlowCanvas] No custom nodes available");
         }
       }
       loadCustomNodes();
     }, []);
 
     // Dynamic node types - includes static types plus custom types from extensions
-    const nodeTypes = useMemo(() => ({
-      // Static types that are always available
-      ...staticNodeTypes,
-      // Dynamic custom types - all use the same CustomNode component
-      ...Object.fromEntries(
-        customNodeSchemas.map(schema => [`custom:${schema.unit_id}`, CustomNode])
-      ),
-    }), [customNodeSchemas]);
+    const nodeTypes = useMemo(
+      () => ({
+        // Static types: layout nodes + built-in schema-driven nodes (all use CustomNode except group/label)
+        ...staticNodeTypes,
+        // Dynamic custom types from extensions - all use the same CustomNode component
+        ...Object.fromEntries(
+          customNodeSchemas.map((schema) => [
+            `custom:${schema.unit_id}`,
+            CustomNode,
+          ]),
+        ),
+      }),
+      [customNodeSchemas],
+    );
 
     // Memoized props for ReactFlow to prevent unnecessary re-renders
-    const defaultEdgeOptions = useMemo(() => ({
-      style: { strokeWidth: 1.5, stroke: theme.colors.edges.default },
-      animated: false,
-      selectable: true,
-      zIndex: 1000,
-    }), [theme.colors.edges.default]);
+    const defaultEdgeOptions = useMemo(
+      () => ({
+        style: { strokeWidth: 1.5, stroke: theme.colors.edges.default },
+        animated: false,
+        selectable: true,
+        zIndex: 1000,
+      }),
+      [theme.colors.edges.default],
+    );
 
     const snapGridValue = useMemo(() => [16, 16] as [number, number], []);
 
@@ -271,13 +407,26 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     }, [nodes]);
 
     // Track drag start to update connection context for visual feedback
-    const onConnectStart = useCallback((_event: MouseEvent | TouchEvent, params: OnConnectStartParams) => {
-      const key = `${params.nodeId}:${params.handleId}`;
-      const typeInfo = handleTypeRegistry[key];
-      if (typeInfo?.outputSource && typeInfo?.outputType && params.nodeId && params.handleId) {
-        startConnection(params.nodeId, params.handleId, typeInfo.outputSource, typeInfo.outputType);
-      }
-    }, [handleTypeRegistry, startConnection]);
+    const onConnectStart = useCallback(
+      (_event: MouseEvent | TouchEvent, params: OnConnectStartParams) => {
+        const key = `${params.nodeId}:${params.handleId}`;
+        const typeInfo = handleTypeRegistry[key];
+        if (
+          typeInfo?.outputSource &&
+          typeInfo?.outputType &&
+          params.nodeId &&
+          params.handleId
+        ) {
+          startConnection(
+            params.nodeId,
+            params.handleId,
+            typeInfo.outputSource,
+            typeInfo.outputType,
+          );
+        }
+      },
+      [handleTypeRegistry, startConnection],
+    );
 
     // Clear drag state when connection ends
     const onConnectEnd = useCallback(() => {
@@ -285,84 +434,94 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     }, [endConnection]);
 
     // Validate connection types - centralized validation for performance
-    const isValidConnection = useCallback((connection: Edge | Connection) => {
-      // Prevent self-connections
-      if (connection.source === connection.target) return false;
+    const isValidConnection = useCallback(
+      (connection: Edge | Connection) => {
+        // Prevent self-connections
+        if (connection.source === connection.target) return false;
 
-      const sourceKey = `${connection.source}:${connection.sourceHandle ?? ''}`;
-      const targetKey = `${connection.target}:${connection.targetHandle ?? ''}`;
+        const sourceKey = `${connection.source}:${connection.sourceHandle ?? ""}`;
+        const targetKey = `${connection.target}:${connection.targetHandle ?? ""}`;
 
-      const sourceInfo = handleTypeRegistry[sourceKey];
-      const targetInfo = handleTypeRegistry[targetKey];
+        const sourceInfo = handleTypeRegistry[sourceKey];
+        const targetInfo = handleTypeRegistry[targetKey];
 
-      return isTypeCompatible(
-        sourceInfo?.outputSource,
-        sourceInfo?.outputType,
-        targetInfo?.acceptedSources,
-        targetInfo?.acceptedTypes
-      );
-    }, [handleTypeRegistry]);
+        return isTypeCompatible(
+          sourceInfo?.outputSource,
+          sourceInfo?.outputType,
+          targetInfo?.acceptedSources,
+          targetInfo?.acceptedTypes,
+        );
+      },
+      [handleTypeRegistry],
+    );
 
     // Handle node changes (drag, select, etc.)
-    const onNodesChange = useCallback(
-      (changes: NodeChange[]) => {
-        setNodes((nds) => applyNodeChanges(changes, nds));
-      },
-      []
-    );
+    const onNodesChange = useCallback((changes: NodeChange[]) => {
+      setNodes((nds) => applyNodeChanges(changes, nds));
+    }, []);
 
     // Handle edge changes
-    const onEdgesChange = useCallback(
-      (changes: EdgeChange[]) => {
-        setEdges((eds) => applyEdgeChanges(changes, eds));
-      },
-      []
-    );
+    const onEdgesChange = useCallback((changes: EdgeChange[]) => {
+      setEdges((eds) => applyEdgeChanges(changes, eds));
+    }, []);
 
     // Handle new connections
-    const onConnect = useCallback((params: Connection) => {
-      if (isLocked) return;
+    const onConnect = useCallback(
+      (params: Connection) => {
+        if (isLocked) return;
 
-      let targetHandle = params.targetHandle;
+        let targetHandle = params.targetHandle;
 
-      // Auto-detect for AgentNode collapsed "input" handle
-      if (params.target?.startsWith('agent_') && params.targetHandle === 'input') {
-        // Look up source handle's source type from registry
-        const sourceKey = `${params.source}:${params.sourceHandle}`;
-        const sourceInfo = handleTypeRegistry[sourceKey];
-        const outputSource = sourceInfo?.outputSource;
+        // Auto-detect for AgentNode collapsed "input" handle
+        if (
+          params.target?.startsWith("agent_") &&
+          params.targetHandle === "input"
+        ) {
+          // Look up source handle's source type from registry
+          const sourceKey = `${params.source}:${params.sourceHandle}`;
+          const sourceInfo = handleTypeRegistry[sourceKey];
+          const outputSource = sourceInfo?.outputSource;
 
-        if (outputSource === 'prompt') {
-          targetHandle = 'prompt-input';
-        } else if (outputSource === 'tool') {
-          targetHandle = 'tools-input';
-        } else {
-          // agent, context, or any other source type
-          targetHandle = 'agent-input';
+          if (outputSource === "prompt") {
+            targetHandle = "prompt-input";
+          } else if (outputSource === "tool") {
+            targetHandle = "tools-input";
+          } else {
+            // agent, context, or any other source type
+            targetHandle = "agent-input";
+          }
         }
-      }
 
-      // Check if this is a link connection (from link handles)
-      const isLinkConnection =
-        params.sourceHandle?.startsWith('link-') &&
-        targetHandle?.startsWith('link-');
+        // Check if this is a link connection (from link handles)
+        const isLinkConnection =
+          params.sourceHandle?.startsWith("link-") &&
+          targetHandle?.startsWith("link-");
 
-      if (isLinkConnection) {
-        // Gray dotted edge for link connections between agents
-        const edgeWithStyle = {
-          ...params,
-          targetHandle,
-          type: 'default',
-          style: { strokeWidth: 2, stroke: theme.colors.edges.link, strokeDasharray: '5 5' },
-        };
-        setEdges((eds) => addEdge(edgeWithStyle, eds));
-      } else if (params.sourceHandle?.startsWith('link-') || targetHandle?.startsWith('link-')) {
-        // Prevent mixing link handles with regular handles
-        return;
-      } else {
-        setEdges((eds) => addEdge({ ...params, targetHandle }, eds));
-      }
-    }, [isLocked, theme.colors.edges.link, handleTypeRegistry]);
+        if (isLinkConnection) {
+          // Gray dotted edge for link connections between agents
+          const edgeWithStyle = {
+            ...params,
+            targetHandle,
+            type: "default",
+            style: {
+              strokeWidth: 2,
+              stroke: theme.colors.edges.link,
+              strokeDasharray: "5 5",
+            },
+          };
+          setEdges((eds) => addEdge(edgeWithStyle, eds));
+        } else if (
+          params.sourceHandle?.startsWith("link-") ||
+          targetHandle?.startsWith("link-")
+        ) {
+          // Prevent mixing link handles with regular handles
+          return;
+        } else {
+          setEdges((eds) => addEdge({ ...params, targetHandle }, eds));
+        }
+      },
+      [isLocked, theme.colors.edges.link, handleTypeRegistry],
+    );
 
     // Auto-parent/detach nodes from Group on drag stop (handles multi-selection)
     const onNodeDragStop = useCallback(
@@ -402,8 +561,12 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             // Find target group for this node
             let targetGroup: Node | null = null;
             for (const group of groupNodes) {
-              const groupWidth = group.measured?.width ?? (group.style?.width as number) ?? 300;
-              const groupHeight = group.measured?.height ?? (group.style?.height as number) ?? 200;
+              const groupWidth =
+                group.measured?.width ?? (group.style?.width as number) ?? 300;
+              const groupHeight =
+                group.measured?.height ??
+                (group.style?.height as number) ??
+                200;
 
               const isInside =
                 centerX >= group.position.x &&
@@ -426,12 +589,19 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
                 ...node,
                 parentId: targetGroup.id,
                 extent: "parent" as const,
-                position: { x: Math.max(10, relativeX), y: Math.max(40, relativeY) },
+                position: {
+                  x: Math.max(10, relativeX),
+                  y: Math.max(40, relativeY),
+                },
               };
             }
             // Detach from group - only if node is contracted (extent: "parent")
             // Expanded nodes (extent: undefined) should stay attached even if visually outside
-            else if (!targetGroup && node.parentId && node.extent === "parent") {
+            else if (
+              !targetGroup &&
+              node.parentId &&
+              node.extent === "parent"
+            ) {
               const parentNode = nds.find((n) => n.id === node.parentId);
               const newAbsoluteX = parentNode
                 ? node.position.x + parentNode.position.x
@@ -448,18 +618,22 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             }
 
             // Sync position to the correct field based on expanded state
-            const nodeData = node.data as { isExpanded?: boolean; expandedPosition?: {x: number; y: number}; contractedPosition?: {x: number; y: number} };
+            const nodeData = node.data as {
+              isExpanded?: boolean;
+              expandedPosition?: { x: number; y: number };
+              contractedPosition?: { x: number; y: number };
+            };
             if (nodeData.isExpanded !== undefined) {
               // Only sync if this node uses the dual-position pattern
               if (nodeData.isExpanded) {
                 return {
                   ...node,
-                  data: { ...node.data, expandedPosition: node.position }
+                  data: { ...node.data, expandedPosition: node.position },
                 };
               } else {
                 return {
                   ...node,
-                  data: { ...node.data, contractedPosition: node.position }
+                  data: { ...node.data, contractedPosition: node.position },
                 };
               }
             }
@@ -479,12 +653,14 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           return updatedNodes;
         });
       },
-      [nodes, isLocked]
+      [nodes, isLocked],
     );
 
     // Helper to strip non-content properties for comparison
     const getContentHash = useCallback((nodes: Node[], edges: Edge[]) => {
-      const strippedNodes = nodes.map(({ selected, dragging, ...rest }) => rest);
+      const strippedNodes = nodes.map(
+        ({ selected, dragging, ...rest }) => rest,
+      );
       return JSON.stringify({ nodes: strippedNodes, edges });
     }, []);
 
@@ -495,7 +671,10 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     useEffect(() => {
       if (onWorkflowChange) {
         const currentContent = getContentHash(nodes, edges);
-        if (prevContentRef.current && prevContentRef.current !== currentContent) {
+        if (
+          prevContentRef.current &&
+          prevContentRef.current !== currentContent
+        ) {
           onWorkflowChange({ nodes, edges });
         }
         prevContentRef.current = currentContent;
@@ -559,8 +738,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           (edge) =>
             !edgeIds.includes(edge.id) &&
             !nodeIds.includes(edge.source) &&
-            !nodeIds.includes(edge.target)
-        )
+            !nodeIds.includes(edge.target),
+        ),
       );
 
       setDeleteConfirm(null);
@@ -589,7 +768,10 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         }
 
         return nds
-          .filter((node) => !groupIds.includes(node.id) && !otherNodeIds.includes(node.id))
+          .filter(
+            (node) =>
+              !groupIds.includes(node.id) && !otherNodeIds.includes(node.id),
+          )
           .map((node) => {
             // Unparent children of deleted groups
             if (node.parentId && groupIds.includes(node.parentId)) {
@@ -599,7 +781,10 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
                 parentId: undefined,
                 extent: undefined,
                 position: parentPos
-                  ? { x: node.position.x + parentPos.x, y: node.position.y + parentPos.y }
+                  ? {
+                      x: node.position.x + parentPos.x,
+                      y: node.position.y + parentPos.y,
+                    }
                   : node.position,
               };
             }
@@ -614,8 +799,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           (edge) =>
             !edgeIds.includes(edge.id) &&
             !deletedNodeIds.includes(edge.source) &&
-            !deletedNodeIds.includes(edge.target)
-        )
+            !deletedNodeIds.includes(edge.target),
+        ),
       );
 
       setGroupDeleteConfirm(null);
@@ -639,8 +824,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           (edge) =>
             !edgeIds.includes(edge.id) &&
             !allNodeIds.includes(edge.source) &&
-            !allNodeIds.includes(edge.target)
-        )
+            !allNodeIds.includes(edge.target),
+        ),
       );
 
       setGroupDeleteConfirm(null);
@@ -661,7 +846,10 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       if (!activeTabId || isLocked) return;
 
       // Get selected deletable nodes (exclude locked)
-      const selectedNodes = nodes.filter((n) => n.selected && !(n.data as { isNodeLocked?: boolean })?.isNodeLocked);
+      const selectedNodes = nodes.filter(
+        (n) =>
+          n.selected && !(n.data as { isNodeLocked?: boolean })?.isNodeLocked,
+      );
       if (selectedNodes.length === 0) return;
 
       // Save state for undo before modifying
@@ -675,7 +863,11 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       const expandedNodes = [...selectedNodes];
 
       for (const node of nodes) {
-        if (node.parentId && selectedIds.has(node.parentId) && !selectedIds.has(node.id)) {
+        if (
+          node.parentId &&
+          selectedIds.has(node.parentId) &&
+          !selectedIds.has(node.id)
+        ) {
           // Include child if it's not locked
           if (!(node.data as { isNodeLocked?: boolean })?.isNodeLocked) {
             expandedNodes.push(node);
@@ -692,102 +884,114 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       setEdges((eds) =>
         eds.filter(
           (edge) =>
-            !nodeIds.includes(edge.source) &&
-            !nodeIds.includes(edge.target)
-        )
+            !nodeIds.includes(edge.source) && !nodeIds.includes(edge.target),
+        ),
       );
-    }, [nodes, edges, activeTabId, isLocked, copy, saveSnapshot, setNodes, setEdges]);
+    }, [
+      nodes,
+      edges,
+      activeTabId,
+      isLocked,
+      copy,
+      saveSnapshot,
+      setNodes,
+      setEdges,
+    ]);
 
     // Paste nodes and edges from clipboard at cursor position
-    const handlePaste = useCallback((pastePosition?: { x: number; y: number }) => {
-      if (!clipboard || clipboard.nodes.length === 0) return;
-      if (isLocked) return;
+    const handlePaste = useCallback(
+      (pastePosition?: { x: number; y: number }) => {
+        if (!clipboard || clipboard.nodes.length === 0) return;
+        if (isLocked) return;
 
-      // Save state for undo before modifying
-      saveSnapshot();
+        // Save state for undo before modifying
+        saveSnapshot();
 
-      // Create ID mapping: old ID -> new ID
-      const idMap = new Map<string, string>();
-      clipboard.nodes.forEach((node) => {
-        const prefix = node.id.split("_")[0] || "node";
-        idMap.set(node.id, generateNodeId(prefix));
-      });
+        // Create ID mapping: old ID -> new ID
+        const idMap = new Map<string, string>();
+        clipboard.nodes.forEach((node) => {
+          const prefix = node.id.split("_")[0] || "node";
+          idMap.set(node.id, generateNodeId(prefix));
+        });
 
-      // Identify top-level nodes (no parent or parent not in clipboard)
-      const topLevelNodes = clipboard.nodes.filter(
-        (n) => !n.parentId || !idMap.has(n.parentId)
-      );
+        // Identify top-level nodes (no parent or parent not in clipboard)
+        const topLevelNodes = clipboard.nodes.filter(
+          (n) => !n.parentId || !idMap.has(n.parentId),
+        );
 
-      // Calculate the bounding box center of top-level nodes only
-      const minX = Math.min(...topLevelNodes.map((n) => n.position.x));
-      const minY = Math.min(...topLevelNodes.map((n) => n.position.y));
-      const maxX = Math.max(...topLevelNodes.map((n) => n.position.x));
-      const maxY = Math.max(...topLevelNodes.map((n) => n.position.y));
-      const centerX = (minX + maxX) / 2;
-      const centerY = (minY + maxY) / 2;
+        // Calculate the bounding box center of top-level nodes only
+        const minX = Math.min(...topLevelNodes.map((n) => n.position.x));
+        const minY = Math.min(...topLevelNodes.map((n) => n.position.y));
+        const maxX = Math.max(...topLevelNodes.map((n) => n.position.x));
+        const maxY = Math.max(...topLevelNodes.map((n) => n.position.y));
+        const centerX = (minX + maxX) / 2;
+        const centerY = (minY + maxY) / 2;
 
-      // Use provided position, tracked mouse position, or fallback to offset
-      let targetPosition: { x: number; y: number };
-      if (pastePosition) {
-        targetPosition = pastePosition;
-      } else if (mousePosition) {
-        targetPosition = screenToFlowPosition(mousePosition);
-      } else {
-        // Fallback: offset from original position
-        targetPosition = { x: centerX + 50, y: centerY + 50 };
-      }
+        // Use provided position, tracked mouse position, or fallback to offset
+        let targetPosition: { x: number; y: number };
+        if (pastePosition) {
+          targetPosition = pastePosition;
+        } else if (mousePosition) {
+          targetPosition = screenToFlowPosition(mousePosition);
+        } else {
+          // Fallback: offset from original position
+          targetPosition = { x: centerX + 50, y: centerY + 50 };
+        }
 
-      // Calculate offset to move nodes so their center is at target position
-      const offsetX = targetPosition.x - centerX;
-      const offsetY = targetPosition.y - centerY;
+        // Calculate offset to move nodes so their center is at target position
+        const offsetX = targetPosition.x - centerX;
+        const offsetY = targetPosition.y - centerY;
 
-      // Create new nodes with new IDs
-      // Only apply offset to top-level nodes; children keep their relative positions
-      const newNodes: Node[] = clipboard.nodes.map((node) => {
-        const hasParentInClipboard = node.parentId && idMap.has(node.parentId);
-        return {
-          ...node,
-          id: idMap.get(node.id)!,
-          position: hasParentInClipboard
-            ? node.position // Keep relative position for children
-            : {
-                x: node.position.x + offsetX,
-                y: node.position.y + offsetY,
-              },
-          selected: true,
-          // Preserve parent relationship and extent, or clear if parent not in selection
-          parentId: hasParentInClipboard
-            ? idMap.get(node.parentId!)
-            : undefined,
-          extent: hasParentInClipboard ? node.extent : undefined,
-        };
-      });
+        // Create new nodes with new IDs
+        // Only apply offset to top-level nodes; children keep their relative positions
+        const newNodes: Node[] = clipboard.nodes.map((node) => {
+          const hasParentInClipboard =
+            node.parentId && idMap.has(node.parentId);
+          return {
+            ...node,
+            id: idMap.get(node.id)!,
+            position: hasParentInClipboard
+              ? node.position // Keep relative position for children
+              : {
+                  x: node.position.x + offsetX,
+                  y: node.position.y + offsetY,
+                },
+            selected: true,
+            // Preserve parent relationship and extent, or clear if parent not in selection
+            parentId: hasParentInClipboard
+              ? idMap.get(node.parentId!)
+              : undefined,
+            extent: hasParentInClipboard ? node.extent : undefined,
+          };
+        });
 
-      // Sort nodes: parents must come before children in React Flow
-      const sortedNewNodes = newNodes.sort((a, b) => {
-        const aHasParent = !!a.parentId;
-        const bHasParent = !!b.parentId;
-        if (aHasParent && !bHasParent) return 1;
-        if (!aHasParent && bHasParent) return -1;
-        return 0;
-      });
+        // Sort nodes: parents must come before children in React Flow
+        const sortedNewNodes = newNodes.sort((a, b) => {
+          const aHasParent = !!a.parentId;
+          const bHasParent = !!b.parentId;
+          if (aHasParent && !bHasParent) return 1;
+          if (!aHasParent && bHasParent) return -1;
+          return 0;
+        });
 
-      // Create new edges with updated source/target IDs
-      const newEdges: Edge[] = clipboard.edges.map((edge) => ({
-        ...edge,
-        id: generateNodeId("edge"),
-        source: idMap.get(edge.source)!,
-        target: idMap.get(edge.target)!,
-        selected: false,
-      }));
+        // Create new edges with updated source/target IDs
+        const newEdges: Edge[] = clipboard.edges.map((edge) => ({
+          ...edge,
+          id: generateNodeId("edge"),
+          source: idMap.get(edge.source)!,
+          target: idMap.get(edge.target)!,
+          selected: false,
+        }));
 
-      // Deselect existing nodes, add new ones
-      setNodes((nds) => [
-        ...nds.map((n) => ({ ...n, selected: false })),
-        ...sortedNewNodes,
-      ]);
-      setEdges((eds) => [...eds, ...newEdges]);
-    }, [clipboard, isLocked, mousePosition, screenToFlowPosition, saveSnapshot]);
+        // Deselect existing nodes, add new ones
+        setNodes((nds) => [
+          ...nds.map((n) => ({ ...n, selected: false })),
+          ...sortedNewNodes,
+        ]);
+        setEdges((eds) => [...eds, ...newEdges]);
+      },
+      [clipboard, isLocked, mousePosition, screenToFlowPosition, saveSnapshot],
+    );
 
     // Handle delete action (used by keyboard shortcut and context menu)
     const handleDelete = useCallback(() => {
@@ -795,19 +999,27 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
       // Find selected nodes and edges, excluding locked nodes
       const selectedNodes = nodes.filter((node) => node.selected);
-      const deletableNodes = selectedNodes.filter((node) => !(node.data as { isNodeLocked?: boolean })?.isNodeLocked);
+      const deletableNodes = selectedNodes.filter(
+        (node) => !(node.data as { isNodeLocked?: boolean })?.isNodeLocked,
+      );
       const lockedNodeCount = selectedNodes.length - deletableNodes.length;
       const selectedEdges = edges.filter((edge) => edge.selected);
 
       if (deletableNodes.length === 0 && selectedEdges.length === 0) return;
 
       // Check if any selected deletable node is a group with children
-      const selectedGroupIds = deletableNodes.filter((n) => n.type === "group").map((n) => n.id);
-      const childrenOfSelectedGroups = nodes.filter((n) => n.parentId && selectedGroupIds.includes(n.parentId));
+      const selectedGroupIds = deletableNodes
+        .filter((n) => n.type === "group")
+        .map((n) => n.id);
+      const childrenOfSelectedGroups = nodes.filter(
+        (n) => n.parentId && selectedGroupIds.includes(n.parentId),
+      );
 
       if (childrenOfSelectedGroups.length > 0) {
         // Show group delete dialog with options
-        const otherNodeIds = deletableNodes.filter((n) => n.type !== "group").map((n) => n.id);
+        const otherNodeIds = deletableNodes
+          .filter((n) => n.type !== "group")
+          .map((n) => n.id);
         setGroupDeleteConfirm({
           groupIds: selectedGroupIds,
           childIds: childrenOfSelectedGroups.map((n) => n.id),
@@ -823,13 +1035,15 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         if (nodeCount > 0 && edgeCount > 0) {
           message = `Are you sure you want to delete ${nodeCount} node${nodeCount !== 1 ? "s" : ""} and ${edgeCount} connection${edgeCount !== 1 ? "s" : ""}?`;
         } else if (nodeCount > 0) {
-          message = nodeCount === 1
-            ? "Are you sure you want to delete this node?"
-            : `Are you sure you want to delete ${nodeCount} nodes?`;
+          message =
+            nodeCount === 1
+              ? "Are you sure you want to delete this node?"
+              : `Are you sure you want to delete ${nodeCount} nodes?`;
         } else {
-          message = edgeCount === 1
-            ? "Are you sure you want to delete this connection?"
-            : `Are you sure you want to delete ${edgeCount} connections?`;
+          message =
+            edgeCount === 1
+              ? "Are you sure you want to delete this connection?"
+              : `Are you sure you want to delete ${edgeCount} connections?`;
         }
 
         if (lockedNodeCount > 0) {
@@ -864,7 +1078,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
           if (target.getAttribute("contenteditable") === "true") return true;
 
           // Inside Monaco editor or nodrag container
-          if (target.closest(".monaco-editor") || target.closest(".nodrag")) return true;
+          if (target.closest(".monaco-editor") || target.closest(".nodrag"))
+            return true;
 
           return false;
         })();
@@ -901,14 +1116,22 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         }
 
         // Undo: Ctrl/Cmd+Z (without Shift)
-        if (modifier && e.key.toLowerCase() === "z" && !e.shiftKey && !isLocked) {
+        if (
+          modifier &&
+          e.key.toLowerCase() === "z" &&
+          !e.shiftKey &&
+          !isLocked
+        ) {
           handleUndo();
           return;
         }
 
         // Redo: Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y
         if (modifier && !isLocked) {
-          if ((e.key.toLowerCase() === "z" && e.shiftKey) || e.key.toLowerCase() === "y") {
+          if (
+            (e.key.toLowerCase() === "z" && e.shiftKey) ||
+            e.key.toLowerCase() === "y"
+          ) {
             handleRedo();
             return;
           }
@@ -923,354 +1146,445 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
       window.addEventListener("keydown", handleKeyDown);
       return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [isLocked, handleCopy, handleCut, handlePaste, handleDelete, handleUndo, handleRedo, onSave]);
+    }, [
+      isLocked,
+      handleCopy,
+      handleCut,
+      handlePaste,
+      handleDelete,
+      handleUndo,
+      handleRedo,
+      onSave,
+    ]);
 
-    const addGroupNode = useCallback((position?: { x: number; y: number }) => {
-      const groupId = generateNodeId("group");
+    const addGroupNode = useCallback(
+      (position?: { x: number; y: number }) => {
+        const groupId = generateNodeId("group");
 
-      const newNode: Node = {
-        id: groupId,
-        type: "group",
-        position: position || groupPosition,
-        data: getDefaultGroupData(),
-        style: { width: 300, height: 200 },
-        dragHandle: ".group-drag-handle",
-      };
+        const newNode: Node = {
+          id: groupId,
+          type: "group",
+          position: position || groupPosition,
+          data: getDefaultGroupData(),
+          style: { width: 300, height: 200 },
+          dragHandle: ".group-drag-handle",
+        };
 
-      // Group nodes must come before their children, so prepend
-      setNodes((nds) => [newNode, ...nds]);
-      if (!position) {
-        setGroupPosition((pos) => ({ ...pos, x: pos.x + spacing }));
-      }
-    }, [groupPosition]);
+        // Group nodes must come before their children, so prepend
+        setNodes((nds) => [newNode, ...nds]);
+        if (!position) {
+          setGroupPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+        }
+      },
+      [groupPosition],
+    );
 
     /**
      * Add an Agent node to the canvas
      */
-    const addAgentNode = useCallback((position?: { x: number; y: number }) => {
-      const agentId = generateNodeId("agent");
-      const defaultData = getDefaultAgentData();
-      const agent: Agent = {
-        id: agentId,
-        ...defaultData,
-      };
+    const addAgentNode = useCallback(
+      (position?: { x: number; y: number }) => {
+        const agentId = generateNodeId("agent");
+        const defaultData = getDefaultAgentData();
+        const agent: Agent = {
+          id: agentId,
+          ...defaultData,
+        };
 
-      const newNode: Node = {
-        id: agentId,
-        type: "agent",
-        position: position || agentPosition,
-        data: { agent, handleTypes: defaultData.handleTypes },
-      };
+        const newNode: Node = {
+          id: agentId,
+          type: "agent",
+          position: position || agentPosition,
+          data: { agent, handleTypes: defaultData.handleTypes },
+        };
 
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setAgentPosition((pos) => ({ ...pos, x: pos.x + spacing }));
-      }
-    }, [agentPosition]);
+        setNodes((nds) => [...nds, newNode]);
+        if (!position) {
+          setAgentPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+        }
+      },
+      [agentPosition],
+    );
 
     /**
      * Add a Prompt node to the canvas
      */
-    const addPromptNode = useCallback((promptData?: { name: string; file_path: string }, position?: { x: number; y: number }) => {
-      const promptId = generateNodeId("prompt");
-      const defaultData = getDefaultPromptData();
-      const prompt: Prompt = {
-        id: promptId,
-        ...(promptData || defaultData),
-      };
+    const addPromptNode = useCallback(
+      (
+        promptData?: { name: string; file_path: string },
+        position?: { x: number; y: number },
+      ) => {
+        const promptId = generateNodeId("prompt");
+        const defaultData = getDefaultPromptData();
+        const prompt: Prompt = {
+          id: promptId,
+          ...(promptData || defaultData),
+        };
 
-      const newNode: Node = {
-        id: promptId,
-        type: "prompt",
-        position: position || promptPosition,
-        data: {
-          prompt,
-          content: "",
-          handleTypes: defaultData.handleTypes,
-        },
-      };
+        const newNode: Node = {
+          id: promptId,
+          type: "prompt",
+          position: position || promptPosition,
+          data: {
+            prompt,
+            content: "",
+            handleTypes: defaultData.handleTypes,
+          },
+        };
 
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setPromptPosition((pos) => ({ ...pos, x: pos.x + spacing }));
-      }
-    }, [promptPosition]);
+        setNodes((nds) => [...nds, newNode]);
+        if (!position) {
+          setPromptPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+        }
+      },
+      [promptPosition],
+    );
 
     /**
      * Add a Context node to the canvas
      */
-    const addContextNode = useCallback((contextData?: { name: string; file_path: string }, position?: { x: number; y: number }) => {
-      const contextId = generateNodeId("context");
-      const context: Prompt = {
-        id: contextId,
-        ...(contextData || getDefaultContextData()),
-      };
+    const addContextNode = useCallback(
+      (
+        contextData?: { name: string; file_path: string },
+        position?: { x: number; y: number },
+      ) => {
+        const contextId = generateNodeId("context");
+        const context: Prompt = {
+          id: contextId,
+          ...(contextData || getDefaultContextData()),
+        };
 
-      const newNode: Node = {
-        id: contextId,
-        type: "context",
-        position: position || contextPosition,
-        data: {
-          prompt: context,
-          content: "",
-        },
-      };
+        const newNode: Node = {
+          id: contextId,
+          type: "context",
+          position: position || contextPosition,
+          data: {
+            prompt: context,
+            content: "",
+          },
+        };
 
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setContextPosition((pos) => ({ ...pos, x: pos.x + spacing }));
-      }
-    }, [contextPosition]);
+        setNodes((nds) => [...nds, newNode]);
+        if (!position) {
+          setContextPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+        }
+      },
+      [contextPosition],
+    );
 
     /**
      * Add an Input Probe node to the canvas
      */
-    const addInputProbeNode = useCallback((position?: { x: number; y: number }) => {
-      const inputProbeId = generateNodeId("inputProbe");
+    const addInputProbeNode = useCallback(
+      (position?: { x: number; y: number }) => {
+        const inputProbeId = generateNodeId("inputProbe");
 
-      const newNode: Node = {
-        id: inputProbeId,
-        type: "inputProbe",
-        position: position || inputProbePosition,
-        data: getDefaultInputProbeData(),
-      };
+        const newNode: Node = {
+          id: inputProbeId,
+          type: "inputProbe",
+          position: position || inputProbePosition,
+          data: getDefaultInputProbeData(),
+        };
 
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setInputProbePosition((pos) => ({ ...pos, x: pos.x + spacing }));
-      }
-    }, [inputProbePosition]);
+        setNodes((nds) => [...nds, newNode]);
+        if (!position) {
+          setInputProbePosition((pos) => ({ ...pos, x: pos.x + spacing }));
+        }
+      },
+      [inputProbePosition],
+    );
 
     /**
      * Add an Output Probe node to the canvas
      */
-    const addOutputProbeNode = useCallback((position?: { x: number; y: number }) => {
-      const outputProbeId = generateNodeId("outputProbe");
+    const addOutputProbeNode = useCallback(
+      (position?: { x: number; y: number }) => {
+        const outputProbeId = generateNodeId("outputProbe");
 
-      const newNode: Node = {
-        id: outputProbeId,
-        type: "outputProbe",
-        position: position || outputProbePosition,
-        data: getDefaultOutputProbeData(),
-      };
+        const newNode: Node = {
+          id: outputProbeId,
+          type: "outputProbe",
+          position: position || outputProbePosition,
+          data: getDefaultOutputProbeData(),
+        };
 
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setOutputProbePosition((pos) => ({ ...pos, x: pos.x + spacing }));
-      }
-    }, [outputProbePosition]);
+        setNodes((nds) => [...nds, newNode]);
+        if (!position) {
+          setOutputProbePosition((pos) => ({ ...pos, x: pos.x + spacing }));
+        }
+      },
+      [outputProbePosition],
+    );
 
     /**
      * Add a Log Probe node to the canvas
      */
-    const addLogProbeNode = useCallback((position?: { x: number; y: number }) => {
-      const logProbeId = generateNodeId("logProbe");
+    const addLogProbeNode = useCallback(
+      (position?: { x: number; y: number }) => {
+        const logProbeId = generateNodeId("logProbe");
 
-      const newNode: Node = {
-        id: logProbeId,
-        type: "logProbe",
-        position: position || logProbePosition,
-        data: getDefaultLogProbeData(),
-      };
+        const newNode: Node = {
+          id: logProbeId,
+          type: "logProbe",
+          position: position || logProbePosition,
+          data: getDefaultLogProbeData(),
+        };
 
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setLogProbePosition((pos) => ({ ...pos, x: pos.x + spacing }));
-      }
-    }, [logProbePosition]);
+        setNodes((nds) => [...nds, newNode]);
+        if (!position) {
+          setLogProbePosition((pos) => ({ ...pos, x: pos.x + spacing }));
+        }
+      },
+      [logProbePosition],
+    );
 
     /**
      * Add an OutputFile node to the canvas
      */
-    const addOutputFileNode = useCallback((outputFileData?: { name: string; file_path: string }, position?: { x: number; y: number }) => {
-      const outputFileId = generateNodeId("outputFile");
+    const addOutputFileNode = useCallback(
+      (
+        outputFileData?: { name: string; file_path: string },
+        position?: { x: number; y: number },
+      ) => {
+        const outputFileId = generateNodeId("outputFile");
 
-      const newNode: Node = {
-        id: outputFileId,
-        type: "outputFile",
-        position: position || outputFilePosition,
-        data: outputFileData
-          ? { ...getDefaultOutputFileData(), name: outputFileData.name, file_path: outputFileData.file_path }
-          : getDefaultOutputFileData(),
-      };
+        const newNode: Node = {
+          id: outputFileId,
+          type: "outputFile",
+          position: position || outputFilePosition,
+          data: outputFileData
+            ? {
+                ...getDefaultOutputFileData(),
+                name: outputFileData.name,
+                file_path: outputFileData.file_path,
+              }
+            : getDefaultOutputFileData(),
+        };
 
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setOutputFilePosition((pos) => ({ ...pos, x: pos.x + spacing }));
-      }
-    }, [outputFilePosition]);
+        setNodes((nds) => [...nds, newNode]);
+        if (!position) {
+          setOutputFilePosition((pos) => ({ ...pos, x: pos.x + spacing }));
+        }
+      },
+      [outputFilePosition],
+    );
 
     /**
      * Add a Tool node to the canvas
      */
-    const addToolNode = useCallback((toolData?: { name: string; file_path: string }, position?: { x: number; y: number }) => {
-      const toolId = generateNodeId("tool");
+    const addToolNode = useCallback(
+      (
+        toolData?: { name: string; file_path: string },
+        position?: { x: number; y: number },
+      ) => {
+        const toolId = generateNodeId("tool");
 
-      const newNode: Node = {
-        id: toolId,
-        type: "tool",
-        position: position || toolPosition,
-        data: toolData ? { ...getDefaultToolData(), name: toolData.name, file_path: toolData.file_path } : getDefaultToolData(),
-      };
+        const newNode: Node = {
+          id: toolId,
+          type: "tool",
+          position: position || toolPosition,
+          data: toolData
+            ? {
+                ...getDefaultToolData(),
+                name: toolData.name,
+                file_path: toolData.file_path,
+              }
+            : getDefaultToolData(),
+        };
 
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setToolPosition((pos) => ({ ...pos, x: pos.x + spacing }));
-      }
-    }, [toolPosition]);
+        setNodes((nds) => [...nds, newNode]);
+        if (!position) {
+          setToolPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+        }
+      },
+      [toolPosition],
+    );
 
     /**
      * Add an Agent Tool node to the canvas
      */
-    const addAgentToolNode = useCallback((position?: { x: number; y: number }) => {
-      const agentToolId = generateNodeId("agentTool");
+    const addAgentToolNode = useCallback(
+      (position?: { x: number; y: number }) => {
+        const agentToolId = generateNodeId("agentTool");
 
-      const newNode: Node = {
-        id: agentToolId,
-        type: "agentTool",
-        position: position || agentToolPosition,
-        data: getDefaultAgentToolData(),
-      };
+        const newNode: Node = {
+          id: agentToolId,
+          type: "agentTool",
+          position: position || agentToolPosition,
+          data: getDefaultAgentToolData(),
+        };
 
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setAgentToolPosition((pos) => ({ ...pos, x: pos.x + spacing }));
-      }
-    }, [agentToolPosition]);
+        setNodes((nds) => [...nds, newNode]);
+        if (!position) {
+          setAgentToolPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+        }
+      },
+      [agentToolPosition],
+    );
 
     /**
      * Add a Variable node to the canvas
      */
-    const addVariableNode = useCallback((position?: { x: number; y: number }) => {
-      const variableId = generateNodeId("variable");
+    const addVariableNode = useCallback(
+      (position?: { x: number; y: number }) => {
+        const variableId = generateNodeId("variable");
 
-      const newNode: Node = {
-        id: variableId,
-        type: "variable",
-        position: position || variablePosition,
-        data: getDefaultVariableData(),
-      };
+        const newNode: Node = {
+          id: variableId,
+          type: "variable",
+          position: position || variablePosition,
+          data: getDefaultVariableData(),
+        };
 
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setVariablePosition((pos) => ({ ...pos, x: pos.x + spacing }));
-      }
-    }, [variablePosition]);
+        setNodes((nds) => [...nds, newNode]);
+        if (!position) {
+          setVariablePosition((pos) => ({ ...pos, x: pos.x + spacing }));
+        }
+      },
+      [variablePosition],
+    );
 
     /**
      * Add a Process node to the canvas
      */
-    const addProcessNode = useCallback((processData?: { name: string; file_path: string }, position?: { x: number; y: number }) => {
-      const processId = generateNodeId("process");
+    const addProcessNode = useCallback(
+      (
+        processData?: { name: string; file_path: string },
+        position?: { x: number; y: number },
+      ) => {
+        const processId = generateNodeId("process");
 
-      const newNode: Node = {
-        id: processId,
-        type: "process",
-        position: position || processPosition,
-        data: processData ? { ...getDefaultProcessData(), name: processData.name, file_path: processData.file_path } : getDefaultProcessData(),
-      };
+        const newNode: Node = {
+          id: processId,
+          type: "process",
+          position: position || processPosition,
+          data: processData
+            ? {
+                ...getDefaultProcessData(),
+                name: processData.name,
+                file_path: processData.file_path,
+              }
+            : getDefaultProcessData(),
+        };
 
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setProcessPosition((pos) => ({ ...pos, x: pos.x + spacing }));
-      }
-    }, [processPosition]);
+        setNodes((nds) => [...nds, newNode]);
+        if (!position) {
+          setProcessPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+        }
+      },
+      [processPosition],
+    );
 
     /**
      * Add a Label node to the canvas
      */
-    const addLabelNode = useCallback((position?: { x: number; y: number }) => {
-      const labelId = generateNodeId("label");
+    const addLabelNode = useCallback(
+      (position?: { x: number; y: number }) => {
+        const labelId = generateNodeId("label");
 
-      const newNode: Node = {
-        id: labelId,
-        type: "label",
-        position: position || labelPosition,
-        data: getDefaultLabelData(),
-        style: { width: 100, height: 30 },
-      };
+        const newNode: Node = {
+          id: labelId,
+          type: "label",
+          position: position || labelPosition,
+          data: getDefaultLabelData(),
+          style: { width: 100, height: 30 },
+        };
 
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setLabelPosition((pos) => ({ ...pos, x: pos.x + spacing }));
-      }
-    }, [labelPosition]);
+        setNodes((nds) => [...nds, newNode]);
+        if (!position) {
+          setLabelPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+        }
+      },
+      [labelPosition],
+    );
 
     /**
      * Add a TeleportOut node to the canvas
      */
-    const addTeleportOutNode = useCallback((name: string, position?: { x: number; y: number }) => {
-      const teleportId = generateNodeId("teleportOut");
+    const addTeleportOutNode = useCallback(
+      (name: string, position?: { x: number; y: number }) => {
+        const teleportId = generateNodeId("teleportOut");
 
-      const newNode: Node = {
-        id: teleportId,
-        type: "teleportOut",
-        position: position || teleportOutPosition,
-        data: { ...getDefaultTeleportOutData(), name },
-      };
+        const newNode: Node = {
+          id: teleportId,
+          type: "teleportOut",
+          position: position || teleportOutPosition,
+          data: { ...getDefaultTeleportOutData(), name },
+        };
 
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setTeleportOutPosition((pos) => ({ ...pos, x: pos.x + spacing }));
-      }
-    }, [teleportOutPosition]);
+        setNodes((nds) => [...nds, newNode]);
+        if (!position) {
+          setTeleportOutPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+        }
+      },
+      [teleportOutPosition],
+    );
 
     /**
      * Add a TeleportIn node to the canvas
      */
-    const addTeleportInNode = useCallback((name: string, position?: { x: number; y: number }) => {
-      const teleportId = generateNodeId("teleportIn");
+    const addTeleportInNode = useCallback(
+      (name: string, position?: { x: number; y: number }) => {
+        const teleportId = generateNodeId("teleportIn");
 
-      const newNode: Node = {
-        id: teleportId,
-        type: "teleportIn",
-        position: position || teleportInPosition,
-        data: { ...getDefaultTeleportInData(), name },
-      };
+        const newNode: Node = {
+          id: teleportId,
+          type: "teleportIn",
+          position: position || teleportInPosition,
+          data: { ...getDefaultTeleportInData(), name },
+        };
 
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setTeleportInPosition((pos) => ({ ...pos, x: pos.x + spacing }));
-      }
-    }, [teleportInPosition]);
+        setNodes((nds) => [...nds, newNode]);
+        if (!position) {
+          setTeleportInPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+        }
+      },
+      [teleportInPosition],
+    );
 
     /**
      * Add a User Input node to the canvas
      */
-    const addUserInputNode = useCallback((position?: { x: number; y: number }) => {
-      const userInputId = generateNodeId("userInput");
+    const addUserInputNode = useCallback(
+      (position?: { x: number; y: number }) => {
+        const userInputId = generateNodeId("userInput");
 
-      const newNode: Node = {
-        id: userInputId,
-        type: "userInput",
-        position: position || userInputPosition,
-        data: getDefaultUserInputData(),
-      };
+        const newNode: Node = {
+          id: userInputId,
+          type: "userInput",
+          position: position || userInputPosition,
+          data: getDefaultUserInputData(),
+        };
 
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setUserInputPosition((pos) => ({ ...pos, x: pos.x + spacing }));
-      }
-    }, [userInputPosition]);
+        setNodes((nds) => [...nds, newNode]);
+        if (!position) {
+          setUserInputPosition((pos) => ({ ...pos, x: pos.x + spacing }));
+        }
+      },
+      [userInputPosition],
+    );
 
     /**
      * Add a Start node to the canvas (only one allowed)
      */
-    const addStartNode = useCallback((position?: { x: number; y: number }) => {
-      // Check if start node already exists
-      const hasStart = nodes.some(n => n.type === "start");
-      if (hasStart) return;
+    const addStartNode = useCallback(
+      (position?: { x: number; y: number }) => {
+        // Check if start node already exists
+        const hasStart = nodes.some((n) => n.type === "start");
+        if (hasStart) return;
 
-      const startId = generateNodeId("start");
-      const newNode: Node = {
-        id: startId,
-        type: "start",
-        position: position || { x: 100, y: 200 },
-        data: getDefaultStartData(),
-      };
+        const startId = generateNodeId("start");
+        const newNode: Node = {
+          id: startId,
+          type: "start",
+          position: position || { x: 100, y: 200 },
+          data: getDefaultStartData(),
+        };
 
-      setNodes((nds) => [...nds, newNode]);
-    }, [nodes]);
+        setNodes((nds) => [...nds, newNode]);
+      },
+      [nodes],
+    );
 
     /**
      * Add an End node to the canvas
@@ -1296,7 +1610,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       }
       const { x, y, zoom } = rfInstance.getViewport();
       // Get the dimensions of the React Flow container
-      const domNode = document.querySelector('.react-flow');
+      const domNode = document.querySelector(".react-flow");
       if (!domNode) {
         return { x: 400, y: 300 };
       }
@@ -1310,49 +1624,140 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     /**
      * Add a custom node to the canvas
      */
-    const addCustomNode = useCallback((schema: CustomNodeSchema, position?: { x: number; y: number }) => {
-      const id = `custom_${schema.unit_id}_${Date.now()}`;
-      const pos = position || getViewportCenter();
+    const addCustomNode = useCallback(
+      (schema: CustomNodeSchema, position?: { x: number; y: number }) => {
+        const id = `custom_${schema.unit_id}_${Date.now()}`;
+        const pos = position || getViewportCenter();
 
-      const newNode: Node = {
-        id,
-        type: `custom:${schema.unit_id}`,
-        position: pos,
-        data: getDefaultCustomNodeData(schema) as unknown as Record<string, unknown>,
-      };
+        const newNode: Node = {
+          id,
+          type: `custom:${schema.unit_id}`,
+          position: pos,
+          data: getDefaultCustomNodeData(schema) as unknown as Record<
+            string,
+            unknown
+          >,
+        };
 
-      setNodes((nodes) => [...nodes, newNode]);
-      return id;
-    }, [setNodes, getViewportCenter]);
+        setNodes((nodes) => [...nodes, newNode]);
+        return id;
+      },
+      [setNodes, getViewportCenter],
+    );
+
+    /**
+     * Add a built-in schema-driven node to the canvas.
+     * This is the new unified way to create built-in nodes using the schema architecture.
+     *
+     * @param nodeType - The built-in node type (e.g., "agent", "variable", "prompt")
+     * @param position - Optional position on the canvas
+     * @param configOverrides - Optional field values to override schema defaults
+     * @param parentGroupId - Optional parent group ID to nest the node inside
+     */
+    const addBuiltinSchemaNode = useCallback(
+      (
+        nodeType: string,
+        position?: { x: number; y: number },
+        configOverrides?: Record<string, unknown>,
+        parentGroupId?: string,
+      ) => {
+        const schema = builtinTypeToSchema[nodeType];
+        if (!schema) {
+          console.error(`Unknown built-in node type: ${nodeType}`);
+          return null;
+        }
+
+        const id = generateNodeId(nodeType);
+        const pos = position || getViewportCenter();
+        const defaultData = getDefaultCustomNodeData(schema);
+
+        // Apply any config overrides
+        if (configOverrides) {
+          Object.assign(defaultData.config, configOverrides);
+        }
+
+        const newNode: Node = {
+          id,
+          type: nodeType,
+          position: pos,
+          data: defaultData as unknown as Record<string, unknown>,
+          // Add parent group relationship if specified
+          ...(parentGroupId && {
+            parentId: parentGroupId,
+            extent: "parent" as const,
+          }),
+        };
+
+        setNodes((nds) => {
+          // If parented, ensure proper ordering (parent before children)
+          if (parentGroupId) {
+            const parentIndex = nds.findIndex((n) => n.id === parentGroupId);
+            if (parentIndex !== -1) {
+              return [
+                ...nds.slice(0, parentIndex + 1),
+                newNode,
+                ...nds.slice(parentIndex + 1),
+              ];
+            }
+          }
+          return [...nds, newNode];
+        });
+        return id;
+      },
+      [setNodes, getViewportCenter],
+    );
 
     // Handle right-click on canvas pane
-    const onPaneContextMenu = useCallback((event: MouseEvent | React.MouseEvent) => {
-      event.preventDefault();
-      const flowPosition = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-      setContextMenu({ x: event.clientX, y: event.clientY, flowPosition });
-    }, [screenToFlowPosition]);
+    const onPaneContextMenu = useCallback(
+      (event: MouseEvent | React.MouseEvent) => {
+        event.preventDefault();
+        const flowPosition = screenToFlowPosition({
+          x: event.clientX,
+          y: event.clientY,
+        });
+        setContextMenu({ x: event.clientX, y: event.clientY, flowPosition });
+      },
+      [screenToFlowPosition],
+    );
 
     // Handle right-click on a node (specifically for groups)
-    const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
-      if (isLocked) return;
-      if (node.type !== 'group') return;
+    const onNodeContextMenu = useCallback(
+      (event: React.MouseEvent, node: Node) => {
+        if (isLocked) return;
+        if (node.type !== "group") return;
 
-      event.preventDefault();
-      const flowPosition = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-      // Store position relative to the group
-      const relativePosition = {
-        x: flowPosition.x - node.position.x,
-        y: flowPosition.y - node.position.y,
-      };
-      setContextMenu({ x: event.clientX, y: event.clientY, flowPosition: relativePosition, parentGroupId: node.id });
-    }, [screenToFlowPosition, isLocked]);
+        event.preventDefault();
+        const flowPosition = screenToFlowPosition({
+          x: event.clientX,
+          y: event.clientY,
+        });
+        // Store position relative to the group
+        const relativePosition = {
+          x: flowPosition.x - node.position.x,
+          y: flowPosition.y - node.position.y,
+        };
+        setContextMenu({
+          x: event.clientX,
+          y: event.clientY,
+          flowPosition: relativePosition,
+          parentGroupId: node.id,
+        });
+      },
+      [screenToFlowPosition, isLocked],
+    );
 
     // Handle right-click on selection box
-    const onSelectionContextMenu = useCallback((event: React.MouseEvent) => {
-      event.preventDefault();
-      const flowPosition = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-      setContextMenu({ x: event.clientX, y: event.clientY, flowPosition });
-    }, [screenToFlowPosition]);
+    const onSelectionContextMenu = useCallback(
+      (event: React.MouseEvent) => {
+        event.preventDefault();
+        const flowPosition = screenToFlowPosition({
+          x: event.clientX,
+          y: event.clientY,
+        });
+        setContextMenu({ x: event.clientX, y: event.clientY, flowPosition });
+      },
+      [screenToFlowPosition],
+    );
 
     // Track mouse position for paste at cursor
     const onMouseMove = useCallback((event: React.MouseEvent) => {
@@ -1360,142 +1765,171 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     }, []);
 
     // Helper to add node with optional parent
-    const addNodeWithParent = useCallback((
-      addFn: (position?: { x: number; y: number }) => void,
-      position: { x: number; y: number },
-      parentGroupId?: string
-    ) => {
-      addFn(position);
-      if (parentGroupId) {
-        // After adding, set the parent for the most recently added node
-        setNodes((nds) => {
-          const lastNode = nds[nds.length - 1];
-          if (lastNode && lastNode.type !== 'group') {
-            const updatedNode = {
-              ...lastNode,
-              parentId: parentGroupId,
-              extent: 'parent' as const,
-            };
-            // Reorder: parents must come before children
-            const otherNodes = nds.slice(0, -1);
-            const parentIndex = otherNodes.findIndex(n => n.id === parentGroupId);
-            if (parentIndex !== -1) {
-              return [
-                ...otherNodes.slice(0, parentIndex + 1),
-                updatedNode,
-                ...otherNodes.slice(parentIndex + 1),
-              ];
+    const addNodeWithParent = useCallback(
+      (
+        addFn: (position?: { x: number; y: number }) => void,
+        position: { x: number; y: number },
+        parentGroupId?: string,
+      ) => {
+        addFn(position);
+        if (parentGroupId) {
+          // After adding, set the parent for the most recently added node
+          setNodes((nds) => {
+            const lastNode = nds[nds.length - 1];
+            if (lastNode && lastNode.type !== "group") {
+              const updatedNode = {
+                ...lastNode,
+                parentId: parentGroupId,
+                extent: "parent" as const,
+              };
+              // Reorder: parents must come before children
+              const otherNodes = nds.slice(0, -1);
+              const parentIndex = otherNodes.findIndex(
+                (n) => n.id === parentGroupId,
+              );
+              if (parentIndex !== -1) {
+                return [
+                  ...otherNodes.slice(0, parentIndex + 1),
+                  updatedNode,
+                  ...otherNodes.slice(parentIndex + 1),
+                ];
+              }
+              return [...otherNodes, updatedNode];
             }
-            return [...otherNodes, updatedNode];
-          }
-          return nds;
-        });
-      }
-    }, []);
+            return nds;
+          });
+        }
+      },
+      [],
+    );
 
     // Handle context menu node selection
-    const onContextMenuSelect = useCallback((nodeType: NodeTypeOption) => {
-      if (!contextMenu) return;
+    // Uses schema-driven approach for most nodes, legacy for layout/special nodes
+    const onContextMenuSelect = useCallback(
+      (nodeType: NodeTypeOption) => {
+        if (!contextMenu) return;
 
-      const position = contextMenu.flowPosition;
-      const parentGroupId = contextMenu.parentGroupId;
+        const position = contextMenu.flowPosition;
+        const parentGroupId = contextMenu.parentGroupId;
 
-      // Don't allow adding groups inside groups
-      if (nodeType === 'group' && parentGroupId) {
+        // Don't allow adding groups inside groups
+        if (nodeType === "group" && parentGroupId) {
+          setContextMenu(null);
+          return;
+        }
+
+        // Node creation - all built-in nodes use schema-driven approach
+        // except layout nodes (group, label) which have fundamentally different rendering
+        switch (nodeType) {
+          // Layout nodes (not schema-driven)
+          case "group":
+            addGroupNode(position);
+            break;
+          case "label":
+            addNodeWithParent(addLabelNode, position, parentGroupId);
+            break;
+
+          // Teleport nodes require name prompt dialog, but use schema for node data
+          case "teleportOut":
+            setTeleportNamePrompt({
+              type: "teleportOut",
+              position,
+              parentGroupId,
+            });
+            setTeleportNameInput("");
+            break;
+          case "teleportIn":
+            setTeleportNamePrompt({
+              type: "teleportIn",
+              position,
+              parentGroupId,
+            });
+            setTeleportNameInput("");
+            break;
+
+          // File-based nodes require name/file dialog before creation
+          case "prompt":
+            if (onRequestPromptCreation) {
+              onRequestPromptCreation(position);
+            } else {
+              addBuiltinSchemaNode(
+                nodeType,
+                position,
+                undefined,
+                parentGroupId,
+              );
+            }
+            break;
+          case "context":
+            if (onRequestContextCreation) {
+              onRequestContextCreation(position);
+            } else {
+              addBuiltinSchemaNode(
+                nodeType,
+                position,
+                undefined,
+                parentGroupId,
+              );
+            }
+            break;
+          case "tool":
+            if (onRequestToolCreation) {
+              onRequestToolCreation(position);
+            } else {
+              addBuiltinSchemaNode(
+                nodeType,
+                position,
+                undefined,
+                parentGroupId,
+              );
+            }
+            break;
+          case "process":
+            if (onRequestProcessCreation) {
+              onRequestProcessCreation(position);
+            } else {
+              addBuiltinSchemaNode(
+                nodeType,
+                position,
+                undefined,
+                parentGroupId,
+              );
+            }
+            break;
+          case "outputFile":
+            if (onRequestOutputFileCreation) {
+              onRequestOutputFileCreation(position);
+            } else {
+              addBuiltinSchemaNode(
+                nodeType,
+                position,
+                undefined,
+                parentGroupId,
+              );
+            }
+            break;
+
+          // All other built-in nodes use schema-driven creation
+          default:
+            addBuiltinSchemaNode(nodeType, position, undefined, parentGroupId);
+            break;
+        }
+
         setContextMenu(null);
-        return;
-      }
-
-      switch (nodeType) {
-        case 'variable':
-          addNodeWithParent(addVariableNode, position, parentGroupId);
-          break;
-        case 'group':
-          addGroupNode(position);
-          break;
-        case 'agent':
-          addNodeWithParent(addAgentNode, position, parentGroupId);
-          break;
-        case 'prompt':
-          if (onRequestPromptCreation) {
-            onRequestPromptCreation(position);
-          }
-          break;
-        case 'context':
-          if (onRequestContextCreation) {
-            onRequestContextCreation(position);
-          }
-          break;
-        case 'inputProbe':
-          addNodeWithParent(addInputProbeNode, position, parentGroupId);
-          break;
-        case 'outputProbe':
-          addNodeWithParent(addOutputProbeNode, position, parentGroupId);
-          break;
-        case 'logProbe':
-          addNodeWithParent(addLogProbeNode, position, parentGroupId);
-          break;
-        case 'outputFile':
-          if (onRequestOutputFileCreation) {
-            onRequestOutputFileCreation(position);
-          }
-          break;
-        case 'tool':
-          if (onRequestToolCreation) {
-            onRequestToolCreation(position);
-          }
-          break;
-        case 'agentTool':
-          addNodeWithParent(addAgentToolNode, position, parentGroupId);
-          break;
-        case 'process':
-          if (onRequestProcessCreation) {
-            onRequestProcessCreation(position);
-          }
-          break;
-        case 'label':
-          addNodeWithParent(addLabelNode, position, parentGroupId);
-          break;
-        case 'teleportOut':
-          setTeleportNamePrompt({ type: "teleportOut", position, parentGroupId });
-          setTeleportNameInput("");
-          break;
-        case 'teleportIn':
-          setTeleportNamePrompt({ type: "teleportIn", position, parentGroupId });
-          setTeleportNameInput("");
-          break;
-        case 'userInput':
-          addNodeWithParent(addUserInputNode, position, parentGroupId);
-          break;
-        case 'start':
-          addStartNode(position);
-          break;
-        case 'end':
-          addNodeWithParent(addEndNode, position, parentGroupId);
-          break;
-      }
-
-      setContextMenu(null);
-    }, [
-      contextMenu,
-      addNodeWithParent,
-      addVariableNode,
-      addGroupNode,
-      addAgentNode,
-      addInputProbeNode,
-      addOutputProbeNode,
-      addLogProbeNode,
-      addAgentToolNode,
-      addLabelNode,
-      addUserInputNode,
-      addStartNode,
-      addEndNode,
-      onRequestPromptCreation,
-      onRequestContextCreation,
-      onRequestToolCreation,
-      onRequestProcessCreation,
-      onRequestOutputFileCreation,
-    ]);
+      },
+      [
+        contextMenu,
+        addNodeWithParent,
+        addGroupNode,
+        addLabelNode,
+        addBuiltinSchemaNode,
+        onRequestPromptCreation,
+        onRequestContextCreation,
+        onRequestToolCreation,
+        onRequestProcessCreation,
+        onRequestOutputFileCreation,
+      ],
+    );
 
     // Close context menu
     const closeContextMenu = useCallback(() => {
@@ -1509,56 +1943,29 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       const { type, position, parentGroupId } = teleportNamePrompt;
       const name = teleportNameInput.trim();
 
-      if (type === "teleportOut") {
-        if (parentGroupId) {
-          // Add to parent group
-          const teleportId = generateNodeId("teleportOut");
-          const newNode: Node = {
-            id: teleportId,
-            type: "teleportOut",
-            position,
-            data: { ...getDefaultTeleportOutData(), name },
-            parentId: parentGroupId,
-            extent: "parent" as const,
-          };
-          setNodes((nds) => [...nds, newNode]);
-        } else {
-          addTeleportOutNode(name, position);
-        }
-      } else {
-        if (parentGroupId) {
-          // Add to parent group
-          const teleportId = generateNodeId("teleportIn");
-          const newNode: Node = {
-            id: teleportId,
-            type: "teleportIn",
-            position,
-            data: { ...getDefaultTeleportInData(), name },
-            parentId: parentGroupId,
-            extent: "parent" as const,
-          };
-          setNodes((nds) => [...nds, newNode]);
-        } else {
-          addTeleportInNode(name, position);
-        }
-      }
+      // Use schema-based creation with name config override
+      const nodeType = type === "teleportOut" ? "teleportOut" : "teleportIn";
+      addBuiltinSchemaNode(nodeType, position, { name }, parentGroupId);
 
       setTeleportNamePrompt(null);
       setTeleportNameInput("");
-    }, [teleportNamePrompt, teleportNameInput, addTeleportOutNode, addTeleportInNode, setNodes]);
+    }, [teleportNamePrompt, teleportNameInput, addBuiltinSchemaNode]);
 
     const handleTeleportNameCancel = useCallback(() => {
       setTeleportNamePrompt(null);
       setTeleportNameInput("");
     }, []);
 
-    const handleTeleportNameKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Enter") {
-        handleTeleportNameSubmit();
-      } else if (e.key === "Escape") {
-        handleTeleportNameCancel();
-      }
-    }, [handleTeleportNameSubmit, handleTeleportNameCancel]);
+    const handleTeleportNameKeyDown = useCallback(
+      (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter") {
+          handleTeleportNameSubmit();
+        } else if (e.key === "Escape") {
+          handleTeleportNameCancel();
+        }
+      },
+      [handleTeleportNameSubmit, handleTeleportNameCancel],
+    );
 
     /**
      * Clear the canvas
@@ -1596,27 +2003,44 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     /**
      * Restore flow using React Flow's native restore pattern
      */
-    const restoreFlow = useCallback((flow: { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }) => {
-      if (!flow) return;
+    const restoreFlow = useCallback(
+      (flow: {
+        nodes: Node[];
+        edges: Edge[];
+        viewport: { x: number; y: number; zoom: number };
+      }) => {
+        if (!flow) return;
 
-      // Ensure group nodes have dragHandle set
-      const processedNodes = (flow.nodes || []).map((node) => {
-        if (node.type === "group") {
-          return { ...node, dragHandle: ".group-drag-handle" };
+        let nodesToRestore = flow.nodes || [];
+
+        // Migrate legacy nodes to schema-driven format
+        if (workflowNeedsMigration(nodesToRestore)) {
+          console.log(
+            "[ReactFlowCanvas] Migrating legacy nodes to schema-driven format",
+          );
+          nodesToRestore = migrateWorkflow(nodesToRestore);
         }
-        return node;
-      });
 
-      setNodes(processedNodes);
-      setEdges(flow.edges || []);
-
-      // Restore viewport after nodes are rendered
-      if (rfInstance && flow.viewport) {
-        requestAnimationFrame(() => {
-          rfInstance.setViewport(flow.viewport);
+        // Ensure group nodes have dragHandle set
+        const processedNodes = nodesToRestore.map((node) => {
+          if (node.type === "group") {
+            return { ...node, dragHandle: ".group-drag-handle" };
+          }
+          return node;
         });
-      }
-    }, [rfInstance]);
+
+        setNodes(processedNodes);
+        setEdges(flow.edges || []);
+
+        // Restore viewport after nodes are rendered
+        if (rfInstance && flow.viewport) {
+          requestAnimationFrame(() => {
+            rfInstance.setViewport(flow.viewport);
+          });
+        }
+      },
+      [rfInstance],
+    );
 
     // Zoom methods
     const zoomIn = useCallback(() => {
@@ -1637,65 +2061,76 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       }
     }, [rfInstance]);
 
-    const focusNode = useCallback((nodeId: string) => {
-      if (!rfInstance) return;
-      const node = nodes.find((n) => n.id === nodeId);
-      if (!node) return;
+    const focusNode = useCallback(
+      (nodeId: string) => {
+        if (!rfInstance) return;
+        const node = nodes.find((n) => n.id === nodeId);
+        if (!node) return;
 
-      // Center on node with some zoom
-      const x = node.position.x + (node.measured?.width ?? 100) / 2;
-      const y = node.position.y + (node.measured?.height ?? 50) / 2;
-      rfInstance.setCenter(x, y, { zoom: 1.5, duration: 300 });
+        // Center on node with some zoom
+        const x = node.position.x + (node.measured?.width ?? 100) / 2;
+        const y = node.position.y + (node.measured?.height ?? 50) / 2;
+        rfInstance.setCenter(x, y, { zoom: 1.5, duration: 300 });
 
-      // Select the node
-      setNodes((nds) => nds.map((n) => ({ ...n, selected: n.id === nodeId })));
-    }, [rfInstance, nodes, setNodes]);
+        // Select the node
+        setNodes((nds) =>
+          nds.map((n) => ({ ...n, selected: n.id === nodeId })),
+        );
+      },
+      [rfInstance, nodes, setNodes],
+    );
 
     // Update node execution state for real-time highlighting
-    const updateNodeExecutionState = useCallback((agentName: string, state: NodeExecutionState) => {
-      setNodes((nds) =>
-        nds.map((node) => {
-          if (node.type !== "agent") return node;
-          const data = node.data as unknown as AgentNodeData;
-          const nodeName = data.agent?.name || "";
-          const sanitized = sanitizeAgentName(nodeName);
-          if (
-            nodeName.toLowerCase() === agentName.toLowerCase() ||
-            sanitized === agentName
-          ) {
-            return {
-              ...node,
-              data: {
-                ...data,
-                executionState: state,
-              } as unknown as Record<string, unknown>,
-            };
-          }
-          return node;
-        })
-      );
-    }, [setNodes]);
+    const updateNodeExecutionState = useCallback(
+      (agentName: string, state: NodeExecutionState) => {
+        setNodes((nds) =>
+          nds.map((node) => {
+            if (node.type !== "agent") return node;
+            const data = node.data as unknown as AgentNodeData;
+            const nodeName = data.agent?.name || "";
+            const sanitized = sanitizeAgentName(nodeName);
+            if (
+              nodeName.toLowerCase() === agentName.toLowerCase() ||
+              sanitized === agentName
+            ) {
+              return {
+                ...node,
+                data: {
+                  ...data,
+                  executionState: state,
+                } as unknown as Record<string, unknown>,
+              };
+            }
+            return node;
+          }),
+        );
+      },
+      [setNodes],
+    );
 
     // Update tool execution state for real-time highlighting
-    const updateToolExecutionState = useCallback((toolName: string, state: NodeExecutionState) => {
-      setNodes((nds) =>
-        nds.map((node) => {
-          if (node.type !== "tool") return node;
-          const data = node.data as Record<string, unknown>;
-          const nodeName = (data.name as string) || "";
-          if (nodeName.toLowerCase() === toolName.toLowerCase()) {
-            return {
-              ...node,
-              data: {
-                ...data,
-                executionState: state,
-              },
-            };
-          }
-          return node;
-        })
-      );
-    }, [setNodes]);
+    const updateToolExecutionState = useCallback(
+      (toolName: string, state: NodeExecutionState) => {
+        setNodes((nds) =>
+          nds.map((node) => {
+            if (node.type !== "tool") return node;
+            const data = node.data as Record<string, unknown>;
+            const nodeName = (data.name as string) || "";
+            if (nodeName.toLowerCase() === toolName.toLowerCase()) {
+              return {
+                ...node,
+                data: {
+                  ...data,
+                  executionState: state,
+                },
+              };
+            }
+            return node;
+          }),
+        );
+      },
+      [setNodes],
+    );
 
     // Clear all execution states (when run completes)
     const clearExecutionState = useCallback(() => {
@@ -1727,24 +2162,27 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             }
           }
           return node;
-        })
+        }),
       );
     }, [setNodes]);
 
     // Update user input node waiting state for glow effect
-    const updateUserInputWaitingState = useCallback((nodeId: string, isWaiting: boolean) => {
-      setNodes((nds) =>
-        nds.map((node) => {
-          if (node.id === nodeId && node.type === "userInput") {
-            return {
-              ...node,
-              data: { ...node.data, isWaitingForInput: isWaiting },
-            };
-          }
-          return node;
-        })
-      );
-    }, [setNodes]);
+    const updateUserInputWaitingState = useCallback(
+      (nodeId: string, isWaiting: boolean) => {
+        setNodes((nds) =>
+          nds.map((node) => {
+            if (node.id === nodeId && node.type === "userInput") {
+              return {
+                ...node,
+                data: { ...node.data, isWaitingForInput: isWaiting },
+              };
+            }
+            return node;
+          }),
+        );
+      },
+      [setNodes],
+    );
 
     // Highlight nodes with validation errors and their messages
     const highlightErrorNodes = useCallback(
@@ -1762,10 +2200,10 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
               };
             }
             return node;
-          })
+          }),
         );
       },
-      [setNodes]
+      [setNodes],
     );
 
     // Highlight nodes with validation warnings and their messages
@@ -1784,10 +2222,10 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
               };
             }
             return node;
-          })
+          }),
         );
       },
-      [setNodes]
+      [setNodes],
     );
 
     // Clear validation error and warning highlights
@@ -1811,7 +2249,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             return { ...node, data: restData };
           }
           return node;
-        })
+        }),
       );
     }, [setNodes]);
 
@@ -1821,15 +2259,80 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     // Real-time validation for duplicate names
     useEffect(() => {
       // File-based node types that can share names if pointing to same file/content
-      const fileBasedTypes = new Set(["prompt", "context", "tool", "process", "agentTool"]);
+      const fileBasedTypes = new Set([
+        "prompt",
+        "context",
+        "tool",
+        "process",
+        "agentTool",
+      ]);
       // Node types that always require unique names
       const uniqueNameTypes = new Set(["agent", "variable"]);
 
+      // Custom node unit_ids that are file-based
+      const fileBasedUnitIds = new Set([
+        "builtin.prompt",
+        "builtin.context",
+        "builtin.tool",
+        "builtin.process",
+        "builtin.agentTool",
+      ]);
+      // Custom node unit_ids that require unique names
+      const uniqueNameUnitIds = new Set(["builtin.agent", "builtin.variable"]);
+
       // Helper to extract name and file info from a node
-      const getNodeInfo = (node: Node): { name: string; filePath: string | null; content: string | null } | null => {
+      const getNodeInfo = (
+        node: Node,
+      ): {
+        name: string;
+        filePath: string | null;
+        content: string | null;
+        isFileBased: boolean;
+        isUniqueName: boolean;
+      } | null => {
         const data = node.data as Record<string, unknown>;
         const nodeType = node.type || "";
 
+        // Check if this is a schema-driven node (has schema in data)
+        const schema = data.schema as
+          | {
+              unit_id?: string;
+              ui?: { fields?: Array<{ id: string; widget: string }> };
+            }
+          | undefined;
+
+        if (schema) {
+          // Schema-driven node - check by unit_id
+          const unitId = schema.unit_id || "";
+
+          // Check if this custom node type requires name validation
+          const isFileBased = fileBasedUnitIds.has(unitId);
+          const isUniqueName = uniqueNameUnitIds.has(unitId);
+
+          if (!isFileBased && !isUniqueName) {
+            return null;
+          }
+
+          const config = data.config as Record<string, unknown> | undefined;
+          const name = (data.name as string) || (config?.name as string) || "";
+          const filePath = (config?.file_path as string) || null;
+
+          // Find code content from code_editor field
+          let content: string | null = null;
+          if (schema.ui?.fields) {
+            const codeField = schema.ui.fields.find(
+              (f) => f.widget === "code_editor" || f.widget === "monaco_editor",
+            );
+            if (codeField && config) {
+              content = (config[codeField.id] as string) || null;
+            }
+          }
+
+          if (!name) return null;
+          return { name, filePath, content, isFileBased, isUniqueName };
+        }
+
+        // Handle legacy node types (nodes without schema in data)
         if (!fileBasedTypes.has(nodeType) && !uniqueNameTypes.has(nodeType)) {
           return null;
         }
@@ -1837,16 +2340,24 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         let name = "";
         let filePath: string | null = null;
         let content: string | null = null;
+        const isFileBased = fileBasedTypes.has(nodeType);
+        const isUniqueName = uniqueNameTypes.has(nodeType);
 
         if (nodeType === "agent") {
           const agentData = data.agent as { name?: string } | undefined;
           name = agentData?.name || "";
         } else if (nodeType === "prompt" || nodeType === "context") {
-          const promptData = data.prompt as { name?: string; file_path?: string } | undefined;
+          const promptData = data.prompt as
+            | { name?: string; file_path?: string }
+            | undefined;
           name = promptData?.name || "";
           filePath = promptData?.file_path || null;
           content = (data.content as string) || null;
-        } else if (nodeType === "tool" || nodeType === "process" || nodeType === "agentTool") {
+        } else if (
+          nodeType === "tool" ||
+          nodeType === "process" ||
+          nodeType === "agentTool"
+        ) {
           name = (data.name as string) || "";
           filePath = (data.file_path as string) || null;
           content = (data.code as string) || null;
@@ -1856,11 +2367,20 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
         if (!name) return null;
 
-        return { name, filePath, content };
+        return { name, filePath, content, isFileBased, isUniqueName };
       };
 
       // Group nodes by name
-      const nameToNodes = new Map<string, Array<{ id: string; type: string; filePath: string | null; content: string | null }>>();
+      const nameToNodes = new Map<
+        string,
+        Array<{
+          id: string;
+          filePath: string | null;
+          content: string | null;
+          isFileBased: boolean;
+          isUniqueName: boolean;
+        }>
+      >();
 
       for (const node of nodes) {
         const info = getNodeInfo(node);
@@ -1869,9 +2389,10 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         const existing = nameToNodes.get(info.name) || [];
         existing.push({
           id: node.id,
-          type: node.type || "",
           filePath: info.filePath,
           content: info.content,
+          isFileBased: info.isFileBased,
+          isUniqueName: info.isUniqueName,
         });
         nameToNodes.set(info.name, existing);
       }
@@ -1883,8 +2404,8 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         if (nodeInfos.length <= 1) continue;
 
         // Check if any are unique-name types (always an error)
-        const uniqueNodes = nodeInfos.filter((n) => uniqueNameTypes.has(n.type));
-        const fileNodes = nodeInfos.filter((n) => fileBasedTypes.has(n.type));
+        const uniqueNodes = nodeInfos.filter((n) => n.isUniqueName);
+        const fileNodes = nodeInfos.filter((n) => n.isFileBased);
 
         if (uniqueNodes.length > 0) {
           // All nodes with this name are errors (unique-name types can't share)
@@ -1899,7 +2420,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         if (fileNodes.length > 1) {
           const first = fileNodes[0];
           const allSame = fileNodes.every(
-            (n) => n.filePath === first.filePath && n.content === first.content
+            (n) => n.filePath === first.filePath && n.content === first.content,
           );
 
           if (!allSame) {
@@ -1932,19 +2453,23 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
           if (errorMsg !== currentMsg) {
             if (errorMsg) {
-              return { ...node, data: { ...data, duplicateNameError: errorMsg } };
+              return {
+                ...node,
+                data: { ...data, duplicateNameError: errorMsg },
+              };
             } else {
               const { duplicateNameError, ...restData } = data;
               return { ...node, data: restData };
             }
           }
           return node;
-        })
+        }),
       );
     }, [nodes, setNodes]);
 
     // Expose methods to parent via ref
     useImperativeHandle(ref, () => ({
+      // Legacy add functions
       addGroupNode,
       addAgentNode,
       addPromptNode,
@@ -1962,8 +2487,12 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
       addUserInputNode,
       addStartNode,
       addEndNode,
+      // Schema-driven node creation
       addCustomNode,
+      addBuiltinSchemaNode,
       customNodeSchemas,
+      builtinNodeSchemas,
+      // Canvas operations
       clearCanvas,
       saveFlow,
       restoreFlow,
@@ -1981,7 +2510,10 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
     }));
 
     return (
-      <div className="w-full h-full" style={{ background: theme.colors.canvas.background }}>
+      <div
+        className="w-full h-full"
+        style={{ background: theme.colors.canvas.background }}
+      >
         <style>{`
           .react-flow__node-group {
             background: transparent !important;
@@ -2046,7 +2578,10 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             edgesFocusable={true}
             edgesReconnectable={false}
             elevateEdgesOnSelect={true}
-            connectionLineStyle={{ strokeWidth: 1.5, stroke: theme.colors.edges.default }}
+            connectionLineStyle={{
+              strokeWidth: 1.5,
+              stroke: theme.colors.edges.default,
+            }}
             nodesDraggable={!isLocked}
             nodesConnectable={!isLocked}
             elementsSelectable={!isLocked}
@@ -2056,7 +2591,9 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             deleteKeyCode={null}
             onlyRenderVisibleElements={true}
           >
-            {snapToGrid && <Background color={theme.colors.canvas.grid} gap={16} />}
+            {snapToGrid && (
+              <Background color={theme.colors.canvas.grid} gap={16} />
+            )}
             <Controls showInteractive={false}>
               <ControlButton
                 className="lucide-btn"
@@ -2068,7 +2605,9 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
               <ControlButton
                 className="lucide-btn"
                 onClick={() => setSnapToGrid(!snapToGrid)}
-                title={snapToGrid ? "Disable snap to grid" : "Enable snap to grid"}
+                title={
+                  snapToGrid ? "Disable snap to grid" : "Enable snap to grid"
+                }
               >
                 <Grid3X3 size={12} style={{ opacity: snapToGrid ? 1 : 0.4 }} />
               </ControlButton>
@@ -2128,7 +2667,9 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             insideGroup={!!contextMenu.parentGroupId}
             isLocked={isLocked}
             onToggleLock={onToggleLock}
-            hasSelection={nodes.some((n) => n.selected) || edges.some((e) => e.selected)}
+            hasSelection={
+              nodes.some((n) => n.selected) || edges.some((e) => e.selected)
+            }
             hasClipboard={hasClipboard}
             onCopy={handleCopy}
             onCut={handleCut}
@@ -2161,7 +2702,10 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
 
         {/* Teleporter Name Prompt Dialog */}
         {teleportNamePrompt && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ pointerEvents: 'auto' }}>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            style={{ pointerEvents: "auto" }}
+          >
             <div
               className="absolute inset-0 bg-black bg-opacity-50"
               onClick={handleTeleportNameCancel}
@@ -2169,23 +2713,26 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
             <div
               className="relative rounded-lg shadow-xl p-6"
               style={{
-                width: '400px',
-                maxWidth: '90vw',
+                width: "400px",
+                maxWidth: "90vw",
                 backgroundColor: theme.colors.nodes.common.container.background,
-                border: `1px solid ${theme.colors.nodes.common.container.border}`
+                border: `1px solid ${theme.colors.nodes.common.container.border}`,
               }}
             >
               <h3
                 className="text-lg font-semibold mb-4"
                 style={{ color: theme.colors.nodes.common.text.primary }}
               >
-                {teleportNamePrompt.type === "teleportOut" ? "New Output Connector" : "New Input Connector"}
+                {teleportNamePrompt.type === "teleportOut"
+                  ? "New Output Connector"
+                  : "New Input Connector"}
               </h3>
               <p
                 className="text-sm mb-4"
                 style={{ color: theme.colors.nodes.common.text.secondary }}
               >
-                Enter a name for this connector. Connectors with matching names will be linked.
+                Enter a name for this connector. Connectors with matching names
+                will be linked.
               </p>
               <input
                 type="text"
@@ -2229,7 +2776,7 @@ const ReactFlowCanvasInner = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps
         )}
       </div>
     );
-  }
+  },
 );
 
 ReactFlowCanvasInner.displayName = "ReactFlowCanvasInner";
@@ -2248,7 +2795,7 @@ const ReactFlowCanvas = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
         </ConnectionProvider>
       </ReactFlowProvider>
     );
-  }
+  },
 );
 
 ReactFlowCanvas.displayName = "ReactFlowCanvas";

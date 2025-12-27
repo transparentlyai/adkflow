@@ -1,11 +1,14 @@
 "use client";
 
-import { memo, useCallback } from "react";
+import { memo, useCallback, useMemo } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
+import { Circle, Zap } from "lucide-react";
 import ValidationIndicator from "@/components/nodes/ValidationIndicator";
 import CustomNodeHeader from "@/components/nodes/custom/CustomNodeHeader";
 import CustomNodeInput from "@/components/nodes/custom/CustomNodeInput";
 import CustomNodeOutput from "@/components/nodes/custom/CustomNodeOutput";
+import MonacoEditorWidget from "@/components/nodes/widgets/MonacoEditorWidget";
+import ResizeHandle from "@/components/ResizeHandle";
 import { renderWidget } from "@/components/nodes/widgets/WidgetRenderer";
 import type {
   CustomNodeSchema,
@@ -39,6 +42,18 @@ export interface CustomNodeExpandedProps {
   onNameChange: (value: string) => void;
   onNameSave: () => void;
   onNameKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  // Optional: editor-related props for nodes with code_editor widgets
+  filePath?: string;
+  onSave?: () => Promise<void>;
+  onChangeFile?: () => void;
+  isSaving?: boolean;
+  isDirty?: boolean;
+  // Optional: execution state
+  executionState?: "running" | "completed" | "error";
+  // Optional: selection state
+  selected?: boolean;
+  // Optional: resize handler for resizable nodes
+  onResize?: (deltaWidth: number, deltaHeight: number) => void;
 }
 
 /**
@@ -57,8 +72,97 @@ function groupBySection<T extends { section?: string }>(
 }
 
 /**
+ * Check if schema has a code_editor widget field
+ */
+function hasCodeEditorWidget(schema: CustomNodeSchema): boolean {
+  return schema.ui.fields.some((field) => field.widget === "code_editor");
+}
+
+/**
+ * Get the code_editor field from schema if it exists
+ */
+function getCodeEditorField(schema: CustomNodeSchema): FieldDefinition | null {
+  return (
+    schema.ui.fields.find((field) => field.widget === "code_editor") || null
+  );
+}
+
+/**
+ * Get execution style based on execution state
+ */
+function getExecutionStyle(executionState?: string): React.CSSProperties {
+  switch (executionState) {
+    case "running":
+      return {
+        boxShadow: `0 0 0 2px rgba(59, 130, 246, 0.8), 0 0 20px 4px rgba(59, 130, 246, 0.4)`,
+        animation: "custom-node-execution-pulse 1.5s ease-in-out infinite",
+      };
+    case "completed":
+      return {
+        boxShadow: `0 0 0 2px rgba(34, 197, 94, 0.8), 0 0 10px 2px rgba(34, 197, 94, 0.3)`,
+        transition: "box-shadow 0.3s ease-out",
+      };
+    case "error":
+      return {
+        boxShadow: `0 0 0 2px rgba(239, 68, 68, 0.8), 0 0 15px 3px rgba(239, 68, 68, 0.4)`,
+      };
+    default:
+      return {};
+  }
+}
+
+/**
+ * Get duplicate name error style (static red glow, no animation)
+ */
+function getDuplicateNameStyle(
+  duplicateNameError?: string,
+): React.CSSProperties {
+  if (duplicateNameError) {
+    return {
+      boxShadow: `0 0 0 2px #ef4444`,
+    };
+  }
+  return {};
+}
+
+/**
+ * Extract unique tabs from schema in definition order
+ */
+function extractTabsInOrder(schema: CustomNodeSchema): string[] {
+  const tabs: string[] = [];
+  const seen = new Set<string>();
+
+  // Process inputs first
+  for (const input of schema.ui.inputs) {
+    if (input.tab && !seen.has(input.tab)) {
+      seen.add(input.tab);
+      tabs.push(input.tab);
+    }
+  }
+
+  // Process fields next
+  for (const field of schema.ui.fields) {
+    if (field.tab && !seen.has(field.tab)) {
+      seen.add(field.tab);
+      tabs.push(field.tab);
+    }
+  }
+
+  // Process outputs last
+  for (const output of schema.ui.outputs) {
+    if (output.tab && !seen.has(output.tab)) {
+      seen.add(output.tab);
+      tabs.push(output.tab);
+    }
+  }
+
+  return tabs;
+}
+
+/**
  * Expanded view of a CustomNode.
  * Shows all inputs, fields, outputs with tabs and sections.
+ * Supports resize, execution state styling, editor menu bar, and footer indicators.
  */
 const CustomNodeExpanded = memo(
   ({
@@ -70,7 +174,7 @@ const CustomNodeExpanded = memo(
     handleTypes,
     connectedInputs,
     headerColor,
-    tabs,
+    tabs: propTabs,
     activeTab,
     setActiveTab,
     width,
@@ -84,8 +188,40 @@ const CustomNodeExpanded = memo(
     onNameChange,
     onNameSave,
     onNameKeyDown,
+    filePath,
+    onSave,
+    onChangeFile,
+    isSaving = false,
+    isDirty = false,
+    executionState,
+    selected = false,
+    onResize,
   }: CustomNodeExpandedProps) => {
     const { theme } = useTheme();
+
+    // Use tabs in schema definition order
+    const tabs = useMemo(() => {
+      if (propTabs && propTabs.length > 0) {
+        // Re-extract tabs to ensure they are in schema order
+        const orderedTabs = extractTabsInOrder(schema);
+        // Filter to only include tabs that were passed in props (in case of filtering)
+        return orderedTabs.length > 0 ? orderedTabs : propTabs;
+      }
+      return null;
+    }, [propTabs, schema]);
+
+    // Check if this node has a code editor widget
+    const hasEditor = useMemo(() => hasCodeEditorWidget(schema), [schema]);
+    const codeEditorField = useMemo(() => getCodeEditorField(schema), [schema]);
+
+    // Calculate line count for code editor
+    const lineCount = useMemo(() => {
+      if (codeEditorField) {
+        const code = (config[codeEditorField.id] as string) || "";
+        return code.split("\n").length;
+      }
+      return 0;
+    }, [codeEditorField, config]);
 
     // Get elements for a specific tab
     const getElementsForTab = useCallback(
@@ -104,6 +240,34 @@ const CustomNodeExpanded = memo(
 
     // Render config field
     const renderField = (field: FieldDefinition) => {
+      // Special handling for code_editor widget - full width with Monaco
+      if (field.widget === "code_editor" || field.widget === "monaco_editor") {
+        const editorHeight = nodeData.expandedSize?.height
+          ? nodeData.expandedSize.height - 150 // Leave room for header, tabs, footer
+          : 200;
+
+        return (
+          <div key={field.id} className="space-y-1">
+            <MonacoEditorWidget
+              value={
+                (config[field.id] as string) ?? (field.default as string) ?? ""
+              }
+              onChange={(value) => onConfigChange(field.id, value)}
+              language={field.language || "python"}
+              readOnly={nodeData.isNodeLocked}
+              height={Math.max(150, editorHeight)}
+              showMenuBar={!!onSave}
+              filePath={filePath}
+              onSave={onSave}
+              onChangeFile={onChangeFile}
+              isDirty={isDirty}
+              isSaving={isSaving}
+            />
+          </div>
+        );
+      }
+
+      // Standard field with label on the left
       return (
         <div key={field.id} className="flex items-center gap-2">
           <label
@@ -144,7 +308,7 @@ const CustomNodeExpanded = memo(
             className="text-xs font-semibold uppercase tracking-wide mb-1.5 pl-1 border-l-2"
             style={{
               color: theme.colors.nodes.common.text.muted,
-              borderColor: theme.colors.ui.primary,
+              borderColor: headerColor, // Use node's accent color for section headers
             }}
           >
             {sectionName}
@@ -213,84 +377,159 @@ const CustomNodeExpanded = memo(
     };
 
     return (
-      <div
-        className="rounded-lg shadow-lg overflow-hidden"
-        style={{
-          width,
-          backgroundColor: theme.colors.nodes.common.container.background,
-          borderColor: theme.colors.nodes.common.container.border,
-          borderWidth: 1,
-          borderStyle: "solid",
-        }}
-      >
-        <ValidationIndicator
-          errors={nodeData.validationErrors}
-          warnings={nodeData.validationWarnings}
-        />
+      <>
+        {/* Execution pulse animation styles */}
+        <style>{`
+          @keyframes custom-node-execution-pulse {
+            0%, 100% { box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.8), 0 0 20px 4px rgba(59, 130, 246, 0.4); }
+            50% { box-shadow: 0 0 0 3px rgba(59, 130, 246, 1), 0 0 30px 8px rgba(59, 130, 246, 0.6); }
+          }
+        `}</style>
+        <div
+          className={`rounded-lg shadow-lg overflow-hidden relative ${
+            !isDirty &&
+            !nodeData.duplicateNameError &&
+            !executionState &&
+            selected
+              ? "ring-2 shadow-xl"
+              : ""
+          }`}
+          style={{
+            width,
+            backgroundColor: theme.colors.nodes.common.container.background,
+            borderColor: theme.colors.nodes.common.container.border,
+            borderWidth: 1,
+            borderStyle: "solid",
+            // Priority: duplicateNameError > isDirty > executionState > selected
+            ...(nodeData.duplicateNameError
+              ? getDuplicateNameStyle(nodeData.duplicateNameError)
+              : isDirty
+                ? { boxShadow: `0 0 0 2px #f97316` }
+                : executionState
+                  ? getExecutionStyle(executionState)
+                  : selected
+                    ? { borderColor: headerColor }
+                    : {}),
+          }}
+        >
+          <ValidationIndicator
+            errors={nodeData.validationErrors}
+            warnings={nodeData.validationWarnings}
+            duplicateNameError={nodeData.duplicateNameError}
+          />
 
-        {/* Header */}
-        <CustomNodeHeader
-          name={name}
-          schema={schema}
-          headerColor={headerColor}
-          isExpanded={true}
-          onToggleExpand={onToggleExpand}
-          isEditing={isEditing}
-          editedName={editedName}
-          inputRef={inputRef}
-          onNameClick={onNameClick}
-          onNameChange={onNameChange}
-          onNameSave={onNameSave}
-          onNameKeyDown={onNameKeyDown}
-        />
+          {/* Header */}
+          <CustomNodeHeader
+            name={name}
+            schema={schema}
+            headerColor={headerColor}
+            isExpanded={true}
+            onToggleExpand={onToggleExpand}
+            isEditing={isEditing}
+            editedName={editedName}
+            inputRef={inputRef}
+            onNameClick={onNameClick}
+            onNameChange={onNameChange}
+            onNameSave={onNameSave}
+            onNameKeyDown={onNameKeyDown}
+          />
 
-        {/* Tab bar */}
-        {tabs && (
-          <div
-            className="flex border-b"
-            style={{ borderColor: theme.colors.nodes.common.container.border }}
-          >
-            {tabs.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className="px-2 py-1 text-xs font-medium transition-colors"
-                style={{
-                  color:
-                    activeTab === tab
-                      ? theme.colors.ui.primary
-                      : theme.colors.nodes.common.text.secondary,
-                  borderBottom:
-                    activeTab === tab
-                      ? `2px solid ${theme.colors.ui.primary}`
-                      : "2px solid transparent",
-                }}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Form content */}
-        <div className="p-2 space-y-2 nodrag nowheel">
-          {renderTabContent()}
-
-          {/* Output ports - always visible */}
-          {schema.ui.outputs.length > 0 && (
+          {/* Tab bar */}
+          {tabs && tabs.length > 0 && (
             <div
-              className="pt-1 border-t"
+              className="flex border-b"
               style={{
                 borderColor: theme.colors.nodes.common.container.border,
               }}
             >
-              {schema.ui.outputs.map((output) => (
-                <CustomNodeOutput key={output.id} output={output} />
+              {tabs.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-3 py-1.5 text-xs font-medium ${activeTab === tab ? "border-b-2" : ""}`}
+                  style={{
+                    borderColor:
+                      activeTab === tab ? headerColor : "transparent",
+                    color:
+                      activeTab === tab
+                        ? theme.colors.nodes.common.text.primary
+                        : theme.colors.nodes.common.text.secondary,
+                    backgroundColor: "transparent",
+                  }}
+                >
+                  {tab}
+                </button>
               ))}
             </div>
           )}
+
+          {/* Form content */}
+          <div className="p-2 space-y-2 nodrag nowheel">
+            {renderTabContent()}
+
+            {/* Output ports - always visible */}
+            {schema.ui.outputs.length > 0 && (
+              <div
+                className="pt-1 border-t"
+                style={{
+                  borderColor: theme.colors.nodes.common.container.border,
+                }}
+              >
+                {schema.ui.outputs.map((output) => (
+                  <CustomNodeOutput key={output.id} output={output} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Footer with execution indicators */}
+          <div
+            className="px-3 py-2 rounded-b-lg flex items-center justify-between border-t"
+            style={{
+              backgroundColor: theme.colors.nodes.common.footer.background,
+              borderColor: theme.colors.nodes.common.footer.border,
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <span
+                className="text-xs"
+                style={{ color: theme.colors.nodes.common.footer.text }}
+              >
+                {schema.label}
+              </span>
+              {/* Output node indicator */}
+              {schema.output_node && (
+                <span title="Output Node - triggers execution trace">
+                  <Circle
+                    className="w-3 h-3 text-green-500"
+                    fill="currentColor"
+                  />
+                </span>
+              )}
+              {/* Always execute indicator */}
+              {schema.always_execute && (
+                <span title="Always Execute - skips cache">
+                  <Zap className="w-3 h-3 text-orange-500" />
+                </span>
+              )}
+            </div>
+            {/* Line count for editor nodes */}
+            {hasEditor && lineCount > 0 && (
+              <span
+                className="text-xs"
+                style={{ color: theme.colors.nodes.common.text.muted }}
+              >
+                {lineCount} lines
+              </span>
+            )}
+          </div>
+
+          {/* Resize handle for resizable nodes */}
+          {schema.ui.resizable && onResize && (
+            <ResizeHandle onResize={onResize} />
+          )}
         </div>
-      </div>
+      </>
     );
   },
 );
