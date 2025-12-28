@@ -139,7 +139,7 @@ export function useValidation({
         }
 
         const config = data.config as Record<string, unknown> | undefined;
-        const name = (data.name as string) || (config?.name as string) || "";
+        const name = (config?.name as string) || "";
         const filePath = (config?.file_path as string) || null;
 
         // Find code content from code_editor field

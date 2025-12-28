@@ -15,23 +15,17 @@ function arraysEqual(a: string[], b: string[]): boolean {
 /**
  * Get the display name from a source node
  */
-function getSourceNodeName(sourceNode: { id: string; type?: string; data: Record<string, unknown> }): string {
+function getSourceNodeName(sourceNode: {
+  id: string;
+  type?: string;
+  data: Record<string, unknown>;
+}): string {
   const sourceData = sourceNode.data;
   // Try various patterns for getting the display name
-  const agent = sourceData?.agent as { name?: string } | undefined;
-  const prompt = sourceData?.prompt as { name?: string } | undefined;
   const schema = sourceData?.schema as { label?: string } | undefined;
   const config = sourceData?.config as { name?: string } | undefined;
 
-  return (
-    agent?.name ||
-    prompt?.name ||
-    (sourceData?.name as string) ||
-    config?.name ||
-    schema?.label ||
-    sourceNode.type ||
-    "Connected"
-  );
+  return config?.name || schema?.label || sourceNode.type || "Connected";
 }
 
 /**
@@ -40,7 +34,7 @@ function getSourceNodeName(sourceNode: { id: string; type?: string; data: Record
  */
 export function useConnectedHandleNames(
   nodeId: string,
-  handleIds: string[]
+  handleIds: string[],
 ): Record<string, string[]> {
   // Use ref to implement shallow comparison for the result
   const prevResultRef = useRef<Record<string, string[]>>({});
@@ -62,7 +56,15 @@ export function useConnectedHandleNames(
             ) {
               const sourceNode = state.nodes.find((n) => n.id === edge.source);
               if (sourceNode) {
-                names.push(getSourceNodeName(sourceNode as { id: string; type?: string; data: Record<string, unknown> }));
+                names.push(
+                  getSourceNodeName(
+                    sourceNode as {
+                      id: string;
+                      type?: string;
+                      data: Record<string, unknown>;
+                    },
+                  ),
+                );
               }
             }
           }
@@ -73,7 +75,12 @@ export function useConnectedHandleNames(
         // Shallow comparison to avoid unnecessary re-renders
         let changed = false;
         for (const handleId of handleIds) {
-          if (!arraysEqual(prevResultRef.current[handleId] || [], result[handleId])) {
+          if (
+            !arraysEqual(
+              prevResultRef.current[handleId] || [],
+              result[handleId],
+            )
+          ) {
             changed = true;
             break;
           }
@@ -86,8 +93,8 @@ export function useConnectedHandleNames(
 
         return prevResultRef.current;
       },
-      [nodeId, handleIds]
-    )
+      [nodeId, handleIds],
+    ),
   );
 }
 
@@ -97,7 +104,7 @@ export function useConnectedHandleNames(
  */
 export function useConnectedHandleName(
   nodeId: string,
-  handleId: string
+  handleId: string,
 ): string | undefined {
   return useStore(
     useCallback(
@@ -109,13 +116,19 @@ export function useConnectedHandleName(
           ) {
             const sourceNode = state.nodes.find((n) => n.id === edge.source);
             if (sourceNode) {
-              return getSourceNodeName(sourceNode as { id: string; type?: string; data: Record<string, unknown> });
+              return getSourceNodeName(
+                sourceNode as {
+                  id: string;
+                  type?: string;
+                  data: Record<string, unknown>;
+                },
+              );
             }
           }
         }
         return undefined;
       },
-      [nodeId, handleId]
-    )
+      [nodeId, handleId],
+    ),
   );
 }

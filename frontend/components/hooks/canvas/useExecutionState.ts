@@ -44,7 +44,8 @@ export function useExecutionState({ setNodes }: UseExecutionStateParams) {
         nds.map((node) => {
           if (node.type !== "tool") return node;
           const data = node.data as Record<string, unknown>;
-          const nodeName = (data.name as string) || "";
+          const config = data.config as Record<string, unknown> | undefined;
+          const nodeName = (config?.name as string) || "";
           if (nodeName.toLowerCase() === toolName.toLowerCase()) {
             return {
               ...node,

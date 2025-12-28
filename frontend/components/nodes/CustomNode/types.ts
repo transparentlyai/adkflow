@@ -587,9 +587,7 @@ export interface CustomNodeSchema {
 export interface CustomNodeData {
   /** The node's schema definition */
   schema: CustomNodeSchema;
-  /** Display name (overrides schema.label) */
-  name?: string;
-  /** Current configuration values keyed by field ID */
+  /** Current configuration values keyed by field ID (includes 'name' field) */
   config: Record<string, unknown>;
   /** Handle position overrides */
   handlePositions?: HandlePositions;

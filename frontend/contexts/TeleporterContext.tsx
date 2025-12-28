@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useRef,
+  type ReactNode,
+} from "react";
 import type { TeleporterEntry, TeleporterDirection } from "@/lib/types";
 import type { Node } from "@xyflow/react";
 
@@ -30,7 +37,11 @@ interface TeleporterContextValue {
   updateTeleporterName: (id: string, newName: string) => void;
 
   // Sync teleporters from nodes (for cross-tab support)
-  syncTeleportersForTab: (tabId: string, tabName: string, nodes: Node[]) => void;
+  syncTeleportersForTab: (
+    tabId: string,
+    tabName: string,
+    nodes: Node[],
+  ) => void;
   updateTabName: (tabId: string, newTabName: string) => void;
 
   // Query helpers
@@ -60,8 +71,11 @@ export function TeleporterProvider({ children }: { children: ReactNode }) {
     }
     // Assign a new color based on number of unique names
     const usedColors = new Set(Object.values(colorMapRef.current));
-    const availableColor = TELEPORTER_COLORS.find((c) => !usedColors.has(c))
-      || TELEPORTER_COLORS[Object.keys(colorMapRef.current).length % TELEPORTER_COLORS.length];
+    const availableColor =
+      TELEPORTER_COLORS.find((c) => !usedColors.has(c)) ||
+      TELEPORTER_COLORS[
+        Object.keys(colorMapRef.current).length % TELEPORTER_COLORS.length
+      ];
     colorMapRef.current[name] = availableColor;
     return availableColor;
   }, []);
@@ -81,7 +95,7 @@ export function TeleporterProvider({ children }: { children: ReactNode }) {
         return [...prev, fullEntry];
       });
     },
-    [getColorForName]
+    [getColorForName],
   );
 
   // Unregister a teleporter
@@ -94,10 +108,10 @@ export function TeleporterProvider({ children }: { children: ReactNode }) {
     (id: string, newName: string) => {
       const color = getColorForName(newName);
       setTeleporters((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, name: newName, color } : t))
+        prev.map((t) => (t.id === id ? { ...t, name: newName, color } : t)),
       );
     },
-    [getColorForName]
+    [getColorForName],
   );
 
   // Sync teleporters from nodes for a tab (for cross-tab support)
@@ -105,14 +119,15 @@ export function TeleporterProvider({ children }: { children: ReactNode }) {
     (tabId: string, tabName: string, nodes: Node[]) => {
       // Extract teleporter nodes
       const teleporterNodes = nodes.filter(
-        (n) => n.type === "teleportOut" || n.type === "teleportIn"
+        (n) => n.type === "teleportOut" || n.type === "teleportIn",
       );
 
       // Build new entries for this tab
       const newEntries: TeleporterEntry[] = teleporterNodes.map((n) => {
-        const nodeData = n.data as { name?: string };
-        const name = nodeData.name || "Unnamed";
-        const direction: TeleporterDirection = n.type === "teleportOut" ? "output" : "input";
+        const nodeData = n.data as { config?: { name?: string } };
+        const name = nodeData.config?.name || "Unnamed";
+        const direction: TeleporterDirection =
+          n.type === "teleportOut" ? "output" : "input";
         const color = getColorForName(name);
         return {
           id: n.id,
@@ -137,13 +152,13 @@ export function TeleporterProvider({ children }: { children: ReactNode }) {
         });
       });
     },
-    [getColorForName]
+    [getColorForName],
   );
 
   // Update tab name for all teleporters in a tab (when tab is renamed)
   const updateTabName = useCallback((tabId: string, newTabName: string) => {
     setTeleporters((prev) =>
-      prev.map((t) => (t.tabId === tabId ? { ...t, tabName: newTabName } : t))
+      prev.map((t) => (t.tabId === tabId ? { ...t, tabName: newTabName } : t)),
     );
   }, []);
 
@@ -152,23 +167,27 @@ export function TeleporterProvider({ children }: { children: ReactNode }) {
     (name: string): TeleporterEntry[] => {
       return teleporters.filter((t) => t.name === name);
     },
-    [teleporters]
+    [teleporters],
   );
 
   // Get input teleporters by name
   const getInputTeleportersByName = useCallback(
     (name: string): TeleporterEntry[] => {
-      return teleporters.filter((t) => t.name === name && t.direction === "input");
+      return teleporters.filter(
+        (t) => t.name === name && t.direction === "input",
+      );
     },
-    [teleporters]
+    [teleporters],
   );
 
   // Get output teleporters by name
   const getOutputTeleportersByName = useCallback(
     (name: string): TeleporterEntry[] => {
-      return teleporters.filter((t) => t.name === name && t.direction === "output");
+      return teleporters.filter(
+        (t) => t.name === name && t.direction === "output",
+      );
     },
-    [teleporters]
+    [teleporters],
   );
 
   // Get all input teleporters
@@ -209,7 +228,11 @@ export function TeleporterProvider({ children }: { children: ReactNode }) {
     clearTeleportersForTab,
   };
 
-  return <TeleporterContext.Provider value={value}>{children}</TeleporterContext.Provider>;
+  return (
+    <TeleporterContext.Provider value={value}>
+      {children}
+    </TeleporterContext.Provider>
+  );
 }
 
 export function useTeleporter() {

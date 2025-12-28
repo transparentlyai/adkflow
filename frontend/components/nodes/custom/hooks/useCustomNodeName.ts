@@ -57,17 +57,21 @@ export function useCustomNodeName({
   const handleNameSave = useCallback(() => {
     if (editedName.trim()) {
       setNodes((nodes) =>
-        nodes.map((node) =>
-          node.id === nodeId
-            ? {
-                ...node,
-                data: {
-                  ...node.data,
-                  name: editedName.trim(),
-                },
-              }
-            : node,
-        ),
+        nodes.map((node) => {
+          if (node.id !== nodeId) return node;
+          const data = node.data as Record<string, unknown>;
+          const config = (data.config as Record<string, unknown>) || {};
+          return {
+            ...node,
+            data: {
+              ...data,
+              config: {
+                ...config,
+                name: editedName.trim(),
+              },
+            },
+          };
+        }),
       );
     }
     setIsEditing(false);

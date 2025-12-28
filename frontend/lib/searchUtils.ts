@@ -4,34 +4,20 @@ import type { Node } from "@xyflow/react";
  * Extract the display name from any node type
  */
 export function getNodeDisplayName(node: Node): string {
-  const prefix = node.id.split("_")[0];
   const data = node.data as Record<string, unknown>;
+  const config = data.config as Record<string, unknown> | undefined;
 
-  switch (prefix) {
-    case "agent":
-      return (data.agent as { name?: string })?.name ?? "Unnamed Agent";
-    case "prompt":
-    case "context":
-      return (data.prompt as { name?: string })?.name ?? "Unnamed";
-    case "tool":
-    case "agentTool":
-    case "variable":
-    case "process":
-    case "teleportOut":
-    case "teleportIn":
-      return (data.name as string) ?? "Unnamed";
-    case "group":
-    case "label":
-      return (data.label as string) ?? "Unnamed";
-    case "inputProbe":
-      return (data.name as string) ?? "Input Probe";
-    case "outputProbe":
-      return (data.name as string) ?? "Output Probe";
-    case "logProbe":
-      return (data.name as string) ?? "Log Probe";
-    default:
-      return node.id;
+  // Schema-based nodes store name in config.name
+  if (config?.name) {
+    return config.name as string;
   }
+
+  // Group and label nodes use data.label
+  if (data.label) {
+    return data.label as string;
+  }
+
+  return "Unnamed";
 }
 
 /**
@@ -105,7 +91,7 @@ export interface SearchResult extends SearchIndexEntry {
 export function buildEntriesFromNodes(
   nodes: Node[],
   tabId: string,
-  tabName: string
+  tabName: string,
 ): SearchIndexEntry[] {
   return nodes.map((node) => {
     const nodeType = getNodeTypeFromId(node.id);
@@ -125,7 +111,7 @@ export function buildEntriesFromNodes(
  */
 export function searchIndex(
   entries: SearchIndexEntry[],
-  query: string
+  query: string,
 ): SearchResult[] {
   if (!query.trim()) return [];
 

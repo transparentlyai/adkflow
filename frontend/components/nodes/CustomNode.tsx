@@ -45,13 +45,12 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
   const nodeData = data as unknown as CustomNodeData;
   const {
     schema,
-    name: dataName,
     config = {},
     handlePositions,
     isExpanded: dataIsExpanded,
     isNodeLocked,
   } = nodeData;
-  const name = dataName || (config.name as string) || schema.label;
+  const name = (config.name as string) || schema.label;
   const { setNodes } = useReactFlow();
   const { theme } = useTheme();
   const [isExpanded, setIsExpanded] = useState(dataIsExpanded ?? false);
