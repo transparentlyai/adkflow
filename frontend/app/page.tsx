@@ -63,6 +63,8 @@ function HomeContent() {
   // Refs to avoid dependency loops in handleWorkflowChange
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
+  // Track which tab's flow is currently loaded on the canvas
+  const loadedTabIdRef = useRef<string | null>(null);
   const [isSessionLoaded, setIsSessionLoaded] = useState(false);
 
   // Project state
@@ -142,6 +144,7 @@ function HomeContent() {
             const flow = await loadTabFlow(projectPath, result.firstTab.id);
             if (flow) {
               canvasRef.current.restoreFlow(flow);
+              loadedTabIdRef.current = result.firstTab.id;
               syncTeleportersForTab(result.firstTab.id, result.firstTab.name, flow.nodes);
             }
           }
@@ -233,6 +236,7 @@ function HomeContent() {
         const flow = await loadTabFlow(projectPath, tabToLoad.id);
         if (flow) {
           canvasRef.current.restoreFlow(flow);
+          loadedTabIdRef.current = tabToLoad.id;
           syncTeleportersForTab(tabToLoad.id, tabToLoad.name, flow.nodes);
         }
       }
@@ -262,6 +266,7 @@ function HomeContent() {
         const flow = await loadTabFlow(projectPath, result.firstTab.id);
         if (flow && canvasRef.current) {
           canvasRef.current.restoreFlow(flow);
+          loadedTabIdRef.current = result.firstTab.id;
           syncTeleportersForTab(result.firstTab.id, result.firstTab.name, flow.nodes);
         }
         projectName = result.projectName;
@@ -975,6 +980,7 @@ function HomeContent() {
     const flow = await loadTabFlow(currentProjectPath, tabId);
     if (flow && canvasRef.current) {
       canvasRef.current.restoreFlow(flow);
+      loadedTabIdRef.current = tabId;
       // Sync teleporters for this tab
       const tab = tabs.find(t => t.id === tabId);
       if (tab) {
@@ -984,24 +990,23 @@ function HomeContent() {
   }, [currentProjectPath, activeTab, activeTabId, saveTabFlow, loadTabFlow, setActiveTabId, tabs, syncTeleportersForTab]);
 
   const pendingFocusNodeIdRef = useRef<string | null>(null);
-  const pendingFocusTabIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!pendingFocusNodeId || !currentProjectPath || !activeTabId) return;
     if (pendingFocusNodeIdRef.current === pendingFocusNodeId) return;
     pendingFocusNodeIdRef.current = pendingFocusNodeId;
-    pendingFocusTabIdRef.current = activeTabId;
 
     const handlePendingFocus = async () => {
-      const targetTabId = pendingFocusTabIdRef.current;
-      const currentTabId = activeTabRef.current?.id;
+      const targetTabId = activeTabId;
+      const loadedTabId = loadedTabIdRef.current;
       const nodeIdToFocus = pendingFocusNodeId;
 
-      // If navigating to a different tab, load it first
-      if (targetTabId && targetTabId !== currentTabId) {
+      // If navigating to a different tab than what's loaded, load it first
+      if (targetTabId !== loadedTabId) {
         const flow = await loadTabFlow(currentProjectPath, targetTabId);
         if (flow && canvasRef.current) {
           canvasRef.current.restoreFlow(flow);
+          loadedTabIdRef.current = targetTabId;
           // Wait for restore to complete before focusing
           setTimeout(() => {
             canvasRef.current?.focusNode(nodeIdToFocus);
@@ -1014,7 +1019,6 @@ function HomeContent() {
 
       setPendingFocusNodeId(null);
       pendingFocusNodeIdRef.current = null;
-      pendingFocusTabIdRef.current = null;
     };
 
     handlePendingFocus();
