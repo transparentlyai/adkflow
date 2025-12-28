@@ -103,10 +103,10 @@ export function useCanvasOperations({
       const node = nodes.find((n) => n.id === nodeId);
       if (!node) return;
 
-      // Center on node with some zoom
+      // Center on node
       const x = node.position.x + (node.measured?.width ?? 100) / 2;
       const y = node.position.y + (node.measured?.height ?? 50) / 2;
-      rfInstance.setCenter(x, y, { zoom: 1.5, duration: 300 });
+      rfInstance.setCenter(x, y, { zoom: 1, duration: 300 });
 
       // Select the node
       setNodes((nds) => nds.map((n) => ({ ...n, selected: n.id === nodeId })));
