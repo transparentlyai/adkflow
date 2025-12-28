@@ -984,23 +984,37 @@ function HomeContent() {
   }, [currentProjectPath, activeTab, activeTabId, saveTabFlow, loadTabFlow, setActiveTabId, tabs, syncTeleportersForTab]);
 
   const pendingFocusNodeIdRef = useRef<string | null>(null);
+  const pendingFocusTabIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!pendingFocusNodeId || !currentProjectPath || !activeTabId) return;
     if (pendingFocusNodeIdRef.current === pendingFocusNodeId) return;
     pendingFocusNodeIdRef.current = pendingFocusNodeId;
+    pendingFocusTabIdRef.current = activeTabId;
 
     const handlePendingFocus = async () => {
-      const flow = await loadTabFlow(currentProjectPath, activeTabId);
-      if (flow && canvasRef.current) {
-        canvasRef.current.restoreFlow(flow);
-        const nodeIdToFocus = pendingFocusNodeId;
-        setTimeout(() => {
-          canvasRef.current?.focusNode(nodeIdToFocus);
-        }, 150);
+      const targetTabId = pendingFocusTabIdRef.current;
+      const currentTabId = activeTabRef.current?.id;
+      const nodeIdToFocus = pendingFocusNodeId;
+
+      // If navigating to a different tab, load it first
+      if (targetTabId && targetTabId !== currentTabId) {
+        const flow = await loadTabFlow(currentProjectPath, targetTabId);
+        if (flow && canvasRef.current) {
+          canvasRef.current.restoreFlow(flow);
+          // Wait for restore to complete before focusing
+          setTimeout(() => {
+            canvasRef.current?.focusNode(nodeIdToFocus);
+          }, 150);
+        }
+      } else {
+        // Same tab - just focus directly
+        canvasRef.current?.focusNode(nodeIdToFocus);
       }
+
       setPendingFocusNodeId(null);
       pendingFocusNodeIdRef.current = null;
+      pendingFocusTabIdRef.current = null;
     };
 
     handlePendingFocus();
