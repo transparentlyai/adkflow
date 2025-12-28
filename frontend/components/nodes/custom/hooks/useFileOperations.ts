@@ -1,16 +1,11 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
-import { useReactFlow } from "@xyflow/react";
-import { useProject } from "@/contexts/ProjectContext";
-import { readPrompt } from "@/lib/api";
+import { useState } from "react";
 import type { CustomNodeSchema } from "@/components/nodes/CustomNode/types";
+import { useFileContentLoader } from "./helpers/useFileContentLoader";
+import { useFileSaveHandler } from "./helpers/useFileSaveHandler";
+import { useFilePickerHandler } from "./helpers/useFilePickerHandler";
 
-/**
- * Options for file picker dialog
- */
-export interface FilePickerOptions {
-  extensions: string[];
-  filterLabel: string;
-}
+// Re-export for backward compatibility
+export type { FilePickerOptions } from "./helpers/useFilePickerHandler";
 
 /**
  * Return type for useFileOperations hook
@@ -51,175 +46,38 @@ export function useFileOperations(
   config: Record<string, unknown>,
   isExpanded: boolean,
 ): UseFileOperationsResult {
-  const { setNodes } = useReactFlow();
-  const { projectPath, onSaveFile, onRequestFilePicker } = useProject();
-
   const [isSaving, setIsSaving] = useState(false);
   const [savedContent, setSavedContent] = useState<string | null>(null);
   const [isContentLoaded, setIsContentLoaded] = useState(false);
 
-  // Find code_editor field in schema
-  const codeEditorField = useMemo(() => {
-    return schema.ui.fields.find(
-      (f) => f.widget === "code_editor" || f.widget === "monaco_editor",
-    );
-  }, [schema]);
+  // Use helper hooks
+  const { codeEditorField, filePath, codeContent } = useFileContentLoader({
+    nodeId,
+    schema,
+    config,
+    isExpanded,
+    isContentLoaded,
+    setIsContentLoaded,
+    setSavedContent,
+  });
 
-  // Get file path from config (look for file_path field)
-  const filePath = useMemo(() => {
-    return (config.file_path as string) || "";
-  }, [config.file_path]);
+  const { handleFileSave } = useFileSaveHandler({
+    filePath,
+    codeContent,
+    codeEditorField,
+    setIsSaving,
+    setSavedContent,
+  });
 
-  // Get current code content from config
-  const codeContent = useMemo(() => {
-    if (!codeEditorField) return "";
-    return (config[codeEditorField.id] as string) || "";
-  }, [codeEditorField, config]);
+  const { handleChangeFile } = useFilePickerHandler({
+    nodeId,
+    filePath,
+    config,
+    codeEditorField,
+  });
 
   // Track dirty state for code editor
   const isDirty = isContentLoaded && codeContent !== savedContent;
-
-  // Load content from file when expanded, or initialize dirty tracking for nodes without file
-  useEffect(() => {
-    const loadContent = async () => {
-      if (!isExpanded || isContentLoaded) return;
-
-      // Case 1: Node with code editor AND file path - load from file
-      if (codeEditorField && filePath && projectPath) {
-        try {
-          const response = await readPrompt(projectPath, filePath);
-          // Update config with loaded content
-          setNodes((nodes) =>
-            nodes.map((node) =>
-              node.id === nodeId
-                ? {
-                    ...node,
-                    data: {
-                      ...node.data,
-                      config: {
-                        ...config,
-                        [codeEditorField.id]: response.content,
-                      },
-                    },
-                  }
-                : node,
-            ),
-          );
-          setSavedContent(response.content);
-          setIsContentLoaded(true);
-        } catch (error) {
-          // File not found is expected for new nodes - treat current content as saved
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-          if (errorMessage.includes("not found")) {
-            setSavedContent(codeContent || "");
-            setIsContentLoaded(true);
-          } else {
-            console.error("Failed to load file content:", error);
-            // Still mark as loaded so we don't retry forever
-            setSavedContent(codeContent || "");
-            setIsContentLoaded(true);
-          }
-        }
-      }
-      // Case 2: Node with code editor but NO file path - track dirty against current content
-      else if (codeEditorField && !filePath) {
-        setSavedContent(codeContent || "");
-        setIsContentLoaded(true);
-      }
-      // Case 3: Node without code editor - no dirty tracking needed
-      else if (!codeEditorField) {
-        setSavedContent("");
-        setIsContentLoaded(true);
-      }
-    };
-    loadContent();
-  }, [
-    isExpanded,
-    isContentLoaded,
-    filePath,
-    projectPath,
-    codeEditorField,
-    nodeId,
-    config,
-    codeContent,
-    setNodes,
-  ]);
-
-  // Reset content loaded state when file path changes
-  useEffect(() => {
-    if (filePath) {
-      setIsContentLoaded(false);
-      setSavedContent(null);
-    }
-  }, [filePath]);
-
-  // Save file handler
-  const handleFileSave = useCallback(async () => {
-    if (!onSaveFile || !filePath || !codeEditorField) return;
-    setIsSaving(true);
-    try {
-      await onSaveFile(filePath, codeContent);
-      setSavedContent(codeContent);
-    } catch (error) {
-      console.error("Failed to save:", error);
-    } finally {
-      setIsSaving(false);
-    }
-  }, [onSaveFile, filePath, codeContent, codeEditorField]);
-
-  // Change file handler
-  const handleChangeFile = useCallback(() => {
-    if (!onRequestFilePicker) return;
-
-    // Determine file extensions based on language
-    const language = codeEditorField?.language || "python";
-    const extensionMap: Record<string, FilePickerOptions> = {
-      python: { extensions: [".py"], filterLabel: "Python files" },
-      markdown: { extensions: [".md", ".txt"], filterLabel: "Markdown files" },
-      json: { extensions: [".json"], filterLabel: "JSON files" },
-      yaml: { extensions: [".yaml", ".yml"], filterLabel: "YAML files" },
-      javascript: {
-        extensions: [".js", ".jsx"],
-        filterLabel: "JavaScript files",
-      },
-      typescript: {
-        extensions: [".ts", ".tsx"],
-        filterLabel: "TypeScript files",
-      },
-    };
-    const options = extensionMap[language] || {
-      extensions: [".*"],
-      filterLabel: "All files",
-    };
-
-    onRequestFilePicker(
-      filePath,
-      (newPath) => {
-        setNodes((nodes) =>
-          nodes.map((node) =>
-            node.id === nodeId
-              ? {
-                  ...node,
-                  data: {
-                    ...node.data,
-                    config: { ...config, file_path: newPath },
-                  },
-                }
-              : node,
-          ),
-        );
-      },
-      options,
-    );
-  }, [
-    onRequestFilePicker,
-    filePath,
-    codeEditorField,
-    nodeId,
-    config,
-    setNodes,
-  ]);
 
   return {
     isSaving,

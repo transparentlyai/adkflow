@@ -8,10 +8,8 @@ import os
 import time
 import traceback
 import uuid
-from dataclasses import dataclass, field
-from enum import Enum
 from pathlib import Path
-from typing import Any, AsyncIterator, Protocol
+from typing import Any, AsyncIterator
 
 from dotenv import load_dotenv
 from google.adk.runners import Runner
@@ -21,168 +19,25 @@ from google.genai import types
 from adkflow_runner.compiler import Compiler
 from adkflow_runner.ir import WorkflowIR
 from adkflow_runner.runner.agent_factory import AgentFactory
-from adkflow_runner.runner.custom_executor import CustomNodeExecutor
-from adkflow_runner.runner.graph_builder import GraphBuilder
-from adkflow_runner.runner.graph_executor import GraphExecutor
-
-
-class RunStatus(Enum):
-    """Status of a workflow run."""
-
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-
-
-class EventType(Enum):
-    """Types of execution events."""
-
-    RUN_START = "run_start"
-    AGENT_START = "agent_start"
-    AGENT_OUTPUT = "agent_output"
-    AGENT_END = "agent_end"
-    TOOL_CALL = "tool_call"
-    TOOL_RESULT = "tool_result"
-    THINKING = "thinking"
-    ERROR = "run_error"
-    RUN_COMPLETE = "run_complete"
-
-    # User input events
-    USER_INPUT_REQUIRED = "user_input_required"
-    USER_INPUT_RECEIVED = "user_input_received"
-    USER_INPUT_TIMEOUT = "user_input_timeout"
-
-    # Custom node events
-    CUSTOM_NODE_START = "custom_node_start"
-    CUSTOM_NODE_END = "custom_node_end"
-    CUSTOM_NODE_ERROR = "custom_node_error"
-
-
-@dataclass
-class RunEvent:
-    """An event during workflow execution."""
-
-    type: EventType
-    timestamp: float
-    agent_id: str | None = None
-    agent_name: str | None = None
-    data: dict[str, Any] = field(default_factory=dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for serialization."""
-        return {
-            "type": self.type.value,
-            "timestamp": self.timestamp,
-            "agent_id": self.agent_id,
-            "agent_name": self.agent_name,
-            "data": self.data,
-        }
-
-
-@dataclass
-class RunResult:
-    """Result of a workflow run."""
-
-    run_id: str
-    status: RunStatus
-    output: str | None = None
-    error: str | None = None
-    events: list[RunEvent] = field(default_factory=list)
-    duration_ms: float = 0
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for serialization."""
-        return {
-            "run_id": self.run_id,
-            "status": self.status.value,
-            "output": self.output,
-            "error": self.error,
-            "events": [e.to_dict() for e in self.events],
-            "duration_ms": self.duration_ms,
-            "metadata": self.metadata,
-        }
-
-
-@dataclass
-class UserInputRequest:
-    """Request for user input during workflow execution."""
-
-    request_id: str
-    node_id: str
-    node_name: str
-    variable_name: str
-    previous_output: str | None  # Output from previous agent (None if trigger mode)
-    is_trigger: bool  # True if no input connection
-    timeout_seconds: float
-    timeout_behavior: str  # "pass_through" | "predefined_text" | "error"
-    predefined_text: str
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for event data."""
-        return {
-            "request_id": self.request_id,
-            "node_id": self.node_id,
-            "node_name": self.node_name,
-            "variable_name": self.variable_name,
-            "previous_output": self.previous_output,
-            "is_trigger": self.is_trigger,
-            "timeout_seconds": self.timeout_seconds,
-            "timeout_behavior": self.timeout_behavior,
-            "predefined_text": self.predefined_text,
-        }
-
-
-class UserInputProvider(Protocol):
-    """Protocol for providing user input during workflow execution.
-
-    Implementations handle the actual user interaction (CLI prompts, UI dialogs, etc.)
-    """
-
-    async def request_input(self, request: UserInputRequest) -> str | None:
-        """Request user input.
-
-        Args:
-            request: The input request context
-
-        Returns:
-            User input string, or None if skipped/cancelled
-
-        Raises:
-            TimeoutError: If timeout_behavior is "error" and timeout occurs
-            asyncio.CancelledError: If the request was cancelled
-        """
-        ...
-
-
-class RunnerCallbacks(Protocol):
-    """Protocol for execution callbacks."""
-
-    async def on_event(self, event: RunEvent) -> None:
-        """Called when an event occurs during execution."""
-        ...
-
-
-class NoOpCallbacks:
-    """No-op callbacks implementation."""
-
-    async def on_event(self, event: RunEvent) -> None:
-        pass
-
-
-@dataclass
-class RunConfig:
-    """Configuration for a workflow run."""
-
-    project_path: Path
-    tab_id: str | None = None
-    input_data: dict[str, Any] = field(default_factory=dict)
-    callbacks: RunnerCallbacks | None = None
-    timeout_seconds: float = 300  # 5 minutes default
-    validate: bool = True
-    user_input_provider: UserInputProvider | None = None
+from adkflow_runner.runner.types import (
+    RunStatus,
+    EventType,
+    RunEvent,
+    RunResult,
+    RunConfig,
+    NoOpCallbacks,
+    RunnerCallbacks,
+    UserInputRequest,
+    UserInputProvider,
+)
+from adkflow_runner.runner.user_input import handle_user_input
+from adkflow_runner.runner.execution_engine import (
+    format_error,
+    execute_custom_nodes_graph,
+    execute_downstream_agents,
+    write_output_files,
+    process_adk_event,
+)
 
 
 class WorkflowRunner:
@@ -290,7 +145,7 @@ class WorkflowRunner:
             error_msg = str(e)
 
             # Provide friendly error messages for common issues
-            full_error = self._format_error(error_msg, config.project_path)
+            full_error = format_error(error_msg, config.project_path)
 
             # Include traceback only in dev mode
             if os.environ.get("ADKFLOW_DEV_MODE") == "1":
@@ -312,59 +167,6 @@ class WorkflowRunner:
                 duration_ms=(time.time() - start_time) * 1000,
             )
 
-    def _format_error(self, error_msg: str, project_path: Path) -> str:
-        """Format error messages with helpful instructions for common issues."""
-        error_lower = error_msg.lower()
-
-        # Check for missing API credentials - catch various error patterns
-        credential_error_patterns = [
-            "missing key inputs argument",
-            "api_key",
-            "google_api_key",
-            "gemini_api_key",
-            "defaultcredentialserror",
-            "could not automatically determine credentials",
-            "credentials not found",
-            "api key not valid",
-            "invalid api key",
-            "authentication failed",
-            "unauthorized",
-            "permission denied",
-            "please set the google_api_key",
-            "please provide an api_key",
-        ]
-
-        is_credential_error = any(
-            pattern in error_lower for pattern in credential_error_patterns
-        )
-
-        if is_credential_error:
-            return f"""API credentials not configured or invalid.
-
-To run workflows, you need to set up Google API credentials.
-
-Option 1: Create a .env file in your project directory:
-  {project_path}/.env
-
-  Add one of these configurations:
-
-  # For Google AI API (Gemini):
-  GOOGLE_API_KEY=your-api-key-here
-
-  # OR for Vertex AI:
-  GOOGLE_GENAI_USE_VERTEXAI=true
-  GOOGLE_CLOUD_PROJECT=your-project-id
-  GOOGLE_CLOUD_LOCATION=us-central1
-
-Option 2: Set environment variables before starting the server.
-
-Get your API key at: https://aistudio.google.com/apikey
-
-Original error: {error_msg}"""
-
-        # Return original message for other errors
-        return error_msg
-
     async def _execute(
         self,
         ir: WorkflowIR,
@@ -381,7 +183,7 @@ Original error: {error_msg}"""
         # Handle trigger user inputs (those without incoming connections)
         trigger_inputs = [ui for ui in ir.user_inputs if ui.is_trigger]
         for user_input in trigger_inputs:
-            user_response = await self._handle_user_input(
+            user_response = await handle_user_input(
                 user_input=user_input,
                 previous_output=None,
                 config=config,
@@ -393,12 +195,14 @@ Original error: {error_msg}"""
         # Execute custom nodes using graph-based execution if any exist
         custom_node_outputs: dict[str, dict[str, Any]] = {}
         if ir.custom_nodes:
-            custom_node_outputs = await self._execute_custom_nodes_graph(
+            custom_node_outputs = await execute_custom_nodes_graph(
                 ir=ir,
                 config=config,
                 emit=emit,
                 session_state=session_state,
                 run_id=run_id,
+                enable_cache=self._enable_cache,
+                cache_dir=self._cache_dir,
             )
 
         factory = AgentFactory(config.project_path)
@@ -453,7 +257,7 @@ Original error: {error_msg}"""
                 session_id=session.id,
                 new_message=content,
             ):
-                last_author = await self._process_adk_event(event, emit, last_author)
+                last_author = await process_adk_event(event, emit, last_author)
 
                 if hasattr(event, "content") and event.content:
                     parts = event.content.parts
@@ -464,7 +268,7 @@ Original error: {error_msg}"""
         except Exception as e:
             # Re-raise with friendly error message if applicable
             error_msg = str(e)
-            friendly_error = self._format_error(error_msg, config.project_path)
+            friendly_error = format_error(error_msg, config.project_path)
             raise RuntimeError(friendly_error) from e
 
         output = "\n".join(output_parts)
@@ -477,7 +281,7 @@ Original error: {error_msg}"""
             accumulated_outputs["__last_output__"] = output
 
             for user_input in pause_inputs:
-                user_response = await self._handle_user_input(
+                user_response = await handle_user_input(
                     user_input=user_input,
                     previous_output=output,
                     config=config,
@@ -487,7 +291,7 @@ Original error: {error_msg}"""
                     accumulated_outputs[user_input.variable_name] = user_response
 
                     # Execute downstream agents connected to this UserInput
-                    downstream_output = await self._execute_downstream_agents(
+                    downstream_output = await execute_downstream_agents(
                         user_input=user_input,
                         user_response=user_response,
                         ir=ir,
@@ -502,445 +306,9 @@ Original error: {error_msg}"""
                         # The user response becomes the output if no downstream agents
                         output = user_response
 
-        await self._write_output_files(ir, output, config.project_path, emit)
+        await write_output_files(ir, output, config.project_path, emit)
 
         return output
-
-    async def _execute_custom_nodes(
-        self,
-        ir: WorkflowIR,
-        config: RunConfig,
-        emit: Any,
-        session_state: dict[str, Any],
-        run_id: str,
-        session_id: str,
-    ) -> dict[str, dict[str, Any]]:
-        """Execute all custom nodes in the workflow.
-
-        Args:
-            ir: Compiled workflow IR
-            config: Run configuration
-            emit: Event emitter function
-            session_state: Shared state across the run
-            run_id: Current run ID
-            session_id: Current session ID
-
-        Returns:
-            Dict mapping node IDs to their output values
-        """
-        if not ir.custom_nodes:
-            return {}
-
-        # Create emit wrapper that converts custom executor events to RunEvents
-        async def custom_emit(event: dict[str, Any]) -> None:
-            event_type_str = event.get("type", "")
-            event_type_map = {
-                "custom_node_start": EventType.CUSTOM_NODE_START,
-                "custom_node_end": EventType.CUSTOM_NODE_END,
-                "custom_node_error": EventType.CUSTOM_NODE_ERROR,
-            }
-            if event_type_str in event_type_map:
-                await emit(
-                    RunEvent(
-                        type=event_type_map[event_type_str],
-                        timestamp=event.get("timestamp", time.time()),
-                        agent_id=event.get("node_id"),
-                        agent_name=event.get("node_name"),
-                        data=event.get("data", {}),
-                    )
-                )
-
-        # Create executor with cache settings
-        cache_dir = self._cache_dir or (config.project_path / ".cache" / "custom_nodes")
-        executor = CustomNodeExecutor(
-            emit=custom_emit,
-            enable_cache=self._enable_cache,
-            cache_dir=cache_dir,
-        )
-
-        # Build node outputs map
-        node_outputs: dict[str, dict[str, Any]] = {}
-
-        # Execute custom nodes (currently in sequence - could be optimized later)
-        for node_ir in ir.custom_nodes:
-            # Gather inputs from connected nodes
-            inputs: dict[str, Any] = {}
-            for port_id, source_ids in node_ir.input_connections.items():
-                # For now, take the first connected source's output
-                for source_id in source_ids:
-                    if source_id in node_outputs:
-                        # Get the output value from source node
-                        source_outputs = node_outputs[source_id]
-                        # Use the first output port value as input
-                        if source_outputs:
-                            inputs[port_id] = next(iter(source_outputs.values()))
-
-            # Execute the node
-            outputs = await executor.execute(
-                node_ir=node_ir,
-                inputs=inputs,
-                session_state=session_state,
-                project_path=config.project_path,
-                session_id=session_id,
-                run_id=run_id,
-            )
-
-            node_outputs[node_ir.id] = outputs
-
-        return node_outputs
-
-    async def _execute_custom_nodes_graph(
-        self,
-        ir: WorkflowIR,
-        config: RunConfig,
-        emit: Any,
-        session_state: dict[str, Any],
-        run_id: str,
-    ) -> dict[str, dict[str, Any]]:
-        """Execute custom nodes using graph-based execution with topological sort.
-
-        This method uses the GraphBuilder and GraphExecutor to execute custom
-        nodes in dependency order, with parallel execution of independent nodes.
-
-        Args:
-            ir: Compiled workflow IR
-            config: Run configuration
-            emit: Event emitter function
-            session_state: Shared state across the run
-            run_id: Current run ID
-
-        Returns:
-            Dict mapping node IDs to their output values
-        """
-        if not ir.custom_nodes:
-            return {}
-
-        # Create emit wrapper that converts graph executor events to RunEvents
-        async def graph_emit(event: dict[str, Any]) -> None:
-            event_type_str = event.get("type", "")
-            event_type_map = {
-                "custom_node_start": EventType.CUSTOM_NODE_START,
-                "custom_node_end": EventType.CUSTOM_NODE_END,
-                "custom_node_error": EventType.CUSTOM_NODE_ERROR,
-                "custom_node_cache_hit": EventType.CUSTOM_NODE_END,  # Treat cache hit as end
-                "layer_start": EventType.AGENT_START,  # Reuse for layer events
-                "layer_end": EventType.AGENT_END,
-            }
-            if event_type_str in event_type_map:
-                await emit(
-                    RunEvent(
-                        type=event_type_map[event_type_str],
-                        timestamp=event.get("timestamp", time.time()),
-                        agent_id=event.get("node_id"),
-                        agent_name=event.get("node_name"),
-                        data={
-                            k: v
-                            for k, v in event.items()
-                            if k not in ("type", "timestamp")
-                        },
-                    )
-                )
-
-        # Build execution graph from IR
-        graph_builder = GraphBuilder()
-        execution_graph = graph_builder.build(ir)
-
-        # Create graph executor
-        cache_dir = self._cache_dir or (config.project_path / ".cache" / "custom_nodes")
-        executor = GraphExecutor(
-            emit=graph_emit,
-            cache_dir=cache_dir,
-            enable_cache=self._enable_cache,
-        )
-
-        # Generate session_id
-        session_id = str(uuid.uuid4())[:8]
-
-        # Execute the graph
-        results = await executor.execute(
-            graph=execution_graph,
-            session_state=session_state,
-            project_path=config.project_path,
-            session_id=session_id,
-            run_id=run_id,
-        )
-
-        return results
-
-    async def _handle_user_input(
-        self,
-        user_input: Any,  # UserInputIR
-        previous_output: str | None,
-        config: RunConfig,
-        emit: Any,
-    ) -> str | None:
-        """Handle a user input pause point.
-
-        Emits USER_INPUT_REQUIRED event, waits for response (or timeout),
-        and returns the user's input.
-
-        Args:
-            user_input: The UserInputIR to handle
-            previous_output: Output from previous agent (None for triggers)
-            config: Run configuration
-            emit: Event emitter function
-
-        Returns:
-            User's input string, or None if skipped/cancelled
-        """
-        request_id = str(uuid.uuid4())[:8]
-
-        # Create request
-        request = UserInputRequest(
-            request_id=request_id,
-            node_id=user_input.id,
-            node_name=user_input.name,
-            variable_name=user_input.variable_name,
-            previous_output=previous_output,
-            is_trigger=user_input.is_trigger,
-            timeout_seconds=user_input.timeout_seconds,
-            timeout_behavior=user_input.timeout_behavior,
-            predefined_text=user_input.predefined_text,
-        )
-
-        # Emit USER_INPUT_REQUIRED event
-        await emit(
-            RunEvent(
-                type=EventType.USER_INPUT_REQUIRED,
-                timestamp=time.time(),
-                data=request.to_dict(),
-            )
-        )
-
-        # If we have a user input provider, use it
-        if config.user_input_provider:
-            try:
-                response = await config.user_input_provider.request_input(request)
-
-                # Emit received event
-                await emit(
-                    RunEvent(
-                        type=EventType.USER_INPUT_RECEIVED,
-                        timestamp=time.time(),
-                        data={
-                            "request_id": request_id,
-                            "node_id": user_input.id,
-                            "node_name": user_input.name,
-                        },
-                    )
-                )
-
-                return response
-
-            except TimeoutError:
-                # Emit timeout event
-                await emit(
-                    RunEvent(
-                        type=EventType.USER_INPUT_TIMEOUT,
-                        timestamp=time.time(),
-                        data={
-                            "request_id": request_id,
-                            "node_id": user_input.id,
-                            "behavior": user_input.timeout_behavior,
-                        },
-                    )
-                )
-
-                # Handle timeout based on configured behavior
-                if user_input.timeout_behavior == "pass_through":
-                    return previous_output
-                elif user_input.timeout_behavior == "predefined_text":
-                    return user_input.predefined_text
-                else:  # "error"
-                    raise RuntimeError(f"User input timeout for '{user_input.name}'")
-
-            except asyncio.CancelledError:
-                raise
-
-        else:
-            # No user input provider configured
-            # Use timeout behavior immediately
-            if user_input.timeout_behavior == "pass_through":
-                return previous_output
-            elif user_input.timeout_behavior == "predefined_text":
-                return user_input.predefined_text
-            else:
-                # For trigger inputs without a provider, we can't proceed
-                if user_input.is_trigger:
-                    raise RuntimeError(
-                        f"No user input provider configured and trigger "
-                        f"'{user_input.name}' requires input"
-                    )
-                return previous_output
-
-    async def _execute_downstream_agents(
-        self,
-        user_input: Any,  # UserInputIR
-        user_response: str,
-        ir: WorkflowIR,
-        config: RunConfig,
-        emit: Any,
-        session_service: Any,
-        factory: Any,
-    ) -> str | None:
-        """Execute agents connected downstream of a UserInput node.
-
-        Args:
-            user_input: The UserInputIR with outgoing agent connections
-            user_response: The user's response to use as input
-            ir: Complete workflow IR with all agents
-            config: Run configuration
-            emit: Event emitter function
-            session_service: Session service for runner
-            factory: Agent factory for creating agents
-
-        Returns:
-            Output from downstream agents, or None if no downstream agents
-        """
-        if not user_input.outgoing_agent_ids:
-            return None
-
-        output_parts: list[str] = []
-
-        for agent_id in user_input.outgoing_agent_ids:
-            agent_ir = ir.all_agents.get(agent_id)
-            if not agent_ir:
-                continue
-
-            # Create the downstream agent
-            downstream_agent = factory.create(agent_ir)
-
-            # Create a new runner for this segment
-            downstream_runner = Runner(
-                agent=downstream_agent,
-                app_name="adkflow",
-                session_service=session_service,
-            )
-
-            # Create a new session for this segment
-            session = await session_service.create_session(
-                app_name="adkflow",
-                user_id="runner",
-            )
-
-            # Use user response as the prompt
-            content = types.Content(
-                role="user",
-                parts=[types.Part(text=user_response)],
-            )
-
-            last_author: str | None = None
-
-            try:
-                async for event in downstream_runner.run_async(
-                    user_id="runner",
-                    session_id=session.id,
-                    new_message=content,
-                ):
-                    last_author = await self._process_adk_event(
-                        event, emit, last_author
-                    )
-
-                    if hasattr(event, "content") and event.content:
-                        parts = event.content.parts
-                        if parts:
-                            for part in parts:
-                                if hasattr(part, "text") and part.text:
-                                    output_parts.append(part.text)
-            except Exception as e:
-                error_msg = str(e)
-                friendly_error = self._format_error(error_msg, config.project_path)
-                raise RuntimeError(friendly_error) from e
-
-        return "\n".join(output_parts) if output_parts else None
-
-    async def _write_output_files(
-        self,
-        ir: WorkflowIR,
-        output: str,
-        project_path: Path,
-        emit: Any,
-    ) -> None:
-        """Write output to configured output files."""
-        from pathlib import Path as PathLib
-
-        for output_file in ir.output_files:
-            try:
-                # Resolve file path relative to project
-                file_path = output_file.file_path
-                if not file_path.startswith("/"):
-                    full_path = project_path / file_path
-                else:
-                    full_path = PathLib(file_path)
-
-                # Ensure parent directory exists
-                full_path.parent.mkdir(parents=True, exist_ok=True)
-
-                # Write the output
-                full_path.write_text(output, encoding="utf-8")
-
-                await emit(
-                    RunEvent(
-                        type=EventType.AGENT_OUTPUT,
-                        timestamp=time.time(),
-                        data={
-                            "output": f"Wrote output to {file_path}",
-                            "file_path": str(full_path),
-                        },
-                    )
-                )
-
-            except Exception as e:
-                await emit(
-                    RunEvent(
-                        type=EventType.ERROR,
-                        timestamp=time.time(),
-                        data={
-                            "error": f"Failed to write output file {output_file.file_path}: {e}",
-                        },
-                    )
-                )
-
-    async def _process_adk_event(
-        self,
-        event: Any,
-        emit: Any,
-        last_author: str | None = None,
-    ) -> str | None:
-        """Process an ADK event and emit corresponding RunEvent.
-
-        Returns the current author for tracking agent changes.
-        """
-        author = getattr(event, "author", None)
-
-        # Note: AGENT_START/AGENT_END are emitted via ADK callbacks in agent_factory.py
-        # Here we only emit AGENT_OUTPUT since there's no callback for that
-
-        # Emit agent output for non-partial events with text content
-        # or for final responses (complete messages)
-        is_partial = getattr(event, "partial", False)
-        is_final = hasattr(event, "is_final_response") and event.is_final_response()
-
-        if hasattr(event, "content") and event.content:
-            text = ""
-            parts = event.content.parts if event.content.parts else []
-            for part in parts:
-                if hasattr(part, "text") and part.text:
-                    text += part.text
-            # Emit for final responses, or non-partial events with text
-            if text and author and author != "user" and (is_final or not is_partial):
-                await emit(
-                    RunEvent(
-                        type=EventType.AGENT_OUTPUT,
-                        timestamp=time.time(),
-                        agent_name=author,
-                        data={"output": text[:2000], "is_final": is_final},
-                    )
-                )
-
-        # Note: TOOL_CALL/TOOL_RESULT are emitted via ADK callbacks in agent_factory.py
-
-        return author if author and author != "user" else last_author
 
     async def run_async_generator(
         self,

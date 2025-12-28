@@ -231,3 +231,6 @@ export interface Theme {
 }
 
 export type ThemeId = "light" | "dark" | string;
+
+// Alias for backward compatibility
+export type AppTheme = Theme;
