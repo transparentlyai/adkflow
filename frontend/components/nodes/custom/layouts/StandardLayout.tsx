@@ -219,8 +219,6 @@ const StandardLayout = memo(
                     })}
                 style={{
                   ...handleStyle,
-                  width: 8,
-                  height: 8,
                   backgroundColor: handleColor,
                 }}
                 title={handle.label}
