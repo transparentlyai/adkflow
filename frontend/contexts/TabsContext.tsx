@@ -20,7 +20,6 @@ import {
   reorderTabs,
 } from "@/lib/api";
 import type { TabMetadata, TabState } from "@/lib/types";
-import { prepareWorkflowNodes } from "@/lib/nodeMigration";
 
 interface ReactFlowJSON {
   nodes: Node[];
@@ -171,13 +170,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
           prev.map((t) => (t.id === tabId ? { ...t, isLoading: false } : t)),
         );
 
-        // Prepare nodes: migrate legacy format and fill missing schema defaults
-        const flow = response.flow;
-        if (flow?.nodes) {
-          flow.nodes = prepareWorkflowNodes(flow.nodes);
-        }
-
-        return flow;
+        return response.flow;
       } catch (error) {
         console.error("Failed to load tab:", error);
         setTabs((prev) =>

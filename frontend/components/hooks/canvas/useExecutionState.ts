@@ -1,7 +1,6 @@
 import { useCallback } from "react";
 import type { Node } from "@xyflow/react";
 import type { NodeExecutionState } from "@/lib/types";
-import type { AgentNodeData } from "@/components/nodes/AgentNode";
 import { sanitizeAgentName } from "@/lib/utils";
 
 interface UseExecutionStateParams {
@@ -15,8 +14,9 @@ export function useExecutionState({ setNodes }: UseExecutionStateParams) {
       setNodes((nds) =>
         nds.map((node) => {
           if (node.type !== "agent") return node;
-          const data = node.data as unknown as AgentNodeData;
-          const nodeName = data.agent?.name || "";
+          const data = node.data as Record<string, unknown>;
+          const config = data.config as Record<string, unknown> | undefined;
+          const nodeName = (config?.name as string) || "";
           const sanitized = sanitizeAgentName(nodeName);
           if (
             nodeName.toLowerCase() === agentName.toLowerCase() ||
@@ -27,7 +27,7 @@ export function useExecutionState({ setNodes }: UseExecutionStateParams) {
               data: {
                 ...data,
                 executionState: state,
-              } as unknown as Record<string, unknown>,
+              },
             };
           }
           return node;
@@ -67,7 +67,7 @@ export function useExecutionState({ setNodes }: UseExecutionStateParams) {
     setNodes((nds) =>
       nds.map((node) => {
         if (node.type === "agent") {
-          const data = node.data as unknown as AgentNodeData;
+          const data = node.data as Record<string, unknown>;
           if (data.executionState && data.executionState !== "idle") {
             return {
               ...node,

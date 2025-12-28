@@ -55,45 +55,9 @@ interface ReactFlowCanvasProps {
 }
 
 export interface ReactFlowCanvasRef {
-  // Legacy add functions (for backward compatibility)
+  // Layout nodes (non-schema-driven)
   addGroupNode: (position?: { x: number; y: number }) => void;
-  addAgentNode: (position?: { x: number; y: number }) => void;
-  addPromptNode: (
-    promptData?: { name: string; file_path: string },
-    position?: { x: number; y: number },
-  ) => void;
-  addContextNode: (
-    contextData?: { name: string; file_path: string },
-    position?: { x: number; y: number },
-  ) => void;
-  addInputProbeNode: (position?: { x: number; y: number }) => void;
-  addOutputProbeNode: (position?: { x: number; y: number }) => void;
-  addLogProbeNode: (position?: { x: number; y: number }) => void;
-  addOutputFileNode: (
-    outputFileData?: { name: string; file_path: string },
-    position?: { x: number; y: number },
-  ) => void;
-  addToolNode: (
-    toolData?: { name: string; file_path: string },
-    position?: { x: number; y: number },
-  ) => void;
-  addAgentToolNode: (position?: { x: number; y: number }) => void;
-  addVariableNode: (position?: { x: number; y: number }) => void;
-  addProcessNode: (
-    processData?: { name: string; file_path: string },
-    position?: { x: number; y: number },
-  ) => void;
-  addTeleportOutNode: (
-    name: string,
-    position?: { x: number; y: number },
-  ) => void;
-  addTeleportInNode: (
-    name: string,
-    position?: { x: number; y: number },
-  ) => void;
-  addUserInputNode: (position?: { x: number; y: number }) => void;
-  addStartNode: (position?: { x: number; y: number }) => void;
-  addEndNode: (position?: { x: number; y: number }) => void;
+  addLabelNode: (position?: { x: number; y: number }) => void;
   // Schema-driven node creation
   addCustomNode: (
     schema: CustomNodeSchema,
@@ -401,24 +365,9 @@ const ReactFlowCanvasInner = forwardRef<
 
     // Expose methods to parent via ref
     useImperativeHandle(ref, () => ({
-      // Legacy add functions
+      // Layout nodes (non-schema-driven)
       addGroupNode: nodeCreation.addGroupNode,
-      addAgentNode: nodeCreation.addAgentNode,
-      addPromptNode: nodeCreation.addPromptNode,
-      addContextNode: nodeCreation.addContextNode,
-      addInputProbeNode: nodeCreation.addInputProbeNode,
-      addOutputProbeNode: nodeCreation.addOutputProbeNode,
-      addLogProbeNode: nodeCreation.addLogProbeNode,
-      addOutputFileNode: nodeCreation.addOutputFileNode,
-      addToolNode: nodeCreation.addToolNode,
-      addAgentToolNode: nodeCreation.addAgentToolNode,
-      addVariableNode: nodeCreation.addVariableNode,
-      addProcessNode: nodeCreation.addProcessNode,
-      addTeleportOutNode: nodeCreation.addTeleportOutNode,
-      addTeleportInNode: nodeCreation.addTeleportInNode,
-      addUserInputNode: nodeCreation.addUserInputNode,
-      addStartNode: nodeCreation.addStartNode,
-      addEndNode: nodeCreation.addEndNode,
+      addLabelNode: nodeCreation.addLabelNode,
       // Schema-driven node creation
       addCustomNode: nodeCreation.addCustomNode,
       addBuiltinSchemaNode: nodeCreation.addBuiltinSchemaNode,

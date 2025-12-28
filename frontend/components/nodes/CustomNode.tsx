@@ -50,6 +50,7 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
     isExpanded: dataIsExpanded,
     isNodeLocked,
   } = nodeData;
+
   const name = (config.name as string) || schema.label;
   const { setNodes } = useReactFlow();
   const { theme } = useTheme();

@@ -25,10 +25,11 @@ export function useConnectedInputs(
               const sourceNode = state.nodes.find((n) => n.id === edge.source);
               if (sourceNode) {
                 const sourceData = sourceNode.data as Record<string, unknown>;
+                const config = sourceData?.config as Record<string, unknown> | undefined;
+                const schema = sourceData?.schema as { label?: string } | undefined;
                 const name =
-                  (sourceData?.agent as { name?: string })?.name ||
-                  (sourceData?.prompt as { name?: string })?.name ||
-                  (sourceData?.schema as { label?: string })?.label ||
+                  (config?.name as string) ||
+                  schema?.label ||
                   sourceNode.type ||
                   "Connected";
                 connections[input.id] = name;

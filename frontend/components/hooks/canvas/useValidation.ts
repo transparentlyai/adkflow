@@ -83,18 +83,7 @@ export function useValidation({
 
   // Real-time validation for duplicate names
   useEffect(() => {
-    // File-based node types that can share names if pointing to same file/content
-    const fileBasedTypes = new Set([
-      "prompt",
-      "context",
-      "tool",
-      "process",
-      "agentTool",
-    ]);
-    // Node types that always require unique names
-    const uniqueNameTypes = new Set(["agent", "variable"]);
-
-    // Custom node unit_ids that are file-based
+    // Node unit_ids that are file-based (can share names if pointing to same file/content)
     const fileBasedUnitIds = new Set([
       "builtin.prompt",
       "builtin.context",
@@ -116,9 +105,8 @@ export function useValidation({
       isUniqueName: boolean;
     } | null => {
       const data = node.data as Record<string, unknown>;
-      const nodeType = node.type || "";
 
-      // Check if this is a schema-driven node (has schema in data)
+      // All nodes are schema-driven (has schema in data)
       const schema = data.schema as
         | {
             unit_id?: string;
@@ -126,72 +114,36 @@ export function useValidation({
           }
         | undefined;
 
-      if (schema) {
-        // Schema-driven node - check by unit_id
-        const unitId = schema.unit_id || "";
-
-        // Check if this custom node type requires name validation
-        const isFileBased = fileBasedUnitIds.has(unitId);
-        const isUniqueName = uniqueNameUnitIds.has(unitId);
-
-        if (!isFileBased && !isUniqueName) {
-          return null;
-        }
-
-        const config = data.config as Record<string, unknown> | undefined;
-        const name = (config?.name as string) || "";
-        const filePath = (config?.file_path as string) || null;
-
-        // Find code content from code_editor field
-        let content: string | null = null;
-        if (schema.ui?.fields) {
-          const codeField = schema.ui.fields.find(
-            (f) => f.widget === "code_editor" || f.widget === "monaco_editor",
-          );
-          if (codeField && config) {
-            content = (config[codeField.id] as string) || null;
-          }
-        }
-
-        if (!name) return null;
-        return { name, filePath, content, isFileBased, isUniqueName };
-      }
-
-      // Handle legacy node types (nodes without schema in data)
-      if (!fileBasedTypes.has(nodeType) && !uniqueNameTypes.has(nodeType)) {
+      if (!schema) {
         return null;
       }
 
-      let name = "";
-      let filePath: string | null = null;
-      let content: string | null = null;
-      const isFileBased = fileBasedTypes.has(nodeType);
-      const isUniqueName = uniqueNameTypes.has(nodeType);
+      const unitId = schema.unit_id || "";
 
-      if (nodeType === "agent") {
-        const agentData = data.agent as { name?: string } | undefined;
-        name = agentData?.name || "";
-      } else if (nodeType === "prompt" || nodeType === "context") {
-        const promptData = data.prompt as
-          | { name?: string; file_path?: string }
-          | undefined;
-        name = promptData?.name || "";
-        filePath = promptData?.file_path || null;
-        content = (data.content as string) || null;
-      } else if (
-        nodeType === "tool" ||
-        nodeType === "process" ||
-        nodeType === "agentTool"
-      ) {
-        name = (data.name as string) || "";
-        filePath = (data.file_path as string) || null;
-        content = (data.code as string) || null;
-      } else if (nodeType === "variable") {
-        name = (data.name as string) || "";
+      // Check if this node type requires name validation
+      const isFileBased = fileBasedUnitIds.has(unitId);
+      const isUniqueName = uniqueNameUnitIds.has(unitId);
+
+      if (!isFileBased && !isUniqueName) {
+        return null;
+      }
+
+      const config = data.config as Record<string, unknown> | undefined;
+      const name = (config?.name as string) || "";
+      const filePath = (config?.file_path as string) || null;
+
+      // Find code content from code_editor field
+      let content: string | null = null;
+      if (schema.ui?.fields) {
+        const codeField = schema.ui.fields.find(
+          (f) => f.widget === "code_editor" || f.widget === "monaco_editor",
+        );
+        if (codeField && config) {
+          content = (config[codeField.id] as string) || null;
+        }
       }
 
       if (!name) return null;
-
       return { name, filePath, content, isFileBased, isUniqueName };
     };
 

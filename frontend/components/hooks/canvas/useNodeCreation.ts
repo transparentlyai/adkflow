@@ -2,27 +2,10 @@ import { useCallback } from "react";
 import type { Node, ReactFlowInstance } from "@xyflow/react";
 import { generateNodeId } from "@/lib/workflowHelpers";
 import { builtinTypeToSchema } from "@/lib/builtinNodeHelpers";
-import type { Agent, Prompt } from "@/lib/types";
 import type { CustomNodeSchema } from "@/components/nodes/CustomNode";
 import { getDefaultCustomNodeData } from "@/components/nodes/CustomNode";
 import { getDefaultGroupData } from "@/components/nodes/GroupNode";
-import { getDefaultAgentData } from "@/components/nodes/AgentNode";
-import { getDefaultPromptData } from "@/components/nodes/PromptNode";
-import { getDefaultContextData } from "@/components/nodes/ContextNode";
-import { getDefaultInputProbeData } from "@/components/nodes/InputProbeNode";
-import { getDefaultOutputProbeData } from "@/components/nodes/OutputProbeNode";
-import { getDefaultLogProbeData } from "@/components/nodes/LogProbeNode";
-import { getDefaultOutputFileData } from "@/components/nodes/OutputFileNode";
-import { getDefaultToolData } from "@/components/nodes/ToolNode";
-import { getDefaultAgentToolData } from "@/components/nodes/AgentToolNode";
-import { getDefaultVariableData } from "@/components/nodes/VariableNode";
-import { getDefaultProcessData } from "@/components/nodes/ProcessNode";
 import { getDefaultLabelData } from "@/components/nodes/LabelNode";
-import { getDefaultTeleportOutData } from "@/components/nodes/TeleportOutNode";
-import { getDefaultTeleportInData } from "@/components/nodes/TeleportInNode";
-import { getDefaultUserInputData } from "@/components/nodes/UserInputNode";
-import { getDefaultStartData } from "@/components/nodes/StartNode";
-import { getDefaultEndData } from "@/components/nodes/EndNode";
 
 const SPACING = 350;
 
@@ -177,302 +160,6 @@ export function useNodeCreation({
   );
 
   /**
-   * Add an Agent node to the canvas
-   */
-  const addAgentNode = useCallback(
-    (position?: { x: number; y: number }) => {
-      const agentId = generateNodeId("agent");
-      const defaultData = getDefaultAgentData();
-      const agent: Agent = {
-        id: agentId,
-        ...defaultData,
-      };
-
-      const newNode: Node = {
-        id: agentId,
-        type: "agent",
-        position: position || agentPosition,
-        data: { agent, handleTypes: defaultData.handleTypes },
-      };
-
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setAgentPosition((pos) => ({ ...pos, x: pos.x + SPACING }));
-      }
-    },
-    [agentPosition, setNodes, setAgentPosition],
-  );
-
-  /**
-   * Add a Prompt node to the canvas
-   */
-  const addPromptNode = useCallback(
-    (
-      promptData?: { name: string; file_path: string },
-      position?: { x: number; y: number },
-    ) => {
-      const promptId = generateNodeId("prompt");
-      const defaultData = getDefaultPromptData();
-      const prompt: Prompt = {
-        id: promptId,
-        ...(promptData || defaultData),
-      };
-
-      const newNode: Node = {
-        id: promptId,
-        type: "prompt",
-        position: position || promptPosition,
-        data: {
-          prompt,
-          content: "",
-          handleTypes: defaultData.handleTypes,
-        },
-      };
-
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setPromptPosition((pos) => ({ ...pos, x: pos.x + SPACING }));
-      }
-    },
-    [promptPosition, setNodes, setPromptPosition],
-  );
-
-  /**
-   * Add a Context node to the canvas
-   */
-  const addContextNode = useCallback(
-    (
-      contextData?: { name: string; file_path: string },
-      position?: { x: number; y: number },
-    ) => {
-      const contextId = generateNodeId("context");
-      const context: Prompt = {
-        id: contextId,
-        ...(contextData || getDefaultContextData()),
-      };
-
-      const newNode: Node = {
-        id: contextId,
-        type: "context",
-        position: position || contextPosition,
-        data: {
-          prompt: context,
-          content: "",
-        },
-      };
-
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setContextPosition((pos) => ({ ...pos, x: pos.x + SPACING }));
-      }
-    },
-    [contextPosition, setNodes, setContextPosition],
-  );
-
-  /**
-   * Add an Input Probe node to the canvas
-   */
-  const addInputProbeNode = useCallback(
-    (position?: { x: number; y: number }) => {
-      const inputProbeId = generateNodeId("inputProbe");
-
-      const newNode: Node = {
-        id: inputProbeId,
-        type: "inputProbe",
-        position: position || inputProbePosition,
-        data: getDefaultInputProbeData(),
-      };
-
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setInputProbePosition((pos) => ({ ...pos, x: pos.x + SPACING }));
-      }
-    },
-    [inputProbePosition, setNodes, setInputProbePosition],
-  );
-
-  /**
-   * Add an Output Probe node to the canvas
-   */
-  const addOutputProbeNode = useCallback(
-    (position?: { x: number; y: number }) => {
-      const outputProbeId = generateNodeId("outputProbe");
-
-      const newNode: Node = {
-        id: outputProbeId,
-        type: "outputProbe",
-        position: position || outputProbePosition,
-        data: getDefaultOutputProbeData(),
-      };
-
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setOutputProbePosition((pos) => ({ ...pos, x: pos.x + SPACING }));
-      }
-    },
-    [outputProbePosition, setNodes, setOutputProbePosition],
-  );
-
-  /**
-   * Add a Log Probe node to the canvas
-   */
-  const addLogProbeNode = useCallback(
-    (position?: { x: number; y: number }) => {
-      const logProbeId = generateNodeId("logProbe");
-
-      const newNode: Node = {
-        id: logProbeId,
-        type: "logProbe",
-        position: position || logProbePosition,
-        data: getDefaultLogProbeData(),
-      };
-
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setLogProbePosition((pos) => ({ ...pos, x: pos.x + SPACING }));
-      }
-    },
-    [logProbePosition, setNodes, setLogProbePosition],
-  );
-
-  /**
-   * Add an OutputFile node to the canvas
-   */
-  const addOutputFileNode = useCallback(
-    (
-      outputFileData?: { name: string; file_path: string },
-      position?: { x: number; y: number },
-    ) => {
-      const outputFileId = generateNodeId("outputFile");
-
-      const newNode: Node = {
-        id: outputFileId,
-        type: "outputFile",
-        position: position || outputFilePosition,
-        data: outputFileData
-          ? {
-              ...getDefaultOutputFileData(),
-              name: outputFileData.name,
-              file_path: outputFileData.file_path,
-            }
-          : getDefaultOutputFileData(),
-      };
-
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setOutputFilePosition((pos) => ({ ...pos, x: pos.x + SPACING }));
-      }
-    },
-    [outputFilePosition, setNodes, setOutputFilePosition],
-  );
-
-  /**
-   * Add a Tool node to the canvas
-   */
-  const addToolNode = useCallback(
-    (
-      toolData?: { name: string; file_path: string },
-      position?: { x: number; y: number },
-    ) => {
-      const toolId = generateNodeId("tool");
-
-      const newNode: Node = {
-        id: toolId,
-        type: "tool",
-        position: position || toolPosition,
-        data: toolData
-          ? {
-              ...getDefaultToolData(),
-              name: toolData.name,
-              file_path: toolData.file_path,
-            }
-          : getDefaultToolData(),
-      };
-
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setToolPosition((pos) => ({ ...pos, x: pos.x + SPACING }));
-      }
-    },
-    [toolPosition, setNodes, setToolPosition],
-  );
-
-  /**
-   * Add an Agent Tool node to the canvas
-   */
-  const addAgentToolNode = useCallback(
-    (position?: { x: number; y: number }) => {
-      const agentToolId = generateNodeId("agentTool");
-
-      const newNode: Node = {
-        id: agentToolId,
-        type: "agentTool",
-        position: position || agentToolPosition,
-        data: getDefaultAgentToolData(),
-      };
-
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setAgentToolPosition((pos) => ({ ...pos, x: pos.x + SPACING }));
-      }
-    },
-    [agentToolPosition, setNodes, setAgentToolPosition],
-  );
-
-  /**
-   * Add a Variable node to the canvas
-   */
-  const addVariableNode = useCallback(
-    (position?: { x: number; y: number }) => {
-      const variableId = generateNodeId("variable");
-
-      const newNode: Node = {
-        id: variableId,
-        type: "variable",
-        position: position || variablePosition,
-        data: getDefaultVariableData(),
-      };
-
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setVariablePosition((pos) => ({ ...pos, x: pos.x + SPACING }));
-      }
-    },
-    [variablePosition, setNodes, setVariablePosition],
-  );
-
-  /**
-   * Add a Process node to the canvas
-   */
-  const addProcessNode = useCallback(
-    (
-      processData?: { name: string; file_path: string },
-      position?: { x: number; y: number },
-    ) => {
-      const processId = generateNodeId("process");
-
-      const newNode: Node = {
-        id: processId,
-        type: "process",
-        position: position || processPosition,
-        data: processData
-          ? {
-              ...getDefaultProcessData(),
-              name: processData.name,
-              file_path: processData.file_path,
-            }
-          : getDefaultProcessData(),
-      };
-
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setProcessPosition((pos) => ({ ...pos, x: pos.x + SPACING }));
-      }
-    },
-    [processPosition, setNodes, setProcessPosition],
-  );
-
-  /**
    * Add a Label node to the canvas
    */
   const addLabelNode = useCallback(
@@ -493,112 +180,6 @@ export function useNodeCreation({
       }
     },
     [labelPosition, setNodes, setLabelPosition],
-  );
-
-  /**
-   * Add a TeleportOut node to the canvas
-   */
-  const addTeleportOutNode = useCallback(
-    (name: string, position?: { x: number; y: number }) => {
-      const teleportId = generateNodeId("teleportOut");
-
-      const newNode: Node = {
-        id: teleportId,
-        type: "teleportOut",
-        position: position || teleportOutPosition,
-        data: { ...getDefaultTeleportOutData(), name },
-      };
-
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setTeleportOutPosition((pos) => ({ ...pos, x: pos.x + SPACING }));
-      }
-    },
-    [teleportOutPosition, setNodes, setTeleportOutPosition],
-  );
-
-  /**
-   * Add a TeleportIn node to the canvas
-   */
-  const addTeleportInNode = useCallback(
-    (name: string, position?: { x: number; y: number }) => {
-      const teleportId = generateNodeId("teleportIn");
-
-      const newNode: Node = {
-        id: teleportId,
-        type: "teleportIn",
-        position: position || teleportInPosition,
-        data: { ...getDefaultTeleportInData(), name },
-      };
-
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setTeleportInPosition((pos) => ({ ...pos, x: pos.x + SPACING }));
-      }
-    },
-    [teleportInPosition, setNodes, setTeleportInPosition],
-  );
-
-  /**
-   * Add a User Input node to the canvas
-   */
-  const addUserInputNode = useCallback(
-    (position?: { x: number; y: number }) => {
-      const userInputId = generateNodeId("userInput");
-
-      const newNode: Node = {
-        id: userInputId,
-        type: "userInput",
-        position: position || userInputPosition,
-        data: getDefaultUserInputData(),
-      };
-
-      setNodes((nds) => [...nds, newNode]);
-      if (!position) {
-        setUserInputPosition((pos) => ({ ...pos, x: pos.x + SPACING }));
-      }
-    },
-    [userInputPosition, setNodes, setUserInputPosition],
-  );
-
-  /**
-   * Add a Start node to the canvas (only one allowed)
-   */
-  const addStartNode = useCallback(
-    (position?: { x: number; y: number }) => {
-      // Check if start node already exists
-      const hasStart = nodes.some((n) => n.type === "start");
-      if (hasStart) return;
-
-      const startId = generateNodeId("start");
-      const newNode: Node = {
-        id: startId,
-        type: "start",
-        position: position || { x: 100, y: 200 },
-        data: getDefaultStartData(),
-      };
-
-      setNodes((nds) => [...nds, newNode]);
-    },
-    [nodes, setNodes],
-  );
-
-  /**
-   * Add an End node to the canvas
-   */
-  const addEndNode = useCallback(
-    (position?: { x: number; y: number }) => {
-      const endId = generateNodeId("end");
-      const newNode: Node = {
-        id: endId,
-        type: "end",
-        position: position || { x: 400, y: 200 },
-        data: getDefaultEndData(),
-      };
-
-      setNodes((nds) => [...nds, newNode]);
-    },
-    [setNodes],
   );
 
   /**
@@ -647,6 +228,12 @@ export function useNodeCreation({
         return null;
       }
 
+      // Start node can only exist once
+      if (nodeType === "start") {
+        const hasStart = nodes.some((n) => n.type === "start");
+        if (hasStart) return null;
+      }
+
       const id = generateNodeId(nodeType);
       const pos = position || getViewportCenter();
       const defaultData = getDefaultCustomNodeData(schema);
@@ -684,29 +271,13 @@ export function useNodeCreation({
       });
       return id;
     },
-    [setNodes, getViewportCenter],
+    [nodes, setNodes, getViewportCenter],
   );
 
   return {
     getViewportCenter,
     addGroupNode,
-    addAgentNode,
-    addPromptNode,
-    addContextNode,
-    addInputProbeNode,
-    addOutputProbeNode,
-    addLogProbeNode,
-    addOutputFileNode,
-    addToolNode,
-    addAgentToolNode,
-    addVariableNode,
-    addProcessNode,
     addLabelNode,
-    addTeleportOutNode,
-    addTeleportInNode,
-    addUserInputNode,
-    addStartNode,
-    addEndNode,
     addCustomNode,
     addBuiltinSchemaNode,
   };

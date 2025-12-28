@@ -233,11 +233,15 @@ function HomeContent() {
         tabToLoad = result.firstTab;
       }
 
-      // Load the tab's default flow (which includes Start node)
+      // Load the tab's flow and add default Start node if empty
       if (tabToLoad && canvasRef.current) {
         const flow = await loadTabFlow(projectPath, tabToLoad.id);
         if (flow) {
           canvasRef.current.restoreFlow(flow);
+          // Add default Start node for empty flows (new projects)
+          if (flow.nodes.length === 0) {
+            canvasRef.current.addBuiltinSchemaNode("start", { x: 100, y: 200 });
+          }
           loadedTabIdRef.current = tabToLoad.id;
           syncTeleportersForTab(tabToLoad.id, tabToLoad.name, flow.nodes);
         }

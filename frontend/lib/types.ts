@@ -162,10 +162,6 @@ export type HandlePositions = Record<string, HandlePosition>;
  * - Type: Python type (e.g., 'str', 'dict', 'list', 'callable')
  */
 
-// DEPRECATED: Use outputSource + outputType instead
-// Kept as type alias for backwards compatibility during migration
-export type HandleDataType = string;
-
 /**
  * Handle type information for connection validation
  */

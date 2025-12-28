@@ -1,6 +1,5 @@
 import { useCallback } from "react";
 import type { Node, Edge, ReactFlowInstance } from "@xyflow/react";
-import { prepareWorkflowNodes } from "@/lib/nodeMigration";
 
 interface UseCanvasOperationsParams {
   nodes: Node[];
@@ -47,11 +46,8 @@ export function useCanvasOperations({
     }) => {
       if (!flow) return;
 
-      // Prepare nodes: migrate legacy format and fill missing schema defaults
-      const nodesToRestore = prepareWorkflowNodes(flow.nodes || []);
-
       // Ensure group nodes have dragHandle set
-      const processedNodes = nodesToRestore.map((node) => {
+      const processedNodes = (flow.nodes || []).map((node) => {
         if (node.type === "group") {
           return { ...node, dragHandle: ".group-drag-handle" };
         }
