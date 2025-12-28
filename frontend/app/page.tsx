@@ -998,11 +998,23 @@ function HomeContent() {
 
     const handlePendingFocus = async () => {
       const targetTabId = activeTabId;
-      const loadedTabId = loadedTabIdRef.current;
+      const sourceTabId = loadedTabIdRef.current;
       const nodeIdToFocus = pendingFocusNodeId;
 
-      // If navigating to a different tab than what's loaded, load it first
-      if (targetTabId !== loadedTabId) {
+      // If navigating to a different tab than what's loaded
+      if (targetTabId !== sourceTabId) {
+        // Save the source tab if it has unsaved changes before switching
+        if (sourceTabId && canvasRef.current) {
+          const sourceTab = tabs.find(t => t.id === sourceTabId);
+          if (sourceTab?.hasUnsavedChanges) {
+            const currentFlow = canvasRef.current.saveFlow();
+            if (currentFlow) {
+              await saveTabFlow(currentProjectPath, sourceTabId, currentFlow);
+            }
+          }
+        }
+
+        // Load the target tab
         const flow = await loadTabFlow(currentProjectPath, targetTabId);
         if (flow && canvasRef.current) {
           canvasRef.current.restoreFlow(flow);
@@ -1022,7 +1034,7 @@ function HomeContent() {
     };
 
     handlePendingFocus();
-  }, [pendingFocusNodeId, currentProjectPath, activeTabId, loadTabFlow, setPendingFocusNodeId]);
+  }, [pendingFocusNodeId, currentProjectPath, activeTabId, loadTabFlow, saveTabFlow, tabs, setPendingFocusNodeId]);
 
   const handleAddTab = useCallback(async () => {
     if (!currentProjectPath) return;
