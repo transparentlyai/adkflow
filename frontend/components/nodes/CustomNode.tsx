@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useCallback, useMemo } from "react";
+import { memo, useState, useCallback, useMemo, useEffect } from "react";
 import { type NodeProps, useReactFlow } from "@xyflow/react";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -60,6 +60,23 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
   const { tabs, activeTab, setActiveTab } = useCustomNodeTabs(schema);
   const handleTypes = useCustomNodeHandleTypes(schema);
   const connectedInputs = useConnectedInputs(id, schema.ui.inputs);
+
+  // Sync handleTypes to node.data for the connection registry
+  // This ensures stale saved handleTypes are updated when schema changes
+  useEffect(() => {
+    const currentHandleTypes = nodeData.handleTypes;
+    const handleTypesChanged =
+      JSON.stringify(currentHandleTypes) !== JSON.stringify(handleTypes);
+    if (handleTypesChanged) {
+      setNodes((nodes) =>
+        nodes.map((node) =>
+          node.id === id
+            ? { ...node, data: { ...node.data, handleTypes } }
+            : node,
+        ),
+      );
+    }
+  }, [id, handleTypes, nodeData.handleTypes, setNodes]);
   const {
     isEditing,
     editedName,

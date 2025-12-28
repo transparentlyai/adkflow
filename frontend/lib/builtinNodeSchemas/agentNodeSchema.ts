@@ -46,11 +46,11 @@ export const agentNodeSchema: CustomNodeSchema = {
       // Hidden typed handles (for specific connection types)
       {
         id: "agent-input",
-        label: "Sub-Agents",
+        label: "Agent-to-Agent",
         source_type: "agent",
         data_type: "dict",
         accepted_sources: ["agent"],
-        accepted_types: ["dict", "link"],
+        accepted_types: ["dict"],
         required: false,
         multiple: true,
         connection_only: true,
