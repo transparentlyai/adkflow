@@ -177,55 +177,69 @@ const FullCollapsedLayout = memo(
           />
 
           {/* Hidden handles for typed edges */}
-          {schema.ui.inputs.map((input) => (
-            <Handle
-              key={input.id}
-              type="target"
-              position={Position.Left}
-              id={input.id}
-              style={{ opacity: 0, pointerEvents: "none", top: "50%", left: 0 }}
-            />
-          ))}
+          {/* Filter out inputs that have custom positions in additional_handles */}
+          {schema.ui.inputs
+            .filter(
+              (input) => !additionalHandles.some((h) => h.id === input.id),
+            )
+            .map((input) => (
+              <Handle
+                key={input.id}
+                type="target"
+                position={Position.Left}
+                id={input.id}
+                style={{
+                  opacity: 0,
+                  pointerEvents: "none",
+                  top: "50%",
+                  left: 0,
+                }}
+              />
+            ))}
 
           {/* Link handles on top/bottom (from additional_handles) */}
-          {additionalHandles.map((handle) => {
-            const matchingInput = schema.ui.inputs.find(
-              (i) => i.id === handle.id,
-            );
-            const matchingOutput = schema.ui.outputs.find(
-              (o) => o.id === handle.id,
-            );
-            const handleColor =
-              matchingInput?.handle_color ||
-              matchingOutput?.handle_color ||
-              theme.colors.handles.link;
+          {/* Filter out left-positioned handles (they're already rendered as hidden handles) */}
+          {additionalHandles
+            .filter((handle) => handle.position !== "left")
+            .map((handle) => {
+              const matchingInput = schema.ui.inputs.find(
+                (i) => i.id === handle.id,
+              );
+              const matchingOutput = schema.ui.outputs.find(
+                (o) => o.id === handle.id,
+              );
+              const handleColor =
+                matchingInput?.handle_color ||
+                matchingOutput?.handle_color ||
+                theme.colors.handles.link;
 
-            return (
-              <DraggableHandle
-                key={handle.id}
-                nodeId={id}
-                handleId={handle.id}
-                type={handle.type}
-                defaultEdge={handle.position}
-                defaultPercent={50}
-                handlePositions={handlePositions}
-                {...(handle.type === "source"
-                  ? {
-                      outputSource: handleTypes[handle.id]?.outputSource,
-                      outputType: handleTypes[handle.id]?.outputType,
-                    }
-                  : {
-                      acceptedSources: handleTypes[handle.id]?.acceptedSources,
-                      acceptedTypes: handleTypes[handle.id]?.acceptedTypes,
-                    })}
-                style={{
-                  ...linkHandleStyle,
-                  backgroundColor: handleColor,
-                }}
-                title={handle.label}
-              />
-            );
-          })}
+              return (
+                <DraggableHandle
+                  key={handle.id}
+                  nodeId={id}
+                  handleId={handle.id}
+                  type={handle.type}
+                  defaultEdge={handle.position}
+                  defaultPercent={50}
+                  handlePositions={handlePositions}
+                  {...(handle.type === "source"
+                    ? {
+                        outputSource: handleTypes[handle.id]?.outputSource,
+                        outputType: handleTypes[handle.id]?.outputType,
+                      }
+                    : {
+                        acceptedSources:
+                          handleTypes[handle.id]?.acceptedSources,
+                        acceptedTypes: handleTypes[handle.id]?.acceptedTypes,
+                      })}
+                  style={{
+                    ...linkHandleStyle,
+                    backgroundColor: handleColor,
+                  }}
+                  title={handle.label}
+                />
+              );
+            })}
 
           {/* Header */}
           <div

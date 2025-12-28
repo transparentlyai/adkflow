@@ -175,56 +175,69 @@ const StandardLayout = memo(
           />
 
           {/* Hidden handles for each input to support direct connections */}
-          {schema.ui.inputs.map((input) => (
-            <Handle
-              key={input.id}
-              type="target"
-              position={Position.Left}
-              id={input.id}
-              style={{ opacity: 0, pointerEvents: "none", top: "50%", left: 0 }}
-            />
-          ))}
-
-          {/* Additional handles (top/bottom) */}
-          {additionalHandles.map((handle) => {
-            // Find matching input/output to get handle_color
-            const matchingInput = schema.ui.inputs.find(
-              (i) => i.id === handle.id,
-            );
-            const matchingOutput = schema.ui.outputs.find(
-              (o) => o.id === handle.id,
-            );
-            const handleColor =
-              matchingInput?.handle_color ||
-              matchingOutput?.handle_color ||
-              theme.colors.handles.link;
-
-            return (
-              <DraggableHandle
-                key={handle.id}
-                nodeId={id}
-                handleId={handle.id}
-                type={handle.type}
-                defaultEdge={handle.position}
-                defaultPercent={50}
-                handlePositions={handlePositions}
-                {...(handle.type === "source"
-                  ? {
-                      outputSource: handleTypes[handle.id]?.outputSource,
-                      outputType: handleTypes[handle.id]?.outputType,
-                    }
-                  : {
-                      acceptedSources: handleTypes[handle.id]?.acceptedSources,
-                      acceptedTypes: handleTypes[handle.id]?.acceptedTypes,
-                    })}
+          {/* Filter out inputs that have custom positions in additional_handles */}
+          {schema.ui.inputs
+            .filter(
+              (input) => !additionalHandles.some((h) => h.id === input.id),
+            )
+            .map((input) => (
+              <Handle
+                key={input.id}
+                type="target"
+                position={Position.Left}
+                id={input.id}
                 style={{
-                  ...handleStyle,
-                  backgroundColor: handleColor,
+                  opacity: 0,
+                  pointerEvents: "none",
+                  top: "50%",
+                  left: 0,
                 }}
-                title={handle.label}
               />
-            );
-          })}
+            ))}
+
+          {/* Additional handles (top/bottom) - filter out left-positioned ones */}
+          {additionalHandles
+            .filter((handle) => handle.position !== "left")
+            .map((handle) => {
+              // Find matching input/output to get handle_color
+              const matchingInput = schema.ui.inputs.find(
+                (i) => i.id === handle.id,
+              );
+              const matchingOutput = schema.ui.outputs.find(
+                (o) => o.id === handle.id,
+              );
+              const handleColor =
+                matchingInput?.handle_color ||
+                matchingOutput?.handle_color ||
+                theme.colors.handles.link;
+
+              return (
+                <DraggableHandle
+                  key={handle.id}
+                  nodeId={id}
+                  handleId={handle.id}
+                  type={handle.type}
+                  defaultEdge={handle.position}
+                  defaultPercent={50}
+                  handlePositions={handlePositions}
+                  {...(handle.type === "source"
+                    ? {
+                        outputSource: handleTypes[handle.id]?.outputSource,
+                        outputType: handleTypes[handle.id]?.outputType,
+                      }
+                    : {
+                        acceptedSources:
+                          handleTypes[handle.id]?.acceptedSources,
+                        acceptedTypes: handleTypes[handle.id]?.acceptedTypes,
+                      })}
+                  style={{
+                    ...handleStyle,
+                    backgroundColor: handleColor,
+                  }}
+                  title={handle.label}
+                />
+              );
+            })}
 
           {/* Output handles - use each output's handle_color */}
           {schema.ui.outputs
