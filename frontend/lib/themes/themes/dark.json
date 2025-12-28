@@ -125,9 +125,18 @@
       },
       "teleport": {
         "colors": [
-          "#ff5555", "#ffb86c", "#f1fa8c", "#50fa7b",
-          "#8be9fd", "#6272a4", "#bd93f9", "#ff79c6",
-          "#8be9fd", "#50fa7b", "#ff5555", "#bd93f9"
+          "#ff5555",
+          "#ffb86c",
+          "#f1fa8c",
+          "#50fa7b",
+          "#8be9fd",
+          "#6272a4",
+          "#bd93f9",
+          "#ff79c6",
+          "#8be9fd",
+          "#50fa7b",
+          "#ff5555",
+          "#bd93f9"
         ]
       }
     },
@@ -233,6 +242,33 @@
         "stroke": "#991b1b"
       }
     },
-    "monaco": "vs-dark"
+    "monaco": "vs-dark",
+    "state": {
+      "running": {
+        "ring": "rgba(59, 130, 246, 0.8)",
+        "glow": "rgba(59, 130, 246, 0.4)"
+      },
+      "completed": {
+        "ring": "rgba(34, 197, 94, 0.8)",
+        "glow": "rgba(34, 197, 94, 0.3)"
+      },
+      "error": {
+        "ring": "rgba(239, 68, 68, 0.8)",
+        "glow": "rgba(239, 68, 68, 0.4)"
+      },
+      "valid": {
+        "ring": "#22c55e",
+        "glow": "#22c55e"
+      },
+      "invalid": {
+        "ring": "#ef4444",
+        "glow": "#ef4444"
+      },
+      "dirty": { "ring": "#f97316" },
+      "selected": { "ring": "#3b82f6" },
+      "success": "#22c55e",
+      "warning": "#f59e0b",
+      "danger": "#ef4444"
+    }
   }
 }

@@ -2,6 +2,19 @@
  * Theme system types for ADKFlow
  */
 
+export interface StateColors {
+  running: { ring: string; glow: string };
+  completed: { ring: string; glow: string };
+  error: { ring: string; glow: string };
+  valid: { ring: string; glow: string };
+  invalid: { ring: string; glow: string };
+  dirty: { ring: string };
+  selected: { ring: string };
+  success: string;
+  warning: string;
+  danger: string;
+}
+
 export interface CanvasColors {
   background: string;
   grid: string;
@@ -204,6 +217,7 @@ export interface ThemeColors {
   form: FormColors;
   scrollbar: ScrollbarColors;
   topology: TopologyColors;
+  state: StateColors;
   monaco: "vs" | "vs-dark";
 }
 
