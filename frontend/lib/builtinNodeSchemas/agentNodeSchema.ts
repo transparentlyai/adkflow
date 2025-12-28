@@ -46,7 +46,7 @@ export const agentNodeSchema: CustomNodeSchema = {
       // Hidden typed handles (for specific connection types)
       {
         id: "agent-input",
-        label: "Agent-to-Agent",
+        label: "Input (A2A)",
         source_type: "agent",
         data_type: "dict",
         accepted_sources: ["agent"],
