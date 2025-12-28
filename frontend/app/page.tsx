@@ -65,6 +65,8 @@ function HomeContent() {
   activeTabRef.current = activeTab;
   // Track which tab's flow is currently loaded on the canvas
   const loadedTabIdRef = useRef<string | null>(null);
+  // In-memory cache for unsaved tab flows (preserves state across tab switches without persisting to disk)
+  const tabFlowCacheRef = useRef<Map<string, { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }>>(new Map());
   const [isSessionLoaded, setIsSessionLoaded] = useState(false);
 
   // Project state
@@ -307,6 +309,8 @@ function HomeContent() {
       const success = await saveTabFlow(currentProjectPath, activeTabId, flow, workflowName);
       if (success) {
         setIsProjectSaved(true); // Project now saved to disk
+        // Clear cache for this tab since disk is now up-to-date
+        tabFlowCacheRef.current.delete(activeTabId);
       } else {
         alert("Failed to save tab.");
       }
@@ -964,30 +968,41 @@ function HomeContent() {
   // Tab handlers
   const handleTabClick = useCallback(async (tabId: string) => {
     if (!currentProjectPath) return;
+    if (tabId === loadedTabIdRef.current) return; // Already on this tab
 
-    // Save current tab if dirty
-    if (activeTab?.hasUnsavedChanges && canvasRef.current && activeTabId) {
-      const flow = canvasRef.current.saveFlow();
-      if (flow) {
-        await saveTabFlow(currentProjectPath, activeTabId, flow);
+    // Cache current tab's state in memory (don't persist to disk)
+    if (canvasRef.current && loadedTabIdRef.current) {
+      const currentFlow = canvasRef.current.saveFlow();
+      if (currentFlow) {
+        tabFlowCacheRef.current.set(loadedTabIdRef.current, currentFlow);
       }
     }
 
     // Switch tab
     setActiveTabId(tabId);
 
-    // Load new tab flow
-    const flow = await loadTabFlow(currentProjectPath, tabId);
-    if (flow && canvasRef.current) {
-      canvasRef.current.restoreFlow(flow);
+    // Check cache first, then load from disk
+    const cachedFlow = tabFlowCacheRef.current.get(tabId);
+    if (cachedFlow && canvasRef.current) {
+      canvasRef.current.restoreFlow(cachedFlow);
       loadedTabIdRef.current = tabId;
-      // Sync teleporters for this tab
       const tab = tabs.find(t => t.id === tabId);
       if (tab) {
-        syncTeleportersForTab(tabId, tab.name, flow.nodes);
+        syncTeleportersForTab(tabId, tab.name, cachedFlow.nodes);
+      }
+    } else {
+      // Load from disk
+      const flow = await loadTabFlow(currentProjectPath, tabId);
+      if (flow && canvasRef.current) {
+        canvasRef.current.restoreFlow(flow);
+        loadedTabIdRef.current = tabId;
+        const tab = tabs.find(t => t.id === tabId);
+        if (tab) {
+          syncTeleportersForTab(tabId, tab.name, flow.nodes);
+        }
       }
     }
-  }, [currentProjectPath, activeTab, activeTabId, saveTabFlow, loadTabFlow, setActiveTabId, tabs, syncTeleportersForTab]);
+  }, [currentProjectPath, loadTabFlow, setActiveTabId, tabs, syncTeleportersForTab]);
 
   const pendingFocusNodeIdRef = useRef<string | null>(null);
 
@@ -1003,26 +1018,32 @@ function HomeContent() {
 
       // If navigating to a different tab than what's loaded
       if (targetTabId !== sourceTabId) {
-        // Save the source tab if it has unsaved changes before switching
+        // Cache source tab's state in memory (don't persist to disk)
         if (sourceTabId && canvasRef.current) {
-          const sourceTab = tabs.find(t => t.id === sourceTabId);
-          if (sourceTab?.hasUnsavedChanges) {
-            const currentFlow = canvasRef.current.saveFlow();
-            if (currentFlow) {
-              await saveTabFlow(currentProjectPath, sourceTabId, currentFlow);
-            }
+          const currentFlow = canvasRef.current.saveFlow();
+          if (currentFlow) {
+            tabFlowCacheRef.current.set(sourceTabId, currentFlow);
           }
         }
 
-        // Load the target tab
-        const flow = await loadTabFlow(currentProjectPath, targetTabId);
-        if (flow && canvasRef.current) {
-          canvasRef.current.restoreFlow(flow);
+        // Check cache first, then load from disk
+        const cachedFlow = tabFlowCacheRef.current.get(targetTabId);
+        if (cachedFlow && canvasRef.current) {
+          canvasRef.current.restoreFlow(cachedFlow);
           loadedTabIdRef.current = targetTabId;
-          // Wait for restore to complete before focusing
           setTimeout(() => {
             canvasRef.current?.focusNode(nodeIdToFocus);
           }, 150);
+        } else {
+          // Load from disk
+          const flow = await loadTabFlow(currentProjectPath, targetTabId);
+          if (flow && canvasRef.current) {
+            canvasRef.current.restoreFlow(flow);
+            loadedTabIdRef.current = targetTabId;
+            setTimeout(() => {
+              canvasRef.current?.focusNode(nodeIdToFocus);
+            }, 150);
+          }
         }
       } else {
         // Same tab - just focus directly
@@ -1034,7 +1055,7 @@ function HomeContent() {
     };
 
     handlePendingFocus();
-  }, [pendingFocusNodeId, currentProjectPath, activeTabId, loadTabFlow, saveTabFlow, tabs, setPendingFocusNodeId]);
+  }, [pendingFocusNodeId, currentProjectPath, activeTabId, loadTabFlow, setPendingFocusNodeId]);
 
   const handleAddTab = useCallback(async () => {
     if (!currentProjectPath) return;
