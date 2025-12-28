@@ -5,6 +5,7 @@ import { flushSync } from "react-dom";
 import type { Node, Edge } from "@xyflow/react";
 import { listTabs, createTab, loadTab, saveTab, deleteTab, renameTab, duplicateTab, reorderTabs } from "@/lib/api";
 import type { TabMetadata, TabState } from "@/lib/types";
+import { migrateWorkflow, workflowNeedsMigration } from "@/lib/nodeMigration";
 
 interface ReactFlowJSON {
   nodes: Node[];
@@ -117,7 +118,14 @@ export function TabsProvider({ children }: { children: ReactNode }) {
     try {
       const response = await loadTab(projectPath, tabId);
       setTabs((prev) => prev.map((t) => t.id === tabId ? { ...t, isLoading: false } : t));
-      return response.flow;
+
+      // Migrate legacy nodes to schema-driven format
+      const flow = response.flow;
+      if (flow && workflowNeedsMigration(flow.nodes)) {
+        flow.nodes = migrateWorkflow(flow.nodes);
+      }
+
+      return flow;
     } catch (error) {
       console.error("Failed to load tab:", error);
       setTabs((prev) => prev.map((t) => t.id === tabId ? { ...t, isLoading: false } : t));
