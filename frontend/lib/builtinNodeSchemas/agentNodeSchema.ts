@@ -86,9 +86,9 @@ export const agentNodeSchema: CustomNodeSchema = {
         section: "Configuration",
         tab: "General",
       },
-      // Link handle (bottom) for agent chaining
+      // Link handle (top) for agent chaining - input from other agents
       {
-        id: "link-bottom",
+        id: "link-top",
         label: "Link In",
         source_type: "agent",
         data_type: "link",
@@ -110,7 +110,7 @@ export const agentNodeSchema: CustomNodeSchema = {
         multiple: true,
       },
       {
-        id: "link-top",
+        id: "link-bottom",
         label: "Link Out",
         source_type: "agent",
         data_type: "link",
@@ -174,7 +174,8 @@ export const agentNodeSchema: CustomNodeSchema = {
         min_value: 0,
         max_value: 2,
         step: 0.1,
-        help_text: "Controls randomness in responses (0 = deterministic, 2 = creative)",
+        help_text:
+          "Controls randomness in responses (0 = deterministic, 2 = creative)",
         section: "Model",
         tab: "General",
       },
@@ -314,7 +315,8 @@ export const agentNodeSchema: CustomNodeSchema = {
         label: "Disallow transfer to parent",
         widget: "checkbox",
         default: false,
-        help_text: "Prevent this agent from transferring control back to its parent",
+        help_text:
+          "Prevent this agent from transferring control back to its parent",
         section: "Transfer Controls",
         tab: "Flow",
       },
@@ -323,7 +325,8 @@ export const agentNodeSchema: CustomNodeSchema = {
         label: "Disallow transfer to peers",
         widget: "checkbox",
         default: false,
-        help_text: "Prevent this agent from transferring control to sibling agents",
+        help_text:
+          "Prevent this agent from transferring control to sibling agents",
         section: "Transfer Controls",
         tab: "Flow",
       },
@@ -450,13 +453,13 @@ export const agentNodeSchema: CustomNodeSchema = {
       additional_handles: [
         {
           id: "link-top",
-          type: "source",
+          type: "target",
           position: "top",
           label: "Chain with other agents",
         },
         {
           id: "link-bottom",
-          type: "target",
+          type: "source",
           position: "bottom",
           label: "Chain with other agents",
         },

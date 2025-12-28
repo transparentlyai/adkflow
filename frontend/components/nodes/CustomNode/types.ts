@@ -381,8 +381,8 @@ export interface CollapsedFooter {
  *   input_position: "left",
  *   output_position: "right",
  *   additional_handles: [
- *     { id: "link-top", type: "source", position: "top", label: "Chain Out" },
- *     { id: "link-bottom", type: "target", position: "bottom", label: "Chain In" },
+ *     { id: "link-top", type: "target", position: "top", label: "Chain In" },
+ *     { id: "link-bottom", type: "source", position: "bottom", label: "Chain Out" },
  *   ],
  * }
  * ```
