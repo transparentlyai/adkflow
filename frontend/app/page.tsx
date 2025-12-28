@@ -175,12 +175,14 @@ function HomeContent() {
   }, [isSessionLoaded, currentProjectPath, workflowName, hasUnsavedChanges]);
 
   const handleWorkflowChange = useCallback((data: { nodes: Node[]; edges: Edge[] }) => {
+    // Use ref to get the current tab - avoids stale closure issues
     const tab = activeTabRef.current;
-    if (activeTabId && tab) {
-      markTabDirty(activeTabId);
-      syncTeleportersForTab(activeTabId, tab.name, data.nodes);
+    const tabId = tab?.id;
+    if (tabId && tab) {
+      markTabDirty(tabId);
+      syncTeleportersForTab(tabId, tab.name, data.nodes);
     }
-  }, [activeTabId, markTabDirty, syncTeleportersForTab]);
+  }, [markTabDirty, syncTeleportersForTab]);
 
   const syncAllTabsTeleporters = useCallback(async (projectPath: string, allTabs: typeof tabs) => {
     for (const tab of allTabs) {
