@@ -96,6 +96,7 @@ function migratePromptData(
 ): Record<string, unknown> {
   const prompt = data.prompt as Record<string, unknown> | undefined;
   return {
+    name: prompt?.name || "",
     file_path: prompt?.file_path || "",
     content: data.content || "",
   };
@@ -311,4 +312,60 @@ export function migrateWorkflow(nodes: Node[]): Node[] {
  */
 export function workflowNeedsMigration(nodes: Node[]): boolean {
   return nodes.some(isLegacyNode);
+}
+
+/**
+ * Fill in missing default values for schema-driven nodes.
+ * This handles nodes that were migrated before new fields were added to schemas.
+ */
+export function fillMissingDefaults(node: Node): Node {
+  const data = node.data as Record<string, unknown>;
+
+  // Only process schema-driven nodes
+  if (!isSchemaData(data)) {
+    return node;
+  }
+
+  const schema = data.schema as CustomNodeSchema;
+  const config = data.config as Record<string, unknown>;
+
+  if (!schema?.ui?.fields) {
+    return node;
+  }
+
+  // Check if any field is missing from config
+  let hasChanges = false;
+  const updatedConfig = { ...config };
+
+  for (const field of schema.ui.fields) {
+    if (!(field.id in updatedConfig) && field.default !== undefined) {
+      updatedConfig[field.id] = field.default;
+      hasChanges = true;
+    }
+  }
+
+  if (!hasChanges) {
+    return node;
+  }
+
+  return {
+    ...node,
+    data: {
+      ...data,
+      config: updatedConfig,
+    },
+  };
+}
+
+/**
+ * Apply all migrations and fill missing defaults.
+ * Use this as the main entry point for loading workflows.
+ */
+export function prepareWorkflowNodes(nodes: Node[]): Node[] {
+  return nodes.map((node) => {
+    // First migrate legacy nodes
+    const migrated = migrateLegacyNode(node);
+    // Then fill any missing defaults
+    return fillMissingDefaults(migrated);
+  });
 }

@@ -34,6 +34,14 @@ export const promptNodeSchema: CustomNodeSchema = {
     ],
     fields: [
       {
+        id: "name",
+        label: "Name",
+        widget: "text",
+        default: "New Prompt",
+        placeholder: "Prompt name",
+        help_text: "A unique name for this prompt",
+      },
+      {
         id: "file_path",
         label: "File Path",
         widget: "file_picker",

@@ -14,7 +14,8 @@ export const contextNodeSchema: CustomNodeSchema = {
   unit_id: "builtin.context",
   label: "Context",
   menu_location: "Content/Context",
-  description: "Additional context content for agents. Similar to prompts but used for injecting context data.",
+  description:
+    "Additional context content for agents. Similar to prompts but used for injecting context data.",
   version: "1.0.0",
   output_node: false,
   always_execute: false,
@@ -32,6 +33,14 @@ export const contextNodeSchema: CustomNodeSchema = {
       },
     ],
     fields: [
+      {
+        id: "name",
+        label: "Name",
+        widget: "text",
+        default: "New Context",
+        placeholder: "Context name",
+        help_text: "A unique name for this context",
+      },
       {
         id: "file_path",
         label: "File Path",
