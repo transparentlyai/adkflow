@@ -1,5 +1,4 @@
 import type { ReactFlowCanvasRef } from "@/components/ReactFlowCanvas";
-import type { FilePickerOptions } from "@/contexts/ProjectContext";
 import type { NodeCreationDialogState, FilePickerState } from "./useHomeState";
 import {
   useNodeDialogFactory,
