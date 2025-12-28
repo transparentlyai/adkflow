@@ -286,14 +286,7 @@ const CustomNodeExpanded = memo(
     return (
       <>
         <div
-          className={`rounded-lg shadow-lg overflow-hidden relative ${
-            !isDirty &&
-            !nodeData.duplicateNameError &&
-            !executionState &&
-            selected
-              ? "ring-2 shadow-xl"
-              : ""
-          }`}
+          className="rounded-lg shadow-lg overflow-hidden relative"
           style={{
             width,
             backgroundColor: theme.colors.nodes.common.container.background,
@@ -310,7 +303,7 @@ const CustomNodeExpanded = memo(
                 : executionState
                   ? getExecutionStyle(executionState, theme.colors)
                   : selected
-                    ? { borderColor: headerColor }
+                    ? { boxShadow: `0 0 0 2px ${headerColor}` }
                     : {}),
           }}
         >
