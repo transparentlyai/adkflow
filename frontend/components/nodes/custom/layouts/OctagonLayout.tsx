@@ -37,7 +37,8 @@ const OctagonLayout = memo(
 
     // Get stroke color for duplicate name or selection
     const getStrokeColor = () => {
-      if (nodeData.duplicateNameError) return "#ef4444";
+      if (nodeData.duplicateNameError)
+        return theme.colors.state?.invalid?.ring || "#ef4444";
       if (selected) return ringColor;
       return "transparent";
     };

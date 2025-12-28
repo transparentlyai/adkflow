@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import type { useTheme } from "@/contexts/ThemeContext";
 import type { NodeExecutionState } from "@/lib/types";
+import type { ThemeColors } from "@/lib/themes/types";
 
 /**
  * Get theme colors for a node type
@@ -28,21 +29,36 @@ export function getThemeColors(
  */
 export function getExecutionStyle(
   executionState?: NodeExecutionState,
+  theme?: ThemeColors,
 ): CSSProperties {
+  // If no theme, use hardcoded fallbacks for backwards compatibility
+  const running = theme?.state?.running || {
+    ring: "rgba(59, 130, 246, 0.8)",
+    glow: "rgba(59, 130, 246, 0.4)",
+  };
+  const completed = theme?.state?.completed || {
+    ring: "rgba(34, 197, 94, 0.8)",
+    glow: "rgba(34, 197, 94, 0.3)",
+  };
+  const error = theme?.state?.error || {
+    ring: "rgba(239, 68, 68, 0.8)",
+    glow: "rgba(239, 68, 68, 0.4)",
+  };
+
   switch (executionState) {
     case "running":
       return {
-        boxShadow: `0 0 0 2px rgba(59, 130, 246, 0.8), 0 0 20px 4px rgba(59, 130, 246, 0.4)`,
+        boxShadow: `0 0 0 2px ${running.ring}, 0 0 20px 4px ${running.glow}`,
         animation: "custom-node-execution-pulse 1.5s ease-in-out infinite",
       };
     case "completed":
       return {
-        boxShadow: `0 0 0 2px rgba(34, 197, 94, 0.8), 0 0 10px 2px rgba(34, 197, 94, 0.3)`,
+        boxShadow: `0 0 0 2px ${completed.ring}, 0 0 10px 2px ${completed.glow}`,
         transition: "box-shadow 0.3s ease-out",
       };
     case "error":
       return {
-        boxShadow: `0 0 0 2px rgba(239, 68, 68, 0.8), 0 0 20px 4px rgba(239, 68, 68, 0.4)`,
+        boxShadow: `0 0 0 2px ${error.ring}, 0 0 20px 4px ${error.glow}`,
         animation: "validation-error-pulse 1s ease-in-out infinite",
       };
     default:
@@ -55,10 +71,15 @@ export function getExecutionStyle(
  */
 export function getValidationStyle(
   hasValidationError?: boolean,
+  theme?: ThemeColors,
 ): CSSProperties {
   if (hasValidationError) {
+    const invalid = theme?.state?.invalid || {
+      ring: "rgba(239, 68, 68, 0.8)",
+      glow: "rgba(239, 68, 68, 0.4)",
+    };
     return {
-      boxShadow: `0 0 0 2px rgba(239, 68, 68, 0.8), 0 0 20px 4px rgba(239, 68, 68, 0.4)`,
+      boxShadow: `0 0 0 2px ${invalid.ring}, 0 0 20px 4px ${invalid.glow}`,
       animation: "validation-error-pulse 1s ease-in-out infinite",
     };
   }
@@ -70,10 +91,12 @@ export function getValidationStyle(
  */
 export function getDuplicateNameStyle(
   duplicateNameError?: string,
+  theme?: ThemeColors,
 ): CSSProperties {
   if (duplicateNameError) {
+    const invalidRing = theme?.state?.invalid?.ring || "#ef4444";
     return {
-      boxShadow: `0 0 0 2px #ef4444`,
+      boxShadow: `0 0 0 2px ${invalidRing}`,
     };
   }
   return {};

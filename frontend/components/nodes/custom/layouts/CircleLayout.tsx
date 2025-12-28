@@ -75,17 +75,20 @@ const CircleLayout = memo(
     // Combine selection, validation, and execution styles
     const getNodeStyle = useCallback((): React.CSSProperties => {
       // Duplicate name error takes priority (static red glow)
-      const duplicateStyle = getDuplicateNameStyle(nodeData.duplicateNameError);
+      const duplicateStyle = getDuplicateNameStyle(
+        nodeData.duplicateNameError,
+        theme.colors,
+      );
       if (Object.keys(duplicateStyle).length > 0) {
         return { border: "2px solid transparent", ...duplicateStyle };
       }
       // Then execution state
-      const execStyle = getExecutionStyle(executionState);
+      const execStyle = getExecutionStyle(executionState, theme.colors);
       if (Object.keys(execStyle).length > 0) {
         return { border: "2px solid transparent", ...execStyle };
       }
       // Then validation error
-      const validStyle = getValidationStyle(hasValidationError);
+      const validStyle = getValidationStyle(hasValidationError, theme.colors);
       if (Object.keys(validStyle).length > 0) {
         return { border: "2px solid transparent", ...validStyle };
       }
@@ -100,6 +103,7 @@ const CircleLayout = memo(
       executionState,
       hasValidationError,
       nodeData.duplicateNameError,
+      theme.colors,
     ]);
 
     // Get collapsed display text from schema (e.g., "LOG" for LogProbeNode)

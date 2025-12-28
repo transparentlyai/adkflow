@@ -285,13 +285,6 @@ const CustomNodeExpanded = memo(
 
     return (
       <>
-        {/* Execution pulse animation styles */}
-        <style>{`
-          @keyframes custom-node-execution-pulse {
-            0%, 100% { box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.8), 0 0 20px 4px rgba(59, 130, 246, 0.4); }
-            50% { box-shadow: 0 0 0 3px rgba(59, 130, 246, 1), 0 0 30px 8px rgba(59, 130, 246, 0.6); }
-          }
-        `}</style>
         <div
           className={`rounded-lg shadow-lg overflow-hidden relative ${
             !isDirty &&
@@ -309,11 +302,13 @@ const CustomNodeExpanded = memo(
             borderStyle: "solid",
             // Priority: duplicateNameError > isDirty > executionState > selected
             ...(nodeData.duplicateNameError
-              ? getDuplicateNameStyle(nodeData.duplicateNameError)
+              ? getDuplicateNameStyle(nodeData.duplicateNameError, theme.colors)
               : isDirty
-                ? { boxShadow: `0 0 0 2px #f97316` }
+                ? {
+                    boxShadow: `0 0 0 2px ${theme.colors.state?.dirty?.ring || "#f97316"}`,
+                  }
                 : executionState
-                  ? getExecutionStyle(executionState)
+                  ? getExecutionStyle(executionState, theme.colors)
                   : selected
                     ? { borderColor: headerColor }
                     : {}),

@@ -2,6 +2,7 @@
 
 import { memo } from "react";
 import { ChevronDown, ChevronUp, ArrowDownToLine, Zap } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
 import type { CustomNodeSchema } from "@/components/nodes/CustomNode";
 import NodeIcon from "@/components/nodes/custom/NodeIcon";
 
@@ -40,6 +41,7 @@ const CustomNodeHeader = memo(
     onNameSave,
     onNameKeyDown,
   }: CustomNodeHeaderProps) => {
+    const { theme } = useTheme();
     const ChevronIcon = isExpanded ? ChevronUp : ChevronDown;
 
     return (
@@ -53,7 +55,9 @@ const CustomNodeHeader = memo(
           {schema.output_node && (
             <div
               className="flex-shrink-0 rounded-full p-0.5"
-              style={{ backgroundColor: "#22c55e" }}
+              style={{
+                backgroundColor: theme.colors.state?.success || "#22c55e",
+              }}
               title="Output Node - triggers execution"
             >
               <ArrowDownToLine className="w-2.5 h-2.5 text-white" />
@@ -63,7 +67,9 @@ const CustomNodeHeader = memo(
           {schema.always_execute && (
             <div
               className="flex-shrink-0 rounded-full p-0.5"
-              style={{ backgroundColor: "#f59e0b" }}
+              style={{
+                backgroundColor: theme.colors.state?.warning || "#f59e0b",
+              }}
               title="Always Execute - skips cache"
             >
               <Zap className="w-2.5 h-2.5 text-white" />

@@ -98,8 +98,9 @@ const TagLayout = memo(
 
     // Get stroke color for duplicate name or selection
     const getStrokeColor = () => {
-      if (nodeData.duplicateNameError) return "#ef4444";
-      if (selected) return "#3b82f6";
+      if (nodeData.duplicateNameError)
+        return theme.colors.state?.invalid?.ring || "#ef4444";
+      if (selected) return theme.colors.state?.selected?.ring || "#3b82f6";
       return "transparent";
     };
 

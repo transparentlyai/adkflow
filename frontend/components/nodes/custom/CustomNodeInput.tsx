@@ -52,9 +52,11 @@ const CustomNodeInput = memo(
         if (!connectionState.isDragging || !acceptedSources || !acceptedTypes) {
           return {};
         }
+        const invalidColor = theme.colors.state?.invalid?.ring || "#ef4444";
+        const validColor = theme.colors.state?.valid?.ring || "#22c55e";
         if (connectionState.sourceNodeId === nodeId) {
           return {
-            boxShadow: "0 0 0 2px #ef4444, 0 0 8px 2px #ef4444",
+            boxShadow: `0 0 0 2px ${invalidColor}, 0 0 8px 2px ${invalidColor}`,
             cursor: "not-allowed",
           };
         }
@@ -66,16 +68,16 @@ const CustomNodeInput = memo(
         );
         if (isValid) {
           return {
-            boxShadow: "0 0 0 2px #22c55e, 0 0 8px 2px #22c55e",
+            boxShadow: `0 0 0 2px ${validColor}, 0 0 8px 2px ${validColor}`,
             cursor: "pointer",
           };
         }
         return {
-          boxShadow: "0 0 0 2px #ef4444, 0 0 8px 2px #ef4444",
+          boxShadow: `0 0 0 2px ${invalidColor}, 0 0 8px 2px ${invalidColor}`,
           cursor: "not-allowed",
         };
       },
-      [connectionState, nodeId],
+      [connectionState, nodeId, theme.colors],
     );
 
     const validityStyle = getHandleValidityStyle(
@@ -131,7 +133,11 @@ const CustomNodeInput = memo(
               <NodeIcon
                 icon={input.icon}
                 className="w-3 h-3"
-                style={{ color: isConnected ? handleColor : theme.colors.nodes.common.text.muted }}
+                style={{
+                  color: isConnected
+                    ? handleColor
+                    : theme.colors.nodes.common.text.muted,
+                }}
               />
             ) : (
               <Circle

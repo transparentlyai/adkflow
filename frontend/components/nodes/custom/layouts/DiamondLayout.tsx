@@ -68,7 +68,10 @@ const DiamondLayout = memo(
     // Get node styling (duplicate name error takes priority)
     const getNodeStyle = (): React.CSSProperties => {
       // Duplicate name error takes priority (static red glow)
-      const duplicateStyle = getDuplicateNameStyle(nodeData.duplicateNameError);
+      const duplicateStyle = getDuplicateNameStyle(
+        nodeData.duplicateNameError,
+        theme.colors,
+      );
       if (Object.keys(duplicateStyle).length > 0) {
         return duplicateStyle;
       }

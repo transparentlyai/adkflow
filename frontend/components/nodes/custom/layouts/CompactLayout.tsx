@@ -41,12 +41,15 @@ const CompactLayout = memo(
     // Get combined styles for selection and execution state
     const getNodeStyle = (): React.CSSProperties => {
       // Duplicate name error takes priority (static red glow)
-      const duplicateStyle = getDuplicateNameStyle(nodeData.duplicateNameError);
+      const duplicateStyle = getDuplicateNameStyle(
+        nodeData.duplicateNameError,
+        theme.colors,
+      );
       if (Object.keys(duplicateStyle).length > 0) {
         return duplicateStyle;
       }
       // Then execution state
-      const execStyle = getExecutionStyle(executionState);
+      const execStyle = getExecutionStyle(executionState, theme.colors);
       if (Object.keys(execStyle).length > 0) {
         return execStyle;
       }
