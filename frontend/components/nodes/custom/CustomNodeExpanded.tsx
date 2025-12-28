@@ -13,6 +13,7 @@ import { renderWidget } from "@/components/nodes/widgets/WidgetRenderer";
 import {
   getExecutionStyle,
   getDuplicateNameStyle,
+  getThemeColors,
 } from "@/components/nodes/custom/layouts/collapsedLayoutUtils";
 import {
   groupBySection,
@@ -105,6 +106,10 @@ const CustomNodeExpanded = memo(
     onResize,
   }: CustomNodeExpandedProps) => {
     const { theme } = useTheme();
+
+    // Get theme colors for this node type (same as collapsed views)
+    const themeColors = getThemeColors(theme, schema.ui.theme_key);
+    const ringColor = themeColors?.ring || headerColor;
 
     // Use tabs in schema definition order
     const tabs = useMemo(() => {
@@ -303,7 +308,7 @@ const CustomNodeExpanded = memo(
                 : executionState
                   ? getExecutionStyle(executionState, theme.colors)
                   : selected
-                    ? { boxShadow: `0 0 0 2px ${headerColor}` }
+                    ? { boxShadow: `0 0 0 2px ${ringColor}` }
                     : {}),
           }}
         >

@@ -129,6 +129,7 @@ export function useFileOperations(
       }
       // Case 3: Node without code editor - no dirty tracking needed
       else if (!codeEditorField) {
+        setSavedContent("");
         setIsContentLoaded(true);
       }
     };
