@@ -195,7 +195,7 @@ class WorkflowValidator:
         for node in graph.get_agent_nodes():
             agent_data = node.data.get("agent", {})
             agent_type = agent_data.get("type", "llm")
-            agent_name = agent_data.get("name", node.id)
+            agent_name = node.name  # Use node.name which checks config.name first
 
             # LLM agents need instructions
             if agent_type == "llm":
@@ -277,8 +277,8 @@ class WorkflowValidator:
             source_agent = source.data.get("agent", {})
             target_agent = target.data.get("agent", {})
 
-            source_name = source_agent.get("name", source.id)
-            target_name = target_agent.get("name", target.id)
+            source_name = source.name  # Use node.name which checks config.name first
+            target_name = target.name
             output_key = source_agent.get("output_key")
 
             # Check source has output_key
