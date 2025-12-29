@@ -167,9 +167,19 @@ class WorkflowGraph:
             if node_id in temp_visited:
                 cycle_start = path.index(node_id)
                 cycle = path[cycle_start:] + [node_id]
+                # Convert IDs to names for better error messages
+                cycle_names = []
+                for nid in cycle:
+                    node = self.nodes.get(nid)
+                    cycle_names.append(node.name if node else nid)
+                node = self.nodes.get(node_id)
                 raise CycleDetectedError(
-                    cycle_nodes=cycle,
-                    location=ErrorLocation(node_id=node_id),
+                    cycle_nodes=cycle_names,
+                    location=ErrorLocation(
+                        node_id=node_id,
+                        node_name=node.name if node else None,
+                        tab_id=node.tab_id if node else None,
+                    ),
                 )
             if node_id in visited:
                 return

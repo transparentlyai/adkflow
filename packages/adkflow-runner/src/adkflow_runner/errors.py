@@ -13,6 +13,7 @@ class ErrorLocation:
     """Location information for an error."""
 
     tab_id: str | None = None
+    tab_name: str | None = None
     node_id: str | None = None
     node_type: str | None = None
     node_name: str | None = None
@@ -21,7 +22,9 @@ class ErrorLocation:
 
     def __str__(self) -> str:
         parts = []
-        if self.tab_id:
+        if self.tab_name:
+            parts.append(f"tab={self.tab_name}")
+        elif self.tab_id:
             parts.append(f"tab={self.tab_id}")
         if self.node_name:
             parts.append(f"node={self.node_name}")

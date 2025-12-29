@@ -21,6 +21,28 @@ class WorkflowValidator:
 
     def __init__(self, strict: bool = True):
         self.strict = strict
+        self._project: LoadedProject | None = None
+
+    def _make_location(
+        self,
+        node: GraphNode,
+        file_path: str | None = None,
+    ) -> ErrorLocation:
+        """Create an ErrorLocation with human-readable names."""
+        tab_name = None
+        if self._project and node.tab_id:
+            tab = self._project.get_tab(node.tab_id)
+            if tab:
+                tab_name = tab.name
+
+        return ErrorLocation(
+            node_id=node.id,
+            node_name=node.name,
+            node_type=node.type,
+            tab_id=node.tab_id,
+            tab_name=tab_name,
+            file_path=file_path,
+        )
 
     def validate_graph(
         self, graph: WorkflowGraph, project: LoadedProject
@@ -34,6 +56,7 @@ class WorkflowValidator:
         Returns:
             ValidationResult with errors and warnings
         """
+        self._project = project
         result = ValidationResult(valid=True)
 
         # Check for cycles (except in loop agents)
@@ -118,11 +141,7 @@ class WorkflowValidator:
                         MissingReferenceError(
                             reference_type="prompt",
                             reference_name=file_path,
-                            location=ErrorLocation(
-                                node_id=node.id,
-                                tab_id=node.tab_id,
-                                file_path=file_path,
-                            ),
+                            location=self._make_location(node, file_path=file_path),
                         )
                     )
 
@@ -133,11 +152,7 @@ class WorkflowValidator:
                         MissingReferenceError(
                             reference_type="tool",
                             reference_name=file_path,
-                            location=ErrorLocation(
-                                node_id=node.id,
-                                tab_id=node.tab_id,
-                                file_path=file_path,
-                            ),
+                            location=self._make_location(node, file_path=file_path),
                         )
                     )
 
@@ -153,7 +168,7 @@ class WorkflowValidator:
             if not has_connections:
                 result.add_warning(
                     f"Agent '{node.name}' has no connections (isolated node)",
-                    location=ErrorLocation(node_id=node.id, tab_id=node.tab_id),
+                    location=self._make_location(node),
                 )
 
     def _check_orphaned_nodes(
@@ -168,7 +183,7 @@ class WorkflowValidator:
                 if not has_outgoing:
                     result.add_warning(
                         f"{node.type.capitalize()} '{node.name}' is not connected to any agent",
-                        location=ErrorLocation(node_id=node.id, tab_id=node.tab_id),
+                        location=self._make_location(node),
                     )
 
     def _check_agent_configs(
@@ -191,7 +206,7 @@ class WorkflowValidator:
                 if not has_instruction:
                     result.add_warning(
                         f"LLM agent '{agent_name}' has no connected prompt or context",
-                        location=ErrorLocation(node_id=node.id, tab_id=node.tab_id),
+                        location=self._make_location(node),
                     )
 
             # Composite agents need subagents
@@ -203,7 +218,7 @@ class WorkflowValidator:
                 if not has_subagents:
                     result.add_warning(
                         f"{agent_type.capitalize()} agent '{agent_name}' has no subagents",
-                        location=ErrorLocation(node_id=node.id, tab_id=node.tab_id),
+                        location=self._make_location(node),
                     )
 
             # Loop agents need iteration limit
@@ -213,13 +228,13 @@ class WorkflowValidator:
                     result.add_error(
                         ValidationError(
                             f"Loop agent '{agent_name}' has invalid max_iterations: {max_iterations}",
-                            location=ErrorLocation(node_id=node.id, tab_id=node.tab_id),
+                            location=self._make_location(node),
                         )
                     )
                 elif max_iterations > 100:
                     result.add_warning(
                         f"Loop agent '{agent_name}' has high max_iterations ({max_iterations})",
-                        location=ErrorLocation(node_id=node.id, tab_id=node.tab_id),
+                        location=self._make_location(node),
                     )
 
             # include_contents="none" requires output_key
@@ -230,7 +245,7 @@ class WorkflowValidator:
                     ValidationError(
                         f"Agent '{agent_name}' has include_contents='none' but no output_key. "
                         "Output key is required when include_contents is 'none'.",
-                        location=ErrorLocation(node_id=node.id, tab_id=node.tab_id),
+                        location=self._make_location(node),
                     )
                 )
 
@@ -271,7 +286,7 @@ class WorkflowValidator:
                 result.add_warning(
                     f"Agent '{source_name}' outputs to '{target_name}' but has no output_key. "
                     f"The receiving agent won't be able to access the output.",
-                    location=ErrorLocation(node_id=source.id, tab_id=source.tab_id),
+                    location=self._make_location(source),
                 )
 
     def _check_start_node(
@@ -292,17 +307,13 @@ class WorkflowValidator:
             result.add_error(
                 ValidationError(
                     f"Workflow has {len(start_nodes)} Start nodes. Only one is allowed.",
-                    location=ErrorLocation(
-                        node_id=start_nodes[1].id, tab_id=start_nodes[1].tab_id
-                    ),
+                    location=self._make_location(start_nodes[1]),
                 )
             )
         elif not start_nodes[0].outgoing:
             result.add_warning(
                 "Start node is not connected to any agent",
-                location=ErrorLocation(
-                    node_id=start_nodes[0].id, tab_id=start_nodes[0].tab_id
-                ),
+                location=self._make_location(start_nodes[0]),
             )
 
     def _check_duplicate_names(
@@ -346,12 +357,7 @@ class WorkflowValidator:
                     result.add_error(
                         ValidationError(
                             f"Duplicate name '{name}' - {node.type} names must be unique",
-                            location=ErrorLocation(
-                                node_id=node.id,
-                                tab_id=node.tab_id,
-                                node_name=name,
-                                node_type=node.type,
-                            ),
+                            location=self._make_location(node),
                         )
                     )
                 # Also error if file-based nodes share name with unique-name nodes
@@ -360,12 +366,7 @@ class WorkflowValidator:
                         result.add_error(
                             ValidationError(
                                 f"Duplicate name '{name}' - conflicts with {unique_nodes[0].type}",
-                                location=ErrorLocation(
-                                    node_id=node.id,
-                                    tab_id=node.tab_id,
-                                    node_name=name,
-                                    node_type=node.type,
-                                ),
+                                location=self._make_location(node),
                             )
                         )
                 continue
@@ -423,13 +424,7 @@ class WorkflowValidator:
                 ValidationError(
                     f"Duplicate name '{name}' with different content - "
                     f"rename the node or use the same file",
-                    location=ErrorLocation(
-                        node_id=node.id,
-                        tab_id=node.tab_id,
-                        node_name=name,
-                        node_type=node.type,
-                        file_path=file_path,
-                    ),
+                    location=self._make_location(node, file_path=file_path),
                 )
             )
 
