@@ -278,6 +278,15 @@ export default function ProjectSettingsDialog({
                           ))}
                         </select>
                       </div>
+                      <a
+                        href="https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                      >
+                        Set up ADC for local development{" "}
+                        <ExternalLink className="h-2.5 w-2.5" />
+                      </a>
                     </div>
                   )}
                 </div>
