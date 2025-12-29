@@ -13,6 +13,7 @@ from backend.src.api.routes.project_routes import router as project_router
 from backend.src.api.routes.file_routes import router as file_router
 from backend.src.api.routes.filesystem_routes import router as filesystem_router
 from backend.src.api.routes.tab_routes import router as tab_router
+from backend.src.api.routes.settings_routes import router as settings_router
 
 # Re-export all models for backwards compatibility
 from backend.src.api.routes.models import (
@@ -54,6 +55,7 @@ router.include_router(project_router)
 router.include_router(file_router)
 router.include_router(filesystem_router)
 router.include_router(tab_router)
+router.include_router(settings_router)
 
 __all__ = [
     # Main router

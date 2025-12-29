@@ -28,6 +28,10 @@ import type {
   TopologyResponse,
   UserInputSubmission,
   UserInputResponse,
+  ProjectSettings,
+  ProjectEnvSettingsUpdate,
+  ProjectSettingsResponse,
+  ProjectSettingsUpdateResponse,
 } from "@/lib/types";
 
 // Base URL for the API
@@ -70,7 +74,7 @@ export async function loadProject(path: string): Promise<ProjectLoadResponse> {
   try {
     const response = await apiClient.get<ProjectLoadResponse>(
       "/api/project/load",
-      { params: { path } }
+      { params: { path } },
     );
     return response.data;
   } catch (error) {
@@ -86,12 +90,12 @@ export async function loadProject(path: string): Promise<ProjectLoadResponse> {
  */
 export async function saveProject(
   path: string,
-  flow: ReactFlowJSON
+  flow: ReactFlowJSON,
 ): Promise<ProjectSaveResponse> {
   try {
     const response = await apiClient.post<ProjectSaveResponse>(
       "/api/project/save",
-      { path, flow }
+      { path, flow },
     );
     return response.data;
   } catch (error) {
@@ -121,12 +125,12 @@ export async function saveProject(
  */
 export async function createPrompt(
   projectPath: string,
-  promptName: string
+  promptName: string,
 ): Promise<PromptCreateResponse> {
   try {
     const response = await apiClient.post<PromptCreateResponse>(
       "/api/project/prompt/create",
-      { project_path: projectPath, prompt_name: promptName }
+      { project_path: projectPath, prompt_name: promptName },
     );
     return response.data;
   } catch (error) {
@@ -142,12 +146,12 @@ export async function createPrompt(
  */
 export async function createContext(
   projectPath: string,
-  contextName: string
+  contextName: string,
 ): Promise<PromptCreateResponse> {
   try {
     const response = await apiClient.post<PromptCreateResponse>(
       "/api/project/context/create",
-      { project_path: projectPath, context_name: contextName }
+      { project_path: projectPath, context_name: contextName },
     );
     return response.data;
   } catch (error) {
@@ -163,12 +167,12 @@ export async function createContext(
  */
 export async function createTool(
   projectPath: string,
-  toolName: string
+  toolName: string,
 ): Promise<PromptCreateResponse> {
   try {
     const response = await apiClient.post<PromptCreateResponse>(
       "/api/project/tool/create",
-      { project_path: projectPath, tool_name: toolName }
+      { project_path: projectPath, tool_name: toolName },
     );
     return response.data;
   } catch (error) {
@@ -184,12 +188,12 @@ export async function createTool(
  */
 export async function readPrompt(
   projectPath: string,
-  filePath: string
+  filePath: string,
 ): Promise<PromptReadResponse> {
   try {
     const response = await apiClient.post<PromptReadResponse>(
       "/api/project/prompt/read",
-      { project_path: projectPath, file_path: filePath }
+      { project_path: projectPath, file_path: filePath },
     );
     return response.data;
   } catch (error) {
@@ -206,12 +210,12 @@ export async function readPrompt(
 export async function savePrompt(
   projectPath: string,
   filePath: string,
-  content: string
+  content: string,
 ): Promise<PromptSaveResponse> {
   try {
     const response = await apiClient.post<PromptSaveResponse>(
       "/api/project/prompt/save",
-      { project_path: projectPath, file_path: filePath, content }
+      { project_path: projectPath, file_path: filePath, content },
     );
     return response.data;
   } catch (error) {
@@ -230,17 +234,25 @@ export async function readFileChunk(
   filePath: string,
   offset: number = 0,
   limit: number = 500,
-  reverse: boolean = true
+  reverse: boolean = true,
 ): Promise<FileChunkResponse> {
   try {
     const response = await apiClient.post<FileChunkResponse>(
       "/api/project/file/chunk",
-      { project_path: projectPath, file_path: filePath, offset, limit, reverse }
+      {
+        project_path: projectPath,
+        file_path: filePath,
+        offset,
+        limit,
+        reverse,
+      },
     );
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
-      throw new Error(error.response.data.detail || "Failed to read file chunk");
+      throw new Error(
+        error.response.data.detail || "Failed to read file chunk",
+      );
     }
     throw error;
   }
@@ -249,11 +261,13 @@ export async function readFileChunk(
 /**
  * List directory contents on the server
  */
-export async function listDirectory(path: string): Promise<DirectoryListResponse> {
+export async function listDirectory(
+  path: string,
+): Promise<DirectoryListResponse> {
   try {
     const response = await apiClient.get<DirectoryListResponse>(
       "/api/filesystem/list",
-      { params: { path } }
+      { params: { path } },
     );
     return response.data;
   } catch (error) {
@@ -269,17 +283,19 @@ export async function listDirectory(path: string): Promise<DirectoryListResponse
  */
 export async function createDirectory(
   path: string,
-  name: string
+  name: string,
 ): Promise<DirectoryCreateResponse> {
   try {
     const response = await apiClient.post<DirectoryCreateResponse>(
       "/api/filesystem/mkdir",
-      { path, name }
+      { path, name },
     );
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
-      throw new Error(error.response.data.detail || "Failed to create directory");
+      throw new Error(
+        error.response.data.detail || "Failed to create directory",
+      );
     }
     throw error;
   }
@@ -289,17 +305,19 @@ export async function createDirectory(
  * Ensure a directory exists, creating it and any parent directories if needed
  */
 export async function ensureDirectory(
-  path: string
+  path: string,
 ): Promise<DirectoryCreateResponse> {
   try {
     const response = await apiClient.post<DirectoryCreateResponse>(
       "/api/filesystem/ensure-dir",
-      { path }
+      { path },
     );
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
-      throw new Error(error.response.data.detail || "Failed to ensure directory");
+      throw new Error(
+        error.response.data.detail || "Failed to ensure directory",
+      );
     }
     throw error;
   }
@@ -327,12 +345,12 @@ export async function listTabs(projectPath: string): Promise<TabListResponse> {
  */
 export async function createTab(
   projectPath: string,
-  name: string = "Untitled"
+  name: string = "Untitled",
 ): Promise<TabCreateResponse> {
   try {
     const response = await apiClient.post<TabCreateResponse>(
       "/api/project/tabs",
-      { project_path: projectPath, name }
+      { project_path: projectPath, name },
     );
     return response.data;
   } catch (error) {
@@ -348,12 +366,12 @@ export async function createTab(
  */
 export async function loadTab(
   projectPath: string,
-  tabId: string
+  tabId: string,
 ): Promise<TabLoadResponse> {
   try {
     const response = await apiClient.get<TabLoadResponse>(
       `/api/project/tabs/${tabId}`,
-      { params: { path: projectPath } }
+      { params: { path: projectPath } },
     );
     return response.data;
   } catch (error) {
@@ -371,12 +389,12 @@ export async function saveTab(
   projectPath: string,
   tabId: string,
   flow: ReactFlowJSON,
-  projectName?: string
+  projectName?: string,
 ): Promise<TabSaveResponse> {
   try {
     const response = await apiClient.put<TabSaveResponse>(
       `/api/project/tabs/${tabId}`,
-      { project_path: projectPath, flow, project_name: projectName }
+      { project_path: projectPath, flow, project_name: projectName },
     );
     return response.data;
   } catch (error) {
@@ -392,12 +410,12 @@ export async function saveTab(
  */
 export async function deleteTab(
   projectPath: string,
-  tabId: string
+  tabId: string,
 ): Promise<{ success: boolean }> {
   try {
     const response = await apiClient.delete<{ success: boolean }>(
       `/api/project/tabs/${tabId}`,
-      { params: { path: projectPath } }
+      { params: { path: projectPath } },
     );
     return response.data;
   } catch (error) {
@@ -414,12 +432,12 @@ export async function deleteTab(
 export async function renameTab(
   projectPath: string,
   tabId: string,
-  name: string
+  name: string,
 ): Promise<{ success: boolean }> {
   try {
     const response = await apiClient.patch<{ success: boolean }>(
       `/api/project/tabs/${tabId}/rename`,
-      { project_path: projectPath, name }
+      { project_path: projectPath, name },
     );
     return response.data;
   } catch (error) {
@@ -435,13 +453,13 @@ export async function renameTab(
  */
 export async function duplicateTab(
   projectPath: string,
-  tabId: string
+  tabId: string,
 ): Promise<TabCreateResponse> {
   try {
     const response = await apiClient.post<TabCreateResponse>(
       `/api/project/tabs/${tabId}/duplicate`,
       null,
-      { params: { path: projectPath } }
+      { params: { path: projectPath } },
     );
     return response.data;
   } catch (error) {
@@ -457,12 +475,12 @@ export async function duplicateTab(
  */
 export async function reorderTabs(
   projectPath: string,
-  tabIds: string[]
+  tabIds: string[],
 ): Promise<{ success: boolean }> {
   try {
     const response = await apiClient.put<{ success: boolean }>(
       "/api/project/tabs/reorder",
-      { project_path: projectPath, tab_ids: tabIds }
+      { project_path: projectPath, tab_ids: tabIds },
     );
     return response.data;
   } catch (error) {
@@ -482,7 +500,7 @@ export async function startRun(request: RunRequest): Promise<RunResponse> {
   try {
     const response = await apiClient.post<RunResponse>(
       "/api/execution/run",
-      request
+      request,
     );
     return response.data;
   } catch (error) {
@@ -499,7 +517,7 @@ export async function startRun(request: RunRequest): Promise<RunResponse> {
 export async function getRunStatus(runId: string): Promise<RunStatusResponse> {
   try {
     const response = await apiClient.get<RunStatusResponse>(
-      `/api/execution/run/${runId}/status`
+      `/api/execution/run/${runId}/status`,
     );
     return response.data;
   } catch (error) {
@@ -513,11 +531,14 @@ export async function getRunStatus(runId: string): Promise<RunStatusResponse> {
 /**
  * Cancel a running workflow
  */
-export async function cancelRun(runId: string): Promise<{ success: boolean; message: string }> {
+export async function cancelRun(
+  runId: string,
+): Promise<{ success: boolean; message: string }> {
   try {
-    const response = await apiClient.post<{ success: boolean; message: string }>(
-      `/api/execution/run/${runId}/cancel`
-    );
+    const response = await apiClient.post<{
+      success: boolean;
+      message: string;
+    }>(`/api/execution/run/${runId}/cancel`);
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
@@ -530,16 +551,20 @@ export async function cancelRun(runId: string): Promise<{ success: boolean; mess
 /**
  * Validate a workflow without executing
  */
-export async function validateWorkflow(projectPath: string): Promise<ValidateResponse> {
+export async function validateWorkflow(
+  projectPath: string,
+): Promise<ValidateResponse> {
   try {
     const response = await apiClient.post<ValidateResponse>(
       "/api/execution/validate",
-      { project_path: projectPath }
+      { project_path: projectPath },
     );
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
-      throw new Error(error.response.data.detail || "Failed to validate workflow");
+      throw new Error(
+        error.response.data.detail || "Failed to validate workflow",
+      );
     }
     throw error;
   }
@@ -548,11 +573,13 @@ export async function validateWorkflow(projectPath: string): Promise<ValidateRes
 /**
  * Get the compiled agent topology of a workflow
  */
-export async function getTopology(projectPath: string): Promise<TopologyResponse> {
+export async function getTopology(
+  projectPath: string,
+): Promise<TopologyResponse> {
   try {
     const response = await apiClient.post<TopologyResponse>(
       "/api/execution/topology",
-      { project_path: projectPath }
+      { project_path: projectPath },
     );
     return response.data;
   } catch (error) {
@@ -577,17 +604,67 @@ export function createRunEventSource(runId: string): EventSource {
  */
 export async function submitUserInput(
   runId: string,
-  submission: UserInputSubmission
+  submission: UserInputSubmission,
 ): Promise<UserInputResponse> {
   try {
     const response = await apiClient.post<UserInputResponse>(
       `/api/execution/run/${runId}/input`,
-      submission
+      submission,
     );
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
-      throw new Error(error.response.data.detail || "Failed to submit user input");
+      throw new Error(
+        error.response.data.detail || "Failed to submit user input",
+      );
+    }
+    throw error;
+  }
+}
+
+// Project Settings API functions
+
+/**
+ * Load project settings from manifest.json and .env
+ */
+export async function loadProjectSettings(
+  projectPath: string,
+): Promise<ProjectSettingsResponse> {
+  try {
+    const response = await apiClient.get<ProjectSettingsResponse>(
+      "/api/project/settings",
+      { params: { path: projectPath } },
+    );
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(
+        error.response.data.detail || "Failed to load project settings",
+      );
+    }
+    throw error;
+  }
+}
+
+/**
+ * Save project settings to manifest.json and .env
+ */
+export async function saveProjectSettings(
+  projectPath: string,
+  settings: ProjectSettings,
+  env: ProjectEnvSettingsUpdate,
+): Promise<ProjectSettingsUpdateResponse> {
+  try {
+    const response = await apiClient.put<ProjectSettingsUpdateResponse>(
+      "/api/project/settings",
+      { project_path: projectPath, settings, env },
+    );
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(
+        error.response.data.detail || "Failed to save project settings",
+      );
     }
     throw error;
   }
@@ -607,7 +684,9 @@ export interface ExtensionNodesResponse {
  */
 export async function getExtensionNodes(): Promise<ExtensionNodesResponse> {
   try {
-    const response = await apiClient.get<ExtensionNodesResponse>("/api/extensions/nodes");
+    const response = await apiClient.get<ExtensionNodesResponse>(
+      "/api/extensions/nodes",
+    );
     return response.data;
   } catch (error) {
     // Return empty response if extensions not available

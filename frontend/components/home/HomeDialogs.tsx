@@ -5,6 +5,7 @@ import PromptNameDialog from "@/components/PromptNameDialog";
 import TopologyDialog from "@/components/TopologyDialog";
 import FilePicker from "@/components/FilePicker";
 import RunPanel, { type DisplayEvent } from "@/components/RunPanel";
+import ProjectSettingsDialog from "@/components/ProjectSettingsDialog";
 import type {
   TabState,
   RunStatus,
@@ -101,6 +102,10 @@ interface HomeDialogsProps {
   onClearExecutionState: () => void;
   onEventsChange: React.Dispatch<React.SetStateAction<DisplayEvent[]>>;
   onStatusChange: React.Dispatch<React.SetStateAction<RunStatus>>;
+
+  // Project settings dialog
+  isProjectSettingsOpen: boolean;
+  onProjectSettingsOpenChange: (open: boolean) => void;
 }
 
 export function HomeDialogs({
@@ -163,6 +168,8 @@ export function HomeDialogs({
   onClearExecutionState,
   onEventsChange,
   onStatusChange,
+  isProjectSettingsOpen,
+  onProjectSettingsOpenChange,
 }: HomeDialogsProps) {
   return (
     <>
@@ -311,6 +318,13 @@ export function HomeDialogs({
           onStatusChange={onStatusChange}
         />
       )}
+
+      {/* Project Settings Dialog */}
+      <ProjectSettingsDialog
+        open={isProjectSettingsOpen}
+        onOpenChange={onProjectSettingsOpenChange}
+        projectPath={currentProjectPath}
+      />
     </>
   );
 }

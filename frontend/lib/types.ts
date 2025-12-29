@@ -8,7 +8,7 @@ import type { Node, Edge } from "@xyflow/react";
 export interface Prompt {
   id: string;
   name: string;
-  file_path: string;  // Relative path to .prompt.md file
+  file_path: string; // Relative path to .prompt.md file
 }
 
 export interface Subagent {
@@ -117,7 +117,22 @@ export interface Workflow {
 /**
  * Node types for the Drawflow canvas
  */
-export type NodeType = "group" | "agent" | "prompt" | "context" | "inputProbe" | "outputProbe" | "logProbe" | "tool" | "agentTool" | "variable" | "teleportOut" | "teleportIn" | "userInput" | "start" | "end";
+export type NodeType =
+  | "group"
+  | "agent"
+  | "prompt"
+  | "context"
+  | "inputProbe"
+  | "outputProbe"
+  | "logProbe"
+  | "tool"
+  | "agentTool"
+  | "variable"
+  | "teleportOut"
+  | "teleportIn"
+  | "userInput"
+  | "start"
+  | "end";
 
 /**
  * Teleporter (flow connector) types for cross-flow connections
@@ -135,7 +150,7 @@ export interface TeleporterEntry {
 
 export interface TeleporterRegistry {
   teleporters: TeleporterEntry[];
-  colorMap: Record<string, string>;  // name -> color for consistent coloring
+  colorMap: Record<string, string>; // name -> color for consistent coloring
 }
 
 export interface TeleporterListResponse {
@@ -146,7 +161,7 @@ export interface TeleporterListResponse {
 /**
  * Handle position for draggable handles
  */
-export type HandleEdge = 'top' | 'right' | 'bottom' | 'left';
+export type HandleEdge = "top" | "right" | "bottom" | "left";
 
 export interface HandlePosition {
   edge: HandleEdge;
@@ -167,12 +182,12 @@ export type HandlePositions = Record<string, HandlePosition>;
  */
 export interface HandleTypeInfo {
   // For source handles (outputs)
-  outputSource?: string;      // e.g., 'prompt', 'agent', 'tool', 'context'
-  outputType?: string;        // Python type: 'str', 'dict', 'list', 'callable', etc.
+  outputSource?: string; // e.g., 'prompt', 'agent', 'tool', 'context'
+  outputType?: string; // Python type: 'str', 'dict', 'list', 'callable', etc.
 
   // For target handles (inputs)
   acceptedSources?: string[]; // Which sources accepted (or ['*'] for any)
-  acceptedTypes?: string[];   // Which Python types accepted (or ['*'] for any)
+  acceptedTypes?: string[]; // Which Python types accepted (or ['*'] for any)
 }
 
 /**
@@ -188,15 +203,17 @@ export function isTypeCompatible(
   outputSource: string | undefined | null,
   outputType: string | undefined | null,
   acceptedSources: string[] | undefined,
-  acceptedTypes: string[] | undefined
+  acceptedTypes: string[] | undefined,
 ): boolean {
   // Missing source or type info = connection NOT allowed
   if (!outputSource || !outputType) return false;
   if (!acceptedSources?.length || !acceptedTypes?.length) return false;
 
   // '*' on either side = wildcard match
-  const sourceMatch = acceptedSources.includes('*') || acceptedSources.includes(outputSource);
-  const typeMatch = acceptedTypes.includes('*') || acceptedTypes.includes(outputType);
+  const sourceMatch =
+    acceptedSources.includes("*") || acceptedSources.includes(outputSource);
+  const typeMatch =
+    acceptedTypes.includes("*") || acceptedTypes.includes(outputType);
 
   return sourceMatch && typeMatch;
 }
@@ -224,7 +241,6 @@ export interface ValidationResponse {
   errors?: string[];
   warnings?: string[];
 }
-
 
 export interface ImportResponse {
   workflow: Workflow;
@@ -342,9 +358,49 @@ export interface TabSaveResponse {
   message: string;
 }
 
+// Project Settings types
+export interface ProjectSettings {
+  defaultModel: string;
+}
+
+export interface ProjectEnvSettings {
+  authMode: "api_key" | "vertex_ai";
+  hasApiKey: boolean;
+  apiKeyMasked?: string;
+  googleCloudProject?: string;
+  googleCloudLocation?: string;
+}
+
+export interface ProjectSettingsResponse {
+  settings: ProjectSettings;
+  env: ProjectEnvSettings;
+}
+
+export interface ProjectEnvSettingsUpdate {
+  authMode: "api_key" | "vertex_ai";
+  apiKey?: string;
+  googleCloudProject?: string;
+  googleCloudLocation?: string;
+}
+
+export interface ProjectSettingsUpdateRequest {
+  project_path: string;
+  settings: ProjectSettings;
+  env: ProjectEnvSettingsUpdate;
+}
+
+export interface ProjectSettingsUpdateResponse {
+  success: boolean;
+}
+
 // Execution types for workflow running
 
-export type RunStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
+export type RunStatus =
+  | "pending"
+  | "running"
+  | "completed"
+  | "failed"
+  | "cancelled";
 
 export type EventType =
   | "run_start"

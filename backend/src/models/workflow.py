@@ -69,6 +69,14 @@ class TabMetadata(BaseModel):
     order: int = Field(..., description="Sort order (0-based)")
 
 
+class ProjectSettings(BaseModel):
+    """Project-level settings stored in manifest.json."""
+
+    default_model: str = Field(
+        default="gemini-2.5-flash", description="Default model for new agents"
+    )
+
+
 class ProjectManifest(BaseModel):
     """Manifest file for multi-tab projects."""
 
@@ -76,4 +84,7 @@ class ProjectManifest(BaseModel):
     name: str = Field(default="Untitled Workflow", description="Project display name")
     tabs: list[TabMetadata] = Field(
         default_factory=list, description="List of tabs in the project"
+    )
+    settings: ProjectSettings = Field(
+        default_factory=ProjectSettings, description="Project settings"
     )

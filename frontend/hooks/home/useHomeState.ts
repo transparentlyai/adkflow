@@ -128,6 +128,9 @@ export function useHomeState() {
     null,
   );
 
+  // Project settings dialog state
+  const [isProjectSettingsOpen, setIsProjectSettingsOpen] = useState(false);
+
   // Pending focus node tracking
   const pendingFocusNodeIdRef = useRef<string | null>(null);
   const hasSyncedAllTabsRef = useRef(false);
@@ -222,6 +225,10 @@ export function useHomeState() {
     setIsTabDeleteDialogOpen,
     pendingDeleteTabId,
     setPendingDeleteTabId,
+
+    // Project settings
+    isProjectSettingsOpen,
+    setIsProjectSettingsOpen,
 
     // Focus tracking
     pendingFocusNodeIdRef,

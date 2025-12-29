@@ -1,4 +1,5 @@
 import type { CustomNodeSchema } from "@/components/nodes/CustomNode";
+import { GEMINI_MODELS, DEFAULT_MODEL } from "@/lib/constants/models";
 
 /**
  * Schema definition for AgentNode
@@ -150,14 +151,8 @@ export const agentNodeSchema: CustomNodeSchema = {
         id: "model",
         label: "Model",
         widget: "select",
-        default: "gemini-2.5-flash",
-        options: [
-          { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-          { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
-          { value: "gemini-2.0-flash-exp", label: "Gemini 2.0 Flash Exp" },
-          { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
-          { value: "custom", label: "Custom..." },
-        ],
+        default: DEFAULT_MODEL,
+        options: GEMINI_MODELS,
         help_text: "The LLM model to use for this agent",
         section: "Model",
         tab: "General",

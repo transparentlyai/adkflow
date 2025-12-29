@@ -31,9 +31,10 @@ interface HomeHeaderProps {
   onShowTopology: () => void;
   onToggleRunConsole: () => void;
   onToggleTheme: () => void;
+  onOpenProjectSettings: () => void;
   loadTabFlow: (
     projectPath: string,
-    tabId: string
+    tabId: string,
   ) => Promise<{
     nodes: Node[];
     edges: Edge[];
@@ -68,6 +69,7 @@ export function HomeHeader({
   onShowTopology,
   onToggleRunConsole,
   onToggleTheme,
+  onOpenProjectSettings,
   loadTabFlow,
   navigateToNode,
 }: HomeHeaderProps) {
@@ -93,6 +95,7 @@ export function HomeHeader({
             isRunning={isRunning}
             showRunConsole={isRunPanelOpen}
             onToggleRunConsole={onToggleRunConsole}
+            onOpenProjectSettings={onOpenProjectSettings}
           />
           {currentProjectPath && (
             <GlobalSearch
@@ -109,9 +112,17 @@ export function HomeHeader({
           <button
             onClick={onToggleTheme}
             className="p-1.5 rounded-md hover:bg-accent transition-colors"
-            title={themeId === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            title={
+              themeId === "dark"
+                ? "Switch to light mode"
+                : "Switch to dark mode"
+            }
           >
-            {themeId === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {themeId === "dark" ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
           </button>
           <input
             type="text"

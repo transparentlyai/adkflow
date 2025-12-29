@@ -95,6 +95,8 @@ function HomeContent() {
     setPendingDeleteTabId,
     pendingFocusNodeIdRef,
     hasSyncedAllTabsRef,
+    isProjectSettingsOpen,
+    setIsProjectSettingsOpen,
   } = state;
 
   const {
@@ -284,6 +286,7 @@ function HomeContent() {
         onShowTopology={runWorkflowHandlers.handleShowTopology}
         onToggleRunConsole={() => setIsRunPanelOpen(!isRunPanelOpen)}
         onToggleTheme={toggleTheme}
+        onOpenProjectSettings={() => setIsProjectSettingsOpen(true)}
         loadTabFlow={loadTabFlow}
         navigateToNode={navigateToNode}
       />
@@ -389,6 +392,8 @@ function HomeContent() {
         onClearExecutionState={runWorkflowHandlers.handleClearExecutionState}
         onEventsChange={setRunEvents}
         onStatusChange={setLastRunStatus}
+        isProjectSettingsOpen={isProjectSettingsOpen}
+        onProjectSettingsOpenChange={setIsProjectSettingsOpen}
       />
     </div>
   );

@@ -58,6 +58,7 @@ interface TopMenubarProps {
   isRunning?: boolean;
   showRunConsole?: boolean;
   onToggleRunConsole?: () => void;
+  onOpenProjectSettings?: () => void;
 }
 
 export default function TopMenubar({
@@ -77,8 +78,10 @@ export default function TopMenubar({
   isRunning,
   showRunConsole,
   onToggleRunConsole,
+  onOpenProjectSettings,
 }: TopMenubarProps) {
-  const { themeId, allThemes, setTheme, exportCurrentTheme, importTheme } = useTheme();
+  const { themeId, allThemes, setTheme, exportCurrentTheme, importTheme } =
+    useTheme();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -152,17 +155,40 @@ export default function TopMenubar({
           </MenubarContent>
         </MenubarMenu>
 
+        {/* Project Menu */}
+        <MenubarMenu>
+          <MenubarTrigger className="text-sm font-normal">
+            Project
+          </MenubarTrigger>
+          <MenubarContent>
+            <MenubarItem
+              onClick={onOpenProjectSettings}
+              disabled={!hasProjectPath}
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+              <MenubarShortcut>{formatShortcut(",")}</MenubarShortcut>
+            </MenubarItem>
+          </MenubarContent>
+        </MenubarMenu>
+
         {/* Run Menu */}
         <MenubarMenu>
           <MenubarTrigger className="text-sm font-normal">Run</MenubarTrigger>
           <MenubarContent>
-            <MenubarItem onClick={onRunWorkflow} disabled={!hasProjectPath || isRunning}>
+            <MenubarItem
+              onClick={onRunWorkflow}
+              disabled={!hasProjectPath || isRunning}
+            >
               <Play className="mr-2 h-4 w-4" />
               Run Workflow
               <MenubarShortcut>{formatShortcut("R")}</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
-            <MenubarItem onClick={onValidateWorkflow} disabled={!hasProjectPath}>
+            <MenubarItem
+              onClick={onValidateWorkflow}
+              disabled={!hasProjectPath}
+            >
               <CheckCircle className="mr-2 h-4 w-4" />
               Validate
               <MenubarShortcut>{formatShortcut("V", true)}</MenubarShortcut>
@@ -229,7 +255,9 @@ export default function TopMenubar({
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem onClick={onToggleRunConsole}>
-              <Check className={`mr-2 h-4 w-4 ${showRunConsole ? "opacity-100" : "opacity-0"}`} />
+              <Check
+                className={`mr-2 h-4 w-4 ${showRunConsole ? "opacity-100" : "opacity-0"}`}
+              />
               <Terminal className="mr-2 h-4 w-4" />
               Run Console
               <MenubarShortcut>{formatShortcut("J")}</MenubarShortcut>
