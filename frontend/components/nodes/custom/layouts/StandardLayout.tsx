@@ -174,12 +174,17 @@ const StandardLayout = memo(
             }}
           />
 
-          {/* Hidden handles for each input to support direct connections */}
-          {/* Filter out inputs that have custom positions in additional_handles */}
+          {/* Hidden handles for typed edges - supports direct connections */}
+          {/* Include inputs NOT in additional_handles, OR in additional_handles with position="left" */}
           {schema.ui.inputs
-            .filter(
-              (input) => !additionalHandles.some((h) => h.id === input.id),
-            )
+            .filter((input) => {
+              const additionalHandle = additionalHandles.find(
+                (h) => h.id === input.id,
+              );
+              // Keep if not in additional_handles, or if in additional_handles with position "left"
+              return !additionalHandle || additionalHandle.position === "left";
+            })
+            .filter((input) => input.id !== "input") // Exclude universal handle (rendered separately)
             .map((input) => (
               <Handle
                 key={input.id}

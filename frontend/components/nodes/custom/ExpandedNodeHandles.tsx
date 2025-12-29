@@ -1,7 +1,6 @@
 "use client";
 
 import { memo } from "react";
-import { Handle, Position } from "@xyflow/react";
 import { useTheme } from "@/contexts/ThemeContext";
 import DraggableHandle from "@/components/DraggableHandle";
 import type { HandlePositions, HandleEdge } from "@/lib/types";
@@ -45,40 +44,9 @@ const ExpandedNodeHandles = memo(
 
     return (
       <>
-        {/* Main input handle */}
-        <DraggableHandle
-          nodeId={id}
-          handleId="input"
-          type="target"
-          defaultEdge={schema.ui.handle_layout?.input_position || "left"}
-          defaultPercent={50}
-          handlePositions={handlePositions}
-          acceptedSources={handleTypes["input"]?.acceptedSources}
-          acceptedTypes={handleTypes["input"]?.acceptedTypes}
-          style={{
-            ...handleStyle,
-            backgroundColor:
-              schema.ui.inputs[0]?.handle_color || theme.colors.handles.input,
-          }}
-        />
-
-        {/* Hidden handles for each input to support direct connections */}
-        {schema.ui.inputs
-          .filter((input) => !additionalHandles.some((h) => h.id === input.id))
-          .map((input) => (
-            <Handle
-              key={input.id}
-              type="target"
-              position={Position.Left}
-              id={input.id}
-              style={{
-                opacity: 0,
-                pointerEvents: "none",
-                top: "50%",
-                left: 0,
-              }}
-            />
-          ))}
+        {/* NOTE: Universal "input" handle is NOT rendered in expanded mode.
+            It only appears in collapsed mode (StandardLayout, FullCollapsedLayout).
+            Individual input handles are rendered inline by CustomNodeInput. */}
 
         {/* Additional handles (top/bottom) */}
         {additionalHandles
