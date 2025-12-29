@@ -1,15 +1,11 @@
 """Execution engine for running workflows."""
 
-import asyncio
-import os
 import time
-import traceback
 import uuid
 from pathlib import Path
 from typing import Any
 
 from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
 from adkflow_runner.ir import WorkflowIR
@@ -18,11 +14,8 @@ from adkflow_runner.runner.types import (
     RunEvent,
     EventType,
 )
-from adkflow_runner.runner.user_input import handle_user_input
-from adkflow_runner.runner.agent_factory import AgentFactory
 from adkflow_runner.runner.graph_builder import GraphBuilder
 from adkflow_runner.runner.graph_executor import GraphExecutor
-from adkflow_runner.runner.custom_executor import CustomNodeExecutor
 
 
 def format_error(error_msg: str, project_path: Path) -> str:
@@ -79,93 +72,6 @@ Original error: {error_msg}"""
     return error_msg
 
 
-async def execute_custom_nodes(
-    ir: WorkflowIR,
-    config: RunConfig,
-    emit: Any,
-    session_state: dict[str, Any],
-    run_id: str,
-    session_id: str,
-    enable_cache: bool = True,
-    cache_dir: Path | None = None,
-) -> dict[str, dict[str, Any]]:
-    """Execute all custom nodes in the workflow.
-
-    Args:
-        ir: Compiled workflow IR
-        config: Run configuration
-        emit: Event emitter function
-        session_state: Shared state across the run
-        run_id: Current run ID
-        session_id: Current session ID
-        enable_cache: Whether to enable caching
-        cache_dir: Cache directory path
-
-    Returns:
-        Dict mapping node IDs to their output values
-    """
-    if not ir.custom_nodes:
-        return {}
-
-    # Create emit wrapper that converts custom executor events to RunEvents
-    async def custom_emit(event: dict[str, Any]) -> None:
-        event_type_str = event.get("type", "")
-        event_type_map = {
-            "custom_node_start": EventType.CUSTOM_NODE_START,
-            "custom_node_end": EventType.CUSTOM_NODE_END,
-            "custom_node_error": EventType.CUSTOM_NODE_ERROR,
-        }
-        if event_type_str in event_type_map:
-            await emit(
-                RunEvent(
-                    type=event_type_map[event_type_str],
-                    timestamp=event.get("timestamp", time.time()),
-                    agent_id=event.get("node_id"),
-                    agent_name=event.get("node_name"),
-                    data=event.get("data", {}),
-                )
-            )
-
-    # Create executor with cache settings
-    actual_cache_dir = cache_dir or (config.project_path / ".cache" / "custom_nodes")
-    executor = CustomNodeExecutor(
-        emit=custom_emit,
-        enable_cache=enable_cache,
-        cache_dir=actual_cache_dir,
-    )
-
-    # Build node outputs map
-    node_outputs: dict[str, dict[str, Any]] = {}
-
-    # Execute custom nodes (currently in sequence - could be optimized later)
-    for node_ir in ir.custom_nodes:
-        # Gather inputs from connected nodes
-        inputs: dict[str, Any] = {}
-        for port_id, source_ids in node_ir.input_connections.items():
-            # For now, take the first connected source's output
-            for source_id in source_ids:
-                if source_id in node_outputs:
-                    # Get the output value from source node
-                    source_outputs = node_outputs[source_id]
-                    # Use the first output port value as input
-                    if source_outputs:
-                        inputs[port_id] = next(iter(source_outputs.values()))
-
-        # Execute the node
-        outputs = await executor.execute(
-            node_ir=node_ir,
-            inputs=inputs,
-            session_state=session_state,
-            project_path=config.project_path,
-            session_id=session_id,
-            run_id=run_id,
-        )
-
-        node_outputs[node_ir.id] = outputs
-
-    return node_outputs
-
-
 async def execute_custom_nodes_graph(
     ir: WorkflowIR,
     config: RunConfig,
@@ -214,9 +120,7 @@ async def execute_custom_nodes_graph(
                     agent_id=event.get("node_id"),
                     agent_name=event.get("node_name"),
                     data={
-                        k: v
-                        for k, v in event.items()
-                        if k not in ("type", "timestamp")
+                        k: v for k, v in event.items() if k not in ("type", "timestamp")
                     },
                 )
             )
@@ -311,9 +215,7 @@ async def execute_downstream_agents(
                 session_id=session.id,
                 new_message=content,
             ):
-                last_author = await process_adk_event(
-                    event, emit, last_author
-                )
+                last_author = await process_adk_event(event, emit, last_author)
 
                 if hasattr(event, "content") and event.content:
                     parts = event.content.parts

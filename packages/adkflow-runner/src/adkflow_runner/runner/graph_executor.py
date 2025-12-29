@@ -441,17 +441,13 @@ class GraphExecutor:
     ) -> dict[str, Any]:
         """Execute an agent node.
 
-        This is a placeholder - full agent execution is handled by
-        the existing AgentFactory and ADK Runner integration.
+        Agent execution is handled by AgentFactory and ADK Runner in
+        workflow_runner.py. This graph executor is only used for custom nodes.
         """
-        # For now, return empty outputs
-        # Full integration would call into the existing agent execution path
-        await self._emit_event(
-            "agent_execute",
-            {"node_id": node.id, "agent_type": "placeholder"},
+        raise NotImplementedError(
+            f"Agent execution through GraphExecutor is not implemented. "
+            f"Agent '{node.id}' should be executed via workflow_runner._execute()"
         )
-
-        return {"output": f"Agent {node.id} output placeholder"}
 
     def _create_node_emit(self, node_id: str, node_name: str) -> EmitFn:
         """Create an emit function scoped to a specific node."""
