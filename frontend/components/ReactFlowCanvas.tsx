@@ -349,6 +349,7 @@ const ReactFlowCanvasInner = forwardRef<
       setEdges,
       rfInstance,
       resetPositions,
+      customNodeSchemas,
     });
 
     // Execution state

@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from adkflow_runner.compiler.node_config import get_node_config
 from adkflow_runner.errors import (
     CompilationError,
     ErrorLocation,
@@ -225,9 +226,8 @@ class ProjectLoader:
         is_context: bool = False,
     ) -> None:
         """Load a prompt file referenced by a node."""
-        # Handle nested prompt data structure
-        prompt_data = data.get("prompt", data)
-        file_path = prompt_data.get("file_path")
+        config = get_node_config(data)
+        file_path = config.get("file_path")
 
         if not file_path or file_path in project.prompts:
             return
@@ -267,7 +267,7 @@ class ProjectLoader:
             ) from e
 
         project.prompts[file_path] = LoadedPrompt(
-            name=prompt_data.get("name", file_path),
+            name=config.get("name", file_path),
             file_path=file_path,
             absolute_path=absolute_path,
             content=content,
@@ -280,7 +280,8 @@ class ProjectLoader:
         tab_id: str,
     ) -> None:
         """Load a tool file referenced by a node."""
-        file_path = data.get("file_path")
+        config = get_node_config(data)
+        file_path = config.get("file_path")
 
         if not file_path or file_path in project.tools:
             return
@@ -317,7 +318,7 @@ class ProjectLoader:
             ) from e
 
         project.tools[file_path] = LoadedTool(
-            name=data.get("name", Path(file_path).stem),
+            name=config.get("name", Path(file_path).stem),
             file_path=file_path,
             absolute_path=absolute_path,
             code=code,

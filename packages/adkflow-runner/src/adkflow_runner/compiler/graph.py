@@ -7,6 +7,7 @@ cross-tab connections via teleporters.
 from dataclasses import dataclass, field
 from typing import Any
 
+from adkflow_runner.compiler.node_config import get_config_field
 from adkflow_runner.compiler.parser import ParsedEdge, ParsedNode, ParsedProject
 from adkflow_runner.config import EdgeSemantics, ExecutionConfig, get_default_config
 from adkflow_runner.errors import CycleDetectedError, ErrorLocation, TeleporterError
@@ -327,7 +328,7 @@ class GraphBuilder:
 
         for node in nodes.values():
             if node.type == "teleportOut":
-                name = node.data.get("name", "")
+                name = get_config_field(node.data, "name", "")
                 if name:
                     if name in outputs:
                         raise TeleporterError(
@@ -336,7 +337,7 @@ class GraphBuilder:
                         )
                     outputs[name] = node
             elif node.type == "teleportIn":
-                name = node.data.get("name", "")
+                name = get_config_field(node.data, "name", "")
                 if name:
                     if name in inputs:
                         raise TeleporterError(

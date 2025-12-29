@@ -1,5 +1,10 @@
 import { useCallback } from "react";
 import type { Node, Edge, ReactFlowInstance } from "@xyflow/react";
+import type { CustomNodeSchema } from "@/components/nodes/CustomNode";
+import {
+  stripTransientFieldsFromNodes,
+  hydrateNodesWithSchemas,
+} from "@/lib/nodeHydration";
 
 interface UseCanvasOperationsParams {
   nodes: Node[];
@@ -7,6 +12,7 @@ interface UseCanvasOperationsParams {
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
   rfInstance: ReactFlowInstance | null;
   resetPositions: () => void;
+  customNodeSchemas?: CustomNodeSchema[];
 }
 
 export function useCanvasOperations({
@@ -15,6 +21,7 @@ export function useCanvasOperations({
   setEdges,
   rfInstance,
   resetPositions,
+  customNodeSchemas,
 }: UseCanvasOperationsParams) {
   /**
    * Clear the canvas
@@ -26,17 +33,24 @@ export function useCanvasOperations({
   }, [setNodes, setEdges, resetPositions]);
 
   /**
-   * Save flow using React Flow's native toObject method
+   * Save flow with transient fields stripped.
+   * This produces smaller JSON by removing schema, handleTypes, executionState, etc.
+   * These fields are reconstructed on load via restoreFlow.
    */
   const saveFlow = useCallback(() => {
     if (rfInstance) {
-      return rfInstance.toObject();
+      const flow = rfInstance.toObject();
+      return {
+        ...flow,
+        nodes: stripTransientFieldsFromNodes(flow.nodes),
+      };
     }
     return null;
   }, [rfInstance]);
 
   /**
-   * Restore flow using React Flow's native restore pattern
+   * Restore flow and hydrate nodes with their schemas.
+   * This reconstructs schema, handleTypes, and other derived fields.
    */
   const restoreFlow = useCallback(
     (flow: {
@@ -46,15 +60,13 @@ export function useCanvasOperations({
     }) => {
       if (!flow) return;
 
-      // Ensure group nodes have dragHandle set
-      const processedNodes = (flow.nodes || []).map((node) => {
-        if (node.type === "group") {
-          return { ...node, dragHandle: ".group-drag-handle" };
-        }
-        return node;
-      });
+      // Hydrate nodes with schemas (reconstructs schema, handleTypes, etc.)
+      const hydratedNodes = hydrateNodesWithSchemas(
+        flow.nodes || [],
+        customNodeSchemas,
+      );
 
-      setNodes(processedNodes);
+      setNodes(hydratedNodes);
       setEdges(flow.edges || []);
 
       // Restore viewport after nodes are rendered
@@ -64,7 +76,7 @@ export function useCanvasOperations({
         });
       }
     },
-    [rfInstance, setNodes, setEdges],
+    [rfInstance, setNodes, setEdges, customNodeSchemas],
   );
 
   // Zoom methods

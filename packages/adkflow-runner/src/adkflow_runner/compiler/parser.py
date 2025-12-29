@@ -34,29 +34,12 @@ class ParsedNode:
 
     @property
     def name(self) -> str:
-        """Get the node's display name."""
-        # First check config.name - this is where frontend stores user-edited names
+        """Get the node's display name from config.name."""
         config = self.data.get("config", {})
-        if config.get("name"):
-            return config["name"]
-
-        # Fall back to type-specific locations for legacy/compatibility
-        if self.type == "agent":
-            agent_data = self.data.get("agent", {})
-            return agent_data.get("name", f"agent_{self.id[:8]}")
-        elif self.type == "prompt":
-            prompt_data = self.data.get("prompt", {})
-            return prompt_data.get("name", f"prompt_{self.id[:8]}")
-        elif self.type == "tool":
-            return self.data.get("name", f"tool_{self.id[:8]}")
-        elif self.type == "group":
-            return self.data.get("label", f"group_{self.id[:8]}")
-        elif self.type in ("teleportIn", "teleportOut"):
-            return self.data.get("name", f"teleport_{self.id[:8]}")
-        elif self.type == "variable":
-            return self.data.get("name", f"var_{self.id[:8]}")
-        else:
-            return self.data.get("name", f"{self.type}_{self.id[:8]}")
+        name = config.get("name")
+        if name:
+            return name
+        return f"{self.type}_{self.id[:8]}"
 
     def get_handle_positions(self) -> dict[str, ParsedHandle]:
         """Get custom handle positions."""

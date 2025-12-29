@@ -5,6 +5,7 @@ Validates workflows before execution to catch errors early.
 
 from adkflow_runner.compiler.graph import GraphNode, WorkflowGraph
 from adkflow_runner.compiler.loader import LoadedProject
+from adkflow_runner.compiler.node_config import get_node_config
 from adkflow_runner.config import EdgeSemantics
 from adkflow_runner.errors import (
     CycleDetectedError,
@@ -136,9 +137,10 @@ class WorkflowValidator:
     ) -> None:
         """Check for missing file references."""
         for node in graph.nodes.values():
+            config = get_node_config(node.data)
+
             if node.type == "prompt":
-                prompt_data = node.data.get("prompt", {})
-                file_path = prompt_data.get("file_path")
+                file_path = config.get("file_path")
                 if file_path and not project.get_prompt(file_path):
                     result.add_error(
                         MissingReferenceError(
@@ -149,7 +151,7 @@ class WorkflowValidator:
                     )
 
             elif node.type in ("tool", "agentTool"):
-                file_path = node.data.get("file_path")
+                file_path = config.get("file_path")
                 if file_path and not project.get_tool(file_path):
                     result.add_error(
                         MissingReferenceError(
@@ -196,7 +198,7 @@ class WorkflowValidator:
     ) -> None:
         """Check agent configurations for common issues."""
         for node in graph.get_agent_nodes():
-            agent_data = node.data.get("agent", {})
+            agent_data = get_node_config(node.data)
             agent_type = agent_data.get("type", "llm")
             agent_name = node.name  # Use node.name which checks config.name first
 
@@ -277,11 +279,10 @@ class WorkflowValidator:
             if source.type != "agent" or target.type != "agent":
                 continue
 
-            source_agent = source.data.get("agent", {})
-
-            source_name = source.name  # Use node.name which checks config.name first
+            source_config = get_node_config(source.data)
+            source_name = source.name
             target_name = target.name
-            output_key = source_agent.get("output_key")
+            output_key = source_config.get("output_key")
 
             # Check source has output_key
             if not output_key:
@@ -390,15 +391,11 @@ class WorkflowValidator:
 
         def get_file_info(node: GraphNode) -> tuple[str | None, str | None]:
             """Extract file_path and content from a node."""
+            config = get_node_config(node.data)
             if node.type in ("prompt", "context"):
-                prompt_data = node.data.get("prompt", {})
-                file_path = prompt_data.get("file_path")
-                content = node.data.get("content")
-                return file_path, content
+                return config.get("file_path"), config.get("content")
             elif node.type in ("tool", "process", "agentTool"):
-                file_path = node.data.get("file_path")
-                code = node.data.get("code")
-                return file_path, code
+                return config.get("file_path"), config.get("code")
             return None, None
 
         # Get file info for all nodes
@@ -441,19 +438,10 @@ class WorkflowValidator:
         - LLM routing decisions in coordinator/orchestrator patterns
         - Documentation and maintainability
         - Understanding agent purpose in complex workflows
-
-        Checks both config.description (CustomNode format) and
-        agent.description (legacy/direct format) for the description value.
         """
         for node in graph.get_agent_nodes():
-            # Check config.description first (CustomNode stores values in config)
-            config = node.data.get("config", {})
+            config = get_node_config(node.data)
             description = config.get("description", "")
-
-            # Fallback to agent.description for legacy/direct format
-            if not description:
-                agent_data = node.data.get("agent", {})
-                description = agent_data.get("description", "")
 
             if not description or not description.strip():
                 result.add_error(

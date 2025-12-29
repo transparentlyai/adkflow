@@ -7,6 +7,7 @@ that can be executed by the Runner.
 from adkflow_runner.compiler.graph import GraphNode, WorkflowGraph
 from adkflow_runner.compiler.hierarchy import HierarchyBuilder
 from adkflow_runner.compiler.loader import LoadedProject
+from adkflow_runner.compiler.node_config import get_node_config
 from adkflow_runner.config import EdgeSemantics, ExecutionConfig, get_default_config
 from adkflow_runner.errors import CompilationError, ErrorLocation
 from adkflow_runner.ir import (
@@ -135,7 +136,7 @@ class IRTransformer:
         project: LoadedProject,
     ) -> AgentIR:
         """Transform a single agent node to IR."""
-        agent_data = node.data.get("agent", {})
+        agent_data = get_node_config(node.data)
 
         # Resolve instruction from connected prompts
         instruction = self._resolve_instruction(node, graph, project)
@@ -143,29 +144,46 @@ class IRTransformer:
         # Resolve tools from connected tool nodes
         tools = self._resolve_tools(node, graph, project)
 
-        # Extract planner config
+        # Extract planner config (flat keys: planner_type, or nested: planner.type)
         planner_data = agent_data.get("planner", {})
         planner = PlannerConfig(
-            type=planner_data.get("type", "none"),
-            thinking_budget=planner_data.get("thinking_budget"),
-            include_thoughts=planner_data.get("include_thoughts", False),
+            type=agent_data.get("planner_type") or planner_data.get("type", "none"),
+            thinking_budget=agent_data.get("thinking_budget")
+            or planner_data.get("thinking_budget"),
+            include_thoughts=agent_data.get("include_thoughts", False)
+            if "include_thoughts" in agent_data
+            else planner_data.get("include_thoughts", False),
         )
 
-        # Extract code executor config
+        # Extract code executor config (flat keys: code_executor_enabled, or nested)
         code_exec_data = agent_data.get("code_executor", {})
         code_executor = CodeExecutorConfig(
-            enabled=code_exec_data.get("enabled", False),
-            stateful=code_exec_data.get("stateful", False),
-            error_retry_attempts=code_exec_data.get("error_retry_attempts", 3),
+            enabled=agent_data.get("code_executor_enabled", False)
+            if "code_executor_enabled" in agent_data
+            else code_exec_data.get("enabled", False),
+            stateful=agent_data.get("code_executor_stateful", False)
+            if "code_executor_stateful" in agent_data
+            else code_exec_data.get("stateful", False),
+            error_retry_attempts=agent_data.get("code_executor_error_retry", 3)
+            if "code_executor_error_retry" in agent_data
+            else code_exec_data.get("error_retry_attempts", 3),
         )
 
-        # Extract HTTP options
+        # Extract HTTP options (flat keys: http_timeout, or nested: http_options.timeout)
         http_data = agent_data.get("http_options", {})
         http_options = HttpOptionsConfig(
-            timeout=http_data.get("timeout", 30000),
-            max_retries=http_data.get("max_retries", 3),
-            retry_delay=http_data.get("retry_delay", 1000),
-            retry_backoff_multiplier=http_data.get("retry_backoff_multiplier", 2.0),
+            timeout=agent_data.get("http_timeout", 30000)
+            if "http_timeout" in agent_data
+            else http_data.get("timeout", 30000),
+            max_retries=agent_data.get("http_max_retries", 3)
+            if "http_max_retries" in agent_data
+            else http_data.get("max_retries", 3),
+            retry_delay=agent_data.get("http_retry_delay", 1000)
+            if "http_retry_delay" in agent_data
+            else http_data.get("retry_delay", 1000),
+            retry_backoff_multiplier=agent_data.get("http_backoff_multiplier", 2.0)
+            if "http_backoff_multiplier" in agent_data
+            else http_data.get("retry_backoff_multiplier", 2.0),
         )
 
         # Extract callbacks
@@ -219,8 +237,8 @@ class IRTransformer:
                     continue
 
                 if source_node.type == "prompt":
-                    prompt_data = source_node.data.get("prompt", {})
-                    file_path = prompt_data.get("file_path")
+                    config = get_node_config(source_node.data)
+                    file_path = config.get("file_path")
                     if file_path:
                         loaded = project.get_prompt(file_path)
                         if loaded:
@@ -235,16 +253,17 @@ class IRTransformer:
                             )
 
                 elif source_node.type == "context":
-                    context_data = source_node.data.get("prompt", source_node.data)
-                    file_path = context_data.get("file_path")
+                    config = get_node_config(source_node.data)
+                    file_path = config.get("file_path")
                     if file_path:
                         loaded = project.get_prompt(file_path)
                         if loaded:
                             parts.append(f"## Context\n{loaded.content}")
 
                 elif source_node.type == "variable":
-                    var_name = source_node.data.get("name", "")
-                    var_value = source_node.data.get("value", "")
+                    config = get_node_config(source_node.data)
+                    var_name = config.get("name", "")
+                    var_value = config.get("value", "")
                     if var_name and var_value:
                         parts.append(f"{{{var_name}}}: {var_value}")
 
@@ -266,8 +285,9 @@ class IRTransformer:
                     continue
 
                 if source_node.type in ("tool", "agentTool"):
-                    file_path = source_node.data.get("file_path")
-                    error_behavior = source_node.data.get("error_behavior", "fail_fast")
+                    config = get_node_config(source_node.data)
+                    file_path = config.get("file_path")
+                    error_behavior = config.get("error_behavior", "fail_fast")
                     if file_path:
                         loaded = project.get_tool(file_path)
                         if loaded:
@@ -281,11 +301,11 @@ class IRTransformer:
                             )
                     else:
                         # Inline code
-                        code = source_node.data.get("code")
+                        code = config.get("code")
                         if code:
                             tools.append(
                                 ToolIR(
-                                    name=source_node.data.get(
+                                    name=config.get(
                                         "name", f"tool_{source_node.id[:8]}"
                                     ),
                                     code=code,
@@ -294,7 +314,7 @@ class IRTransformer:
                             )
 
         # Also add tools from agent's own tools array
-        agent_data = node.data.get("agent", {})
+        agent_data = get_node_config(node.data)
         for tool_ref in agent_data.get("tools", []):
             if isinstance(tool_ref, str):
                 # Built-in tool reference
@@ -437,8 +457,9 @@ class IRTransformer:
                     if edge.semantics == EdgeSemantics.OUTPUT_FILE:
                         source = graph.get_node(edge.source_id)
                         if source and source.type == "agent":
-                            file_path = node.data.get("file_path", "")
-                            name = node.data.get("name", "output")
+                            config = get_node_config(node.data)
+                            file_path = config.get("file_path", "")
+                            name = config.get("name", "output")
                             if file_path:
                                 output_files.append(
                                     OutputFileIR(
@@ -467,8 +488,9 @@ class IRTransformer:
         user_inputs: list[UserInputIR] = []
 
         for node in graph.get_user_input_nodes():
-            # Get node data
-            name = node.data.get("name", f"user_input_{node.id[:8]}")
+            # Get node config
+            config = get_node_config(node.data)
+            name = config.get("name", f"user_input_{node.id[:8]}")
             variable_name = _sanitize_variable_name(name)
 
             # Find incoming agents (SEQUENTIAL edges)
@@ -495,10 +517,10 @@ class IRTransformer:
             # Determine if trigger mode (no incoming connections)
             is_trigger = len(incoming_agent_ids) == 0
 
-            # Get timeout configuration from node data
-            timeout_seconds = float(node.data.get("timeout", 300.0))
-            timeout_behavior = node.data.get("timeoutBehavior", "error")
-            predefined_text = node.data.get("predefinedText", "")
+            # Get timeout configuration from node config
+            timeout_seconds = float(config.get("timeout", 300.0))
+            timeout_behavior = config.get("timeoutBehavior", "error")
+            predefined_text = config.get("predefinedText", "")
 
             user_inputs.append(
                 UserInputIR(
