@@ -196,6 +196,7 @@ const CustomNodeExpanded = memo(
             style={{ color: theme.colors.nodes.common.text.secondary }}
           >
             {field.label}
+            {field.required && <span className="text-red-500 ml-0.5">*</span>}
           </label>
           <div className="flex-1 min-w-0">
             {renderWidget(

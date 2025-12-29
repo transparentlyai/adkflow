@@ -174,6 +174,8 @@ export interface FieldDefinition {
   widget: string;
   /** Default value for the field */
   default?: unknown;
+  /** Whether this field is required for validation */
+  required?: boolean;
   /** Options for select/dropdown widgets */
   options?: { value: string; label: string }[];
   /** Minimum value for number/slider widgets */

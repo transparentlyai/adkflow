@@ -186,8 +186,10 @@ export const agentNodeSchema: CustomNodeSchema = {
         label: "Description",
         widget: "textarea",
         default: "",
+        required: true,
         placeholder: "Describe what this agent does...",
-        help_text: "A description of the agent's purpose (for routing)",
+        help_text:
+          "A description of the agent's purpose (required for routing)",
         section: "General",
         tab: "General",
       },

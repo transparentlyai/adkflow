@@ -83,6 +83,9 @@ class WorkflowValidator:
         # Check for duplicate node names
         self._check_duplicate_names(graph, result)
 
+        # Check for missing agent descriptions
+        self._check_missing_descriptions(graph, result)
+
         return result
 
     def validate_ir(self, ir: WorkflowIR) -> ValidationResult:
@@ -426,6 +429,39 @@ class WorkflowValidator:
                     location=self._make_location(node, file_path=file_path),
                 )
             )
+
+    def _check_missing_descriptions(
+        self,
+        graph: WorkflowGraph,
+        result: ValidationResult,
+    ) -> None:
+        """Check that agent nodes have descriptions.
+
+        Agent descriptions are important for:
+        - LLM routing decisions in coordinator/orchestrator patterns
+        - Documentation and maintainability
+        - Understanding agent purpose in complex workflows
+
+        Checks both config.description (CustomNode format) and
+        agent.description (legacy/direct format) for the description value.
+        """
+        for node in graph.get_agent_nodes():
+            # Check config.description first (CustomNode stores values in config)
+            config = node.data.get("config", {})
+            description = config.get("description", "")
+
+            # Fallback to agent.description for legacy/direct format
+            if not description:
+                agent_data = node.data.get("agent", {})
+                description = agent_data.get("description", "")
+
+            if not description or not description.strip():
+                result.add_error(
+                    ValidationError(
+                        f"Agent '{node.name}' is missing a description",
+                        location=self._make_location(node),
+                    )
+                )
 
     def _validate_agent_ir(self, agent: AgentIR, result: ValidationResult) -> None:
         """Validate a single agent IR."""
