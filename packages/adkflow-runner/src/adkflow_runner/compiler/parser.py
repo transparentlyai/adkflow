@@ -35,7 +35,12 @@ class ParsedNode:
     @property
     def name(self) -> str:
         """Get the node's display name."""
-        # Different node types store name differently
+        # First check config.name - this is where frontend stores user-edited names
+        config = self.data.get("config", {})
+        if config.get("name"):
+            return config["name"]
+
+        # Fall back to type-specific locations for legacy/compatibility
         if self.type == "agent":
             agent_data = self.data.get("agent", {})
             return agent_data.get("name", f"agent_{self.id[:8]}")
