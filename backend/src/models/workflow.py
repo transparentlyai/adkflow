@@ -77,6 +77,7 @@ class ProjectSettings(BaseModel):
     default_model: str = Field(
         default="gemini-2.5-flash",
         alias="defaultModel",
+        serialization_alias="defaultModel",
         description="Default model for new agents",
     )
 

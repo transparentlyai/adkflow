@@ -17,18 +17,32 @@ router = APIRouter()
 class EnvSettings(BaseModel):
     """Environment settings from .env file."""
 
+    model_config = {"populate_by_name": True}
+
     auth_mode: Literal["api_key", "vertex_ai"] = Field(
-        default="api_key", description="Authentication mode"
+        default="api_key",
+        alias="authMode",
+        serialization_alias="authMode",
     )
-    has_api_key: bool = Field(default=False, description="Whether API key is set")
+    has_api_key: bool = Field(
+        default=False,
+        alias="hasApiKey",
+        serialization_alias="hasApiKey",
+    )
     api_key_masked: str | None = Field(
-        default=None, description="Masked API key (e.g., 'AIza...****')"
+        default=None,
+        alias="apiKeyMasked",
+        serialization_alias="apiKeyMasked",
     )
     google_cloud_project: str | None = Field(
-        default=None, description="Google Cloud project ID"
+        default=None,
+        alias="googleCloudProject",
+        serialization_alias="googleCloudProject",
     )
     google_cloud_location: str | None = Field(
-        default=None, description="Google Cloud location (e.g., 'us-central1')"
+        default=None,
+        alias="googleCloudLocation",
+        serialization_alias="googleCloudLocation",
     )
 
 
