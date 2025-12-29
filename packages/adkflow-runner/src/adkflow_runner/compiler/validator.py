@@ -275,7 +275,6 @@ class WorkflowValidator:
                 continue
 
             source_agent = source.data.get("agent", {})
-            target_agent = target.data.get("agent", {})
 
             source_name = source.name  # Use node.name which checks config.name first
             target_name = target.name
