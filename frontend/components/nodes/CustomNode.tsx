@@ -125,13 +125,40 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
 
   const toggleExpand = useCallback(() => {
     const newExpanded = !isExpanded;
+
     setNodes((nodes) =>
-      nodes.map((node) =>
-        node.id === id
-          ? { ...node, data: { ...node.data, isExpanded: newExpanded } }
-          : node,
-      ),
+      nodes.map((node) => {
+        if (node.id !== id) return node;
+
+        const nodeData = node.data as unknown as CustomNodeData;
+        const currentPosition = node.position;
+
+        if (newExpanded) {
+          // Expanding: save current as contractedPosition, restore expandedPosition
+          return {
+            ...node,
+            position: nodeData.expandedPosition ?? currentPosition,
+            data: {
+              ...node.data,
+              contractedPosition: currentPosition,
+              isExpanded: true,
+            },
+          };
+        } else {
+          // Collapsing: save current as expandedPosition, restore contractedPosition
+          return {
+            ...node,
+            position: nodeData.contractedPosition ?? currentPosition,
+            data: {
+              ...node.data,
+              expandedPosition: currentPosition,
+              isExpanded: false,
+            },
+          };
+        }
+      }),
     );
+
     setIsExpanded(newExpanded);
   }, [id, isExpanded, setNodes]);
 

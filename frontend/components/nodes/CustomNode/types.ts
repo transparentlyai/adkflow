@@ -608,6 +608,10 @@ export interface CustomNodeData {
   >;
   /** Current size when expanded (for resizable nodes) */
   expandedSize?: { width: number; height: number };
+  /** Position when expanded (saved on collapse, restored on expand) */
+  expandedPosition?: { x: number; y: number };
+  /** Position when contracted/collapsed (saved on expand, restored on collapse) */
+  contractedPosition?: { x: number; y: number };
   /** Whether the node is currently expanded */
   isExpanded?: boolean;
   /** Whether the node is locked (prevents editing) */
