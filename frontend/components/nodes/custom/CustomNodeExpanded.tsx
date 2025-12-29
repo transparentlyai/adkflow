@@ -7,9 +7,11 @@ import ValidationIndicator from "@/components/nodes/ValidationIndicator";
 import CustomNodeHeader from "@/components/nodes/custom/CustomNodeHeader";
 import CustomNodeInput from "@/components/nodes/custom/CustomNodeInput";
 import CustomNodeOutput from "@/components/nodes/custom/CustomNodeOutput";
+import ExpandedNodeHandles from "@/components/nodes/custom/ExpandedNodeHandles";
 import MonacoEditorWidget from "@/components/nodes/widgets/MonacoEditorWidget";
 import ResizeHandle from "@/components/ResizeHandle";
 import { renderWidget } from "@/components/nodes/widgets/WidgetRenderer";
+import type { HandlePositions } from "@/lib/types";
 import {
   getExecutionStyle,
   getDuplicateNameStyle,
@@ -35,6 +37,7 @@ export interface CustomNodeExpandedProps {
   schema: CustomNodeSchema;
   name: string;
   config: Record<string, unknown>;
+  handlePositions?: HandlePositions;
   handleTypes: HandleTypes;
   connectedInputs: Record<string, string>;
   headerColor: string;
@@ -79,6 +82,7 @@ const CustomNodeExpanded = memo(
     schema,
     name,
     config,
+    handlePositions,
     handleTypes,
     connectedInputs,
     headerColor,
@@ -134,6 +138,12 @@ const CustomNodeExpanded = memo(
       }
       return 0;
     }, [codeEditorField, config]);
+
+    // Get additional handles from handle_layout (used to filter outputs rendered inside vs at edge)
+    const additionalHandles = useMemo(
+      () => schema.ui.handle_layout?.additional_handles || [],
+      [schema.ui.handle_layout?.additional_handles],
+    );
 
     // Get elements for a specific tab
     const getElementsForTab = useCallback(
@@ -289,11 +299,10 @@ const CustomNodeExpanded = memo(
     };
 
     return (
-      <>
+      <div className="relative" style={{ width }}>
         <div
-          className="rounded-lg shadow-lg overflow-hidden relative"
+          className="rounded-lg shadow-lg"
           style={{
-            width,
             backgroundColor: theme.colors.nodes.common.container.background,
             borderColor: theme.colors.nodes.common.container.border,
             borderWidth: 1,
@@ -367,17 +376,21 @@ const CustomNodeExpanded = memo(
           <div className="p-2 space-y-2 nodrag nowheel">
             {renderTabContent()}
 
-            {/* Output ports - always visible */}
-            {schema.ui.outputs.length > 0 && (
+            {/* Output ports - always visible (except those rendered as edge handles) */}
+            {schema.ui.outputs.filter(
+              (o) => !additionalHandles.some((h) => h.id === o.id),
+            ).length > 0 && (
               <div
                 className="pt-1 border-t"
                 style={{
                   borderColor: theme.colors.nodes.common.container.border,
                 }}
               >
-                {schema.ui.outputs.map((output) => (
-                  <CustomNodeOutput key={output.id} output={output} />
-                ))}
+                {schema.ui.outputs
+                  .filter((o) => !additionalHandles.some((h) => h.id === o.id))
+                  .map((output) => (
+                    <CustomNodeOutput key={output.id} output={output} />
+                  ))}
               </div>
             )}
           </div>
@@ -429,7 +442,16 @@ const CustomNodeExpanded = memo(
             <ResizeHandle onResize={onResize} />
           )}
         </div>
-      </>
+
+        {/* Handles - positioned at node edges, outside the content container */}
+        <ExpandedNodeHandles
+          id={id}
+          schema={schema}
+          handlePositions={handlePositions}
+          handleTypes={handleTypes}
+          additionalHandles={additionalHandles}
+        />
+      </div>
     );
   },
 );

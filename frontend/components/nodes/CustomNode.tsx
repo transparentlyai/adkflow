@@ -234,6 +234,7 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
       schema={schema}
       name={name}
       config={config}
+      handlePositions={handlePositions}
       handleTypes={handleTypes}
       connectedInputs={connectedInputs}
       headerColor={headerColor}
