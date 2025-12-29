@@ -44,7 +44,6 @@ export const toolNodeSchema: CustomNodeSchema = {
         default: "",
         placeholder: "Select a Python file...",
         help_text: "Path to save/load the tool code (.py)",
-        section: "General",
         tab: "Code",
       },
       {
@@ -80,7 +79,6 @@ def my_tool(
 `,
         help_text:
           "Python code for the tool function. Include ToolContext for state access.",
-        section: "Code",
         tab: "Code",
       },
       {
