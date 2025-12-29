@@ -60,7 +60,7 @@ export function useCanvasConfig(
       style: { strokeWidth: 1.5, stroke: theme.colors.edges.default },
       animated: false,
       selectable: true,
-      zIndex: 1000,
+      zIndex: 0,
     }),
     [theme.colors.edges.default],
   );

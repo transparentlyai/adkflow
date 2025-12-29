@@ -39,6 +39,7 @@ import {
   useCanvasOperations,
   useExecutionState,
   useValidation,
+  useEdgeElevation,
 } from "./hooks/canvas";
 
 interface ReactFlowCanvasProps {
@@ -211,6 +212,9 @@ const ReactFlowCanvasInner = forwardRef<
       isLocked,
       linkEdgeColor: theme.colors.edges.link,
     });
+
+    // Edge elevation based on node selection
+    useEdgeElevation(nodes, setEdges);
 
     // Delete handlers
     const {
