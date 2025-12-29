@@ -127,7 +127,32 @@ Choose how your project connects to Gemini:
 | Mode | Description | Configuration |
 |------|-------------|---------------|
 | **Google AI (API Key)** | For personal projects and prototyping | Enter your API key from [AI Studio](https://aistudio.google.com/apikey) |
-| **Vertex AI** | For production and enterprise use | Enter Project ID and Location. Requires [ADC setup](https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment) |
+| **Vertex AI** | For production and enterprise use | Enter Project ID and Location. Requires ADC setup (see below) |
+
+#### Setting up Vertex AI Authentication
+
+Vertex AI uses Application Default Credentials (ADC). Quick setup:
+
+1. **Install Google Cloud CLI** ([full guide](https://cloud.google.com/sdk/docs/install)):
+   ```bash
+   # macOS
+   brew install google-cloud-sdk
+
+   # Debian/Ubuntu
+   sudo apt-get install google-cloud-cli
+
+   # Windows: Download installer from https://cloud.google.com/sdk/docs/install
+   ```
+
+2. **Set up ADC** ([full guide](https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment)):
+   ```bash
+   gcloud auth application-default login
+   ```
+   This opens a browser to authenticate and stores credentials locally.
+
+3. **Enter your settings** in Project → Settings:
+   - **Project ID**: Your Google Cloud project ID
+   - **Location**: Region (e.g., `us-central1`)
 
 ### Default Model
 
