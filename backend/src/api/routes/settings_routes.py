@@ -42,17 +42,19 @@ class SettingsResponse(BaseModel):
 class EnvSettingsUpdate(BaseModel):
     """Environment settings update request."""
 
+    model_config = {"populate_by_name": True}
+
     auth_mode: Literal["api_key", "vertex_ai"] = Field(
-        default="api_key", description="Authentication mode"
+        default="api_key", alias="authMode", description="Authentication mode"
     )
     api_key: str | None = Field(
-        default=None, description="API key (empty string = don't update)"
+        default=None, alias="apiKey", description="API key (empty string = don't update)"
     )
     google_cloud_project: str | None = Field(
-        default=None, description="Google Cloud project ID"
+        default=None, alias="googleCloudProject", description="Google Cloud project ID"
     )
     google_cloud_location: str | None = Field(
-        default=None, description="Google Cloud location"
+        default=None, alias="googleCloudLocation", description="Google Cloud location"
     )
 
 
@@ -220,9 +222,9 @@ async def update_project_settings(
         # Update settings
         manifest.settings = request.settings
 
-        # Save manifest
+        # Save manifest (use by_alias for camelCase in JSON)
         with open(manifest_file, "w", encoding="utf-8") as f:
-            json.dump(manifest.model_dump(exclude_none=True), f, indent=2)
+            json.dump(manifest.model_dump(exclude_none=True, by_alias=True), f, indent=2)
 
         # Load existing env vars
         existing_env = parse_env_file(env_file)

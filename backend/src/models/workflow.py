@@ -72,8 +72,12 @@ class TabMetadata(BaseModel):
 class ProjectSettings(BaseModel):
     """Project-level settings stored in manifest.json."""
 
+    model_config = {"populate_by_name": True}
+
     default_model: str = Field(
-        default="gemini-2.5-flash", description="Default model for new agents"
+        default="gemini-2.5-flash",
+        alias="defaultModel",
+        description="Default model for new agents",
     )
 
 
