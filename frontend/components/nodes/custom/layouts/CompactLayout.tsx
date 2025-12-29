@@ -70,19 +70,21 @@ const CompactLayout = memo(
           }}
           title={displayName}
         >
-          <div className="font-medium text-xs whitespace-nowrap flex items-center justify-center gap-1">
+          <div className="font-medium text-xs whitespace-nowrap flex items-center gap-1 w-full">
             {nodeData.isNodeLocked && (
               <Lock className="w-2.5 h-2.5 opacity-80" />
             )}
+            <Zap className="w-3 h-3" />
+            <span className="flex-1">
+              {displayName.length > 8
+                ? displayName.slice(0, 8) + "..."
+                : displayName}
+            </span>
             <ValidationIndicator
               errors={nodeData.validationErrors}
               warnings={nodeData.validationWarnings}
               duplicateNameError={nodeData.duplicateNameError}
             />
-            <Zap className="w-3 h-3" />
-            {displayName.length > 8
-              ? displayName.slice(0, 8) + "..."
-              : displayName}
           </div>
 
           {/* Output handle */}

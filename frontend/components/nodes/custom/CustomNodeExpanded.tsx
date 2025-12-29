@@ -3,7 +3,6 @@
 import { memo, useCallback, useMemo } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Circle, Zap } from "lucide-react";
-import ValidationIndicator from "@/components/nodes/ValidationIndicator";
 import CustomNodeHeader from "@/components/nodes/custom/CustomNodeHeader";
 import CustomNodeInput from "@/components/nodes/custom/CustomNodeInput";
 import CustomNodeOutput from "@/components/nodes/custom/CustomNodeOutput";
@@ -321,12 +320,6 @@ const CustomNodeExpanded = memo(
                     : {}),
           }}
         >
-          <ValidationIndicator
-            errors={nodeData.validationErrors}
-            warnings={nodeData.validationWarnings}
-            duplicateNameError={nodeData.duplicateNameError}
-          />
-
           {/* Header */}
           <CustomNodeHeader
             name={name}
@@ -341,6 +334,9 @@ const CustomNodeExpanded = memo(
             onNameChange={onNameChange}
             onNameSave={onNameSave}
             onNameKeyDown={onNameKeyDown}
+            validationErrors={nodeData.validationErrors}
+            validationWarnings={nodeData.validationWarnings}
+            duplicateNameError={nodeData.duplicateNameError}
           />
 
           {/* Tab bar */}

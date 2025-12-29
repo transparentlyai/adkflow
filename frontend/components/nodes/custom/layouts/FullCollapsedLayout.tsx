@@ -257,11 +257,6 @@ const FullCollapsedLayout = memo(
             {nodeData.isNodeLocked && (
               <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />
             )}
-            <ValidationIndicator
-              errors={nodeData.validationErrors}
-              warnings={nodeData.validationWarnings}
-              duplicateNameError={nodeData.duplicateNameError}
-            />
             {/* Node type icon */}
             <NodeIcon icon={schema.ui.icon} className="w-3 h-3" />
             {isEditing ? (
@@ -278,12 +273,17 @@ const FullCollapsedLayout = memo(
               />
             ) : (
               <span
-                className="font-medium text-xs hover:opacity-80 truncate max-w-[200px]"
+                className="font-medium text-xs hover:opacity-80 truncate max-w-[200px] flex-1"
                 onClick={onNameClick}
               >
                 {name}
               </span>
             )}
+            <ValidationIndicator
+              errors={nodeData.validationErrors}
+              warnings={nodeData.validationWarnings}
+              duplicateNameError={nodeData.duplicateNameError}
+            />
           </div>
 
           {/* Body */}

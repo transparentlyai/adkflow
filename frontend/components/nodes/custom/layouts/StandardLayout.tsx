@@ -4,7 +4,6 @@ import { memo } from "react";
 import { Handle, Position } from "@xyflow/react";
 import { useTheme } from "@/contexts/ThemeContext";
 import DraggableHandle from "@/components/DraggableHandle";
-import ValidationIndicator from "@/components/nodes/ValidationIndicator";
 import CustomNodeHeader from "@/components/nodes/custom/CustomNodeHeader";
 import { Circle, Zap } from "lucide-react";
 import type { CustomNodeCollapsedProps } from "@/components/nodes/custom/CustomNodeCollapsed";
@@ -100,29 +99,24 @@ const StandardLayout = memo(
               ...getNodeStyle(),
             }}
           >
-            <ValidationIndicator
-              errors={nodeData.validationErrors}
-              warnings={nodeData.validationWarnings}
+            {/* Header */}
+            <CustomNodeHeader
+              name={name}
+              schema={schema}
+              headerColor={bgColor}
+              isExpanded={false}
+              onToggleExpand={onToggleExpand}
+              isEditing={isEditing}
+              editedName={editedName}
+              inputRef={inputRef}
+              onNameClick={onNameClick}
+              onNameChange={onNameChange}
+              onNameSave={onNameSave}
+              onNameKeyDown={onNameKeyDown}
+              validationErrors={nodeData.validationErrors}
+              validationWarnings={nodeData.validationWarnings}
               duplicateNameError={nodeData.duplicateNameError}
             />
-
-            {/* Header */}
-            <div style={{ backgroundColor: bgColor }}>
-              <CustomNodeHeader
-                name={name}
-                schema={schema}
-                headerColor={bgColor}
-                isExpanded={false}
-                onToggleExpand={onToggleExpand}
-                isEditing={isEditing}
-                editedName={editedName}
-                inputRef={inputRef}
-                onNameClick={onNameClick}
-                onNameChange={onNameChange}
-                onNameSave={onNameSave}
-                onNameKeyDown={onNameKeyDown}
-              />
-            </div>
 
             {/* Body with summary */}
             {summaryText && (

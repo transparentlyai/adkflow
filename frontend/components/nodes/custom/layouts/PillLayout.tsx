@@ -93,15 +93,15 @@ const PillLayout = memo(
           }}
           title={String(config.value || "")}
         >
-          <div className="font-medium text-xs whitespace-nowrap flex items-center gap-1">
+          <div className="font-medium text-xs whitespace-nowrap flex items-center gap-1 w-full">
             {nodeData.isNodeLocked && <Lock className="w-3 h-3 opacity-80" />}
+            <NodeIcon icon={schema.ui.icon} className="w-3 h-3" />
+            <span className="flex-1">{displayText}</span>
             <ValidationIndicator
               errors={nodeData.validationErrors}
               warnings={nodeData.validationWarnings}
               duplicateNameError={nodeData.duplicateNameError}
             />
-            <NodeIcon icon={schema.ui.icon} className="w-3 h-3" />
-            {displayText}
           </div>
 
           {/* Output handle for pill nodes */}

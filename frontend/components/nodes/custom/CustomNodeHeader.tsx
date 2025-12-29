@@ -5,6 +5,7 @@ import { ChevronDown, ChevronUp, ArrowDownToLine, Zap } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { CustomNodeSchema } from "@/components/nodes/CustomNode";
 import NodeIcon from "@/components/nodes/custom/NodeIcon";
+import ValidationIndicator from "@/components/nodes/ValidationIndicator";
 
 export interface CustomNodeHeaderProps {
   name: string;
@@ -20,6 +21,10 @@ export interface CustomNodeHeaderProps {
   onNameChange: (value: string) => void;
   onNameSave: () => void;
   onNameKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  // Validation props (optional)
+  validationErrors?: string[];
+  validationWarnings?: string[];
+  duplicateNameError?: string;
 }
 
 /**
@@ -40,9 +45,16 @@ const CustomNodeHeader = memo(
     onNameChange,
     onNameSave,
     onNameKeyDown,
+    validationErrors,
+    validationWarnings,
+    duplicateNameError,
   }: CustomNodeHeaderProps) => {
     const { theme } = useTheme();
     const ChevronIcon = isExpanded ? ChevronUp : ChevronDown;
+    const hasValidationIssues =
+      (validationErrors && validationErrors.length > 0) ||
+      (validationWarnings && validationWarnings.length > 0) ||
+      !!duplicateNameError;
 
     return (
       <div
@@ -102,7 +114,16 @@ const CustomNodeHeader = memo(
             </span>
           )}
         </div>
-        <ChevronIcon className="w-3 h-3 text-white opacity-60 flex-shrink-0" />
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {hasValidationIssues && (
+            <ValidationIndicator
+              errors={validationErrors}
+              warnings={validationWarnings}
+              duplicateNameError={duplicateNameError}
+            />
+          )}
+          <ChevronIcon className="w-3 h-3 text-white opacity-60" />
+        </div>
       </div>
     );
   },

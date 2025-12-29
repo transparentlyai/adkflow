@@ -126,11 +126,6 @@ const PillBodyLayout = memo(
             {nodeData.isNodeLocked && (
               <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />
             )}
-            <ValidationIndicator
-              errors={nodeData.validationErrors}
-              warnings={nodeData.validationWarnings}
-              duplicateNameError={nodeData.duplicateNameError}
-            />
             {/* Node type icon - uses schema icon instead of hardcoded SVG */}
             <NodeIcon icon={schema.ui.icon} className="w-3 h-3" />
             {isEditing ? (
@@ -151,15 +146,20 @@ const PillBodyLayout = memo(
               />
             ) : (
               <div
-                className="font-medium text-xs hover:opacity-80 truncate"
+                className="font-medium text-xs hover:opacity-80 truncate flex-1"
                 onClick={onNameClick}
               >
                 {name}
               </div>
             )}
+            <ValidationIndicator
+              errors={nodeData.validationErrors}
+              warnings={nodeData.validationWarnings}
+              duplicateNameError={nodeData.duplicateNameError}
+            />
             <button
               onClick={onToggleExpand}
-              className="ml-auto p-0.5 rounded transition-colors flex-shrink-0"
+              className="p-0.5 rounded transition-colors flex-shrink-0"
               style={{ backgroundColor: "transparent" }}
               title="Expand"
             >
