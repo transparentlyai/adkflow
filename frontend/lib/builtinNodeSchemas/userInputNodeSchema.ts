@@ -53,22 +53,14 @@ export const userInputNodeSchema: CustomNodeSchema = {
     ],
     fields: [
       {
-        id: "name",
-        label: "Name",
-        widget: "text",
-        default: "User Input",
-        placeholder: "Enter node name...",
-        help_text:
-          "Node name. Used to derive the variable name (e.g., 'Review Step' -> {review_step_input})",
-      },
-      {
         id: "timeout",
         label: "Timeout (seconds)",
         widget: "number",
         default: 300,
         min_value: 0,
         step: 1,
-        help_text: "Time to wait for user input. 0 = no timeout (wait indefinitely).",
+        help_text:
+          "Time to wait for user input. 0 = no timeout (wait indefinitely).",
       },
       {
         id: "timeoutBehavior",
@@ -88,7 +80,8 @@ export const userInputNodeSchema: CustomNodeSchema = {
         widget: "textarea",
         default: "",
         placeholder: "Default response on timeout...",
-        help_text: "Text to use when timeout behavior is set to 'predefined_text'.",
+        help_text:
+          "Text to use when timeout behavior is set to 'predefined_text'.",
         show_if: { timeoutBehavior: "predefined_text" },
       },
     ],

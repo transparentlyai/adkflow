@@ -34,14 +34,6 @@ export const contextNodeSchema: CustomNodeSchema = {
     ],
     fields: [
       {
-        id: "name",
-        label: "Name",
-        widget: "text",
-        default: "New Context",
-        placeholder: "Context name",
-        help_text: "A unique name for this context",
-      },
-      {
         id: "file_path",
         label: "File Path",
         widget: "file_picker",

@@ -39,16 +39,7 @@ export const agentToolNodeSchema: CustomNodeSchema = {
         multiple: true,
       },
     ],
-    fields: [
-      {
-        id: "name",
-        label: "Name",
-        widget: "text",
-        default: "Agent Tool",
-        placeholder: "Agent Tool name",
-        help_text: "Name for this agent tool wrapper",
-      },
-    ],
+    fields: [],
     color: "#ec4899", // Pink color for agent tool nodes (matches theme.colors.nodes.agentTool.header)
     icon: "", // No icon - shows "Agent\nTool" text instead
     expandable: false,

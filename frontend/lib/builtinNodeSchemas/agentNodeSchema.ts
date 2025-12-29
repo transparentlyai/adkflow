@@ -138,16 +138,6 @@ export const agentNodeSchema: CustomNodeSchema = {
       // 6. Tools (connected tools display) - handled via connection, not a field
       // 7. Description (textarea)
       {
-        id: "name",
-        label: "Name",
-        widget: "text",
-        default: "New Agent",
-        placeholder: "Agent name",
-        help_text: "A unique name for this agent",
-        section: "General",
-        tab: "General",
-      },
-      {
         id: "model",
         label: "Model",
         widget: "select",

@@ -46,15 +46,6 @@ export const processNodeSchema: CustomNodeSchema = {
     ],
     fields: [
       {
-        id: "name",
-        label: "Name",
-        widget: "text",
-        default: "Process",
-        placeholder: "Process node name",
-        help_text: "A descriptive name for this processing step",
-        section: "General",
-      },
-      {
         id: "description",
         label: "Description",
         widget: "textarea",

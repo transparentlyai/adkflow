@@ -38,14 +38,6 @@ export const variableNodeSchema: CustomNodeSchema = {
     ],
     fields: [
       {
-        id: "name",
-        label: "Name",
-        widget: "text",
-        default: "variable",
-        placeholder: "Variable name",
-        help_text: "Variable name displayed as {name}",
-      },
-      {
         id: "value",
         label: "Value",
         widget: "text",

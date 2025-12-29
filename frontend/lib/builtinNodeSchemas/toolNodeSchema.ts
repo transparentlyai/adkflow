@@ -38,16 +38,6 @@ export const toolNodeSchema: CustomNodeSchema = {
     tabs: ["Code", "Config"],
     fields: [
       {
-        id: "name",
-        label: "Name",
-        widget: "text",
-        default: "my_tool",
-        placeholder: "Tool function name",
-        help_text:
-          "The function name for this tool (should match the def name in code)",
-        section: "General",
-      },
-      {
         id: "file_path",
         label: "File Path",
         widget: "file_picker",
@@ -100,9 +90,13 @@ def my_tool(
         default: "fail_fast",
         options: [
           { value: "fail_fast", label: "Fail fast (terminate workflow)" },
-          { value: "pass_to_model", label: "Pass error to model (let LLM handle)" },
+          {
+            value: "pass_to_model",
+            label: "Pass error to model (let LLM handle)",
+          },
         ],
-        help_text: "How to handle errors during tool execution. 'Pass to model' returns errors as {'error': message} for the LLM to decide how to proceed. 'Fail fast' raises an exception and terminates the workflow immediately.",
+        help_text:
+          "How to handle errors during tool execution. 'Pass to model' returns errors as {'error': message} for the LLM to decide how to proceed. 'Fail fast' raises an exception and terminates the workflow immediately.",
         section: "Error Handling",
         tab: "Config",
       },
