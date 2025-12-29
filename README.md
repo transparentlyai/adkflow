@@ -81,7 +81,17 @@ Build workflows by connecting nodes on an interactive canvas:
 
 ## Configuration
 
-### Environment Variables
+### Project Settings
+
+Configure per-project authentication via **Project → Settings**:
+- **Google AI (API Key)** - For personal projects
+- **Vertex AI** - For production use
+
+Settings are stored in the project's `.env` file.
+
+### Global Environment Variables
+
+Alternatively, set system-wide defaults:
 
 ```bash
 # Google AI Studio

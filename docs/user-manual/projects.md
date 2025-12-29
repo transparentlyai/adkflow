@@ -30,7 +30,8 @@ If no project is open, the welcome screen shows:
 
 ```
 my-project/
-├── manifest.json          # Project metadata
+├── manifest.json          # Project metadata and settings
+├── .env                   # Credentials (API key, Vertex AI config)
 ├── pages/                 # Workflow tabs
 │   ├── main.json          # Default tab
 │   └── helpers.json       # Additional tabs
@@ -49,12 +50,15 @@ my-project/
 
 ```json
 {
-  "version": "1.0",
+  "version": "2.0",
   "name": "my-project",
   "tabs": [
     {"id": "main", "name": "Main", "order": 0},
     {"id": "helpers", "name": "Helpers", "order": 1}
-  ]
+  ],
+  "settings": {
+    "defaultModel": "gemini-2.5-flash"
+  }
 }
 ```
 
@@ -114,10 +118,42 @@ ADKFlow doesn't have a delete option in the UI. To delete:
 
 ## Project Settings
 
-Currently, project settings are stored in the manifest.json. Future versions may include:
-- Default model selection
-- API configuration
-- Custom theme overrides
+Configure project-level settings via **Project → Settings** (or **Ctrl+,** / **Cmd+,**).
+
+### Authentication
+
+Choose how your project connects to Gemini:
+
+| Mode | Description | Configuration |
+|------|-------------|---------------|
+| **Google AI (API Key)** | For personal projects and prototyping | Enter your API key from [AI Studio](https://aistudio.google.com/apikey) |
+| **Vertex AI** | For production and enterprise use | Enter Project ID and Location. Requires [ADC setup](https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment) |
+
+### Default Model
+
+Select the default model for new agents. This can be overridden per-agent.
+
+### Storage
+
+Settings are stored in two files:
+
+| File | Contents |
+|------|----------|
+| `manifest.json` | Non-sensitive settings (default model) |
+| `.env` | Credentials (API key, Vertex AI config) |
+
+Example `.env`:
+```bash
+# Google AI mode
+GOOGLE_API_KEY=AIza...
+
+# OR Vertex AI mode
+GOOGLE_GENAI_USE_VERTEXAI=true
+GOOGLE_CLOUD_PROJECT=my-project-id
+GOOGLE_CLOUD_LOCATION=us-central1
+```
+
+> **Note**: Add `.env` to your `.gitignore` to avoid committing credentials.
 
 ## Tips
 
