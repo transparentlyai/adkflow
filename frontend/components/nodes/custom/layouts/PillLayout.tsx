@@ -16,8 +16,8 @@ import {
 } from "./collapsedLayoutUtils";
 
 /**
- * Pill Layout - Used for VariableNode
- * Supports execution state styling
+ * Pill Layout - Compact rounded pill style for nodes like VariableNode and OutputFile
+ * Supports execution state styling with optional input/output handles
  */
 const PillLayout = memo(
   ({
@@ -103,6 +103,30 @@ const PillLayout = memo(
               duplicateNameError={nodeData.duplicateNameError}
             />
           </div>
+
+          {/* Input handle for pill nodes */}
+          {schema.ui.inputs.length > 0 && (
+            <DraggableHandle
+              nodeId={id}
+              handleId={schema.ui.inputs[0].id}
+              type="target"
+              defaultEdge={schema.ui.handle_layout?.input_position || "left"}
+              defaultPercent={50}
+              handlePositions={handlePositions}
+              acceptedSources={
+                handleTypes[schema.ui.inputs[0].id]?.acceptedSources
+              }
+              acceptedTypes={handleTypes[schema.ui.inputs[0].id]?.acceptedTypes}
+              style={{
+                width: 8,
+                height: 8,
+                backgroundColor:
+                  schema.ui.inputs[0].handle_color ||
+                  theme.colors.handles.input,
+                border: `2px solid ${theme.colors.handles.border}`,
+              }}
+            />
+          )}
 
           {/* Output handle for pill nodes */}
           {schema.ui.outputs.length > 0 && (
