@@ -42,17 +42,25 @@ export function useHomeState() {
   const tabFlowCacheRef = useRef<
     Map<
       string,
-      { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }
+      {
+        nodes: Node[];
+        edges: Edge[];
+        viewport: { x: number; y: number; zoom: number };
+      }
     >
   >(new Map());
 
   const [isSessionLoaded, setIsSessionLoaded] = useState(false);
 
   // Project state
-  const [currentProjectPath, setCurrentProjectPath] = useState<string | null>(null);
+  const [currentProjectPath, setCurrentProjectPath] = useState<string | null>(
+    null,
+  );
   const [isProjectSaved, setIsProjectSaved] = useState(true);
   const [isProjectSwitcherOpen, setIsProjectSwitcherOpen] = useState(false);
-  const [projectSwitcherMode, setProjectSwitcherMode] = useState<"create" | "open">("open");
+  const [projectSwitcherMode, setProjectSwitcherMode] = useState<
+    "create" | "open"
+  >("open");
   const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false);
   const [showHomeScreen, setShowHomeScreen] = useState(false);
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
@@ -62,21 +70,26 @@ export function useHomeState() {
   const hasUnsavedChanges = tabsContext.activeTab?.hasUnsavedChanges ?? false;
 
   // Node creation dialog states
-  const [promptDialogState, setPromptDialogState] = useState<NodeCreationDialogState>({
-    isOpen: false,
-  });
-  const [contextDialogState, setContextDialogState] = useState<NodeCreationDialogState>({
-    isOpen: false,
-  });
-  const [toolDialogState, setToolDialogState] = useState<NodeCreationDialogState>({
-    isOpen: false,
-  });
-  const [processDialogState, setProcessDialogState] = useState<NodeCreationDialogState>({
-    isOpen: false,
-  });
-  const [outputFileDialogState, setOutputFileDialogState] = useState<NodeCreationDialogState>({
-    isOpen: false,
-  });
+  const [promptDialogState, setPromptDialogState] =
+    useState<NodeCreationDialogState>({
+      isOpen: false,
+    });
+  const [contextDialogState, setContextDialogState] =
+    useState<NodeCreationDialogState>({
+      isOpen: false,
+    });
+  const [toolDialogState, setToolDialogState] =
+    useState<NodeCreationDialogState>({
+      isOpen: false,
+    });
+  const [processDialogState, setProcessDialogState] =
+    useState<NodeCreationDialogState>({
+      isOpen: false,
+    });
+  const [outputFileDialogState, setOutputFileDialogState] =
+    useState<NodeCreationDialogState>({
+      isOpen: false,
+    });
 
   // Clear canvas dialog state
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
@@ -99,12 +112,21 @@ export function useHomeState() {
   const [lastRunStatus, setLastRunStatus] = useState<RunStatus>("pending");
 
   // Topology dialog state
-  const [topologyResult, setTopologyResult] = useState<TopologyResponse | null>(null);
-  const [isTopologySaveDialogOpen, setIsTopologySaveDialogOpen] = useState(false);
+  const [topologyResult, setTopologyResult] = useState<TopologyResponse | null>(
+    null,
+  );
+  const [isTopologySaveDialogOpen, setIsTopologySaveDialogOpen] =
+    useState(false);
+
+  // Validation save dialog state
+  const [isValidationSaveDialogOpen, setIsValidationSaveDialogOpen] =
+    useState(false);
 
   // Tab delete confirmation state
   const [isTabDeleteDialogOpen, setIsTabDeleteDialogOpen] = useState(false);
-  const [pendingDeleteTabId, setPendingDeleteTabId] = useState<string | null>(null);
+  const [pendingDeleteTabId, setPendingDeleteTabId] = useState<string | null>(
+    null,
+  );
 
   // Pending focus node tracking
   const pendingFocusNodeIdRef = useRef<string | null>(null);
@@ -190,6 +212,10 @@ export function useHomeState() {
     setTopologyResult,
     isTopologySaveDialogOpen,
     setIsTopologySaveDialogOpen,
+
+    // Validation save dialog
+    isValidationSaveDialogOpen,
+    setIsValidationSaveDialogOpen,
 
     // Tab delete
     isTabDeleteDialogOpen,

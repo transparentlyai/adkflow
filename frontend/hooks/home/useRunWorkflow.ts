@@ -25,11 +25,16 @@ interface UseRunWorkflowProps {
   setIsProjectSaved: (saved: boolean) => void;
   setTopologyResult: (result: TopologyResponse | null) => void;
   setIsTopologySaveDialogOpen: (open: boolean) => void;
+  setIsValidationSaveDialogOpen: (open: boolean) => void;
   saveTabFlow: (
     projectPath: string,
     tabId: string,
-    flow: { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } },
-    projectName?: string
+    flow: {
+      nodes: Node[];
+      edges: Edge[];
+      viewport: { x: number; y: number; zoom: number };
+    },
+    projectName?: string,
   ) => Promise<boolean>;
 }
 
@@ -50,6 +55,7 @@ export function useRunWorkflow({
   setIsProjectSaved,
   setTopologyResult,
   setIsTopologySaveDialogOpen,
+  setIsValidationSaveDialogOpen,
   saveTabFlow,
 }: UseRunWorkflowProps) {
   const executionHandlers = useWorkflowExecution({
@@ -73,9 +79,16 @@ export function useRunWorkflow({
   const validationHandlers = useWorkflowValidation({
     canvasRef,
     currentProjectPath,
+    activeTabId,
+    activeTab,
+    workflowName,
+    isProjectSaved,
     setRunEvents,
     setLastRunStatus,
     setIsRunPanelOpen,
+    setIsValidationSaveDialogOpen,
+    setIsProjectSaved,
+    saveTabFlow,
   });
 
   const topologyHandlers = useTopologyHandlers({
@@ -106,6 +119,9 @@ export function useRunWorkflow({
     handleRunConfirmSaveAndRun: executionHandlers.handleRunConfirmSaveAndRun,
     handleRunConfirmCancel: executionHandlers.handleRunConfirmCancel,
     handleValidateWorkflow: validationHandlers.handleValidateWorkflow,
+    handleValidationSaveAndValidate:
+      validationHandlers.handleValidationSaveAndValidate,
+    handleValidationSaveCancel: validationHandlers.handleValidationSaveCancel,
     handleShowTopology: topologyHandlers.handleShowTopology,
     handleTopologySaveAndShow: topologyHandlers.handleTopologySaveAndShow,
     handleTopologySaveCancel: topologyHandlers.handleTopologySaveCancel,

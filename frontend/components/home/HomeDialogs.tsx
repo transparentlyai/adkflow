@@ -5,7 +5,12 @@ import PromptNameDialog from "@/components/PromptNameDialog";
 import TopologyDialog from "@/components/TopologyDialog";
 import FilePicker from "@/components/FilePicker";
 import RunPanel, { type DisplayEvent } from "@/components/RunPanel";
-import type { TabState, RunStatus, NodeExecutionState, TopologyResponse } from "@/lib/types";
+import type {
+  TabState,
+  RunStatus,
+  NodeExecutionState,
+  TopologyResponse,
+} from "@/lib/types";
 import type { FilePickerState, NodeCreationDialogState } from "@/hooks/home";
 
 interface HomeDialogsProps {
@@ -27,6 +32,11 @@ interface HomeDialogsProps {
   isTopologySaveDialogOpen: boolean;
   onTopologySaveAndShow: () => void;
   onTopologySaveCancel: () => void;
+
+  // Validation save dialog
+  isValidationSaveDialogOpen: boolean;
+  onValidationSaveAndValidate: () => void;
+  onValidationSaveCancel: () => void;
 
   // Prompt dialog
   promptDialogState: NodeCreationDialogState;
@@ -106,6 +116,9 @@ export function HomeDialogs({
   isTopologySaveDialogOpen,
   onTopologySaveAndShow,
   onTopologySaveCancel,
+  isValidationSaveDialogOpen,
+  onValidationSaveAndValidate,
+  onValidationSaveCancel,
   promptDialogState,
   onCreatePrompt,
   onSelectExistingPrompt,
@@ -177,6 +190,16 @@ export function HomeDialogs({
         confirmLabel="Save & Show"
         onConfirm={onTopologySaveAndShow}
         onCancel={onTopologySaveCancel}
+      />
+
+      {/* Validation Save Dialog */}
+      <ConfirmDialog
+        isOpen={isValidationSaveDialogOpen}
+        title="Save Before Validating?"
+        description="You have unsaved changes. The workflow needs to be saved before it can be validated."
+        confirmLabel="Save & Validate"
+        onConfirm={onValidationSaveAndValidate}
+        onCancel={onValidationSaveCancel}
       />
 
       {/* Prompt Name Dialog */}

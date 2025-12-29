@@ -87,6 +87,8 @@ function HomeContent() {
     setTopologyResult,
     isTopologySaveDialogOpen,
     setIsTopologySaveDialogOpen,
+    isValidationSaveDialogOpen,
+    setIsValidationSaveDialogOpen,
     isTabDeleteDialogOpen,
     setIsTabDeleteDialogOpen,
     pendingDeleteTabId,
@@ -238,6 +240,7 @@ function HomeContent() {
     setIsProjectSaved,
     setTopologyResult,
     setIsTopologySaveDialogOpen,
+    setIsValidationSaveDialogOpen,
     saveTabFlow,
   });
 
@@ -303,7 +306,9 @@ function HomeContent() {
         onRequestContextCreation={dialogHandlers.handleRequestContextCreation}
         onRequestToolCreation={dialogHandlers.handleRequestToolCreation}
         onRequestProcessCreation={dialogHandlers.handleRequestProcessCreation}
-        onRequestOutputFileCreation={dialogHandlers.handleRequestOutputFileCreation}
+        onRequestOutputFileCreation={
+          dialogHandlers.handleRequestOutputFileCreation
+        }
         onToggleLock={() => setIsCanvasLocked(!isCanvasLocked)}
         onSave={projectManagement.handleSaveCurrentProject}
         onSaveFile={dialogHandlers.handleSaveFile}
@@ -331,6 +336,11 @@ function HomeContent() {
         isTopologySaveDialogOpen={isTopologySaveDialogOpen}
         onTopologySaveAndShow={runWorkflowHandlers.handleTopologySaveAndShow}
         onTopologySaveCancel={runWorkflowHandlers.handleTopologySaveCancel}
+        isValidationSaveDialogOpen={isValidationSaveDialogOpen}
+        onValidationSaveAndValidate={
+          runWorkflowHandlers.handleValidationSaveAndValidate
+        }
+        onValidationSaveCancel={runWorkflowHandlers.handleValidationSaveCancel}
         promptDialogState={promptDialogState}
         onCreatePrompt={dialogHandlers.handleCreatePrompt}
         onSelectExistingPrompt={dialogHandlers.handleSelectExistingPrompt}
@@ -349,8 +359,12 @@ function HomeContent() {
         onCancelProcessCreation={dialogHandlers.handleCancelProcessCreation}
         outputFileDialogState={outputFileDialogState}
         onCreateOutputFile={dialogHandlers.handleCreateOutputFile}
-        onSelectExistingOutputFile={dialogHandlers.handleSelectExistingOutputFile}
-        onCancelOutputFileCreation={dialogHandlers.handleCancelOutputFileCreation}
+        onSelectExistingOutputFile={
+          dialogHandlers.handleSelectExistingOutputFile
+        }
+        onCancelOutputFileCreation={
+          dialogHandlers.handleCancelOutputFileCreation
+        }
         isClearDialogOpen={isClearDialogOpen}
         onClearCanvasConfirm={dialogHandlers.handleClearCanvasConfirm}
         onClearCanvasCancel={dialogHandlers.handleClearCanvasCancel}

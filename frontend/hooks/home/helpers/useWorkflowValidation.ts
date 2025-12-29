@@ -1,22 +1,47 @@
 import { useCallback } from "react";
+import type { Node, Edge } from "@xyflow/react";
 import type { ReactFlowCanvasRef } from "@/components/ReactFlowCanvas";
+import type { TabState } from "@/lib/types";
 import type { DisplayEvent } from "@/components/RunPanel";
 import { validateWorkflow } from "@/lib/api";
 
 interface UseWorkflowValidationProps {
   canvasRef: React.RefObject<ReactFlowCanvasRef | null>;
   currentProjectPath: string | null;
+  activeTabId: string | null;
+  activeTab: TabState | null;
+  workflowName: string;
+  isProjectSaved: boolean;
   setRunEvents: (events: DisplayEvent[]) => void;
   setLastRunStatus: (status: "completed" | "failed" | "running") => void;
   setIsRunPanelOpen: (open: boolean) => void;
+  setIsValidationSaveDialogOpen: (open: boolean) => void;
+  setIsProjectSaved: (saved: boolean) => void;
+  saveTabFlow: (
+    projectPath: string,
+    tabId: string,
+    flow: {
+      nodes: Node[];
+      edges: Edge[];
+      viewport: { x: number; y: number; zoom: number };
+    },
+    projectName?: string,
+  ) => Promise<boolean>;
 }
 
 export function useWorkflowValidation({
   canvasRef,
   currentProjectPath,
+  activeTabId,
+  activeTab,
+  workflowName,
+  isProjectSaved,
   setRunEvents,
   setLastRunStatus,
   setIsRunPanelOpen,
+  setIsValidationSaveDialogOpen,
+  setIsProjectSaved,
+  saveTabFlow,
 }: UseWorkflowValidationProps) {
   const showErrorsInConsole = useCallback(
     (errors: string[], nodeErrors: Record<string, string[]> = {}) => {
@@ -37,10 +62,10 @@ export function useWorkflowValidation({
       setLastRunStatus("failed");
       setIsRunPanelOpen(true);
     },
-    [canvasRef, setRunEvents, setLastRunStatus, setIsRunPanelOpen]
+    [canvasRef, setRunEvents, setLastRunStatus, setIsRunPanelOpen],
   );
 
-  const handleValidateWorkflow = useCallback(async () => {
+  const executeValidateWorkflow = useCallback(async () => {
     if (!currentProjectPath) return;
 
     canvasRef.current?.clearErrorHighlights();
@@ -52,7 +77,10 @@ export function useWorkflowValidation({
         canvasRef.current?.highlightErrorNodes(result.node_errors);
       }
 
-      if (result.node_warnings && Object.keys(result.node_warnings).length > 0) {
+      if (
+        result.node_warnings &&
+        Object.keys(result.node_warnings).length > 0
+      ) {
         canvasRef.current?.highlightWarningNodes(result.node_warnings);
       }
 
@@ -92,10 +120,71 @@ export function useWorkflowValidation({
       console.error("Failed to validate:", error);
       showErrorsInConsole([(error as Error).message]);
     }
-  }, [currentProjectPath, canvasRef, setRunEvents, setLastRunStatus, setIsRunPanelOpen, showErrorsInConsole]);
+  }, [
+    currentProjectPath,
+    canvasRef,
+    setRunEvents,
+    setLastRunStatus,
+    setIsRunPanelOpen,
+    showErrorsInConsole,
+  ]);
+
+  const handleValidateWorkflow = useCallback(async () => {
+    if (!currentProjectPath) return;
+
+    if (activeTab?.hasUnsavedChanges || !isProjectSaved) {
+      setIsValidationSaveDialogOpen(true);
+      return;
+    }
+
+    await executeValidateWorkflow();
+  }, [
+    currentProjectPath,
+    activeTab,
+    isProjectSaved,
+    setIsValidationSaveDialogOpen,
+    executeValidateWorkflow,
+  ]);
+
+  const handleValidationSaveAndValidate = useCallback(async () => {
+    setIsValidationSaveDialogOpen(false);
+
+    if (canvasRef.current && activeTabId && currentProjectPath) {
+      const flow = canvasRef.current.saveFlow();
+      if (flow) {
+        const success = await saveTabFlow(
+          currentProjectPath,
+          activeTabId,
+          flow,
+          workflowName,
+        );
+        if (success) {
+          setIsProjectSaved(true);
+        }
+      }
+    }
+
+    await executeValidateWorkflow();
+  }, [
+    canvasRef,
+    activeTabId,
+    currentProjectPath,
+    workflowName,
+    setIsValidationSaveDialogOpen,
+    setIsProjectSaved,
+    saveTabFlow,
+    executeValidateWorkflow,
+  ]);
+
+  const handleValidationSaveCancel = useCallback(() => {
+    setIsValidationSaveDialogOpen(false);
+  }, [setIsValidationSaveDialogOpen]);
 
   return {
     showErrorsInConsole,
+    executeValidateWorkflow,
     handleValidateWorkflow,
+    handleValidationSaveAndValidate,
+    handleValidationSaveCancel,
   };
 }
