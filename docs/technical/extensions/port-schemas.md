@@ -8,6 +8,8 @@ Ports are connection points on nodes:
 - **Inputs** (left side): Receive data from other nodes
 - **Outputs** (right side): Send data to other nodes
 
+For type validation details, see [Type System](./type-system.md).
+
 ## PortDefinition
 
 ```python
@@ -69,45 +71,30 @@ PortDefinition(
 
 ## Type Filtering
 
-### Accept Specific Sources
+Use `accepted_sources` and `accepted_types` to control what connections are valid.
+
+See [Type System](./type-system.md) for full details on:
+- Source types (`agent`, `prompt`, `tool`, etc.)
+- Data types (`str`, `dict`, `callable`, `link`, etc.)
+- Validation logic and wildcards
+
+### Quick Examples
 
 ```python
 # Only accept from agent nodes
 PortDefinition(
     id="agent_output",
-    label="Agent Output",
-    source_type="agent",
-    data_type="dict",
-    accepted_sources=["agent", "llm_agent"],
+    accepted_sources=["agent"],
     accepted_types=["dict"],
+    ...
 )
-```
 
-### Accept Multiple Types
-
-```python
-# Accept string or dict
-PortDefinition(
-    id="data",
-    label="Data",
-    source_type="*",
-    data_type="any",
-    accepted_sources=["*"],
-    accepted_types=["str", "dict", "list"],
-)
-```
-
-### Wildcard
-
-```python
-# Accept anything
+# Accept anything (wildcard)
 PortDefinition(
     id="any_input",
-    label="Any",
-    source_type="*",
-    data_type="any",
     accepted_sources=["*"],
     accepted_types=["*"],
+    ...
 )
 ```
 
@@ -334,6 +321,6 @@ UISchema(
 
 ## See Also
 
+- [Type System](./type-system.md) - Type validation and connection rules
 - [Field Schemas](./field-schemas.md) - Configuration fields
-- [Type System](./type-system.md) - Type definitions
 - [UI Schema](./ui-schema.md) - Node appearance

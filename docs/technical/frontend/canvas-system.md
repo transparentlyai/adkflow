@@ -225,27 +225,13 @@ Text annotation node.
 
 ## Connection Validation
 
-Connections are validated based on:
+Connections are validated using the dual-type system (source type + data type).
 
-```typescript
-interface HandleType {
-  sourceType: string;  // e.g., 'agent', 'prompt'
-  dataType: string;    // e.g., 'str', 'dict'
-}
-
-interface InputHandle extends HandleType {
-  acceptedSources: string[];
-  acceptedTypes: string[];
-}
-
-function isValidConnection(source: HandleType, target: InputHandle): boolean {
-  const sourceOk = target.acceptedSources.includes('*')
-    || target.acceptedSources.includes(source.sourceType);
-  const typeOk = target.acceptedTypes.includes('*')
-    || target.acceptedTypes.includes(source.dataType);
-  return sourceOk && typeOk;
-}
-```
+See [Type System](../extensions/type-system.md) for:
+- `HandleTypeInfo` interface
+- `isTypeCompatible` validation function
+- Source and data type definitions
+- Link type for parallel execution
 
 ## Viewport Management
 
@@ -306,6 +292,7 @@ const debouncedOnChange = useDebouncedCallback(
 
 ## See Also
 
+- [Type System](../extensions/type-system.md) - Connection validation
 - [Node System](./node-system.md) - Node implementation details
 - [Hooks Architecture](./hooks-architecture.md) - Hook patterns
 - [State Management](./state-management.md) - Context integration
