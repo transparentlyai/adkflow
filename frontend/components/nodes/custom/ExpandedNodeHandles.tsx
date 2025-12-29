@@ -23,8 +23,8 @@ export interface ExpandedNodeHandlesProps {
 }
 
 /**
- * Renders handles at node edges for the expanded view.
- * Includes main input/output handles and additional handles (top/bottom).
+ * Renders additional handles (top/bottom) at node edges for the expanded view.
+ * Input/output handles are rendered inline by CustomNodeInput/CustomNodeOutput.
  */
 const ExpandedNodeHandles = memo(
   ({
@@ -48,9 +48,12 @@ const ExpandedNodeHandles = memo(
             It only appears in collapsed mode (StandardLayout, FullCollapsedLayout).
             Individual input handles are rendered inline by CustomNodeInput. */}
 
-        {/* Additional handles (top/bottom) */}
+        {/* Additional handles (top/bottom only - not left/right since those are rendered inline) */}
         {additionalHandles
-          .filter((handle) => handle.position !== "left")
+          .filter(
+            (handle) =>
+              handle.position !== "left" && handle.position !== "right",
+          )
           .map((handle) => {
             const matchingInput = schema.ui.inputs.find(
               (i) => i.id === handle.id,
@@ -90,28 +93,9 @@ const ExpandedNodeHandles = memo(
             );
           })}
 
-        {/* Output handles */}
-        {schema.ui.outputs
-          .filter((o) => !additionalHandles.some((h) => h.id === o.id))
-          .map((output, i, arr) => (
-            <DraggableHandle
-              key={output.id}
-              nodeId={id}
-              handleId={output.id}
-              type="source"
-              defaultEdge={schema.ui.handle_layout?.output_position || "right"}
-              defaultPercent={((i + 1) / (arr.length + 1)) * 100}
-              handlePositions={handlePositions}
-              title={output.label}
-              outputSource={handleTypes[output.id]?.outputSource}
-              outputType={handleTypes[output.id]?.outputType}
-              style={{
-                ...handleStyle,
-                backgroundColor:
-                  output.handle_color || theme.colors.handles.output,
-              }}
-            />
-          ))}
+        {/* NOTE: Output handles are NOT rendered here in expanded mode.
+            They are rendered inline by CustomNodeOutput inside the node content.
+            This avoids duplication with the handles at the node edge. */}
       </>
     );
   },
