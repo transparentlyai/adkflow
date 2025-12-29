@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, status, Query
 
@@ -22,6 +23,113 @@ from backend.src.api.routes.models import (
 from backend.src.api.routes.helpers import generate_tab_id, get_default_flow
 
 router = APIRouter()
+
+
+# Content fields to strip when file_path is set
+# Maps node types to their content field names
+FILE_CONTENT_FIELDS = {
+    "prompt": "content",
+    "context": "content",
+    "tool": "code",
+    "process": "code",
+}
+
+
+def strip_file_content_from_nodes(flow_data: dict[str, Any]) -> dict[str, Any]:
+    """
+    Strip content/code fields from nodes that have file_path set.
+
+    When a node has a file_path configured, the content should be loaded
+    from the file at runtime rather than stored in the project JSON.
+    This prevents data duplication and ensures the file is the source of truth.
+
+    Args:
+        flow_data: The flow data dictionary containing nodes and edges.
+
+    Returns:
+        Modified flow data with content stripped from file-associated nodes.
+    """
+    if "nodes" not in flow_data:
+        return flow_data
+
+    for node in flow_data["nodes"]:
+        node_type = node.get("type", "")
+        content_field = FILE_CONTENT_FIELDS.get(node_type)
+
+        if not content_field:
+            continue
+
+        # Get config from node data
+        data = node.get("data", {})
+        config = data.get("config", {})
+
+        # If file_path is set and non-empty, remove the content field
+        file_path = config.get("file_path", "")
+        if file_path and content_field in config:
+            del config[content_field]
+
+    return flow_data
+
+
+def populate_file_content_in_nodes(
+    flow_data: dict[str, Any], project_path: Path
+) -> dict[str, Any]:
+    """
+    Populate content/code fields from files for nodes that have file_path set.
+
+    When loading a tab, nodes with file_path need their content loaded from disk
+    so that the UI can display function signatures and other content-dependent features.
+
+    Args:
+        flow_data: The flow data dictionary containing nodes and edges.
+        project_path: The project root directory path.
+
+    Returns:
+        Modified flow data with content populated from files.
+    """
+    if "nodes" not in flow_data:
+        return flow_data
+
+    for node in flow_data["nodes"]:
+        node_type = node.get("type", "")
+        content_field = FILE_CONTENT_FIELDS.get(node_type)
+
+        if not content_field:
+            continue
+
+        # Get config from node data
+        data = node.get("data", {})
+        config = data.get("config", {})
+
+        # If file_path is set, load content from file
+        file_path = config.get("file_path", "")
+        if not file_path:
+            continue
+
+        # file_path may already include the directory (e.g., "prompts/file.prompt.md")
+        # or just the filename. Try the path as-is first, then with directory prefix.
+        full_path = (project_path / file_path).resolve()
+
+        if not full_path.exists():
+            # Try with directory prefix based on node type
+            if node_type in ("prompt", "context"):
+                # Try prompts/ first, then static/
+                full_path = (project_path / "prompts" / file_path).resolve()
+                if not full_path.exists():
+                    full_path = (project_path / "static" / file_path).resolve()
+            elif node_type in ("tool", "process"):
+                full_path = (project_path / "tools" / file_path).resolve()
+
+        # Read content from file if it exists
+        if full_path.exists():
+            try:
+                content = full_path.read_text(encoding="utf-8")
+                config[content_field] = content
+            except Exception:
+                # If file can't be read, leave content empty
+                pass
+
+    return flow_data
 
 
 @router.get("/project/tabs", response_model=TabListResponse)
@@ -246,6 +354,9 @@ async def load_tab(
         with open(tab_file, "r", encoding="utf-8") as f:
             flow_data = json.load(f)
 
+        # Populate file content for nodes with file_path
+        flow_data = populate_file_content_in_nodes(flow_data, project_path)
+
         flow = ReactFlowJSON(**flow_data)
 
         return TabLoadResponse(flow=flow)
@@ -286,8 +397,9 @@ async def save_tab(
 
         tab_file = pages_dir / f"{tab_id}.json"
 
-        # Write flow data
+        # Write flow data, stripping file content from nodes with file_path
         flow_json = request.flow.model_dump(exclude_none=True)
+        flow_json = strip_file_content_from_nodes(flow_json)
         with open(tab_file, "w", encoding="utf-8") as f:
             json.dump(flow_json, f, indent=2)
 
