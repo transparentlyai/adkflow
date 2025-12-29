@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import {
   Monitor,
   SquareDashed,
@@ -16,7 +16,6 @@ import {
   Lock,
   Unlock,
   Type,
-  ChevronRight,
   Wrench,
   Activity,
   Layout,
@@ -25,16 +24,27 @@ import {
   Scissors,
   Clipboard,
   Trash2,
-  GitBranch,
   ArrowRightFromLine,
   ArrowLeftToLine,
   MessageSquare,
   Play,
   Square,
+  Puzzle,
 } from "lucide-react";
 import { formatShortcut } from "@/lib/utils";
 import { type CustomNodeSchema } from "@/components/nodes/CustomNode";
-import { Puzzle } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuShortcut,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export type NodeTypeOption =
   | "variable"
@@ -89,12 +99,19 @@ interface MenuGroup {
 const topLevelItems: NodeOption[] = [
   { type: "agent", label: "Agent", icon: <Monitor className="h-4 w-4" /> },
   { type: "prompt", label: "Prompt", icon: <FileText className="h-4 w-4" /> },
-  { type: "context", label: "Context", icon: <Database className="h-4 w-4" /> },
-  { type: "outputFile", label: "Output File", icon: <FileInput className="h-4 w-4" /> },
-  { type: "userInput", label: "User Input", icon: <MessageSquare className="h-4 w-4" /> },
 ];
 
 const menuGroups: MenuGroup[] = [
+  {
+    label: "Data",
+    icon: <Database className="h-4 w-4" />,
+    items: [
+      { type: "context", label: "Context", icon: <Database className="h-4 w-4" /> },
+      { type: "outputFile", label: "Output File", icon: <FileInput className="h-4 w-4" /> },
+      { type: "userInput", label: "User Input", icon: <MessageSquare className="h-4 w-4" /> },
+      { type: "variable", label: "Variable", icon: <Tag className="h-4 w-4" /> },
+    ],
+  },
   {
     label: "Tools",
     icon: <Wrench className="h-4 w-4" />,
@@ -102,11 +119,10 @@ const menuGroups: MenuGroup[] = [
       { type: "tool", label: "Tool", icon: <Settings className="h-4 w-4" /> },
       { type: "agentTool", label: "Agent Tool", icon: <Terminal className="h-4 w-4" /> },
       { type: "process", label: "Process", icon: <Code className="h-4 w-4" /> },
-      { type: "variable", label: "Variable", icon: <Tag className="h-4 w-4" /> },
     ],
   },
   {
-    label: "Probes",
+    label: "Debug",
     icon: <Activity className="h-4 w-4" />,
     items: [
       { type: "inputProbe", label: "Input Probe", icon: <LogIn className="h-4 w-4" /> },
@@ -115,25 +131,13 @@ const menuGroups: MenuGroup[] = [
     ],
   },
   {
-    label: "Layout",
+    label: "Canvas",
     icon: <Layout className="h-4 w-4" />,
     items: [
       { type: "group", label: "Group", icon: <SquareDashed className="h-4 w-4" /> },
       { type: "label", label: "Label", icon: <Type className="h-4 w-4" /> },
-    ],
-  },
-  {
-    label: "Connectors",
-    icon: <GitBranch className="h-4 w-4" />,
-    items: [
       { type: "teleportOut", label: "Output Connector", icon: <ArrowRightFromLine className="h-4 w-4" /> },
       { type: "teleportIn", label: "Input Connector", icon: <ArrowLeftToLine className="h-4 w-4" /> },
-    ],
-  },
-  {
-    label: "Flow Control",
-    icon: <Play className="h-4 w-4" />,
-    items: [
       { type: "start", label: "Start", icon: <Play className="h-4 w-4" /> },
       { type: "end", label: "End", icon: <Square className="h-4 w-4" /> },
     ],
@@ -157,8 +161,6 @@ export default function CanvasContextMenu({
   customNodeSchemas = [],
   onSelectCustom,
 }: ContextMenuProps) {
-  const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
-
   // Build custom node menu groups from schemas
   const customMenuGroups = useMemo(() => {
     const groups: Record<string, { label: string; items: CustomNodeSchema[] }> = {};
@@ -176,9 +178,6 @@ export default function CanvasContextMenu({
     return Object.values(groups);
   }, [customNodeSchemas]);
 
-  const adjustedX = Math.min(x, window.innerWidth - 160);
-  const adjustedY = Math.min(y, window.innerHeight - 200);
-
   const handleItemClick = (type: NodeTypeOption) => {
     onSelect(type);
   };
@@ -189,219 +188,139 @@ export default function CanvasContextMenu({
   }));
 
   return (
-    <>
-      <div
-        className="fixed inset-0 z-50"
-        onClick={onClose}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          onClose();
-        }}
-      />
-      <div
-        className="fixed z-50 min-w-[10rem] overflow-visible rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
-        style={{ left: adjustedX, top: adjustedY }}
+    <DropdownMenu open={true} onOpenChange={(open) => !open && onClose()}>
+      {/* Invisible trigger positioned at click coordinates */}
+      <DropdownMenuTrigger asChild>
+        <div
+          className="fixed h-0 w-0"
+          style={{ left: x, top: y }}
+        />
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent
+        align="start"
+        side="bottom"
+        sideOffset={0}
+        alignOffset={0}
+        className="min-w-[10rem]"
       >
         {/* Edit actions - show when there's something to copy/paste/delete */}
         {(hasSelection || hasClipboard) && !isLocked && (
           <>
-            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-              Edit
-            </div>
+            <DropdownMenuLabel>Edit</DropdownMenuLabel>
             {hasSelection && onCopy && (
-              <button
-                onClick={() => {
-                  onCopy();
-                  onClose();
-                }}
-                className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-              >
-                <span className="mr-2 text-muted-foreground">
-                  <Copy className="h-4 w-4" />
-                </span>
+              <DropdownMenuItem onClick={onCopy}>
+                <Copy className="mr-2 h-4 w-4 text-muted-foreground" />
                 Copy
-                <span className="ml-auto text-xs text-muted-foreground">{formatShortcut("C")}</span>
-              </button>
+                <DropdownMenuShortcut>{formatShortcut("C")}</DropdownMenuShortcut>
+              </DropdownMenuItem>
             )}
             {hasSelection && onCut && (
-              <button
-                onClick={() => {
-                  onCut();
-                  onClose();
-                }}
-                className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-              >
-                <span className="mr-2 text-muted-foreground">
-                  <Scissors className="h-4 w-4" />
-                </span>
+              <DropdownMenuItem onClick={onCut}>
+                <Scissors className="mr-2 h-4 w-4 text-muted-foreground" />
                 Cut
-                <span className="ml-auto text-xs text-muted-foreground">{formatShortcut("X")}</span>
-              </button>
+                <DropdownMenuShortcut>{formatShortcut("X")}</DropdownMenuShortcut>
+              </DropdownMenuItem>
             )}
             {hasClipboard && onPaste && (
-              <button
-                onClick={() => {
-                  onPaste();
-                  onClose();
-                }}
-                className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-              >
-                <span className="mr-2 text-muted-foreground">
-                  <Clipboard className="h-4 w-4" />
-                </span>
+              <DropdownMenuItem onClick={onPaste}>
+                <Clipboard className="mr-2 h-4 w-4 text-muted-foreground" />
                 Paste
-                <span className="ml-auto text-xs text-muted-foreground">{formatShortcut("V")}</span>
-              </button>
+                <DropdownMenuShortcut>{formatShortcut("V")}</DropdownMenuShortcut>
+              </DropdownMenuItem>
             )}
             {hasSelection && onDelete && (
-              <button
-                onClick={() => {
-                  onDelete();
-                  onClose();
-                }}
-                className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground text-destructive hover:text-destructive"
+              <DropdownMenuItem
+                onClick={onDelete}
+                className="text-destructive focus:text-destructive"
               >
-                <span className="mr-2">
-                  <Trash2 className="h-4 w-4" />
-                </span>
+                <Trash2 className="mr-2 h-4 w-4" />
                 Delete
-                <span className="ml-auto text-xs text-muted-foreground">⌫</span>
-              </button>
+                <DropdownMenuShortcut>⌫</DropdownMenuShortcut>
+              </DropdownMenuItem>
             )}
-            <div className="-mx-1 my-1 h-px bg-border" />
+            <DropdownMenuSeparator />
           </>
         )}
 
         {!isLocked && (
           <>
-            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-              Add Node
-            </div>
-            <div className="-mx-1 my-1 h-px bg-border" />
+            <DropdownMenuLabel>Add Node</DropdownMenuLabel>
+            <DropdownMenuSeparator />
 
             {/* Top level items */}
             {topLevelItems.map((item) => (
-              <button
-                key={item.type}
-                onClick={() => handleItemClick(item.type)}
-                className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-              >
+              <DropdownMenuItem key={item.type} onClick={() => handleItemClick(item.type)}>
                 <span className="mr-2 text-muted-foreground">{item.icon}</span>
                 {item.label}
-              </button>
+              </DropdownMenuItem>
             ))}
 
-            <div className="-mx-1 my-1 h-px bg-border" />
+            <DropdownMenuSeparator />
 
             {/* Submenu groups */}
             {filteredGroups.map((group) => (
-              <div
-                key={group.label}
-                className="relative"
-                onMouseEnter={() => setOpenSubmenu(group.label)}
-                onMouseLeave={() => setOpenSubmenu(null)}
-              >
-                <button className="relative flex w-full cursor-default select-none items-center justify-between rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground">
-                  <span className="flex items-center">
-                    <span className="mr-2 text-muted-foreground">{group.icon}</span>
-                    {group.label}
-                  </span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </button>
-
-                {openSubmenu === group.label && (
-                  <>
-                    {/* Invisible bridge to prevent mouseLeave when moving to submenu */}
-                    <div className="absolute left-full top-0 h-full w-2" />
-                    <div
-                      className="absolute left-full top-0 z-50 min-w-[9rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
-                      style={{ marginLeft: 8 }}
-                    >
-                      {group.items.map((item) => (
-                        <button
-                          key={item.type}
-                          onClick={() => handleItemClick(item.type)}
-                          className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                        >
-                          <span className="mr-2 text-muted-foreground">{item.icon}</span>
-                          {item.label}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
+              <DropdownMenuSub key={group.label}>
+                <DropdownMenuSubTrigger>
+                  <span className="mr-2 text-muted-foreground">{group.icon}</span>
+                  {group.label}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {group.items.map((item) => (
+                    <DropdownMenuItem key={item.type} onClick={() => handleItemClick(item.type)}>
+                      <span className="mr-2 text-muted-foreground">{item.icon}</span>
+                      {item.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
             ))}
 
-            {/* Custom extension node groups */}
+            {/* Extensions - single root submenu for all custom nodes */}
             {customMenuGroups.length > 0 && (
-              <>
-                <div className="-mx-1 my-1 h-px bg-border" />
-                {customMenuGroups.map((group) => (
-                  <div
-                    key={group.label}
-                    className="relative"
-                    onMouseEnter={() => setOpenSubmenu(`custom:${group.label}`)}
-                    onMouseLeave={() => setOpenSubmenu(null)}
-                  >
-                    <button className="relative flex w-full cursor-default select-none items-center justify-between rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground">
-                      <span className="flex items-center">
-                        <span className="mr-2 text-muted-foreground">
-                          <Puzzle className="h-4 w-4" />
-                        </span>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <Puzzle className="mr-2 h-4 w-4 text-muted-foreground" />
+                  Extensions
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {customMenuGroups.map((group) => (
+                    <DropdownMenuSub key={group.label}>
+                      <DropdownMenuSubTrigger>
+                        <Puzzle className="mr-2 h-4 w-4 text-muted-foreground" />
                         {group.label}
-                      </span>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </button>
-
-                    {openSubmenu === `custom:${group.label}` && (
-                      <>
-                        <div className="absolute left-full top-0 h-full w-2" />
-                        <div
-                          className="absolute left-full top-0 z-50 min-w-[9rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
-                          style={{ marginLeft: 8 }}
-                        >
-                          {group.items.map((schema) => (
-                            <button
-                              key={schema.unit_id}
-                              onClick={() => {
-                                onSelectCustom?.(schema);
-                                onClose();
-                              }}
-                              className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                            >
-                              <span className="mr-2 text-muted-foreground">
-                                <Puzzle className="h-4 w-4" />
-                              </span>
-                              {schema.label}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </>
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent>
+                        {group.items.map((schema) => (
+                          <DropdownMenuItem
+                            key={schema.unit_id}
+                            onClick={() => onSelectCustom?.(schema)}
+                          >
+                            <Puzzle className="mr-2 h-4 w-4 text-muted-foreground" />
+                            {schema.label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
             )}
           </>
         )}
 
-        {!isLocked && onToggleLock && <div className="-mx-1 my-1 h-px bg-border" />}
+        {!isLocked && onToggleLock && <DropdownMenuSeparator />}
         {onToggleLock && (
-          <button
-            onClick={() => {
-              onToggleLock();
-              onClose();
-            }}
-            className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-          >
-            <span className="mr-2 text-muted-foreground">
-              {isLocked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-            </span>
+          <DropdownMenuItem onClick={onToggleLock}>
+            {isLocked ? (
+              <Unlock className="mr-2 h-4 w-4 text-muted-foreground" />
+            ) : (
+              <Lock className="mr-2 h-4 w-4 text-muted-foreground" />
+            )}
             {isLocked ? "Unlock Canvas" : "Lock Canvas"}
-          </button>
+          </DropdownMenuItem>
         )}
-      </div>
-    </>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
