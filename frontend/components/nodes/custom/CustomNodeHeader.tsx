@@ -46,7 +46,7 @@ const CustomNodeHeader = memo(
 
     return (
       <div
-        className={`px-${isExpanded ? "2" : "3"} py-${isExpanded ? "1.5" : "2"} flex items-center justify-between ${isExpanded ? "cursor-pointer" : ""} gap-2`}
+        className={`px-${isExpanded ? "2" : "3"} py-${isExpanded ? "1.5" : "2"} rounded-t-lg flex items-center justify-between ${isExpanded ? "cursor-pointer" : ""} gap-2`}
         style={{ backgroundColor: headerColor }}
         onDoubleClick={onToggleExpand}
       >
