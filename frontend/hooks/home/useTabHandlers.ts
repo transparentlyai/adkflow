@@ -203,9 +203,28 @@ export function useTabHandlers({
   const handleDuplicateTab = useCallback(
     async (tabId: string) => {
       if (!currentProjectPath) return;
-      await duplicateTabById(currentProjectPath, tabId);
+
+      // Save current tab's flow to cache before switching
+      if (canvasRef.current && loadedTabIdRef.current) {
+        const currentFlow = canvasRef.current.saveFlow();
+        if (currentFlow) {
+          tabFlowCacheRef.current.set(loadedTabIdRef.current, currentFlow);
+        }
+      }
+
+      const newTab = await duplicateTabById(currentProjectPath, tabId);
+      if (newTab) {
+        // Update loadedTabIdRef to the new duplicated tab
+        loadedTabIdRef.current = newTab.id;
+      }
     },
-    [currentProjectPath, duplicateTabById],
+    [
+      currentProjectPath,
+      canvasRef,
+      loadedTabIdRef,
+      tabFlowCacheRef,
+      duplicateTabById,
+    ],
   );
 
   return {
