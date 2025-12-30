@@ -1,15 +1,21 @@
-"""Tab/Page CRUD API routes."""
+"""Tab/Page CRUD API routes.
+
+Tabs are stored as metadata in manifest.json with nodes/edges at the root level.
+Each node has data.tabId to indicate which tab it belongs to.
+"""
 
 import json
+import uuid
 from pathlib import Path
-from typing import Any
 
 from fastapi import APIRouter, HTTPException, status, Query
 
 from backend.src.models.workflow import (
-    ReactFlowJSON,
+    ReactFlowEdge,
+    ReactFlowNode,
     TabMetadata,
     ProjectManifest,
+    Viewport,
 )
 from backend.src.api.routes.models import (
     TabListResponse,
@@ -20,7 +26,7 @@ from backend.src.api.routes.models import (
     TabRenameRequest,
     TabReorderRequest,
 )
-from backend.src.api.routes.helpers import generate_tab_id, get_default_flow
+from backend.src.api.routes.helpers import generate_tab_id
 
 router = APIRouter()
 
@@ -35,291 +41,186 @@ FILE_CONTENT_FIELDS = {
 }
 
 
-def strip_file_content_from_nodes(flow_data: dict[str, Any]) -> dict[str, Any]:
+def load_manifest(
+    project_path: Path, create_if_missing: bool = False
+) -> ProjectManifest:
+    """Load manifest.json from project path.
+
+    Args:
+        project_path: Path to project directory
+        create_if_missing: If True, create an empty manifest if it doesn't exist
+
+    Returns:
+        ProjectManifest
     """
-    Strip content/code fields from nodes that have file_path set.
+    manifest_file = project_path / "manifest.json"
+
+    if not manifest_file.exists():
+        if create_if_missing:
+            # Create project directory if needed
+            project_path.mkdir(parents=True, exist_ok=True)
+            # Return empty manifest (will be saved by caller)
+            return ProjectManifest(
+                name=project_path.name,
+                tabs=[],
+                nodes=[],
+                edges=[],
+            )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project manifest not found: {manifest_file}",
+        )
+
+    with open(manifest_file, "r", encoding="utf-8") as f:
+        manifest_data = json.load(f)
+
+    return ProjectManifest(**manifest_data)
+
+
+def save_manifest(project_path: Path, manifest: ProjectManifest) -> None:
+    """Save manifest.json to project path."""
+    manifest_file = project_path / "manifest.json"
+    with open(manifest_file, "w", encoding="utf-8") as f:
+        json.dump(manifest.model_dump(exclude_none=True), f, indent=2)
+
+
+def strip_file_content_from_nodes(nodes: list[ReactFlowNode]) -> list[ReactFlowNode]:
+    """Strip content/code fields from nodes that have file_path set.
 
     When a node has a file_path configured, the content should be loaded
     from the file at runtime rather than stored in the project JSON.
-    This prevents data duplication and ensures the file is the source of truth.
-
-    Args:
-        flow_data: The flow data dictionary containing nodes and edges.
-
-    Returns:
-        Modified flow data with content stripped from file-associated nodes.
     """
-    if "nodes" not in flow_data:
-        return flow_data
-
-    for node in flow_data["nodes"]:
-        node_type = node.get("type", "")
+    for node in nodes:
+        node_type = node.type
         content_field = FILE_CONTENT_FIELDS.get(node_type)
 
         if not content_field:
             continue
 
-        # Get config from node data
-        data = node.get("data", {})
-        config = data.get("config", {})
-
-        # If file_path is set and non-empty, remove the content field
+        config = node.data.get("config", {})
         file_path = config.get("file_path", "")
         if file_path and content_field in config:
             del config[content_field]
 
-    return flow_data
+    return nodes
 
 
 def populate_file_content_in_nodes(
-    flow_data: dict[str, Any], project_path: Path
-) -> dict[str, Any]:
-    """
-    Populate content/code fields from files for nodes that have file_path set.
-
-    When loading a tab, nodes with file_path need their content loaded from disk
-    so that the UI can display function signatures and other content-dependent features.
-
-    Args:
-        flow_data: The flow data dictionary containing nodes and edges.
-        project_path: The project root directory path.
-
-    Returns:
-        Modified flow data with content populated from files.
-    """
-    if "nodes" not in flow_data:
-        return flow_data
-
-    for node in flow_data["nodes"]:
-        node_type = node.get("type", "")
+    nodes: list[ReactFlowNode], project_path: Path
+) -> list[ReactFlowNode]:
+    """Populate content/code fields from files for nodes that have file_path set."""
+    for node in nodes:
+        node_type = node.type
         content_field = FILE_CONTENT_FIELDS.get(node_type)
 
         if not content_field:
             continue
 
-        # Get config from node data
-        data = node.get("data", {})
-        config = data.get("config", {})
-
-        # If file_path is set, load content from file
+        config = node.data.get("config", {})
         file_path = config.get("file_path", "")
         if not file_path:
             continue
 
-        # file_path may already include the directory (e.g., "prompts/file.prompt.md")
-        # or just the filename. Try the path as-is first, then with directory prefix.
-        full_path = (project_path / file_path).resolve()
+        # Try path as-is first, then with directory prefix
+        absolute_path = (project_path / file_path).resolve()
 
-        if not full_path.exists():
-            # Try with directory prefix based on node type
+        if not absolute_path.exists():
             if node_type in ("prompt", "context"):
-                # Try prompts/ first, then static/
-                full_path = (project_path / "prompts" / file_path).resolve()
-                if not full_path.exists():
-                    full_path = (project_path / "static" / file_path).resolve()
+                absolute_path = (project_path / "prompts" / file_path).resolve()
+                if not absolute_path.exists():
+                    absolute_path = (project_path / "static" / file_path).resolve()
             elif node_type in ("tool", "process"):
-                full_path = (project_path / "tools" / file_path).resolve()
+                absolute_path = (project_path / "tools" / file_path).resolve()
 
-        # Read content from file if it exists
-        if full_path.exists():
+        if absolute_path.exists():
             try:
-                content = full_path.read_text(encoding="utf-8")
+                content = absolute_path.read_text(encoding="utf-8")
                 config[content_field] = content
             except Exception:
-                # If file can't be read, leave content empty
                 pass
 
-    return flow_data
+    return nodes
 
 
 @router.get("/project/tabs", response_model=TabListResponse)
 async def list_tabs(
     path: str = Query(..., description="Project directory path"),
 ) -> TabListResponse:
+    """List all tabs in a project.
+
+    If the project doesn't have a manifest.json yet, returns empty list.
     """
-    List all tabs in a project.
+    project_path = Path(path).resolve()
+    manifest_file = project_path / "manifest.json"
 
-    Args:
-        path: Project directory path
+    if not manifest_file.exists():
+        # Return empty list for new projects - caller should create first tab
+        return TabListResponse(tabs=[], name=project_path.name)
 
-    Returns:
-        TabListResponse with list of tabs
-
-    Raises:
-        HTTPException: If read fails
-    """
-    try:
-        project_path = Path(path).resolve()
-        manifest_file = project_path / "manifest.json"
-
-        # Check if manifest.json exists
-        if manifest_file.exists():
-            # Load manifest
-            with open(manifest_file, "r", encoding="utf-8") as f:
-                manifest_data = json.load(f)
-            manifest = ProjectManifest(**manifest_data)
-            return TabListResponse(tabs=manifest.tabs, name=manifest.name)
-
-        # Check for legacy flow.json and migrate
-        legacy_flow_file = project_path / "flow.json"
-        if legacy_flow_file.exists():
-            # Perform migration
-            # 1. Generate a tab ID for the legacy flow
-            tab_id = generate_tab_id()
-
-            # 2. Create pages directory
-            pages_dir = project_path / "pages"
-            pages_dir.mkdir(exist_ok=True)
-
-            # 3. Move flow.json to pages/page-{id}.json
-            new_flow_file = pages_dir / f"{tab_id}.json"
-            with open(legacy_flow_file, "r", encoding="utf-8") as f:
-                flow_data = f.read()
-            with open(new_flow_file, "w", encoding="utf-8") as f:
-                f.write(flow_data)
-
-            # 4. Delete old flow.json
-            legacy_flow_file.unlink()
-
-            # 5. Create manifest.json
-            tab = TabMetadata(id=tab_id, name="Flow 1", order=0)
-            manifest = ProjectManifest(version="2.0", tabs=[tab])
-            with open(manifest_file, "w", encoding="utf-8") as f:
-                json.dump(manifest.model_dump(exclude_none=True), f, indent=2)
-
-            return TabListResponse(tabs=manifest.tabs)
-
-        # No manifest or legacy flow - return empty list
-        return TabListResponse(tabs=[])
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list tabs: {str(e)}",
-        )
+    manifest = load_manifest(project_path)
+    return TabListResponse(tabs=manifest.tabs, name=manifest.name)
 
 
 @router.post("/project/tabs", response_model=TabCreateResponse)
 async def create_tab(request: TabCreateRequest) -> TabCreateResponse:
+    """Create a new tab in the project.
+
+    If the project doesn't have a manifest.json yet, one will be created.
     """
-    Create a new tab in the project.
+    project_path = Path(request.project_path).resolve()
+    manifest = load_manifest(project_path, create_if_missing=True)
 
-    Args:
-        request: Tab creation request with project path and name
+    # Generate new tab ID
+    tab_id = generate_tab_id()
 
-    Returns:
-        TabCreateResponse with new tab metadata
+    # Create new tab metadata with default viewport
+    order = len(manifest.tabs)
+    new_tab = TabMetadata(
+        id=tab_id,
+        name=request.name,
+        order=order,
+        viewport=Viewport(),
+    )
 
-    Raises:
-        HTTPException: If creation fails
-    """
-    try:
-        project_path = Path(request.project_path).resolve()
-        manifest_file = project_path / "manifest.json"
-        pages_dir = project_path / "pages"
+    # Add tab to manifest
+    manifest.tabs.append(new_tab)
 
-        # Create pages directory if it doesn't exist
-        pages_dir.mkdir(parents=True, exist_ok=True)
+    # Save manifest
+    save_manifest(project_path, manifest)
 
-        # Generate new tab ID
-        tab_id = generate_tab_id()
-
-        # Load or create manifest
-        if manifest_file.exists():
-            with open(manifest_file, "r", encoding="utf-8") as f:
-                manifest_data = json.load(f)
-            manifest = ProjectManifest(**manifest_data)
-        else:
-            manifest = ProjectManifest(version="2.0", tabs=[])
-
-        # Create new tab metadata
-        order = len(manifest.tabs)
-        new_tab = TabMetadata(id=tab_id, name=request.name, order=order)
-
-        # Create empty flow file for the tab
-        tab_file = pages_dir / f"{tab_id}.json"
-        default_flow = get_default_flow()
-        with open(tab_file, "w", encoding="utf-8") as f:
-            json.dump(default_flow.model_dump(exclude_none=True), f, indent=2)
-
-        # Add tab to manifest
-        manifest.tabs.append(new_tab)
-
-        # Save manifest
-        with open(manifest_file, "w", encoding="utf-8") as f:
-            json.dump(manifest.model_dump(exclude_none=True), f, indent=2)
-
-        return TabCreateResponse(tab=new_tab)
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create tab: {str(e)}",
-        )
+    return TabCreateResponse(tab=new_tab)
 
 
 @router.put("/project/tabs/reorder")
 async def reorder_tabs(request: TabReorderRequest) -> dict:
-    """
-    Reorder tabs in the project.
+    """Reorder tabs in the project."""
+    project_path = Path(request.project_path).resolve()
+    manifest = load_manifest(project_path)
 
-    Args:
-        request: Tab reorder request with ordered list of tab IDs
+    # Validate all tab IDs exist
+    existing_ids = {tab.id for tab in manifest.tabs}
+    request_ids = set(request.tab_ids)
 
-    Returns:
-        Success response
-
-    Raises:
-        HTTPException: If reorder fails
-    """
-    try:
-        project_path = Path(request.project_path).resolve()
-        manifest_file = project_path / "manifest.json"
-
-        if not manifest_file.exists():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project manifest not found",
-            )
-
-        # Load manifest
-        with open(manifest_file, "r", encoding="utf-8") as f:
-            manifest_data = json.load(f)
-        manifest = ProjectManifest(**manifest_data)
-
-        # Validate all tab IDs exist
-        existing_ids = {tab.id for tab in manifest.tabs}
-        request_ids = set(request.tab_ids)
-
-        if existing_ids != request_ids:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Tab ID mismatch: provided IDs don't match existing tabs",
-            )
-
-        # Create a mapping of tab ID to tab
-        tab_map = {tab.id: tab for tab in manifest.tabs}
-
-        # Reorder tabs based on the provided order
-        manifest.tabs = [tab_map[tab_id] for tab_id in request.tab_ids]
-
-        # Update order field
-        for i, tab in enumerate(manifest.tabs):
-            tab.order = i
-
-        # Save manifest
-        with open(manifest_file, "w", encoding="utf-8") as f:
-            json.dump(manifest.model_dump(exclude_none=True), f, indent=2)
-
-        return {"success": True, "message": "Tabs reordered successfully"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
+    if existing_ids != request_ids:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to reorder tabs: {str(e)}",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tab ID mismatch: provided IDs don't match existing tabs",
         )
+
+    # Create a mapping of tab ID to tab
+    tab_map = {tab.id: tab for tab in manifest.tabs}
+
+    # Reorder tabs based on the provided order
+    manifest.tabs = [tab_map[tab_id] for tab_id in request.tab_ids]
+
+    # Update order field
+    for i, tab in enumerate(manifest.tabs):
+        tab.order = i
+
+    # Save manifest
+    save_manifest(project_path, manifest)
+
+    return {"success": True, "message": "Tabs reordered successfully"}
 
 
 @router.get("/project/tabs/{tab_id}", response_model=TabLoadResponse)
@@ -327,47 +228,25 @@ async def load_tab(
     tab_id: str,
     path: str = Query(..., description="Project directory path"),
 ) -> TabLoadResponse:
-    """
-    Load a tab's flow data.
+    """Load a tab's flow data."""
+    project_path = Path(path).resolve()
+    manifest = load_manifest(project_path)
 
-    Args:
-        tab_id: Tab identifier
-        path: Project directory path
-
-    Returns:
-        TabLoadResponse with flow data
-
-    Raises:
-        HTTPException: If tab not found or read fails
-    """
-    try:
-        project_path = Path(path).resolve()
-        tab_file = project_path / "pages" / f"{tab_id}.json"
-
-        if not tab_file.exists():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tab file not found: {tab_id}",
-            )
-
-        # Read flow data
-        with open(tab_file, "r", encoding="utf-8") as f:
-            flow_data = json.load(f)
-
-        # Populate file content for nodes with file_path
-        flow_data = populate_file_content_in_nodes(flow_data, project_path)
-
-        flow = ReactFlowJSON(**flow_data)
-
-        return TabLoadResponse(flow=flow)
-
-    except HTTPException:
-        raise
-    except Exception as e:
+    # Check if tab exists
+    tab = manifest.get_tab(tab_id)
+    if not tab:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to load tab: {str(e)}",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Tab not found: {tab_id}",
         )
+
+    # Get flow for this tab
+    flow = manifest.get_flow_for_tab(tab_id)
+
+    # Populate file content for nodes with file_path
+    flow.nodes = populate_file_content_in_nodes(flow.nodes, project_path)
+
+    return TabLoadResponse(flow=flow)
 
 
 @router.put("/project/tabs/{tab_id}")
@@ -375,52 +254,32 @@ async def save_tab(
     tab_id: str,
     request: TabSaveRequest,
 ) -> dict:
-    """
-    Save a tab's flow data.
+    """Save a tab's flow data."""
+    project_path = Path(request.project_path).resolve()
+    manifest = load_manifest(project_path)
 
-    Args:
-        tab_id: Tab identifier
-        request: Tab save request with flow data
-
-    Returns:
-        Success response
-
-    Raises:
-        HTTPException: If save fails
-    """
-    try:
-        project_path = Path(request.project_path).resolve()
-        pages_dir = project_path / "pages"
-
-        # Create pages directory if it doesn't exist
-        pages_dir.mkdir(parents=True, exist_ok=True)
-
-        tab_file = pages_dir / f"{tab_id}.json"
-
-        # Write flow data, stripping file content from nodes with file_path
-        flow_json = request.flow.model_dump(exclude_none=True)
-        flow_json = strip_file_content_from_nodes(flow_json)
-        with open(tab_file, "w", encoding="utf-8") as f:
-            json.dump(flow_json, f, indent=2)
-
-        # Update project name in manifest if provided
-        if request.project_name is not None:
-            manifest_file = project_path / "manifest.json"
-            if manifest_file.exists():
-                with open(manifest_file, "r", encoding="utf-8") as f:
-                    manifest_data = json.load(f)
-                manifest = ProjectManifest(**manifest_data)
-                manifest.name = request.project_name
-                with open(manifest_file, "w", encoding="utf-8") as f:
-                    json.dump(manifest.model_dump(exclude_none=True), f, indent=2)
-
-        return {"success": True, "message": f"Tab {tab_id} saved successfully"}
-
-    except Exception as e:
+    # Check if tab exists
+    tab = manifest.get_tab(tab_id)
+    if not tab:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to save tab: {str(e)}",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Tab not found: {tab_id}",
         )
+
+    # Strip file content from nodes before saving
+    strip_file_content_from_nodes(request.flow.nodes)
+
+    # Update flow for this tab
+    manifest.update_flow_for_tab(tab_id, request.flow)
+
+    # Update project name if provided
+    if request.project_name is not None:
+        manifest.name = request.project_name
+
+    # Save manifest
+    save_manifest(project_path, manifest)
+
+    return {"success": True, "message": f"Tab {tab_id} saved successfully"}
 
 
 @router.delete("/project/tabs/{tab_id}")
@@ -428,75 +287,44 @@ async def delete_tab(
     tab_id: str,
     path: str = Query(..., description="Project directory path"),
 ) -> dict:
-    """
-    Delete a tab from the project.
+    """Delete a tab from the project."""
+    project_path = Path(path).resolve()
+    manifest = load_manifest(project_path)
 
-    Args:
-        tab_id: Tab identifier
-        path: Project directory path
-
-    Returns:
-        Success response
-
-    Raises:
-        HTTPException: If tab not found, is last tab, or delete fails
-    """
-    try:
-        project_path = Path(path).resolve()
-        manifest_file = project_path / "manifest.json"
-
-        if not manifest_file.exists():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project manifest not found",
-            )
-
-        # Load manifest
-        with open(manifest_file, "r", encoding="utf-8") as f:
-            manifest_data = json.load(f)
-        manifest = ProjectManifest(**manifest_data)
-
-        # Check if this is the only tab
-        if len(manifest.tabs) <= 1:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot delete the last remaining tab",
-            )
-
-        # Find and remove the tab
-        tab_index = next(
-            (i for i, t in enumerate(manifest.tabs) if t.id == tab_id), None
-        )
-        if tab_index is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tab not found: {tab_id}",
-            )
-
-        manifest.tabs.pop(tab_index)
-
-        # Reorder remaining tabs
-        for i, tab in enumerate(manifest.tabs):
-            tab.order = i
-
-        # Save manifest
-        with open(manifest_file, "w", encoding="utf-8") as f:
-            json.dump(manifest.model_dump(exclude_none=True), f, indent=2)
-
-        # Delete tab file
-        tab_file = project_path / "pages" / f"{tab_id}.json"
-        if tab_file.exists():
-            tab_file.unlink()
-
-        return {"success": True, "message": f"Tab {tab_id} deleted successfully"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
+    # Check if this is the only tab
+    if len(manifest.tabs) <= 1:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete tab: {str(e)}",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete the last remaining tab",
         )
+
+    # Find and remove the tab
+    tab_index = next((i for i, t in enumerate(manifest.tabs) if t.id == tab_id), None)
+    if tab_index is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Tab not found: {tab_id}",
+        )
+
+    manifest.tabs.pop(tab_index)
+
+    # Reorder remaining tabs
+    for i, tab in enumerate(manifest.tabs):
+        tab.order = i
+
+    # Remove nodes and edges for this tab
+    node_ids = {n.id for n in manifest.get_nodes_for_tab(tab_id)}
+    manifest.nodes = [n for n in manifest.nodes if n.data.get("tabId") != tab_id]
+    manifest.edges = [
+        e
+        for e in manifest.edges
+        if e.source not in node_ids and e.target not in node_ids
+    ]
+
+    # Save manifest
+    save_manifest(project_path, manifest)
+
+    return {"success": True, "message": f"Tab {tab_id} deleted successfully"}
 
 
 @router.patch("/project/tabs/{tab_id}/rename")
@@ -504,57 +332,24 @@ async def rename_tab(
     tab_id: str,
     request: TabRenameRequest,
 ) -> dict:
-    """
-    Rename a tab.
+    """Rename a tab."""
+    project_path = Path(request.project_path).resolve()
+    manifest = load_manifest(project_path)
 
-    Args:
-        tab_id: Tab identifier
-        request: Tab rename request with new name
-
-    Returns:
-        Success response
-
-    Raises:
-        HTTPException: If tab not found or rename fails
-    """
-    try:
-        project_path = Path(request.project_path).resolve()
-        manifest_file = project_path / "manifest.json"
-
-        if not manifest_file.exists():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project manifest not found",
-            )
-
-        # Load manifest
-        with open(manifest_file, "r", encoding="utf-8") as f:
-            manifest_data = json.load(f)
-        manifest = ProjectManifest(**manifest_data)
-
-        # Find and rename the tab
-        tab = next((t for t in manifest.tabs if t.id == tab_id), None)
-        if tab is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tab not found: {tab_id}",
-            )
-
-        tab.name = request.name
-
-        # Save manifest
-        with open(manifest_file, "w", encoding="utf-8") as f:
-            json.dump(manifest.model_dump(exclude_none=True), f, indent=2)
-
-        return {"success": True, "message": f"Tab {tab_id} renamed to '{request.name}'"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
+    # Find and rename the tab
+    tab = manifest.get_tab(tab_id)
+    if tab is None:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to rename tab: {str(e)}",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Tab not found: {tab_id}",
         )
+
+    tab.name = request.name
+
+    # Save manifest
+    save_manifest(project_path, manifest)
+
+    return {"success": True, "message": f"Tab {tab_id} renamed to '{request.name}'"}
 
 
 @router.post("/project/tabs/{tab_id}/duplicate", response_model=TabCreateResponse)
@@ -562,81 +357,83 @@ async def duplicate_tab(
     tab_id: str,
     path: str = Query(..., description="Project directory path"),
 ) -> TabCreateResponse:
-    """
-    Duplicate an existing tab.
+    """Duplicate an existing tab."""
+    project_path = Path(path).resolve()
+    manifest = load_manifest(project_path)
 
-    Args:
-        tab_id: Tab identifier to duplicate
-        path: Project directory path
-
-    Returns:
-        TabCreateResponse with new tab metadata
-
-    Raises:
-        HTTPException: If tab not found or duplication fails
-    """
-    try:
-        project_path = Path(path).resolve()
-        manifest_file = project_path / "manifest.json"
-        pages_dir = project_path / "pages"
-
-        if not manifest_file.exists():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project manifest not found",
-            )
-
-        # Load manifest
-        with open(manifest_file, "r", encoding="utf-8") as f:
-            manifest_data = json.load(f)
-        manifest = ProjectManifest(**manifest_data)
-
-        # Find the source tab
-        source_tab = next((t for t in manifest.tabs if t.id == tab_id), None)
-        if source_tab is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tab not found: {tab_id}",
-            )
-
-        # Read source tab flow
-        source_file = pages_dir / f"{tab_id}.json"
-        if not source_file.exists():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tab file not found: {tab_id}",
-            )
-
-        with open(source_file, "r", encoding="utf-8") as f:
-            flow_data = f.read()
-
-        # Generate new tab ID
-        new_tab_id = generate_tab_id()
-
-        # Create new tab metadata
-        order = len(manifest.tabs)
-        new_tab = TabMetadata(
-            id=new_tab_id, name=f"{source_tab.name} (Copy)", order=order
-        )
-
-        # Copy flow file
-        new_file = pages_dir / f"{new_tab_id}.json"
-        with open(new_file, "w", encoding="utf-8") as f:
-            f.write(flow_data)
-
-        # Add tab to manifest
-        manifest.tabs.append(new_tab)
-
-        # Save manifest
-        with open(manifest_file, "w", encoding="utf-8") as f:
-            json.dump(manifest.model_dump(exclude_none=True), f, indent=2)
-
-        return TabCreateResponse(tab=new_tab)
-
-    except HTTPException:
-        raise
-    except Exception as e:
+    # Find the source tab
+    source_tab = manifest.get_tab(tab_id)
+    if source_tab is None:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to duplicate tab: {str(e)}",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Tab not found: {tab_id}",
         )
+
+    # Generate new tab ID
+    new_tab_id = generate_tab_id()
+
+    # Create new tab metadata
+    order = len(manifest.tabs)
+    new_tab = TabMetadata(
+        id=new_tab_id,
+        name=f"{source_tab.name} (Copy)",
+        order=order,
+        viewport=Viewport(
+            x=source_tab.viewport.x,
+            y=source_tab.viewport.y,
+            zoom=source_tab.viewport.zoom,
+        ),
+    )
+
+    # Copy nodes with new IDs and new tabId
+    source_nodes = manifest.get_nodes_for_tab(tab_id)
+    source_edges = manifest.get_edges_for_tab(tab_id)
+
+    # Create ID mapping for node duplication
+    id_map: dict[str, str] = {}
+    new_nodes: list[ReactFlowNode] = []
+
+    for node in source_nodes:
+        new_id = f"{node.type}_{uuid.uuid4().hex[:8]}"
+        id_map[node.id] = new_id
+
+        # Deep copy the node data and update tabId
+        new_data = dict(node.data)
+        new_data["tabId"] = new_tab_id
+
+        new_node = ReactFlowNode(
+            id=new_id,
+            type=node.type,
+            position=dict(node.position),
+            data=new_data,
+            parentId=id_map.get(node.parentId) if node.parentId else None,
+            extent=node.extent,
+            style=dict(node.style) if node.style else None,
+            measured=dict(node.measured) if node.measured else None,
+        )
+        new_nodes.append(new_node)
+
+    # Copy edges with updated node references
+    new_edges: list[ReactFlowEdge] = []
+    for edge in source_edges:
+        if edge.source in id_map and edge.target in id_map:
+            new_edge = ReactFlowEdge(
+                id=f"e_{uuid.uuid4().hex[:8]}",
+                source=id_map[edge.source],
+                target=id_map[edge.target],
+                sourceHandle=edge.sourceHandle,
+                targetHandle=edge.targetHandle,
+                animated=edge.animated,
+                style=dict(edge.style) if edge.style else None,
+            )
+            new_edges.append(new_edge)
+
+    # Add to manifest
+    manifest.tabs.append(new_tab)
+    manifest.nodes.extend(new_nodes)
+    manifest.edges.extend(new_edges)
+
+    # Save manifest
+    save_manifest(project_path, manifest)
+
+    return TabCreateResponse(tab=new_tab)

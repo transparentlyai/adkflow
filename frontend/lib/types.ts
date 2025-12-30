@@ -333,10 +333,17 @@ export interface DirectoryCreateResponse {
 }
 
 // Tab/Page types for multi-tab support
+export interface Viewport {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
 export interface TabMetadata {
   id: string;
   name: string;
   order: number;
+  viewport: Viewport;
 }
 
 export interface TabState extends TabMetadata {

@@ -328,7 +328,7 @@ def validate_command(project_path: str, output_format: str):
     """Validate an ADKFlow workflow without executing it.
 
     Checks for:
-    - Valid project structure (manifest.json, pages/)
+    - Valid project structure (manifest.json with nodes, edges, tabs)
     - Missing file references (prompts, tools)
     - Cycles in sequential flow
     - Invalid agent configurations

@@ -1,10 +1,12 @@
 """Project file loader.
 
 Loads all files needed for compilation:
-- manifest.json: Project metadata and tab list
-- pages/*.json: ReactFlow JSON for each tab
+- manifest.json: Project metadata, tabs, nodes, and edges (v3.0 format)
 - prompts/*.prompt.md: Prompt templates
 - tools/*.py: Tool implementations
+
+In v3.0 format, all nodes and edges are stored in manifest.json.
+Each node has data.tabId to indicate which tab it belongs to.
 """
 
 import json
@@ -43,7 +45,7 @@ class LoadedTool:
 
 @dataclass
 class LoadedTab:
-    """A loaded tab (page) with its ReactFlow data."""
+    """A loaded tab with its ReactFlow data."""
 
     id: str
     name: str
@@ -108,14 +110,14 @@ class ProjectLoader:
         # Load manifest
         manifest = self._load_manifest(project_path)
 
-        # Load tabs
-        tabs = self._load_tabs(project_path, manifest)
+        # Load tabs from manifest (nodes filtered by tabId)
+        tabs = self._load_tabs(manifest)
 
         # Create project
         project = LoadedProject(
             path=project_path,
             name=manifest.get("name", "Untitled"),
-            version=manifest.get("version", "2.0"),
+            version=manifest.get("version", "3.0"),
             tabs=tabs,
         )
 
@@ -130,14 +132,6 @@ class ProjectLoader:
         manifest_path = project_path / "manifest.json"
 
         if not manifest_path.exists():
-            # Check for legacy flow.json
-            legacy_path = project_path / "flow.json"
-            if legacy_path.exists():
-                raise CompilationError(
-                    "Project uses legacy format (flow.json). "
-                    "Please open in the UI to migrate to v2.0 format.",
-                    location=ErrorLocation(file_path=str(legacy_path)),
-                )
             raise CompilationError(
                 f"No manifest.json found in project: {project_path}",
                 location=ErrorLocation(file_path=str(manifest_path)),
@@ -152,45 +146,48 @@ class ProjectLoader:
                 location=ErrorLocation(file_path=str(manifest_path), line=e.lineno),
             ) from e
 
-    def _load_tabs(
-        self, project_path: Path, manifest: dict[str, Any]
-    ) -> list[LoadedTab]:
-        """Load all tab files."""
+    def _load_tabs(self, manifest: dict[str, Any]) -> list[LoadedTab]:
+        """Load all tabs from manifest (v3.0 format).
+
+        In v3.0, nodes and edges are at the manifest root level.
+        Each node has data.tabId to indicate which tab it belongs to.
+        """
         tabs: list[LoadedTab] = []
-        pages_dir = project_path / "pages"
-
-        if not pages_dir.exists():
-            raise CompilationError(
-                "No pages directory found in project",
-                location=ErrorLocation(file_path=str(pages_dir)),
-            )
-
         tab_metadata = manifest.get("tabs", [])
+
         if not tab_metadata:
             raise CompilationError("No tabs defined in manifest.json")
+
+        # Get all nodes and edges from manifest
+        all_nodes = manifest.get("nodes", [])
+        all_edges = manifest.get("edges", [])
 
         for tab_info in sorted(tab_metadata, key=lambda t: t.get("order", 0)):
             tab_id = tab_info.get("id")
             if not tab_id:
                 continue
 
-            tab_file = pages_dir / f"{tab_id}.json"
-            if not tab_file.exists():
-                raise CompilationError(
-                    f"Tab file not found: {tab_file}",
-                    location=ErrorLocation(tab_id=tab_id, file_path=str(tab_file)),
-                )
+            # Filter nodes by tabId
+            tab_nodes = [
+                n for n in all_nodes if n.get("data", {}).get("tabId") == tab_id
+            ]
 
-            try:
-                with open(tab_file, encoding="utf-8") as f:
-                    flow_data = json.load(f)
-            except json.JSONDecodeError as e:
-                raise CompilationError(
-                    f"Invalid JSON in tab file: {e}",
-                    location=ErrorLocation(
-                        tab_id=tab_id, file_path=str(tab_file), line=e.lineno
-                    ),
-                ) from e
+            # Filter edges - both source and target must be in this tab
+            node_ids = {n["id"] for n in tab_nodes}
+            tab_edges = [
+                e
+                for e in all_edges
+                if e.get("source") in node_ids and e.get("target") in node_ids
+            ]
+
+            # Get viewport from tab metadata
+            viewport = tab_info.get("viewport", {"x": 0, "y": 0, "zoom": 1})
+
+            flow_data = {
+                "nodes": tab_nodes,
+                "edges": tab_edges,
+                "viewport": viewport,
+            }
 
             tabs.append(
                 LoadedTab(

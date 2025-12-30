@@ -202,8 +202,8 @@ Project data is persisted via API calls:
 
 | State | API | Storage |
 |-------|-----|---------|
-| Tabs | `/api/project/tabs` | `manifest.json` + `pages/` |
-| Workflows | `/api/project/tabs/{id}` | `pages/{id}.json` |
+| Tabs | `/api/project/tabs` | `manifest.json` (tabs metadata) |
+| Workflows | `/api/project/tabs/{id}` | `manifest.json` (nodes/edges filtered by tabId) |
 | Prompts | `/api/project/prompt/save` | `prompts/` |
 
 ## Best Practices

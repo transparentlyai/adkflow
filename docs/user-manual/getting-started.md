@@ -108,9 +108,7 @@ When you create a project, ADKFlow creates:
 
 ```
 my-project/
-├── manifest.json          # Project metadata
-├── pages/                 # Workflow tabs
-│   └── main.json          # Default tab
+├── manifest.json          # Project data (tabs, nodes, edges, settings)
 ├── prompts/               # Prompt markdown files
 ├── static/                # Context files
 └── tools/                 # Python tool files

@@ -40,9 +40,9 @@ ADKFlow supports **two locations** for custom nodes:
 ├── adkflow_extensions/
 │   ├── __init__.py
 │   └── project_nodes.py         # Only for this project
+├── manifest.json
 ├── prompts/
-├── tools/
-└── pages/
+└── tools/
 ```
 
 ### Precedence Rules
@@ -91,9 +91,9 @@ your-project/
 │   └── my_extension/
 │       ├── __init__.py
 │       └── nodes.py
+├── manifest.json
 ├── prompts/
-├── tools/
-└── pages/
+└── tools/
 ```
 
 **For shared/global nodes:**

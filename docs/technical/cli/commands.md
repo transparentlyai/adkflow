@@ -256,7 +256,7 @@ adkflow validate . --format yaml
 ```
 
 **Checks:**
-- Valid project structure (`manifest.json`, `pages/`)
+- Valid project structure (`manifest.json` with nodes, edges, tabs)
 - Missing file references (prompts, tools, contexts)
 - Cycles in sequential flow
 - Invalid agent configurations

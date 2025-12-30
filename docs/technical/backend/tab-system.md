@@ -7,18 +7,35 @@ Multi-tab workflow support in ADKFlow.
 The tab system allows multiple workflows within a single project:
 - Each tab has its own canvas and workflow
 - Tabs share project resources (prompts, contexts, tools)
-- Tab metadata is stored in manifest.json
-- Tab workflows are stored in pages/
+- All tabs, nodes, and edges stored in a single `manifest.json` file
+- Each node references its tab via `data.tabId`
 
-## Architecture
+## Architecture (v3.0)
 
 ```
 Project
-├── manifest.json (tab metadata)
-└── pages/
-    ├── {tab_id_1}.json (workflow)
-    ├── {tab_id_2}.json (workflow)
-    └── {tab_id_3}.json (workflow)
+└── manifest.json (tabs, nodes, edges, settings)
+```
+
+### manifest.json Structure
+
+```json
+{
+  "version": "3.0",
+  "name": "My Workflow",
+  "tabs": [
+    { "id": "tab_abc123", "name": "Main", "order": 0, "viewport": { "x": 0, "y": 0, "zoom": 1 } },
+    { "id": "tab_def456", "name": "Helpers", "order": 1, "viewport": { "x": 100, "y": 50, "zoom": 0.8 } }
+  ],
+  "nodes": [
+    { "id": "node1", "type": "agent", "data": { "tabId": "tab_abc123", "config": {...} }, ... },
+    { "id": "node2", "type": "prompt", "data": { "tabId": "tab_abc123", "config": {...} }, ... }
+  ],
+  "edges": [
+    { "id": "e1", "source": "node1", "target": "node2", ... }
+  ],
+  "settings": { "defaultModel": "gemini-2.5-flash" }
+}
 ```
 
 ## Tab Operations
@@ -31,200 +48,112 @@ Project
 @router.get("/project/tabs")
 async def list_tabs(project_path: str) -> TabListResponse:
     manifest = load_manifest(project_path)
-    return TabListResponse(tabs=manifest["tabs"])
+    return TabListResponse(tabs=manifest.tabs, name=manifest.name)
 ```
 
 ### Create Tab
 
 ```python
 @router.post("/project/tabs")
-async def create_tab(request: CreateTabRequest) -> TabMetadata:
-    project_path = Path(request.project_path)
+async def create_tab(request: TabCreateRequest) -> TabCreateResponse:
+    manifest = load_manifest(project_path, create_if_missing=True)
 
-    # Generate unique ID
-    tab_id = str(uuid.uuid4())[:8]
-
-    # Determine order
-    manifest = load_manifest(project_path)
-    order = max((t["order"] for t in manifest["tabs"]), default=-1) + 1
-
-    # Add to manifest
-    new_tab = {
-        "id": tab_id,
-        "name": request.name or f"Tab {order + 1}",
-        "order": order,
-    }
-    manifest["tabs"].append(new_tab)
+    new_tab = TabMetadata(
+        id=generate_tab_id(),
+        name=request.name,
+        order=len(manifest.tabs),
+        viewport=Viewport(),
+    )
+    manifest.tabs.append(new_tab)
     save_manifest(project_path, manifest)
 
-    # Create empty workflow
-    empty_workflow = {"nodes": [], "edges": [], "viewport": {"x": 0, "y": 0, "zoom": 1}}
-    (project_path / "pages" / f"{tab_id}.json").write_text(
-        json.dumps(empty_workflow)
-    )
-
-    return TabMetadata(**new_tab)
+    return TabCreateResponse(tab=new_tab)
 ```
 
 ### Load Tab
 
 ```python
 @router.get("/project/tabs/{tab_id}")
-async def load_tab(tab_id: str, project_path: str) -> ReactFlowJSON:
-    tab_path = Path(project_path) / "pages" / f"{tab_id}.json"
-
-    if not tab_path.exists():
-        raise HTTPException(404, "Tab not found")
-
-    workflow = json.loads(tab_path.read_text())
-    return ReactFlowJSON(**workflow)
+async def load_tab(tab_id: str, project_path: str) -> TabLoadResponse:
+    manifest = load_manifest(project_path)
+    flow = manifest.get_flow_for_tab(tab_id)  # Filters nodes/edges by tabId
+    return TabLoadResponse(flow=flow)
 ```
 
 ### Save Tab
 
 ```python
 @router.put("/project/tabs/{tab_id}")
-async def save_tab(tab_id: str, request: SaveTabRequest) -> None:
-    project_path = Path(request.project_path)
-    tab_path = project_path / "pages" / f"{tab_id}.json"
-
-    workflow_json = request.workflow.model_dump()
-    tab_path.write_text(json.dumps(workflow_json, indent=2))
+async def save_tab(tab_id: str, request: TabSaveRequest) -> dict:
+    manifest = load_manifest(project_path)
+    manifest.update_flow_for_tab(tab_id, request.flow)
+    save_manifest(project_path, manifest)
 ```
 
 ### Delete Tab
 
 ```python
 @router.delete("/project/tabs/{tab_id}")
-async def delete_tab(tab_id: str, project_path: str) -> None:
-    project_path = Path(project_path)
-
-    # Remove from manifest
-    manifest = load_manifest(project_path)
-    manifest["tabs"] = [t for t in manifest["tabs"] if t["id"] != tab_id]
-
-    # Prevent deleting last tab
-    if len(manifest["tabs"]) == 0:
-        raise HTTPException(400, "Cannot delete last tab")
-
-    save_manifest(project_path, manifest)
-
-    # Delete workflow file
-    tab_path = project_path / "pages" / f"{tab_id}.json"
-    if tab_path.exists():
-        tab_path.unlink()
-```
-
-### Rename Tab
-
-```python
-@router.patch("/project/tabs/{tab_id}/rename")
-async def rename_tab(tab_id: str, request: RenameTabRequest) -> None:
-    project_path = Path(request.project_path)
+async def delete_tab(tab_id: str, project_path: str) -> dict:
     manifest = load_manifest(project_path)
 
-    for tab in manifest["tabs"]:
-        if tab["id"] == tab_id:
-            tab["name"] = request.name
-            break
-    else:
-        raise HTTPException(404, "Tab not found")
+    # Remove tab metadata
+    manifest.tabs = [t for t in manifest.tabs if t.id != tab_id]
+
+    # Remove nodes with this tabId
+    manifest.nodes = [n for n in manifest.nodes if n.data.get("tabId") != tab_id]
+
+    # Remove edges for deleted nodes
+    node_ids = {n.id for n in manifest.get_nodes_for_tab(tab_id)}
+    manifest.edges = [e for e in manifest.edges
+                      if e.source not in node_ids and e.target not in node_ids]
 
     save_manifest(project_path, manifest)
 ```
 
 ### Duplicate Tab
 
-```python
-@router.post("/project/tabs/{tab_id}/duplicate")
-async def duplicate_tab(tab_id: str, request: DuplicateTabRequest) -> TabMetadata:
-    project_path = Path(request.project_path)
-
-    # Load source tab
-    source_path = project_path / "pages" / f"{tab_id}.json"
-    workflow = json.loads(source_path.read_text())
-
-    # Find source name
-    manifest = load_manifest(project_path)
-    source_tab = next((t for t in manifest["tabs"] if t["id"] == tab_id), None)
-    source_name = source_tab["name"] if source_tab else "Tab"
-
-    # Create new tab with copied workflow
-    new_id = str(uuid.uuid4())[:8]
-    new_name = f"{source_name} (Copy)"
-    order = max((t["order"] for t in manifest["tabs"]), default=-1) + 1
-
-    new_tab = {"id": new_id, "name": new_name, "order": order}
-    manifest["tabs"].append(new_tab)
-    save_manifest(project_path, manifest)
-
-    # Copy workflow
-    (project_path / "pages" / f"{new_id}.json").write_text(
-        json.dumps(workflow, indent=2)
-    )
-
-    return TabMetadata(**new_tab)
-```
+Copies all nodes/edges with new IDs and updates tabId references.
 
 ### Reorder Tabs
 
+Updates the `order` field on each tab metadata entry.
+
+## ProjectManifest Model
+
+**Location**: `models/workflow.py`
+
 ```python
-@router.put("/project/tabs/reorder")
-async def reorder_tabs(request: ReorderTabsRequest) -> None:
-    project_path = Path(request.project_path)
-    manifest = load_manifest(project_path)
+class ProjectManifest(BaseModel):
+    version: str = "3.0"
+    name: str
+    tabs: list[TabMetadata]
+    nodes: list[ReactFlowNode]
+    edges: list[ReactFlowEdge]
+    settings: ProjectSettings
 
-    # Create order mapping
-    order_map = {tab_id: idx for idx, tab_id in enumerate(request.tab_ids)}
+    def get_flow_for_tab(self, tab_id: str) -> ReactFlowJSON:
+        """Get nodes/edges for a specific tab."""
 
-    # Update orders
-    for tab in manifest["tabs"]:
-        if tab["id"] in order_map:
-            tab["order"] = order_map[tab["id"]]
-
-    # Sort by order
-    manifest["tabs"].sort(key=lambda t: t["order"])
-
-    save_manifest(project_path, manifest)
+    def update_flow_for_tab(self, tab_id: str, flow: ReactFlowJSON) -> None:
+        """Replace nodes/edges for a tab."""
 ```
 
 ## Tab ID Generation
 
-Tab IDs are short UUIDs for filesystem compatibility:
+Tab IDs use timestamp + random suffix for uniqueness:
 
 ```python
 def generate_tab_id() -> str:
-    return str(uuid.uuid4())[:8]  # e.g., "a1b2c3d4"
+    return f"page_{int(time.time())}_{uuid.uuid4().hex[:8]}"
 ```
 
-## Legacy Support
+## Frontend Caching
 
-Projects with only `flow.json` are automatically migrated:
-
-```python
-def ensure_tabs_structure(project_path: Path) -> dict:
-    manifest_path = project_path / "manifest.json"
-    flow_path = project_path / "flow.json"
-    pages_dir = project_path / "pages"
-
-    if manifest_path.exists():
-        return json.loads(manifest_path.read_text())
-
-    # Migrate legacy
-    pages_dir.mkdir(exist_ok=True)
-
-    if flow_path.exists():
-        shutil.move(flow_path, pages_dir / "main.json")
-
-    manifest = {
-        "version": "1.0",
-        "name": project_path.name,
-        "tabs": [{"id": "main", "name": "Main", "order": 0}],
-    }
-
-    manifest_path.write_text(json.dumps(manifest, indent=2))
-    return manifest
-```
+The frontend maintains an in-memory cache (`tabFlowCacheRef`) for tab flows:
+- Preserves unsaved changes when switching tabs
+- Avoids re-fetching already-loaded tabs
+- Cleared on project close
 
 ## See Also
 

@@ -78,21 +78,26 @@ Duplicating copies:
 
 ## Tab Storage
 
-Tabs are stored in the project's `pages/` directory:
+Tabs are stored in the project's `manifest.json` file (v3.0 format):
 
 ```
 my-project/
-├── manifest.json    # Tab metadata
-└── pages/
-    ├── main.json    # Main tab workflow
-    ├── helpers.json # Helpers tab workflow
-    └── utils.json   # Utils tab workflow
+├── manifest.json    # Project data including all tabs, nodes, and edges
+├── prompts/         # Prompt template files
+└── tools/           # Tool implementation files
 ```
+
+The manifest contains:
+- **tabs**: Tab metadata (id, name, order, viewport)
+- **nodes**: All workflow nodes across all tabs
+- **edges**: All connections between nodes
+
+Each node has a `tabId` property indicating which tab it belongs to.
 
 ### Tab ID
 
 Each tab has a unique ID used for:
-- File naming
+- Node association via `data.tabId`
 - Teleporter references
 - Internal tracking
 

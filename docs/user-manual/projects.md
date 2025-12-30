@@ -30,11 +30,8 @@ If no project is open, the welcome screen shows:
 
 ```
 my-project/
-├── manifest.json          # Project metadata and settings
+├── manifest.json          # All project data (tabs, nodes, edges, settings)
 ├── .env                   # Credentials (API key, Vertex AI config)
-├── pages/                 # Workflow tabs
-│   ├── main.json          # Default tab
-│   └── helpers.json       # Additional tabs
 ├── prompts/               # Prompt files
 │   ├── system.prompt.md
 │   └── user.prompt.md
