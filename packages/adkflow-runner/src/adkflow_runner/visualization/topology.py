@@ -288,7 +288,7 @@ def _get_agent_label(agent: AgentIR) -> str:
     if agent.output_key:
         # Escape output_key since it often contains curly braces like {poem}
         escaped_key = _escape_mermaid(agent.output_key)
-        label += f" {escaped_key}"
+        label += f" ⇒ {escaped_key}"
     return label
 
 
@@ -296,7 +296,7 @@ def _get_agent_info(agent: AgentIR) -> str:
     """Get ASCII info line for an LLM agent."""
     parts = [f"{agent.name} ({agent.type}, {agent.model})"]
     if agent.output_key:
-        parts[0] += f" → {agent.output_key}"
+        parts[0] += f" ⇒ {agent.output_key}"
     return parts[0]
 
 
