@@ -67,6 +67,7 @@ export interface FieldDefinition {
 export interface WidgetRenderOptions {
   disabled?: boolean;
   theme: Theme;
+  compact?: boolean;
 }
 
 /**
@@ -113,12 +114,19 @@ export function renderWidget(
   field: FieldDefinition,
   value: unknown,
   onChange: (value: unknown) => void,
-  options: WidgetRenderOptions
+  options: WidgetRenderOptions,
 ): React.ReactNode {
   const Widget = WIDGET_MAP[field.widget];
 
   if (Widget) {
-    return <Widget field={field} value={value} onChange={onChange} options={options} />;
+    return (
+      <Widget
+        field={field}
+        value={value}
+        onChange={onChange}
+        options={options}
+      />
+    );
   }
 
   // Handle color widget inline (not yet a separate component)
@@ -146,5 +154,12 @@ export function renderWidget(
   }
 
   // Fallback to text input for unknown widget types
-  return <TextInputWidget field={field} value={value} onChange={onChange} options={options} />;
+  return (
+    <TextInputWidget
+      field={field}
+      value={value}
+      onChange={onChange}
+      options={options}
+    />
+  );
 }

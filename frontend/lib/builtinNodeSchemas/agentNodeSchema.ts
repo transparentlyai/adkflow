@@ -421,7 +421,7 @@ export const agentNodeSchema: CustomNodeSchema = {
     color: "#0ea5e9", // Blue color for agent nodes (matches theme.colors.nodes.agent.header)
     icon: "monitor",
     expandable: true,
-    default_width: 400,
+    default_width: 280,
     default_height: 500,
     // Panel layout for agent nodes with chaining handles
     layout: "panel",

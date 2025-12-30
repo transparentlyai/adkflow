@@ -2,13 +2,12 @@
 
 import { memo, useCallback } from "react";
 import { Handle, Position } from "@xyflow/react";
-import { Circle } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useConnection } from "@/contexts/ConnectionContext";
 import { isTypeCompatible } from "@/lib/types";
 import HandleTooltip from "@/components/HandleTooltip";
 import { renderWidget } from "@/components/nodes/widgets/WidgetRenderer";
-import NodeIcon from "@/components/nodes/custom/NodeIcon";
 import type {
   PortDefinition,
   FieldDefinition,
@@ -23,12 +22,13 @@ export interface CustomNodeInputProps {
   handleTypeInfo?: HandleTypeInfo;
   nodeId: string;
   isNodeLocked?: boolean;
+  labelWidth?: number;
   onConfigChange: (fieldId: string, value: unknown) => void;
 }
 
 /**
- * Renders an input port with handle and optional inline widget.
- * Supports both connection-only inputs and inputs with editable values.
+ * Compact single-row input with label badge pattern.
+ * Renders: [Handle]─[Label Badge]─[Arrow]─[Value/Widget]
  */
 const CustomNodeInput = memo(
   ({
@@ -39,6 +39,7 @@ const CustomNodeInput = memo(
     handleTypeInfo,
     nodeId,
     isNodeLocked,
+    labelWidth,
     onConfigChange,
   }: CustomNodeInputProps) => {
     const { theme } = useTheme();
@@ -85,83 +86,28 @@ const CustomNodeInput = memo(
       handleTypeInfo?.acceptedTypes,
     );
     const handleColor = input.handle_color || theme.colors.handles.input;
-    const connectionOnly = input.connection_only !== false; // Default to true
+    const connectionOnly = input.connection_only !== false;
 
-    // Connection-only input (no manual editing)
-    if (connectionOnly) {
-      return (
-        <div className="space-y-1">
-          <label
-            className="text-xs font-medium"
-            style={{ color: theme.colors.nodes.common.text.secondary }}
-          >
-            {input.label}
-            {input.required && <span className="text-red-400 ml-0.5">*</span>}
-          </label>
-          <div
-            className="relative flex items-center gap-2 px-2 py-1 text-sm border rounded"
-            style={{
-              backgroundColor: theme.colors.nodes.common.footer.background,
-              borderColor: theme.colors.nodes.common.container.border,
-            }}
-          >
-            <HandleTooltip
-              label={input.label}
-              sourceType={input.source_type}
-              dataType={input.data_type}
-              type="input"
-            >
-              <Handle
-                type="target"
-                position={Position.Left}
-                id={input.id}
-                style={{
-                  position: "absolute",
-                  left: -5,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  transition: "box-shadow 0.15s ease",
-                  width: 10,
-                  height: 10,
-                  border: `2px solid ${theme.colors.handles.border}`,
-                  backgroundColor: handleColor,
-                  ...validityStyle,
-                }}
-              />
-            </HandleTooltip>
-            {input.icon ? (
-              <NodeIcon
-                icon={input.icon}
-                className="w-3 h-3"
-                style={{
-                  color: isConnected
-                    ? handleColor
-                    : theme.colors.nodes.common.text.muted,
-                }}
-              />
-            ) : (
-              <Circle
-                className="w-3 h-3 flex-shrink-0"
-                style={{ color: theme.colors.nodes.common.text.muted }}
-              />
-            )}
-            <span
-              className={`text-xs truncate ${isConnected ? "" : "italic"}`}
-              style={{
-                color: isConnected
-                  ? theme.colors.nodes.common.text.primary
-                  : theme.colors.nodes.common.text.muted,
-              }}
-            >
-              {isConnected ? connectedSourceName : "None"}
-            </span>
-          </div>
-        </div>
-      );
-    }
+    // Check if widget needs multi-line support
+    const isMultiLine =
+      input.widget === "textarea" || input.widget === "text_area";
 
-    // Input with inline editor (connection_only=false)
-    // Create a pseudo-field for the widget renderer
+    // Handle style
+    // For multi-line: position at 11px to align with label text center (pt-1 = 4px + ~7px half line-height)
+    const handleStyle: React.CSSProperties = {
+      position: "absolute",
+      left: -5,
+      top: isMultiLine ? 11 : "50%",
+      transform: "translateY(-50%)",
+      transition: "box-shadow 0.15s ease",
+      width: 10,
+      height: 10,
+      border: `2px solid ${theme.colors.handles.border}`,
+      backgroundColor: handleColor,
+      ...validityStyle,
+    };
+
+    // Create pseudo-field for widget renderer
     const inputAsField: FieldDefinition = {
       id: input.id,
       label: input.label,
@@ -171,84 +117,67 @@ const CustomNodeInput = memo(
       options: input.options,
     };
 
+    // Compact for connection-only, taller for editable widgets
+    const rowHeight = connectionOnly ? "min-h-5" : "min-h-7";
+
     return (
-      <div className="space-y-1">
-        <label
-          className="text-xs font-medium"
-          style={{ color: theme.colors.nodes.common.text.secondary }}
+      <div
+        className={`relative flex ${isMultiLine ? "items-start" : "items-center"} ${rowHeight} gap-1`}
+        style={{ paddingLeft: 10 }}
+      >
+        {/* Handle */}
+        <HandleTooltip
+          label={input.label}
+          sourceType={input.source_type}
+          dataType={input.data_type}
+          type="input"
+        >
+          <Handle
+            type="target"
+            position={Position.Left}
+            id={input.id}
+            style={handleStyle}
+          />
+        </HandleTooltip>
+
+        {/* Label - dynamic width for alignment, pt-1 for multi-line */}
+        <span
+          className={`flex-shrink-0 text-[10px] font-medium ${isMultiLine ? "pt-1" : ""}`}
+          style={{
+            color: theme.colors.nodes.common.text.secondary,
+            minWidth: labelWidth ? `${labelWidth * 0.55}ch` : undefined,
+          }}
         >
           {input.label}
-          {input.required && <span className="text-red-400 ml-0.5">*</span>}
-        </label>
-        <div
-          className="relative flex items-center gap-2"
-          style={{ paddingLeft: 4 }}
-        >
-          <HandleTooltip
-            label={input.label}
-            sourceType={input.source_type}
-            dataType={input.data_type}
-            type="input"
+          {input.required && <span className="text-red-500 ml-0.5">*</span>}
+        </span>
+
+        {/* Connection arrow when connected */}
+        {isConnected && (
+          <ArrowRight
+            className="w-3 h-3 flex-shrink-0"
+            style={{ color: theme.colors.nodes.common.text.muted }}
+          />
+        )}
+
+        {/* Value area */}
+        {isConnected ? (
+          <span
+            className="flex-1 text-[11px] truncate font-medium"
+            style={{ color: handleColor }}
           >
-            <Handle
-              type="target"
-              position={Position.Left}
-              id={input.id}
-              style={{
-                position: "absolute",
-                left: -5,
-                top: "50%",
-                transform: "translateY(-50%)",
-                transition: "box-shadow 0.15s ease",
-                width: 10,
-                height: 10,
-                border: `2px solid ${theme.colors.handles.border}`,
-                backgroundColor: handleColor,
-                ...validityStyle,
-              }}
-            />
-          </HandleTooltip>
-          {isConnected ? (
-            // When connected, show source name (read-only)
-            <div
-              className="flex-1 flex items-center gap-2 px-2 py-1 text-sm border rounded"
-              style={{
-                backgroundColor: theme.colors.nodes.common.footer.background,
-                borderColor: theme.colors.nodes.common.container.border,
-                opacity: 0.7,
-              }}
-            >
-              {input.icon ? (
-                <NodeIcon
-                  icon={input.icon}
-                  className="w-3 h-3"
-                  style={{ color: handleColor }}
-                />
-              ) : (
-                <Circle
-                  className="w-3 h-3 flex-shrink-0"
-                  style={{ color: theme.colors.ui.primary }}
-                />
-              )}
-              <span
-                className="text-xs truncate"
-                style={{ color: theme.colors.nodes.common.text.primary }}
-              >
-                {connectedSourceName}
-              </span>
-            </div>
-          ) : (
-            // When not connected, show editable widget
-            <div className="flex-1 min-w-0">
-              {renderWidget(
-                inputAsField,
-                config[input.id] ?? input.default,
-                (value) => onConfigChange(input.id, value),
-                { disabled: isNodeLocked, theme },
-              )}
-            </div>
-          )}
-        </div>
+            {connectedSourceName}
+          </span>
+        ) : connectionOnly ? null : (
+          <div className="flex-1 min-w-0">
+            {renderWidget(
+              inputAsField,
+              config[input.id] ?? input.default,
+              (value) => onConfigChange(input.id, value),
+              { disabled: isNodeLocked, theme, compact: true },
+            )}
+          </div>
+        )}
       </div>
     );
   },

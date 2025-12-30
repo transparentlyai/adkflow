@@ -160,8 +160,8 @@ const CustomNodeExpanded = memo(
       [schema, isFieldVisible],
     );
 
-    // Render config field
-    const renderField = (field: FieldDefinition) => {
+    // Render config field with optional label width for alignment
+    const renderField = (field: FieldDefinition, labelWidth?: number) => {
       // Special handling for code_editor widget - full width with Monaco
       if (field.widget === "code_editor" || field.widget === "monaco_editor") {
         const editorHeight = nodeData.expandedSize?.height
@@ -189,12 +189,15 @@ const CustomNodeExpanded = memo(
         );
       }
 
-      // Standard field with label on the left
+      // Standard field with label on the left - compact styling
       return (
-        <div key={field.id} className="flex items-center gap-2">
+        <div key={field.id} className="flex items-center gap-1">
           <label
-            className="text-xs font-medium w-20 flex-shrink-0"
-            style={{ color: theme.colors.nodes.common.text.secondary }}
+            className="text-[10px] font-medium flex-shrink-0"
+            style={{
+              color: theme.colors.nodes.common.text.secondary,
+              minWidth: labelWidth ? `${labelWidth}ch` : undefined,
+            }}
           >
             {field.label}
             {field.required && <span className="text-red-500 ml-0.5">*</span>}
@@ -204,7 +207,7 @@ const CustomNodeExpanded = memo(
               field,
               config[field.id] ?? field.default,
               (value) => onConfigChange(field.id, value),
-              { disabled: nodeData.isNodeLocked, theme },
+              { disabled: nodeData.isNodeLocked, theme, compact: true },
             )}
           </div>
         </div>
@@ -212,14 +215,16 @@ const CustomNodeExpanded = memo(
     };
 
     // Render section with header and separator
+    // compact: true for inputs (no spacing), false for fields (with spacing)
     const renderSection = (
       sectionName: string | null,
       content: React.ReactNode,
       isFirst: boolean = false,
+      compact: boolean = false,
     ) => (
       <div
         key={sectionName || "default"}
-        className={isFirst ? "" : "mt-3 pt-3 border-t"}
+        className={isFirst ? "" : "mt-2 pt-2 border-t"}
         style={
           isFirst
             ? undefined
@@ -228,21 +233,21 @@ const CustomNodeExpanded = memo(
       >
         {sectionName && (
           <div
-            className="text-xs font-semibold uppercase tracking-wide mb-1.5 pl-1 border-l-2"
+            className="text-[10px] font-semibold uppercase tracking-wide mb-1 pl-1 border-l-2"
             style={{
               color: theme.colors.nodes.common.text.muted,
-              borderColor: headerColor, // Use node's accent color for section headers
+              borderColor: headerColor,
             }}
           >
             {sectionName}
           </div>
         )}
-        <div className="space-y-2">{content}</div>
+        <div className={compact ? "" : "space-y-1"}>{content}</div>
       </div>
     );
 
-    // Render input port
-    const renderInput = (input: PortDefinition) => (
+    // Render input port with optional label width for alignment
+    const renderInput = (input: PortDefinition, labelWidth?: number) => (
       <CustomNodeInput
         key={input.id}
         input={input}
@@ -252,9 +257,18 @@ const CustomNodeExpanded = memo(
         handleTypeInfo={handleTypes[input.id]}
         nodeId={id}
         isNodeLocked={nodeData.isNodeLocked}
+        labelWidth={labelWidth}
         onConfigChange={onConfigChange}
       />
     );
+
+    // Calculate max label width for a group of inputs
+    const getMaxInputLabelWidth = (inputs: PortDefinition[]) =>
+      Math.max(...inputs.map((i) => i.label.length));
+
+    // Calculate max label width for a group of fields
+    const getMaxFieldLabelWidth = (fields: FieldDefinition[]) =>
+      Math.max(...fields.map((f) => f.label.length));
 
     // Render tab content
     const renderTabContent = () => {
@@ -269,23 +283,26 @@ const CustomNodeExpanded = memo(
 
       return (
         <>
-          {/* Inputs grouped by section */}
-          {Array.from(inputSections.entries()).map(([section, inputs]) =>
-            renderSection(
+          {/* Inputs grouped by section - compact spacing */}
+          {Array.from(inputSections.entries()).map(([section, inputs]) => {
+            const maxLabelWidth = getMaxInputLabelWidth(inputs);
+            return renderSection(
               section,
-              inputs.map(renderInput),
+              inputs.map((input) => renderInput(input, maxLabelWidth)),
               sectionIndex++ === 0,
-            ),
-          )}
+              true, // compact
+            );
+          })}
 
           {/* Fields grouped by section */}
-          {Array.from(fieldSections.entries()).map(([section, fields]) =>
-            renderSection(
+          {Array.from(fieldSections.entries()).map(([section, fields]) => {
+            const maxLabelWidth = getMaxFieldLabelWidth(fields);
+            return renderSection(
               section,
-              fields.map(renderField),
+              fields.map((field) => renderField(field, maxLabelWidth)),
               sectionIndex++ === 0,
-            ),
-          )}
+            );
+          })}
 
           {elements.inputs.length === 0 && elements.fields.length === 0 && (
             <p
@@ -353,7 +370,7 @@ const CustomNodeExpanded = memo(
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-3 py-1.5 text-xs font-medium ${activeTab === tab ? "border-b-2" : ""}`}
+                  className={`px-2 py-1 text-[10px] font-medium ${activeTab === tab ? "border-b-2" : ""}`}
                   style={{
                     borderColor:
                       activeTab === tab ? headerColor : "transparent",
@@ -371,7 +388,7 @@ const CustomNodeExpanded = memo(
           )}
 
           {/* Form content */}
-          <div className="p-2 space-y-2 nodrag nowheel">
+          <div className="p-2 nodrag nowheel">
             {renderTabContent()}
 
             {/* Output ports - always visible (except those rendered as edge handles) */}
@@ -379,7 +396,7 @@ const CustomNodeExpanded = memo(
               (o) => !additionalHandles.some((h) => h.id === o.id),
             ).length > 0 && (
               <div
-                className="pt-1 border-t"
+                className="mt-2 pt-2 border-t"
                 style={{
                   borderColor: theme.colors.nodes.common.container.border,
                 }}

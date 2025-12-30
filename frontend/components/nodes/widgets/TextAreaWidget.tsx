@@ -2,8 +2,13 @@
 
 import type { WidgetProps } from "@/components/nodes/widgets/WidgetRenderer";
 
-export default function TextAreaWidget({ field, value, onChange, options }: WidgetProps) {
-  const { disabled, theme } = options;
+export default function TextAreaWidget({
+  field,
+  value,
+  onChange,
+  options,
+}: WidgetProps) {
+  const { disabled, theme, compact } = options;
 
   return (
     <textarea
@@ -11,10 +16,16 @@ export default function TextAreaWidget({ field, value, onChange, options }: Widg
       onChange={(e) => onChange(e.target.value)}
       placeholder={field.placeholder}
       disabled={disabled}
-      rows={3}
-      className="w-full px-2 py-1.5 rounded text-xs border resize-none"
+      rows={compact ? 2 : 3}
+      className={
+        compact
+          ? "w-full px-1.5 py-1 rounded text-[11px] border resize-none"
+          : "w-full px-2 py-1.5 rounded text-xs border resize-none"
+      }
       style={{
-        backgroundColor: theme.colors.nodes.common.container.background,
+        backgroundColor: compact
+          ? "transparent"
+          : theme.colors.nodes.common.container.background,
         borderColor: theme.colors.nodes.common.container.border,
         color: theme.colors.nodes.common.text.primary,
       }}
