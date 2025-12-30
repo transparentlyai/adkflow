@@ -18,4 +18,4 @@ export { useContextMenu } from "./useContextMenu";
 export { useCanvasOperations } from "./useCanvasOperations";
 export { useExecutionState } from "./useExecutionState";
 export { useValidation } from "./useValidation";
-export { useEdgeElevation } from "./useEdgeElevation";
+export { useEdgeHighlight } from "./useEdgeHighlight";

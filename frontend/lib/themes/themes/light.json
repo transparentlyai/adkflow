@@ -155,7 +155,8 @@
       "default": "#64748b",
       "hover": "#475569",
       "link": "#9ca3af",
-      "selected": "#0284c7"
+      "selected": "#0284c7",
+      "connected": "#3b82f6"
     },
     "ui": {
       "background": "#ffffff",

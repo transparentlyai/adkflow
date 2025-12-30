@@ -111,6 +111,7 @@ export interface EdgeColors {
   hover: string;
   link: string;
   selected: string;
+  connected: string;
 }
 
 export interface UIColors {

@@ -39,7 +39,7 @@ import {
   useCanvasOperations,
   useExecutionState,
   useValidation,
-  useEdgeElevation,
+  useEdgeHighlight,
 } from "./hooks/canvas";
 
 interface ReactFlowCanvasProps {
@@ -213,8 +213,11 @@ const ReactFlowCanvasInner = forwardRef<
       linkEdgeColor: theme.colors.edges.link,
     });
 
-    // Edge elevation based on node selection
-    useEdgeElevation(nodes, setEdges);
+    // Edge highlight based on node selection
+    useEdgeHighlight(nodes, setEdges, {
+      default: theme.colors.edges.default,
+      connected: theme.colors.edges.connected,
+    });
 
     // Delete handlers
     const {
@@ -463,7 +466,7 @@ const ReactFlowCanvasInner = forwardRef<
             defaultEdgeOptions={defaultEdgeOptions}
             edgesFocusable={true}
             edgesReconnectable={false}
-            elevateEdgesOnSelect={true}
+            elevateEdgesOnSelect={false}
             connectionLineStyle={{
               strokeWidth: 1.5,
               stroke: theme.colors.edges.default,
