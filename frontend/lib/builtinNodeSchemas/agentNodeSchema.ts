@@ -63,7 +63,7 @@ export const agentNodeSchema: CustomNodeSchema = {
         multiple: true,
         connection_only: true,
         icon: "monitor",
-        section: "Configuration",
+        section: "Inputs",
         tab: "General",
       },
       {
@@ -77,7 +77,7 @@ export const agentNodeSchema: CustomNodeSchema = {
         multiple: false,
         connection_only: true,
         icon: "document",
-        section: "Configuration",
+        section: "Inputs",
         tab: "General",
       },
       {
@@ -91,7 +91,7 @@ export const agentNodeSchema: CustomNodeSchema = {
         multiple: true,
         connection_only: true,
         icon: "gear",
-        section: "Configuration",
+        section: "Inputs",
         tab: "General",
       },
       // Link handle (top) for agent chaining - input from other agents
@@ -129,14 +129,18 @@ export const agentNodeSchema: CustomNodeSchema = {
     tabs: ["General", "Execution", "Flow", "Schema", "Callbacks"],
     fields: [
       // === General Tab ===
-      // Field order matches OLD AgentNode GeneralTab.tsx exactly:
-      // 1. Source (connected agent display) - handled via connection, not a field
-      // 2. Model (select)
-      // 3. Custom Model (text, conditional)
-      // 4. Temperature (slider 0-2, step 0.1)
-      // 5. Prompt (connected prompt display) - handled via connection, not a field
-      // 6. Tools (connected tools display) - handled via connection, not a field
-      // 7. Description (textarea)
+      // Core fields without section header
+      {
+        id: "description",
+        label: "Description",
+        widget: "textarea",
+        default: "",
+        required: true,
+        placeholder: "Describe what this agent does...",
+        help_text:
+          "A description of the agent's purpose (required for routing)",
+        tab: "General",
+      },
       {
         id: "model",
         label: "Model",
@@ -144,7 +148,6 @@ export const agentNodeSchema: CustomNodeSchema = {
         default: DEFAULT_MODEL,
         options: GEMINI_MODELS,
         help_text: "The LLM model to use for this agent",
-        section: "Model",
         tab: "General",
       },
       {
@@ -154,7 +157,6 @@ export const agentNodeSchema: CustomNodeSchema = {
         default: "",
         placeholder: "Custom model name",
         help_text: "Enter a custom model name",
-        section: "Model",
         tab: "General",
         show_if: { model: "custom" },
       },
@@ -168,19 +170,6 @@ export const agentNodeSchema: CustomNodeSchema = {
         step: 0.1,
         help_text:
           "Controls randomness in responses (0 = deterministic, 2 = creative)",
-        section: "Model",
-        tab: "General",
-      },
-      {
-        id: "description",
-        label: "Description",
-        widget: "textarea",
-        default: "",
-        required: true,
-        placeholder: "Describe what this agent does...",
-        help_text:
-          "A description of the agent's purpose (required for routing)",
-        section: "General",
         tab: "General",
       },
 
@@ -327,7 +316,7 @@ export const agentNodeSchema: CustomNodeSchema = {
 
       // === Schema Tab ===
       // Field order matches OLD AgentNode SchemaTab.tsx exactly:
-      // Output Configuration section: Output Key, Include Contents
+      // Output Inputs section: Output Key, Include Contents
       // Schema Validation section: Input Schema, Output Schema
       {
         id: "output_key",
@@ -336,7 +325,7 @@ export const agentNodeSchema: CustomNodeSchema = {
         default: "",
         placeholder: "e.g., result",
         help_text: "Saves agent output to session state with this key",
-        section: "Output Configuration",
+        section: "Output Inputs",
         tab: "Schema",
       },
       {
@@ -349,7 +338,7 @@ export const agentNodeSchema: CustomNodeSchema = {
           { value: "none", label: "None" },
         ],
         help_text: "Controls content inclusion in agent processing",
-        section: "Output Configuration",
+        section: "Output Inputs",
         tab: "Schema",
       },
       {
