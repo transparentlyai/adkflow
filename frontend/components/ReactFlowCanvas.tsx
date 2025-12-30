@@ -24,6 +24,7 @@ import { getExtensionNodes } from "@/lib/api";
 import CanvasContextMenu from "./CanvasContextMenu";
 import ConfirmDialog from "./ConfirmDialog";
 import GroupDeleteDialog from "./GroupDeleteDialog";
+import TeleportNameDialog from "./TeleportNameDialog";
 import type { NodeExecutionState } from "@/lib/types";
 
 import {
@@ -40,6 +41,8 @@ import {
   useExecutionState,
   useValidation,
   useEdgeHighlight,
+  getMiniMapNodeColor,
+  getCanvasStyles,
 } from "./hooks/canvas";
 
 interface ReactFlowCanvasProps {
@@ -404,38 +407,7 @@ const ReactFlowCanvasInner = forwardRef<
         className="w-full h-full"
         style={{ background: theme.colors.canvas.background }}
       >
-        <style>{`
-          .react-flow__node-group {
-            background: transparent !important;
-            box-shadow: none !important;
-            border: none !important;
-            pointer-events: none !important;
-          }
-          .react-flow__node-group .group-drag-handle,
-          .react-flow__node-group .react-flow__resize-control {
-            pointer-events: auto !important;
-          }
-          .react-flow__edge .react-flow__edge-path {
-            transition: stroke 0.15s ease, stroke-width 0.15s ease;
-          }
-          .react-flow__edge:hover .react-flow__edge-path {
-            stroke: ${theme.colors.edges.hover} !important;
-            stroke-width: 2.5 !important;
-          }
-          .react-flow__edge.selected .react-flow__edge-path,
-          .react-flow__edge:focus .react-flow__edge-path,
-          .react-flow__edge:focus-visible .react-flow__edge-path {
-            stroke: ${theme.colors.edges.selected} !important;
-            stroke-width: 3 !important;
-          }
-          .react-flow__controls-button.lucide-btn svg {
-            fill: none !important;
-            stroke: currentColor !important;
-            stroke-width: 2px;
-            width: 12px;
-            height: 12px;
-          }
-        `}</style>
+        <style>{getCanvasStyles(theme)}</style>
         <CanvasActionsProvider
           value={{
             copySelectedNodes: handleCopy,
@@ -506,42 +478,7 @@ const ReactFlowCanvasInner = forwardRef<
               </ControlButton>
             </Controls>
             <MiniMap
-              nodeColor={(node) => {
-                switch (node.type) {
-                  case "group":
-                    return theme.colors.nodes.group.header;
-                  case "agent":
-                    return theme.colors.nodes.agent.header;
-                  case "prompt":
-                    return theme.colors.nodes.prompt.header;
-                  case "context":
-                    return theme.colors.nodes.context.header;
-                  case "inputProbe":
-                  case "outputProbe":
-                  case "logProbe":
-                    return theme.colors.nodes.probe.header;
-                  case "outputFile":
-                    return theme.colors.nodes.outputFile.header;
-                  case "tool":
-                    return theme.colors.nodes.tool.header;
-                  case "agentTool":
-                    return theme.colors.nodes.agentTool.header;
-                  case "variable":
-                    return theme.colors.nodes.variable.header;
-                  case "process":
-                    return theme.colors.nodes.process.header;
-                  case "label":
-                    return theme.colors.nodes.label.header;
-                  case "userInput":
-                    return theme.colors.nodes.userInput.header;
-                  case "start":
-                    return theme.colors.nodes.start.header;
-                  case "end":
-                    return theme.colors.nodes.end.header;
-                  default:
-                    return theme.colors.nodes.label.header;
-                }
-              }}
+              nodeColor={(node) => getMiniMapNodeColor(node, theme)}
               bgColor={theme.colors.canvas.minimap.background}
               maskColor={theme.colors.canvas.minimap.mask}
               nodeStrokeColor={theme.colors.canvas.minimap.nodeStroke}
@@ -590,79 +527,15 @@ const ReactFlowCanvasInner = forwardRef<
           onDeleteAll={handleGroupDeleteAll}
         />
 
-        {/* Teleporter Name Prompt Dialog */}
         {teleportNamePrompt && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center"
-            style={{ pointerEvents: "auto" }}
-          >
-            <div
-              className="absolute inset-0 bg-black bg-opacity-50"
-              onClick={handleTeleportNameCancel}
-            />
-            <div
-              className="relative rounded-lg shadow-xl p-6"
-              style={{
-                width: "400px",
-                maxWidth: "90vw",
-                backgroundColor: theme.colors.nodes.common.container.background,
-                border: `1px solid ${theme.colors.nodes.common.container.border}`,
-              }}
-            >
-              <h3
-                className="text-lg font-semibold mb-4"
-                style={{ color: theme.colors.nodes.common.text.primary }}
-              >
-                {teleportNamePrompt.type === "teleportOut"
-                  ? "New Output Connector"
-                  : "New Input Connector"}
-              </h3>
-              <p
-                className="text-sm mb-4"
-                style={{ color: theme.colors.nodes.common.text.secondary }}
-              >
-                Enter a name for this connector. Connectors with matching names
-                will be linked.
-              </p>
-              <input
-                type="text"
-                value={teleportNameInput}
-                onChange={(e) => setTeleportNameInput(e.target.value)}
-                onKeyDown={handleTeleportNameKeyDown}
-                className="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 mb-4"
-                style={{
-                  backgroundColor: theme.colors.nodes.common.footer.background,
-                  border: `1px solid ${theme.colors.nodes.common.container.border}`,
-                  color: theme.colors.nodes.common.text.primary,
-                }}
-                placeholder="Connector name"
-                autoFocus
-              />
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={handleTeleportNameCancel}
-                  className="px-4 py-2 rounded-lg transition-colors"
-                  style={{
-                    border: `1px solid ${theme.colors.nodes.common.container.border}`,
-                    color: theme.colors.nodes.common.text.secondary,
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleTeleportNameSubmit}
-                  disabled={!teleportNameInput.trim()}
-                  className="px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{
-                    backgroundColor: theme.colors.nodes.agent.header,
-                    color: theme.colors.nodes.agent.text,
-                  }}
-                >
-                  Create
-                </button>
-              </div>
-            </div>
-          </div>
+          <TeleportNameDialog
+            type={teleportNamePrompt.type}
+            value={teleportNameInput}
+            onChange={setTeleportNameInput}
+            onSubmit={handleTeleportNameSubmit}
+            onCancel={handleTeleportNameCancel}
+            theme={theme}
+          />
         )}
       </div>
     );
