@@ -41,6 +41,7 @@ import {
   useExecutionState,
   useValidation,
   useEdgeHighlight,
+  useEdgeTabOpacity,
   getMiniMapNodeColor,
   getCanvasStyles,
 } from "./hooks/canvas";
@@ -222,6 +223,9 @@ const ReactFlowCanvasInner = forwardRef<
       connected: theme.colors.edges.connected,
     });
 
+    // Edge opacity for handles on inactive tabs
+    useEdgeTabOpacity(nodes, edges, setEdges);
+
     // Delete handlers
     const {
       handleDeleteConfirm,
@@ -273,7 +277,7 @@ const ReactFlowCanvasInner = forwardRef<
       nodes,
       setNodes,
       rfInstance,
-      activeTabId,
+      activeTabId: activeTabId ?? null,
       groupPosition: state.groupPosition,
       setGroupPosition: state.setGroupPosition,
       agentPosition: state.agentPosition,

@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useCallback, useMemo } from "react";
+import { Handle, Position } from "@xyflow/react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Circle, Zap } from "lucide-react";
 import CustomNodeHeader from "@/components/nodes/custom/CustomNodeHeader";
@@ -448,6 +449,28 @@ const CustomNodeExpanded = memo(
           handleTypes={handleTypes}
           additionalHandles={additionalHandles}
         />
+
+        {/* Hidden handles for inactive tab inputs - enables edge connectivity */}
+        {tabs &&
+          schema.ui.inputs
+            .filter((input) => input.tab && input.tab !== activeTab)
+            .map((input) => (
+              <Handle
+                key={`hidden-${input.id}`}
+                type="target"
+                position={Position.Left}
+                id={input.id}
+                style={{
+                  position: "absolute",
+                  left: -5,
+                  top: "50%",
+                  width: 0,
+                  height: 0,
+                  opacity: 0,
+                  pointerEvents: "none",
+                }}
+              />
+            ))}
       </div>
     );
   },

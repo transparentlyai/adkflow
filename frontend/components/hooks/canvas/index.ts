@@ -19,4 +19,5 @@ export { useCanvasOperations } from "./useCanvasOperations";
 export { useExecutionState } from "./useExecutionState";
 export { useValidation } from "./useValidation";
 export { useEdgeHighlight } from "./useEdgeHighlight";
+export { useEdgeTabOpacity } from "./useEdgeTabOpacity";
 export { getMiniMapNodeColor, getCanvasStyles } from "./canvasUtils";

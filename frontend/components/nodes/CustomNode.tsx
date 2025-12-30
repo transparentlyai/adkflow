@@ -77,6 +77,20 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
       );
     }
   }, [id, handleTypes, nodeData.handleTypes, setNodes]);
+
+  // Sync activeTab to node.data for edge opacity calculation
+  // This allows the useEdgeTabOpacity hook to know which tab is active
+  useEffect(() => {
+    if (nodeData.activeTab !== activeTab) {
+      setNodes((nodes) =>
+        nodes.map((node) =>
+          node.id === id
+            ? { ...node, data: { ...node.data, activeTab } }
+            : node,
+        ),
+      );
+    }
+  }, [id, activeTab, nodeData.activeTab, setNodes]);
   const {
     isEditing,
     editedName,

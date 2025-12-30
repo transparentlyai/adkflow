@@ -624,4 +624,6 @@ export interface CustomNodeData {
   validationWarnings?: string[];
   /** Client-side duplicate name error message */
   duplicateNameError?: string;
+  /** Currently active tab in expanded view (for edge opacity calculation) */
+  activeTab?: string;
 }
