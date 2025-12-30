@@ -25,6 +25,8 @@ export interface CustomNodeHeaderProps {
   validationErrors?: string[];
   validationWarnings?: string[];
   duplicateNameError?: string;
+  // Description tooltip (shown on hover in collapsed mode)
+  description?: string;
 }
 
 /**
@@ -48,6 +50,7 @@ const CustomNodeHeader = memo(
     validationErrors,
     validationWarnings,
     duplicateNameError,
+    description,
   }: CustomNodeHeaderProps) => {
     const { theme } = useTheme();
     const ChevronIcon = isExpanded ? ChevronUp : ChevronDown;
@@ -56,11 +59,15 @@ const CustomNodeHeader = memo(
       (validationWarnings && validationWarnings.length > 0) ||
       !!duplicateNameError;
 
+    // Show description tooltip only in collapsed mode
+    const tooltipText = !isExpanded && description ? description : undefined;
+
     return (
       <div
         className={`px-${isExpanded ? "2" : "3"} py-${isExpanded ? "1.5" : "2"} rounded-t-lg flex items-center justify-between ${isExpanded ? "cursor-pointer" : ""} gap-2`}
         style={{ backgroundColor: headerColor }}
         onDoubleClick={onToggleExpand}
+        title={tooltipText}
       >
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
           {/* Output node indicator */}

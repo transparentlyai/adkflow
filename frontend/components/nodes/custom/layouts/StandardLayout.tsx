@@ -116,6 +116,7 @@ const StandardLayout = memo(
               validationErrors={nodeData.validationErrors}
               validationWarnings={nodeData.validationWarnings}
               duplicateNameError={nodeData.duplicateNameError}
+              description={config.description as string | undefined}
             />
 
             {/* Body with summary */}
