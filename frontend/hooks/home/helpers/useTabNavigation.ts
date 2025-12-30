@@ -9,7 +9,11 @@ interface UseTabNavigationProps {
   tabFlowCacheRef: React.MutableRefObject<
     Map<
       string,
-      { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }
+      {
+        nodes: Node[];
+        edges: Edge[];
+        viewport: { x: number; y: number; zoom: number };
+      }
     >
   >;
   pendingFocusNodeIdRef: React.MutableRefObject<string | null>;
@@ -21,13 +25,17 @@ interface UseTabNavigationProps {
   setPendingFocusNodeId: (id: string | null) => void;
   loadTabFlow: (
     projectPath: string,
-    tabId: string
+    tabId: string,
   ) => Promise<{
     nodes: Node[];
     edges: Edge[];
     viewport: { x: number; y: number; zoom: number };
   } | null>;
-  syncTeleportersForTab: (tabId: string, tabName: string, nodes: Node[]) => void;
+  syncTeleportersForTab: (
+    tabId: string,
+    tabName: string,
+    nodes: Node[],
+  ) => void;
 }
 
 export function useTabNavigation({
@@ -49,6 +57,7 @@ export function useTabNavigation({
       if (!currentProjectPath) return;
       if (tabId === loadedTabIdRef.current) return;
 
+      // 1. Save current tab's flow to cache before switching
       if (canvasRef.current && loadedTabIdRef.current) {
         const currentFlow = canvasRef.current.saveFlow();
         if (currentFlow) {
@@ -56,12 +65,14 @@ export function useTabNavigation({
         }
       }
 
-      setActiveTabId(tabId);
+      // 2. Update loadedTabIdRef FIRST to prevent race conditions
+      // This ensures any workflow change events use the correct tab
+      loadedTabIdRef.current = tabId;
 
+      // 3. Restore target tab's flow
       const cachedFlow = tabFlowCacheRef.current.get(tabId);
       if (cachedFlow && canvasRef.current) {
         canvasRef.current.restoreFlow(cachedFlow);
-        loadedTabIdRef.current = tabId;
         const tab = tabs.find((t) => t.id === tabId);
         if (tab) {
           syncTeleportersForTab(tabId, tab.name, cachedFlow.nodes);
@@ -70,13 +81,16 @@ export function useTabNavigation({
         const flow = await loadTabFlow(currentProjectPath, tabId);
         if (flow && canvasRef.current) {
           canvasRef.current.restoreFlow(flow);
-          loadedTabIdRef.current = tabId;
           const tab = tabs.find((t) => t.id === tabId);
           if (tab) {
             syncTeleportersForTab(tabId, tab.name, flow.nodes);
           }
         }
       }
+
+      // 4. Update React state LAST, after canvas is ready
+      // This prevents state mismatches during the switch
+      setActiveTabId(tabId);
     },
     [
       currentProjectPath,
@@ -87,7 +101,7 @@ export function useTabNavigation({
       setActiveTabId,
       loadTabFlow,
       syncTeleportersForTab,
-    ]
+    ],
   );
 
   useEffect(() => {

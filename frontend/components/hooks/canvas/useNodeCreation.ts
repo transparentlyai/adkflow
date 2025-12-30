@@ -7,6 +7,7 @@ interface UseNodeCreationParams {
   nodes: Node[];
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
   rfInstance: ReactFlowInstance | null;
+  activeTabId: string | null;
   // Position state and setters
   groupPosition: { x: number; y: number };
   setGroupPosition: React.Dispatch<
@@ -79,6 +80,7 @@ export function useNodeCreation({
   nodes,
   setNodes,
   rfInstance,
+  activeTabId,
   groupPosition,
   setGroupPosition,
   labelPosition,
@@ -94,6 +96,7 @@ export function useNodeCreation({
     setGroupPosition,
     labelPosition,
     setLabelPosition,
+    activeTabId,
   });
 
   // Schema-driven node creation (custom and builtin)
@@ -101,6 +104,7 @@ export function useNodeCreation({
     nodes,
     setNodes,
     getViewportCenter,
+    activeTabId,
   });
 
   return {

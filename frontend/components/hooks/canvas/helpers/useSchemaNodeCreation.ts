@@ -9,12 +9,14 @@ interface UseSchemaNodeCreationParams {
   nodes: Node[];
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
   getViewportCenter: () => { x: number; y: number };
+  activeTabId: string | null;
 }
 
 export function useSchemaNodeCreation({
   nodes,
   setNodes,
   getViewportCenter,
+  activeTabId,
 }: UseSchemaNodeCreationParams) {
   /**
    * Add a custom node to the canvas
@@ -24,20 +26,25 @@ export function useSchemaNodeCreation({
       const id = `custom_${schema.unit_id}_${Date.now()}`;
       const pos = position || getViewportCenter();
 
+      const defaultData = getDefaultCustomNodeData(schema) as unknown as Record<
+        string,
+        unknown
+      >;
+
       const newNode: Node = {
         id,
         type: `custom:${schema.unit_id}`,
         position: pos,
-        data: getDefaultCustomNodeData(schema) as unknown as Record<
-          string,
-          unknown
-        >,
+        data: {
+          ...defaultData,
+          tabId: activeTabId,
+        },
       };
 
       setNodes((nodes) => [...nodes, newNode]);
       return id;
     },
-    [setNodes, getViewportCenter],
+    [setNodes, getViewportCenter, activeTabId],
   );
 
   /**
@@ -81,7 +88,10 @@ export function useSchemaNodeCreation({
         id,
         type: nodeType,
         position: pos,
-        data: defaultData as unknown as Record<string, unknown>,
+        data: {
+          ...(defaultData as unknown as Record<string, unknown>),
+          tabId: activeTabId,
+        },
         // Add parent group relationship if specified
         ...(parentGroupId && {
           parentId: parentGroupId,
@@ -105,7 +115,7 @@ export function useSchemaNodeCreation({
       });
       return id;
     },
-    [nodes, setNodes, getViewportCenter],
+    [nodes, setNodes, getViewportCenter, activeTabId],
   );
 
   return {

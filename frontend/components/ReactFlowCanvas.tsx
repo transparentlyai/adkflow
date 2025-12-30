@@ -270,6 +270,7 @@ const ReactFlowCanvasInner = forwardRef<
       nodes,
       setNodes,
       rfInstance,
+      activeTabId,
       groupPosition: state.groupPosition,
       setGroupPosition: state.setGroupPosition,
       agentPosition: state.agentPosition,

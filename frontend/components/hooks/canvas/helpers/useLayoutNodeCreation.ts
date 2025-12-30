@@ -16,6 +16,7 @@ interface UseLayoutNodeCreationParams {
   setLabelPosition: React.Dispatch<
     React.SetStateAction<{ x: number; y: number }>
   >;
+  activeTabId: string | null;
 }
 
 export function useLayoutNodeCreation({
@@ -24,6 +25,7 @@ export function useLayoutNodeCreation({
   setGroupPosition,
   labelPosition,
   setLabelPosition,
+  activeTabId,
 }: UseLayoutNodeCreationParams) {
   const addGroupNode = useCallback(
     (position?: { x: number; y: number }) => {
@@ -33,7 +35,10 @@ export function useLayoutNodeCreation({
         id: groupId,
         type: "group",
         position: position || groupPosition,
-        data: getDefaultGroupData(),
+        data: {
+          ...getDefaultGroupData(),
+          tabId: activeTabId,
+        },
         style: { width: 300, height: 200 },
         dragHandle: ".group-drag-handle",
       };
@@ -44,7 +49,7 @@ export function useLayoutNodeCreation({
         setGroupPosition((pos) => ({ ...pos, x: pos.x + SPACING }));
       }
     },
-    [groupPosition, setNodes, setGroupPosition],
+    [groupPosition, setNodes, setGroupPosition, activeTabId],
   );
 
   /**
@@ -58,7 +63,10 @@ export function useLayoutNodeCreation({
         id: labelId,
         type: "label",
         position: position || labelPosition,
-        data: getDefaultLabelData(),
+        data: {
+          ...getDefaultLabelData(),
+          tabId: activeTabId,
+        },
         style: { width: 100, height: 30 },
       };
 
@@ -67,7 +75,7 @@ export function useLayoutNodeCreation({
         setLabelPosition((pos) => ({ ...pos, x: pos.x + SPACING }));
       }
     },
-    [labelPosition, setNodes, setLabelPosition],
+    [labelPosition, setNodes, setLabelPosition, activeTabId],
   );
 
   return {
