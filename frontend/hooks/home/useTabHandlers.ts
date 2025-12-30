@@ -7,6 +7,7 @@ import { useTabNavigation } from "./helpers/useTabNavigation";
 interface UseTabHandlersProps {
   canvasRef: React.RefObject<ReactFlowCanvasRef | null>;
   loadedTabIdRef: React.MutableRefObject<string | null>;
+  isRestoringFlowRef: React.MutableRefObject<boolean>;
   tabFlowCacheRef: React.MutableRefObject<
     Map<
       string,
@@ -74,6 +75,7 @@ interface UseTabHandlersProps {
 export function useTabHandlers({
   canvasRef,
   loadedTabIdRef,
+  isRestoringFlowRef,
   tabFlowCacheRef,
   pendingFocusNodeIdRef,
   currentProjectPath,
@@ -99,6 +101,7 @@ export function useTabHandlers({
   const { handleTabClick } = useTabNavigation({
     canvasRef,
     loadedTabIdRef,
+    isRestoringFlowRef,
     tabFlowCacheRef,
     pendingFocusNodeIdRef,
     currentProjectPath,

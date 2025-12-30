@@ -4,6 +4,7 @@ import type { TabState } from "@/lib/types";
 
 interface UseWorkflowChangeProps {
   activeTabRef: React.MutableRefObject<TabState | null>;
+  isRestoringFlowRef: React.MutableRefObject<boolean>;
   hasSyncedAllTabsRef: React.MutableRefObject<boolean>;
   tabs: TabState[];
   activeTabId: string | null;
@@ -11,17 +12,22 @@ interface UseWorkflowChangeProps {
   markTabDirty: (tabId: string) => void;
   loadTabFlow: (
     projectPath: string,
-    tabId: string
+    tabId: string,
   ) => Promise<{
     nodes: Node[];
     edges: Edge[];
     viewport: { x: number; y: number; zoom: number };
   } | null>;
-  syncTeleportersForTab: (tabId: string, tabName: string, nodes: Node[]) => void;
+  syncTeleportersForTab: (
+    tabId: string,
+    tabName: string,
+    nodes: Node[],
+  ) => void;
 }
 
 export function useWorkflowChange({
   activeTabRef,
+  isRestoringFlowRef,
   hasSyncedAllTabsRef,
   tabs,
   activeTabId,
@@ -32,6 +38,11 @@ export function useWorkflowChange({
 }: UseWorkflowChangeProps) {
   const handleWorkflowChange = useCallback(
     (data: { nodes: Node[]; edges: Edge[] }) => {
+      // Skip marking dirty during flow restore (tab switching)
+      if (isRestoringFlowRef.current) {
+        return;
+      }
+
       const tab = activeTabRef.current;
       const tabId = tab?.id;
       if (tabId && tab) {
@@ -39,7 +50,7 @@ export function useWorkflowChange({
         syncTeleportersForTab(tabId, tab.name, data.nodes);
       }
     },
-    [activeTabRef, markTabDirty, syncTeleportersForTab]
+    [activeTabRef, isRestoringFlowRef, markTabDirty, syncTeleportersForTab],
   );
 
   const syncAllTabsTeleporters = useCallback(
@@ -51,7 +62,7 @@ export function useWorkflowChange({
         }
       }
     },
-    [loadTabFlow, syncTeleportersForTab]
+    [loadTabFlow, syncTeleportersForTab],
   );
 
   // Sync all tabs' teleporters on initial load
@@ -60,10 +71,16 @@ export function useWorkflowChange({
       hasSyncedAllTabsRef.current = true;
       syncAllTabsTeleporters(
         currentProjectPath,
-        tabs.filter((t) => t.id !== activeTabId)
+        tabs.filter((t) => t.id !== activeTabId),
       );
     }
-  }, [tabs, currentProjectPath, activeTabId, hasSyncedAllTabsRef, syncAllTabsTeleporters]);
+  }, [
+    tabs,
+    currentProjectPath,
+    activeTabId,
+    hasSyncedAllTabsRef,
+    syncAllTabsTeleporters,
+  ]);
 
   // Reset sync flag when project changes
   useEffect(() => {

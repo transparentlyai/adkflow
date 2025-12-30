@@ -6,6 +6,7 @@ import type { TabState } from "@/lib/types";
 interface UseTabNavigationProps {
   canvasRef: React.RefObject<ReactFlowCanvasRef | null>;
   loadedTabIdRef: React.MutableRefObject<string | null>;
+  isRestoringFlowRef: React.MutableRefObject<boolean>;
   tabFlowCacheRef: React.MutableRefObject<
     Map<
       string,
@@ -41,6 +42,7 @@ interface UseTabNavigationProps {
 export function useTabNavigation({
   canvasRef,
   loadedTabIdRef,
+  isRestoringFlowRef,
   tabFlowCacheRef,
   pendingFocusNodeIdRef,
   currentProjectPath,
@@ -71,28 +73,38 @@ export function useTabNavigation({
       setActiveTabId(tabId);
 
       // 3. Restore target tab's flow from cache or load from API
-      const cachedFlow = tabFlowCacheRef.current.get(tabId);
-      if (cachedFlow && canvasRef.current) {
-        canvasRef.current.restoreFlow(cachedFlow);
-        const tab = tabs.find((t) => t.id === tabId);
-        if (tab) {
-          syncTeleportersForTab(tabId, tab.name, cachedFlow.nodes);
-        }
-      } else {
-        const flow = await loadTabFlow(currentProjectPath, tabId);
-        if (flow && canvasRef.current) {
-          canvasRef.current.restoreFlow(flow);
+      // Set flag to suppress dirty marking during restore
+      isRestoringFlowRef.current = true;
+      try {
+        const cachedFlow = tabFlowCacheRef.current.get(tabId);
+        if (cachedFlow && canvasRef.current) {
+          canvasRef.current.restoreFlow(cachedFlow);
           const tab = tabs.find((t) => t.id === tabId);
           if (tab) {
-            syncTeleportersForTab(tabId, tab.name, flow.nodes);
+            syncTeleportersForTab(tabId, tab.name, cachedFlow.nodes);
+          }
+        } else {
+          const flow = await loadTabFlow(currentProjectPath, tabId);
+          if (flow && canvasRef.current) {
+            canvasRef.current.restoreFlow(flow);
+            const tab = tabs.find((t) => t.id === tabId);
+            if (tab) {
+              syncTeleportersForTab(tabId, tab.name, flow.nodes);
+            }
           }
         }
+      } finally {
+        // Use setTimeout to ensure the flag is cleared after React processes the state update
+        setTimeout(() => {
+          isRestoringFlowRef.current = false;
+        }, 0);
       }
     },
     [
       currentProjectPath,
       canvasRef,
       loadedTabIdRef,
+      isRestoringFlowRef,
       tabFlowCacheRef,
       tabs,
       setActiveTabId,
@@ -119,22 +131,30 @@ export function useTabNavigation({
           }
         }
 
-        const cachedFlow = tabFlowCacheRef.current.get(targetTabId);
-        if (cachedFlow && canvasRef.current) {
-          canvasRef.current.restoreFlow(cachedFlow);
-          loadedTabIdRef.current = targetTabId;
-          setTimeout(() => {
-            canvasRef.current?.focusNode(nodeIdToFocus);
-          }, 150);
-        } else {
-          const flow = await loadTabFlow(currentProjectPath, targetTabId);
-          if (flow && canvasRef.current) {
-            canvasRef.current.restoreFlow(flow);
+        // Set flag to suppress dirty marking during restore
+        isRestoringFlowRef.current = true;
+        try {
+          const cachedFlow = tabFlowCacheRef.current.get(targetTabId);
+          if (cachedFlow && canvasRef.current) {
+            canvasRef.current.restoreFlow(cachedFlow);
             loadedTabIdRef.current = targetTabId;
             setTimeout(() => {
               canvasRef.current?.focusNode(nodeIdToFocus);
             }, 150);
+          } else {
+            const flow = await loadTabFlow(currentProjectPath, targetTabId);
+            if (flow && canvasRef.current) {
+              canvasRef.current.restoreFlow(flow);
+              loadedTabIdRef.current = targetTabId;
+              setTimeout(() => {
+                canvasRef.current?.focusNode(nodeIdToFocus);
+              }, 150);
+            }
           }
+        } finally {
+          setTimeout(() => {
+            isRestoringFlowRef.current = false;
+          }, 0);
         }
       } else {
         canvasRef.current?.focusNode(nodeIdToFocus);
@@ -151,6 +171,7 @@ export function useTabNavigation({
     activeTabId,
     canvasRef,
     loadedTabIdRef,
+    isRestoringFlowRef,
     tabFlowCacheRef,
     pendingFocusNodeIdRef,
     loadTabFlow,

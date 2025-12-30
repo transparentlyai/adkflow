@@ -38,6 +38,9 @@ export function useHomeState() {
   // Track which tab's flow is currently loaded on the canvas
   const loadedTabIdRef = useRef<string | null>(null);
 
+  // Flag to suppress dirty marking during flow restore operations
+  const isRestoringFlowRef = useRef(false);
+
   // In-memory cache for unsaved tab flows
   const tabFlowCacheRef = useRef<
     Map<
@@ -149,6 +152,7 @@ export function useHomeState() {
     canvasRef,
     activeTabRef,
     loadedTabIdRef,
+    isRestoringFlowRef,
     tabFlowCacheRef,
     isSessionLoaded,
     setIsSessionLoaded,

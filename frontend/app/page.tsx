@@ -35,6 +35,7 @@ function HomeContent() {
     canvasRef,
     activeTabRef,
     loadedTabIdRef,
+    isRestoringFlowRef,
     tabFlowCacheRef,
     isSessionLoaded,
     setIsSessionLoaded,
@@ -165,6 +166,7 @@ function HomeContent() {
   // Workflow change handler
   const { handleWorkflowChange } = useWorkflowChange({
     activeTabRef,
+    isRestoringFlowRef,
     hasSyncedAllTabsRef,
     tabs,
     activeTabId,
@@ -200,6 +202,7 @@ function HomeContent() {
   const tabHandlers = useTabHandlers({
     canvasRef,
     loadedTabIdRef,
+    isRestoringFlowRef,
     tabFlowCacheRef,
     pendingFocusNodeIdRef,
     currentProjectPath,
