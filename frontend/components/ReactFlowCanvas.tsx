@@ -480,6 +480,9 @@ const ReactFlowCanvasInner = forwardRef<
             snapGrid={snapGridValue}
             deleteKeyCode={null}
             onlyRenderVisibleElements={true}
+            autoPanOnNodeDrag={true}
+            autoPanOnConnect={true}
+            autoPanSpeed={15}
           >
             {snapToGrid && (
               <Background color={theme.colors.canvas.grid} gap={16} />
