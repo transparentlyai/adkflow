@@ -65,11 +65,12 @@ export function useTabNavigation({
         }
       }
 
-      // 2. Update loadedTabIdRef FIRST to prevent race conditions
-      // This ensures any workflow change events use the correct tab
+      // 2. Update refs and state BEFORE any async work
+      // This ensures UI updates immediately and refs are in sync
       loadedTabIdRef.current = tabId;
+      setActiveTabId(tabId);
 
-      // 3. Restore target tab's flow
+      // 3. Restore target tab's flow from cache or load from API
       const cachedFlow = tabFlowCacheRef.current.get(tabId);
       if (cachedFlow && canvasRef.current) {
         canvasRef.current.restoreFlow(cachedFlow);
@@ -87,10 +88,6 @@ export function useTabNavigation({
           }
         }
       }
-
-      // 4. Update React state LAST, after canvas is ready
-      // This prevents state mismatches during the switch
-      setActiveTabId(tabId);
     },
     [
       currentProjectPath,
