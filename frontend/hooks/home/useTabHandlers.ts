@@ -10,7 +10,11 @@ interface UseTabHandlersProps {
   tabFlowCacheRef: React.MutableRefObject<
     Map<
       string,
-      { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }
+      {
+        nodes: Node[];
+        edges: Edge[];
+        viewport: { x: number; y: number; zoom: number };
+      }
     >
   >;
   pendingFocusNodeIdRef: React.MutableRefObject<string | null>;
@@ -23,7 +27,7 @@ interface UseTabHandlersProps {
   setPendingFocusNodeId: (id: string | null) => void;
   loadTabFlow: (
     projectPath: string,
-    tabId: string
+    tabId: string,
   ) => Promise<{
     nodes: Node[];
     edges: Edge[];
@@ -32,18 +36,33 @@ interface UseTabHandlersProps {
   saveTabFlow: (
     projectPath: string,
     tabId: string,
-    flow: { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } },
-    projectName?: string
+    flow: {
+      nodes: Node[];
+      edges: Edge[];
+      viewport: { x: number; y: number; zoom: number };
+    },
+    projectName?: string,
   ) => Promise<boolean>;
   createNewTab: (
     projectPath: string,
-    name: string
+    name: string,
   ) => Promise<{ id: string; name: string } | null>;
   deleteTabById: (projectPath: string, tabId: string) => Promise<boolean>;
-  renameTabById: (projectPath: string, tabId: string, name: string) => Promise<boolean>;
+  renameTabById: (
+    projectPath: string,
+    tabId: string,
+    name: string,
+  ) => Promise<boolean>;
   reorderTabsById: (projectPath: string, tabIds: string[]) => Promise<boolean>;
-  duplicateTabById: (projectPath: string, tabId: string) => Promise<{ id: string; name: string } | null>;
-  syncTeleportersForTab: (tabId: string, tabName: string, nodes: Node[]) => void;
+  duplicateTabById: (
+    projectPath: string,
+    tabId: string,
+  ) => Promise<{ id: string; name: string } | null>;
+  syncTeleportersForTab: (
+    tabId: string,
+    tabName: string,
+    nodes: Node[],
+  ) => void;
   updateTabName: (tabId: string, name: string) => void;
 
   isTabDeleteDialogOpen: boolean;
@@ -95,6 +114,15 @@ export function useTabHandlers({
   const handleAddTab = useCallback(async () => {
     if (!currentProjectPath) return;
 
+    // Save current tab's flow to cache before switching
+    if (canvasRef.current && loadedTabIdRef.current) {
+      const currentFlow = canvasRef.current.saveFlow();
+      if (currentFlow) {
+        tabFlowCacheRef.current.set(loadedTabIdRef.current, currentFlow);
+      }
+    }
+
+    // Also save to backend if there are unsaved changes
     if (activeTab?.hasUnsavedChanges && canvasRef.current && activeTabId) {
       const flow = canvasRef.current.saveFlow();
       if (flow) {
@@ -102,8 +130,13 @@ export function useTabHandlers({
       }
     }
 
-    const tab = await createNewTab(currentProjectPath, `Flow ${tabs.length + 1}`);
+    const tab = await createNewTab(
+      currentProjectPath,
+      `Flow ${tabs.length + 1}`,
+    );
     if (tab && canvasRef.current) {
+      // Update loadedTabIdRef to the new tab
+      loadedTabIdRef.current = tab.id;
       canvasRef.current.clearCanvas();
     }
   }, [
@@ -112,6 +145,8 @@ export function useTabHandlers({
     activeTab,
     activeTabId,
     canvasRef,
+    loadedTabIdRef,
+    tabFlowCacheRef,
     saveTabFlow,
     createNewTab,
   ]);
@@ -122,7 +157,12 @@ export function useTabHandlers({
       setPendingDeleteTabId(tabId);
       setIsTabDeleteDialogOpen(true);
     },
-    [currentProjectPath, tabs.length, setPendingDeleteTabId, setIsTabDeleteDialogOpen]
+    [
+      currentProjectPath,
+      tabs.length,
+      setPendingDeleteTabId,
+      setIsTabDeleteDialogOpen,
+    ],
   );
 
   const handleTabDeleteConfirm = useCallback(async () => {
@@ -149,7 +189,7 @@ export function useTabHandlers({
       await renameTabById(currentProjectPath, tabId, name);
       updateTabName(tabId, name);
     },
-    [currentProjectPath, renameTabById, updateTabName]
+    [currentProjectPath, renameTabById, updateTabName],
   );
 
   const handleTabReorder = useCallback(
@@ -157,7 +197,7 @@ export function useTabHandlers({
       if (!currentProjectPath) return;
       await reorderTabsById(currentProjectPath, tabIds);
     },
-    [currentProjectPath, reorderTabsById]
+    [currentProjectPath, reorderTabsById],
   );
 
   const handleDuplicateTab = useCallback(
@@ -165,7 +205,7 @@ export function useTabHandlers({
       if (!currentProjectPath) return;
       await duplicateTabById(currentProjectPath, tabId);
     },
-    [currentProjectPath, duplicateTabById]
+    [currentProjectPath, duplicateTabById],
   );
 
   return {
