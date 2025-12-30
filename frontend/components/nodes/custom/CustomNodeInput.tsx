@@ -18,7 +18,7 @@ export interface CustomNodeInputProps {
   input: PortDefinition;
   config: Record<string, unknown>;
   isConnected: boolean;
-  connectedSourceName?: string;
+  connectedSourceNames?: string[];
   handleTypeInfo?: HandleTypeInfo;
   nodeId: string;
   isNodeLocked?: boolean;
@@ -35,7 +35,7 @@ const CustomNodeInput = memo(
     input,
     config,
     isConnected,
-    connectedSourceName,
+    connectedSourceNames,
     handleTypeInfo,
     nodeId,
     isNodeLocked,
@@ -166,7 +166,7 @@ const CustomNodeInput = memo(
             className="flex-1 text-[11px] truncate font-medium"
             style={{ color: handleColor }}
           >
-            {connectedSourceName}
+            {connectedSourceNames?.join(", ")}
           </span>
         ) : connectionOnly ? null : (
           <div className="flex-1 min-w-0">

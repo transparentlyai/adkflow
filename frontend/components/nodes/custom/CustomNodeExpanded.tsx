@@ -39,7 +39,7 @@ export interface CustomNodeExpandedProps {
   config: Record<string, unknown>;
   handlePositions?: HandlePositions;
   handleTypes: HandleTypes;
-  connectedInputs: Record<string, string>;
+  connectedInputs: Record<string, string[]>;
   headerColor: string;
   tabs: string[] | null;
   activeTab: string;
@@ -252,8 +252,8 @@ const CustomNodeExpanded = memo(
         key={input.id}
         input={input}
         config={config}
-        isConnected={!!connectedInputs[input.id]}
-        connectedSourceName={connectedInputs[input.id]}
+        isConnected={connectedInputs[input.id]?.length > 0}
+        connectedSourceNames={connectedInputs[input.id]}
         handleTypeInfo={handleTypes[input.id]}
         nodeId={id}
         isNodeLocked={nodeData.isNodeLocked}
