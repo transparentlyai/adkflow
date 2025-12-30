@@ -32,8 +32,8 @@ export const teleportInNodeSchema: CustomNodeSchema = {
       {
         id: "output",
         label: "Output",
-        source_type: "teleport",
-        data_type: "any",
+        source_type: "*",
+        data_type: "*",
         required: false,
         multiple: true,
       },

@@ -211,9 +211,13 @@ export function isTypeCompatible(
 
   // '*' on either side = wildcard match
   const sourceMatch =
-    acceptedSources.includes("*") || acceptedSources.includes(outputSource);
+    outputSource === "*" ||
+    acceptedSources.includes("*") ||
+    acceptedSources.includes(outputSource);
   const typeMatch =
-    acceptedTypes.includes("*") || acceptedTypes.includes(outputType);
+    outputType === "*" ||
+    acceptedTypes.includes("*") ||
+    acceptedTypes.includes(outputType);
 
   return sourceMatch && typeMatch;
 }
