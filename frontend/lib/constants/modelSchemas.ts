@@ -21,7 +21,6 @@ export {
   GEMINI_MODELS,
   // Functions
   getModelSchema,
-  getUniversalFieldIds,
   getModelFields,
   getModelTabs,
   getModelDefaults,
