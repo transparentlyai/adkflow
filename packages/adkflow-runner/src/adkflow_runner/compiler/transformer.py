@@ -199,6 +199,7 @@ class IRTransformer:
             name=agent_data.get("name", f"agent_{node.id[:8]}"),
             type=agent_data.get("type", "llm"),
             model=agent_data.get("model", self.config.default_model),
+            location=agent_data.get("location", "us-central1"),
             instruction=instruction,
             temperature=agent_data.get("temperature", self.config.default_temperature),
             tools=tools,
