@@ -19,6 +19,7 @@ interface HomeHeaderProps {
   tabs: TabState[];
   activeTabId: string | null;
   canvasRef: React.RefObject<ReactFlowCanvasRef | null>;
+  settingsRefreshKey: number;
   onNewProject: () => void;
   onLoadProject: () => void;
   onSaveProject: () => void;
@@ -57,6 +58,7 @@ export function HomeHeader({
   tabs,
   activeTabId,
   canvasRef,
+  settingsRefreshKey,
   onNewProject,
   onLoadProject,
   onSaveProject,
@@ -113,6 +115,7 @@ export function HomeHeader({
           <LocationBadge
             projectPath={currentProjectPath}
             onOpenSettings={onOpenProjectSettings}
+            refreshKey={settingsRefreshKey}
           />
           <button
             onClick={onToggleTheme}
