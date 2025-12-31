@@ -12,10 +12,12 @@ import type { FieldDefinition } from "@/components/nodes/CustomNode/types";
  * @param options.temperature - Default temperature value
  * @param options.temperatureHelpText - Custom help text for temperature
  */
-export function createGeneralFields(options: {
-  temperature?: number;
-  temperatureHelpText?: string;
-} = {}): FieldDefinition[] {
+export function createGeneralFields(
+  options: {
+    temperature?: number;
+    temperatureHelpText?: string;
+  } = {},
+): FieldDefinition[] {
   const {
     temperature = 0.7,
     temperatureHelpText = "Controls randomness in responses (0 = deterministic, 2 = creative)",
@@ -269,7 +271,8 @@ export function createFlowFields(): FieldDefinition[] {
       label: "Disallow transfer to parent",
       widget: "checkbox",
       default: false,
-      help_text: "Prevent this agent from transferring control back to its parent",
+      help_text:
+        "Prevent this agent from transferring control back to its parent",
       section: "Transfer Controls",
       tab: "Flow",
     },
@@ -278,7 +281,8 @@ export function createFlowFields(): FieldDefinition[] {
       label: "Disallow transfer to peers",
       widget: "checkbox",
       default: false,
-      help_text: "Prevent this agent from transferring control to sibling agents",
+      help_text:
+        "Prevent this agent from transferring control to sibling agents",
       section: "Transfer Controls",
       tab: "Flow",
     },

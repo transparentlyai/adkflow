@@ -46,7 +46,13 @@ export const UNIVERSAL_FIELD_IDS = [
 /**
  * Default tabs for most models.
  */
-export const DEFAULT_TABS = ["General", "Execution", "Flow", "Schema", "Callbacks"];
+export const DEFAULT_TABS = [
+  "General",
+  "Execution",
+  "Flow",
+  "Schema",
+  "Callbacks",
+];
 
 /**
  * Vertex AI locations/regions for Gemini models.
