@@ -64,14 +64,31 @@ const schemas = await api.getExtensionNodes();
 
 ### Schema-Based Model Configuration
 
-The Agent node uses **model-driven field schemas** from `lib/constants/modelSchemas.ts`. When a user selects a different model, the node's fields automatically update to match that model's capabilities:
+The Agent node uses **model-driven field schemas** from `lib/constants/modelSchemas/`. Each model has its own schema file, and new models are auto-discovered at startup.
+
+**File structure:**
+```
+lib/constants/modelSchemas/
+├── types.ts          # ModelSchema interface, constants
+├── fields.ts         # Shared field creation functions
+├── index.ts          # Auto-discovery registry
+├── gemini-2.5-flash.ts
+├── gemini-2.5-pro.ts
+├── gemini-3-flash-preview.ts
+└── ... (other models)
+```
+
+**Adding a new model:**
+1. Create a file in `modelSchemas/` (e.g., `my-model.ts`)
+2. Export a `schema` object using shared field functions
+3. Import and add it to `ALL_SCHEMAS` in `index.ts`
 
 ```typescript
 // Get schema for a specific model
 import { getModelSchema } from "@/lib/constants/modelSchemas";
 
 const schema = getModelSchema("gemini-2.5-flash");
-// Returns { modelId, label, tabs, fields, universalFieldIds }
+// Returns { modelId, label, order, tabs, fields, universalFieldIds }
 ```
 
 Universal fields (preserved when switching models):
