@@ -29,18 +29,29 @@ CustomNode (entry point)
 
 ### Built-in Types
 
+All built-in nodes are now **schema-driven** using CustomNodeSchema definitions located in `lib/builtinNodeSchemas/`:
+
 | Type | Schema Location | Purpose |
 |------|-----------------|---------|
-| `LlmAgent` | `builtinNodeSchemas/agent.ts` | LLM execution |
-| `SequentialAgent` | `builtinNodeSchemas/sequential.ts` | Sequential execution |
-| `ParallelAgent` | `builtinNodeSchemas/parallel.ts` | Parallel execution |
-| `LoopAgent` | `builtinNodeSchemas/loop.ts` | Loop execution |
-| `Prompt` | `builtinNodeSchemas/prompt.ts` | Text templates |
-| `Context` | `builtinNodeSchemas/context.ts` | Static content |
-| `Tool` | `builtinNodeSchemas/tool.ts` | Agent tools |
-| `Variable` | `builtinNodeSchemas/variable.ts` | Variables |
-| `Group` | Built-in | Container |
-| `Label` | Built-in | Annotation |
+| `Agent` | `builtinNodeSchemas/agentNodeSchema.ts` | LLM agent (model-driven fields) |
+| `Prompt` | `builtinNodeSchemas/promptNodeSchema.ts` | Text templates |
+| `Context` | `builtinNodeSchemas/contextNodeSchema.ts` | Static content |
+| `Tool` | `builtinNodeSchemas/toolNodeSchema.ts` | Agent tools |
+| `AgentTool` | `builtinNodeSchemas/agentToolNodeSchema.ts` | Tool wrapper for agents |
+| `Process` | `builtinNodeSchemas/processNodeSchema.ts` | Custom Python processing |
+| `Variable` | `builtinNodeSchemas/variableNodeSchema.ts` | Variables |
+| `UserInput` | `builtinNodeSchemas/userInputNodeSchema.ts` | Runtime user input |
+| `Start` | `builtinNodeSchemas/startNodeSchema.ts` | Workflow start point |
+| `End` | `builtinNodeSchemas/endNodeSchema.ts` | Workflow end point |
+| `TeleportIn/Out` | `builtinNodeSchemas/teleport*.ts` | Connection shortcuts |
+| `InputProbe` | `builtinNodeSchemas/inputProbeNodeSchema.ts` | Debug input |
+| `OutputProbe` | `builtinNodeSchemas/outputProbeNodeSchema.ts` | Debug output |
+| `LogProbe` | `builtinNodeSchemas/logProbeNodeSchema.ts` | Logging probe |
+| `OutputFile` | `builtinNodeSchemas/outputFileNodeSchema.ts` | File output |
+| `Group` | Built-in (non-schema) | Container |
+| `Label` | Built-in (non-schema) | Annotation |
+
+> **Note**: SequentialAgent, ParallelAgent, and LoopAgent have been consolidated into the unified Agent node. Agent behavior is now configured through model settings and flow connections.
 
 ### Custom Types
 
@@ -48,8 +59,26 @@ Loaded from extensions via API:
 
 ```typescript
 const schemas = await api.getExtensionNodes();
-// Returns NodeSchema[] for custom nodes
+// Returns CustomNodeSchema[] for custom nodes
 ```
+
+### Schema-Based Model Configuration
+
+The Agent node uses **model-driven field schemas** from `lib/constants/modelSchemas.ts`. When a user selects a different model, the node's fields automatically update to match that model's capabilities:
+
+```typescript
+// Get schema for a specific model
+import { getModelSchema } from "@/lib/constants/modelSchemas";
+
+const schema = getModelSchema("gemini-2.5-flash");
+// Returns { modelId, label, tabs, fields, universalFieldIds }
+```
+
+Universal fields (preserved when switching models):
+- `description` - Agent description
+- `model` - Model selection
+- `custom_model` - Custom model name
+- `temperature` - Response randomness
 
 ## Node Schema
 
@@ -104,15 +133,23 @@ Located in `components/nodes/widgets/`:
 
 | Widget | Type | Props |
 |--------|------|-------|
-| `TextInputWidget` | `TEXT_INPUT` | placeholder, default |
-| `TextAreaWidget` | `TEXT_AREA` | placeholder, rows |
-| `NumberInputWidget` | `NUMBER_INPUT` | min, max, step |
-| `SelectWidget` | `SELECT` | options |
-| `CheckboxWidget` | `CHECKBOX` | - |
-| `SliderWidget` | `SLIDER` | min, max, step |
-| `FilePickerWidget` | `FILE_PICKER` | extensions |
-| `MonacoEditorWidget` | `CODE_EDITOR` | language |
-| `JsonTreeWidget` | `JSON_TREE` | - |
+| `TextInputWidget` | `text_input` | placeholder, default |
+| `TextAreaWidget` | `text_area` | placeholder, rows |
+| `NumberInputWidget` | `number_input` | min, max, step |
+| `SelectWidget` | `select` | options |
+| `SearchableSelectWidget` | `searchable_select` | options, placeholder |
+| `CheckboxWidget` | `checkbox` | - |
+| `SliderWidget` | `slider` | min, max, step |
+| `RadioGroupWidget` | `radio_group` | options |
+| `FilePickerWidget` | `file_picker` | extensions |
+| `FileDisplayWidget` | `file_display` | read-only file display |
+| `MonacoEditorWidget` | `code_editor` | language |
+| `JsonTreeWidget` | `json_tree` | - |
+| `ChatLogWidget` | `chat_log` | messages display |
+| `InfoDisplayWidget` | `info_display` | read-only info text |
+| `VariableDisplayWidget` | `variable_display` | variable value |
+
+Widget types support both snake_case (Python) and lowercase (legacy) naming.
 
 ### Widget Rendering
 

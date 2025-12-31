@@ -14,13 +14,16 @@ Nodes can have different visual layouts when collapsed. This allows you to creat
 
 ```python
 class NodeLayout(str, Enum):
-    STANDARD = "standard"  # Standard expandable panel (default)
-    PILL = "pill"          # Pill-shaped compact node
-    CIRCLE = "circle"      # Circular button
-    OCTAGON = "octagon"    # Octagonal shape
-    DIAMOND = "diamond"    # Diamond connector
-    COMPACT = "compact"    # Small compact pill
-    PANEL = "panel"        # Full panel with sections
+    STANDARD = "standard"   # Standard expandable panel (default)
+    PILL = "pill"           # Pill-shaped (header only)
+    PILL_BODY = "pill_body" # Pill with body section
+    FULL = "full"           # Header + body + footer
+    CIRCLE = "circle"       # Circular button
+    OCTAGON = "octagon"     # Octagonal shape
+    DIAMOND = "diamond"     # Diamond connector (legacy)
+    TAG = "tag"             # Tag/arrow shape (for teleporters)
+    COMPACT = "compact"     # Small compact pill
+    PANEL = "panel"         # Full panel (alias for standard)
 ```
 
 ## Using Layouts
@@ -116,16 +119,96 @@ UISchema(
 )
 ```
 
-## CollapsedDisplay
+### PILL_BODY
 
-Control what shows when a node is collapsed:
+Pill with body section:
+- Header + body content
+- Best for: Nodes showing signatures or short content
+
+```python
+UISchema(
+    layout=NodeLayout.PILL_BODY,
+    collapsed_body=CollapsedBody(
+        show_function_signature=True,
+        code_field="code",
+    ),
+)
+```
+
+### FULL
+
+Complete panel with footer:
+- Header + body + footer
+- Best for: Complex nodes like Agents
+
+```python
+UISchema(
+    layout=NodeLayout.FULL,
+    collapsed_body=CollapsedBody(
+        show_field="model",
+        show_connected=["prompt", "tools"],
+    ),
+    collapsed_footer=CollapsedFooter(
+        left_text="Agent",
+        show_type_badge=True,
+        type_field="type",
+    ),
+)
+```
+
+### TAG
+
+Tag/arrow shape:
+- Directional pointer appearance
+- Uses TeleporterContext for dynamic colors
+- Best for: Teleport/portal nodes
+
+```python
+UISchema(
+    layout=NodeLayout.TAG,
+    icon="Send",  # or "Inbox" for receiving
+)
+```
+
+## Collapsed View Configuration
+
+### CollapsedDisplay
+
+Control what shows in the header when collapsed:
 
 ```python
 @dataclass
 class CollapsedDisplay:
     summary_fields: list[str] | None = None  # Fields to show
-    format: str | None = None                # Format string
-    show_connections: bool = False           # Show connected inputs
+    format: str | None = None                # Format string with {field} placeholders
+    show_connections: bool = False           # Show connected input names
+    show_with_braces: bool = False           # Wrap in literal braces (for Variables)
+```
+
+### CollapsedBody
+
+Control body content (for `pill_body` and `full` layouts):
+
+```python
+@dataclass
+class CollapsedBody:
+    show_field: str | None = None            # Field value to display
+    show_connected: list[str] | None = None  # Input handle IDs to show connections
+    show_function_signature: bool = False    # Parse function signature from code
+    code_field: str | None = None            # Field containing code to parse
+```
+
+### CollapsedFooter
+
+Control footer content (for `full` layout):
+
+```python
+@dataclass
+class CollapsedFooter:
+    left_text: str | None = None             # Left side label
+    show_type_badge: bool = False            # Show type badge on right
+    type_field: str | None = None            # Field containing type value
+    type_labels: dict[str, str] | None = None  # Map of type values to labels
 ```
 
 ### Summary Fields
