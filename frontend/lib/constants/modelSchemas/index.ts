@@ -72,13 +72,6 @@ export function getModelSchema(modelId: string): ModelSchema {
 }
 
 /**
- * Get the list of universal field IDs.
- */
-export function getUniversalFieldIds(): string[] {
-  return UNIVERSAL_FIELD_IDS;
-}
-
-/**
  * Get fields for a specific model.
  */
 export function getModelFields(modelId: string): FieldDefinition[] {
