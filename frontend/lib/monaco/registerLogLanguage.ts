@@ -1,5 +1,8 @@
 import type * as Monaco from "monaco-editor";
-import { logLanguageConfig, logLanguageDefinition } from "@/lib/monaco/logLanguage";
+import {
+  logLanguageConfig,
+  logLanguageDefinition,
+} from "@/lib/monaco/logLanguage";
 import { logLightTheme } from "@/lib/monaco/logTheme";
 
 export const LOG_LANGUAGE_ID = "log";
@@ -19,7 +22,7 @@ export function registerLogLanguage(monaco: typeof Monaco): void {
   // Set the tokenizer
   monaco.languages.setMonarchTokensProvider(
     LOG_LANGUAGE_ID,
-    logLanguageDefinition
+    logLanguageDefinition,
   );
 
   // Define the theme

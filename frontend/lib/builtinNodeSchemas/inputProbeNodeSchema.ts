@@ -55,7 +55,8 @@ export const inputProbeNodeSchema: CustomNodeSchema = {
         label: "File",
         widget: "file_picker",
         placeholder: "Select a file...",
-        help_text: "Path to the file containing the input data (.log, .txt, .json)",
+        help_text:
+          "Path to the file containing the input data (.log, .txt, .json)",
       },
     ],
     color: "#06B6D4", // Cyan/teal for probe nodes (matches theme.colors.nodes.probe.header)

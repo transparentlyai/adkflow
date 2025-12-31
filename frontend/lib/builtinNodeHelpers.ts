@@ -6,7 +6,10 @@
  * and the new unified CustomNode approach.
  */
 
-import type { CustomNodeSchema, CustomNodeData } from "@/components/nodes/CustomNode";
+import type {
+  CustomNodeSchema,
+  CustomNodeData,
+} from "@/components/nodes/CustomNode";
 import { getDefaultCustomNodeData } from "@/components/nodes/CustomNode";
 import {
   builtinNodeSchemas,
@@ -54,14 +57,17 @@ export const builtinTypeToSchema: Record<string, CustomNodeSchema> = {
 /**
  * Map from unit_id to schema for built-in nodes.
  */
-export const builtinUnitIdToSchema: Record<string, CustomNodeSchema> = Object.fromEntries(
-  builtinNodeSchemas.map((schema) => [schema.unit_id, schema])
-);
+export const builtinUnitIdToSchema: Record<string, CustomNodeSchema> =
+  Object.fromEntries(
+    builtinNodeSchemas.map((schema) => [schema.unit_id, schema]),
+  );
 
 /**
  * Get the schema for a built-in node type.
  */
-export function getBuiltinSchema(nodeType: string): CustomNodeSchema | undefined {
+export function getBuiltinSchema(
+  nodeType: string,
+): CustomNodeSchema | undefined {
   return builtinTypeToSchema[nodeType];
 }
 
@@ -86,7 +92,9 @@ export function getBuiltinNodeType(schema: CustomNodeSchema): string {
  * Create default node data for a built-in node type.
  * This uses the schema to generate the proper CustomNodeData.
  */
-export function getDefaultBuiltinNodeData(nodeType: string): CustomNodeData | undefined {
+export function getDefaultBuiltinNodeData(
+  nodeType: string,
+): CustomNodeData | undefined {
   const schema = builtinTypeToSchema[nodeType];
   if (!schema) return undefined;
   return getDefaultCustomNodeData(schema);

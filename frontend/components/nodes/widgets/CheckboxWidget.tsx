@@ -2,7 +2,12 @@
 
 import type { WidgetProps } from "@/components/nodes/widgets/WidgetRenderer";
 
-export default function CheckboxWidget({ field, value, onChange, options }: WidgetProps) {
+export default function CheckboxWidget({
+  field,
+  value,
+  onChange,
+  options,
+}: WidgetProps) {
   const { disabled, theme } = options;
 
   return (

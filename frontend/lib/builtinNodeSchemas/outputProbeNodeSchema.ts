@@ -58,7 +58,8 @@ export const outputProbeNodeSchema: CustomNodeSchema = {
         label: "File",
         widget: "file_picker",
         placeholder: "Select a file...",
-        help_text: "Path to the file where output will be written (.log, .txt, .json)",
+        help_text:
+          "Path to the file where output will be written (.log, .txt, .json)",
       },
     ],
     color: "#06B6D4", // Cyan/teal for probe nodes (matches theme.colors.nodes.probe.header)

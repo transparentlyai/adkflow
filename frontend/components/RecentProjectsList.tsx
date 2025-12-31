@@ -25,8 +25,12 @@ export default function RecentProjectsList({
 
   if (projects.length === 0) {
     return (
-      <div className={`flex flex-col items-center justify-center text-center ${compact ? "py-6" : "py-12"}`}>
-        <FolderX className={`text-muted-foreground mb-3 ${compact ? "h-8 w-8" : "h-12 w-12"}`} />
+      <div
+        className={`flex flex-col items-center justify-center text-center ${compact ? "py-6" : "py-12"}`}
+      >
+        <FolderX
+          className={`text-muted-foreground mb-3 ${compact ? "h-8 w-8" : "h-12 w-12"}`}
+        />
         <p className="text-muted-foreground text-sm">{emptyMessage}</p>
         <p className="text-muted-foreground text-xs mt-1">
           Create a new project to get started
@@ -46,7 +50,10 @@ export default function RecentProjectsList({
           <FolderOpen className="h-5 w-5 text-primary shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="font-medium text-sm truncate">{project.name}</p>
-            <p className="text-xs text-muted-foreground truncate" title={project.path}>
+            <p
+              className="text-xs text-muted-foreground truncate"
+              title={project.path}
+            >
               {project.path}
             </p>
           </div>

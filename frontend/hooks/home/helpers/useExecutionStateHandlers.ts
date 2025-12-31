@@ -19,28 +19,28 @@ export function useExecutionStateHandlers({
     (status: RunStatus) => {
       setIsRunning(false);
     },
-    [setIsRunning]
+    [setIsRunning],
   );
 
   const handleAgentStateChange = useCallback(
     (agentName: string, state: NodeExecutionState) => {
       canvasRef.current?.updateNodeExecutionState(agentName, state);
     },
-    [canvasRef]
+    [canvasRef],
   );
 
   const handleToolStateChange = useCallback(
     (toolName: string, state: NodeExecutionState) => {
       canvasRef.current?.updateToolExecutionState(toolName, state);
     },
-    [canvasRef]
+    [canvasRef],
   );
 
   const handleUserInputStateChange = useCallback(
     (nodeId: string, isWaiting: boolean) => {
       canvasRef.current?.updateUserInputWaitingState(nodeId, isWaiting);
     },
-    [canvasRef]
+    [canvasRef],
   );
 
   const handleClearExecutionState = useCallback(() => {

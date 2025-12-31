@@ -23,7 +23,10 @@ interface GlobalSearchProps {
   projectPath: string;
   tabs: TabState[];
   activeTabId: string | null;
-  loadTabFlow: (projectPath: string, tabId: string) => Promise<ReactFlowJSON | null>;
+  loadTabFlow: (
+    projectPath: string,
+    tabId: string,
+  ) => Promise<ReactFlowJSON | null>;
   navigateToNode: (tabId: string, nodeId: string) => void;
   canvasRef: React.RefObject<ReactFlowCanvasRef | null>;
 }
@@ -112,7 +115,7 @@ export default function GlobalSearch({
       setIsOpen(false);
       inputRef.current?.blur();
     },
-    [navigateToNode]
+    [navigateToNode],
   );
 
   const handleKeyDown = useCallback(
@@ -141,7 +144,7 @@ export default function GlobalSearch({
           break;
       }
     },
-    [isOpen, results, selectedIndex, handleSelect]
+    [isOpen, results, selectedIndex, handleSelect],
   );
 
   // Global keyboard shortcut (Cmd+K / Ctrl+K)
@@ -158,7 +161,9 @@ export default function GlobalSearch({
   }, []);
 
   useEffect(() => {
-    const selectedElement = document.querySelector(`[data-search-index="${selectedIndex}"]`);
+    const selectedElement = document.querySelector(
+      `[data-search-index="${selectedIndex}"]`,
+    );
     selectedElement?.scrollIntoView({ block: "nearest" });
   }, [selectedIndex]);
 
@@ -223,7 +228,9 @@ export default function GlobalSearch({
                   onMouseEnter={() => setSelectedIndex(index)}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium truncate">{result.nodeName}</span>
+                    <span className="font-medium truncate">
+                      {result.nodeName}
+                    </span>
                     <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
                       {result.tabName}
                     </span>

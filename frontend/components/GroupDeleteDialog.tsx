@@ -45,16 +45,10 @@ export default function GroupDeleteDialog({
         </AlertDialogHeader>
         <AlertDialogFooter className="flex-col sm:flex-row gap-2">
           <AlertDialogCancel onClick={onCancel}>Cancel</AlertDialogCancel>
-          <Button
-            variant="outline"
-            onClick={onDeleteGroupOnly}
-          >
+          <Button variant="outline" onClick={onDeleteGroupOnly}>
             Delete {groupText} only
           </Button>
-          <Button
-            variant="destructive"
-            onClick={onDeleteAll}
-          >
+          <Button variant="destructive" onClick={onDeleteAll}>
             Delete all
           </Button>
         </AlertDialogFooter>

@@ -20,7 +20,7 @@ function JsonNode({ keyName, value, depth, theme }: JsonNodeProps) {
 
   const toggleExpand = useCallback(
     () => setIsExpanded(!isExpanded),
-    [isExpanded]
+    [isExpanded],
   );
 
   const indent = depth * 12;
@@ -98,7 +98,13 @@ function JsonNode({ keyName, value, depth, theme }: JsonNodeProps) {
       </div>
       {isExpanded &&
         entries.map(([k, v]) => (
-          <JsonNode key={k} keyName={k} value={v} depth={depth + 1} theme={theme} />
+          <JsonNode
+            key={k}
+            keyName={k}
+            value={v}
+            depth={depth + 1}
+            theme={theme}
+          />
         ))}
     </div>
   );

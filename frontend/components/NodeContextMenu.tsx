@@ -65,7 +65,9 @@ export default function NodeContextMenu({
               <Copy className="h-4 w-4" />
             </span>
             Copy
-            <span className="ml-auto text-xs text-muted-foreground">{formatShortcut("C")}</span>
+            <span className="ml-auto text-xs text-muted-foreground">
+              {formatShortcut("C")}
+            </span>
           </button>
         )}
         {onCut && (
@@ -76,13 +78,17 @@ export default function NodeContextMenu({
                 onClose();
               }
             }}
-            className={isCanvasLocked || isLocked ? disabledClass : menuItemClass}
+            className={
+              isCanvasLocked || isLocked ? disabledClass : menuItemClass
+            }
           >
             <span className="mr-2 text-muted-foreground">
               <Scissors className="h-4 w-4" />
             </span>
             Cut
-            <span className="ml-auto text-xs text-muted-foreground">{formatShortcut("X")}</span>
+            <span className="ml-auto text-xs text-muted-foreground">
+              {formatShortcut("X")}
+            </span>
           </button>
         )}
         {onPaste && (
@@ -93,13 +99,17 @@ export default function NodeContextMenu({
                 onClose();
               }
             }}
-            className={isCanvasLocked || !hasClipboard ? disabledClass : menuItemClass}
+            className={
+              isCanvasLocked || !hasClipboard ? disabledClass : menuItemClass
+            }
           >
             <span className="mr-2 text-muted-foreground">
               <Clipboard className="h-4 w-4" />
             </span>
             Paste
-            <span className="ml-auto text-xs text-muted-foreground">{formatShortcut("V")}</span>
+            <span className="ml-auto text-xs text-muted-foreground">
+              {formatShortcut("V")}
+            </span>
           </button>
         )}
         {(onCopy || onCut || onPaste) && (
@@ -113,7 +123,11 @@ export default function NodeContextMenu({
           className={menuItemClass}
         >
           <span className="mr-2 text-muted-foreground">
-            {isLocked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+            {isLocked ? (
+              <Unlock className="h-4 w-4" />
+            ) : (
+              <Lock className="h-4 w-4" />
+            )}
           </span>
           {isLocked ? "Unlock Node" : "Lock Node"}
         </button>
@@ -133,6 +147,6 @@ export default function NodeContextMenu({
         )}
       </div>
     </>,
-    document.body
+    document.body,
   );
 }

@@ -18,17 +18,21 @@ interface UseProjectCreateProps {
   } | null>;
   createNewTab: (
     projectPath: string,
-    name: string
+    name: string,
   ) => Promise<{ id: string; name: string } | null>;
   loadTabFlow: (
     projectPath: string,
-    tabId: string
+    tabId: string,
   ) => Promise<{
     nodes: Node[];
     edges: Edge[];
     viewport: { x: number; y: number; zoom: number };
   } | null>;
-  syncTeleportersForTab: (tabId: string, tabName: string, nodes: Node[]) => void;
+  syncTeleportersForTab: (
+    tabId: string,
+    tabName: string,
+    nodes: Node[],
+  ) => void;
 }
 
 export function useProjectCreate({
@@ -70,7 +74,10 @@ export function useProjectCreate({
           if (flow) {
             canvasRef.current.restoreFlow(flow);
             if (flow.nodes.length === 0) {
-              canvasRef.current.addBuiltinSchemaNode("start", { x: 100, y: 200 });
+              canvasRef.current.addBuiltinSchemaNode("start", {
+                x: 100,
+                y: 200,
+              });
             }
             loadedTabIdRef.current = tabToLoad.id;
             syncTeleportersForTab(tabToLoad.id, tabToLoad.name, flow.nodes);
@@ -100,7 +107,7 @@ export function useProjectCreate({
       createNewTab,
       loadTabFlow,
       syncTeleportersForTab,
-    ]
+    ],
   );
 
   return { handleCreateNewProject };

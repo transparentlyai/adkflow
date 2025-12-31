@@ -22,7 +22,9 @@ export function RunWorkflowProvider({
   hasProjectPath: boolean;
 }) {
   return (
-    <RunWorkflowContext.Provider value={{ runWorkflow, isRunning, hasProjectPath }}>
+    <RunWorkflowContext.Provider
+      value={{ runWorkflow, isRunning, hasProjectPath }}
+    >
       {children}
     </RunWorkflowContext.Provider>
   );

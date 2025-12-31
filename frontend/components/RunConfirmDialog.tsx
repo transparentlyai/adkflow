@@ -28,7 +28,8 @@ export default function RunConfirmDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Save Before Running?</AlertDialogTitle>
           <AlertDialogDescription>
-            You have unsaved changes. The workflow needs to be saved before it can be executed.
+            You have unsaved changes. The workflow needs to be saved before it
+            can be executed.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

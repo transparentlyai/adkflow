@@ -62,7 +62,9 @@ class EnvSettingsUpdate(BaseModel):
         default="api_key", alias="authMode", description="Authentication mode"
     )
     api_key: str | None = Field(
-        default=None, alias="apiKey", description="API key (empty string = don't update)"
+        default=None,
+        alias="apiKey",
+        description="API key (empty string = don't update)",
     )
     google_cloud_project: str | None = Field(
         default=None, alias="googleCloudProject", description="Google Cloud project ID"
@@ -187,12 +189,14 @@ async def get_project_settings(
         has_api_key = bool(api_key)
         api_key_masked = mask_api_key(api_key) if has_api_key else None
 
-        env_settings = EnvSettings(
-            auth_mode=auth_mode,
-            has_api_key=has_api_key,
-            api_key_masked=api_key_masked,
-            google_cloud_project=env_vars.get("GOOGLE_CLOUD_PROJECT"),
-            google_cloud_location=env_vars.get("GOOGLE_CLOUD_LOCATION"),
+        env_settings = EnvSettings.model_validate(
+            {
+                "auth_mode": auth_mode,
+                "has_api_key": has_api_key,
+                "api_key_masked": api_key_masked,
+                "google_cloud_project": env_vars.get("GOOGLE_CLOUD_PROJECT"),
+                "google_cloud_location": env_vars.get("GOOGLE_CLOUD_LOCATION"),
+            }
         )
 
         return SettingsResponse(settings=settings, env=env_settings)
@@ -238,7 +242,9 @@ async def update_project_settings(
 
         # Save manifest (use by_alias for camelCase in JSON)
         with open(manifest_file, "w", encoding="utf-8") as f:
-            json.dump(manifest.model_dump(exclude_none=True, by_alias=True), f, indent=2)
+            json.dump(
+                manifest.model_dump(exclude_none=True, by_alias=True), f, indent=2
+            )
 
         # Load existing env vars
         existing_env = parse_env_file(env_file)

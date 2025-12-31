@@ -24,13 +24,17 @@ interface UseSessionManagementProps {
   } | null>;
   loadTabFlow: (
     projectPath: string,
-    tabId: string
+    tabId: string,
   ) => Promise<{
     nodes: Node[];
     edges: Edge[];
     viewport: { x: number; y: number; zoom: number };
   } | null>;
-  syncTeleportersForTab: (tabId: string, tabName: string, nodes: Node[]) => void;
+  syncTeleportersForTab: (
+    tabId: string,
+    tabName: string,
+    nodes: Node[],
+  ) => void;
 }
 
 export function useSessionManagement({
@@ -71,7 +75,11 @@ export function useSessionManagement({
             if (flow) {
               canvasRef.current.restoreFlow(flow);
               loadedTabIdRef.current = result.firstTab.id;
-              syncTeleportersForTab(result.firstTab.id, result.firstTab.name, flow.nodes);
+              syncTeleportersForTab(
+                result.firstTab.id,
+                result.firstTab.name,
+                flow.nodes,
+              );
             }
           }
           addRecentProject({

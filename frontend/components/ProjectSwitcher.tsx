@@ -13,7 +13,10 @@ import { Input } from "@/components/ui/input";
 import InlinePathPicker from "@/components/InlinePathPicker";
 import RecentProjectsList from "@/components/RecentProjectsList";
 import type { RecentProject } from "@/lib/recentProjects";
-import { getLastUsedDirectory, sanitizeProjectName } from "@/lib/recentProjects";
+import {
+  getLastUsedDirectory,
+  sanitizeProjectName,
+} from "@/lib/recentProjects";
 import { FolderPlus, FolderOpen, ChevronDown, ChevronUp } from "lucide-react";
 
 interface ProjectSwitcherProps {
@@ -76,9 +79,10 @@ export default function ProjectSwitcher({
       return;
     }
 
-    const fullPath = projectLocation === "/"
-      ? `/${sanitizedName}`
-      : `${projectLocation}/${sanitizedName}`;
+    const fullPath =
+      projectLocation === "/"
+        ? `/${sanitizedName}`
+        : `${projectLocation}/${sanitizedName}`;
 
     onCreateProject(fullPath, projectName.trim());
     onClose();
@@ -90,23 +94,30 @@ export default function ProjectSwitcher({
   };
 
   const sanitizedName = sanitizeProjectName(projectName);
-  const fullPath = projectLocation === "/"
-    ? `/${sanitizedName}`
-    : sanitizedName ? `${projectLocation}/${sanitizedName}` : projectLocation;
+  const fullPath =
+    projectLocation === "/"
+      ? `/${sanitizedName}`
+      : sanitizedName
+        ? `${projectLocation}/${sanitizedName}`
+        : projectLocation;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>
-            {mode === "create" ? "Create New Project" : mode === "browse" ? "Browse for Project" : "Open Project"}
+            {mode === "create"
+              ? "Create New Project"
+              : mode === "browse"
+                ? "Browse for Project"
+                : "Open Project"}
           </DialogTitle>
           <DialogDescription>
             {mode === "create"
               ? "Start a new workflow from scratch"
               : mode === "browse"
-              ? "Navigate to an existing project directory"
-              : "Select a recent project or create a new one"}
+                ? "Navigate to an existing project directory"
+                : "Select a recent project or create a new one"}
           </DialogDescription>
         </DialogHeader>
 
@@ -171,7 +182,10 @@ export default function ProjectSwitcher({
                 </label>
                 {!showPathPicker ? (
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 px-3 py-2 bg-muted rounded-md text-sm font-mono truncate" title={fullPath}>
+                    <div
+                      className="flex-1 px-3 py-2 bg-muted rounded-md text-sm font-mono truncate"
+                      title={fullPath}
+                    >
                       {fullPath}
                     </div>
                     <Button
@@ -196,9 +210,7 @@ export default function ProjectSwitcher({
                 )}
               </div>
 
-              {error && (
-                <p className="text-sm text-destructive">{error}</p>
-              )}
+              {error && <p className="text-sm text-destructive">{error}</p>}
 
               <div className="flex gap-2">
                 <Button onClick={handleCreateProject} className="flex-1">

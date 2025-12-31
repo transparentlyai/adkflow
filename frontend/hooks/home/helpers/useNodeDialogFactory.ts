@@ -31,7 +31,7 @@ export function useNodeDialogFactory({
     (position: { x: number; y: number }) => {
       setDialogState({ isOpen: true, position });
     },
-    [setDialogState]
+    [setDialogState],
   );
 
   const handleCreate = useCallback(
@@ -40,10 +40,14 @@ export function useNodeDialogFactory({
       const filePath = `${config.folder}/${sanitizedName}${config.fileExtension}`;
 
       if (canvasRef.current) {
-        canvasRef.current.addBuiltinSchemaNode(config.nodeType, dialogState.position, {
-          name,
-          file_path: filePath,
-        });
+        canvasRef.current.addBuiltinSchemaNode(
+          config.nodeType,
+          dialogState.position,
+          {
+            name,
+            file_path: filePath,
+          },
+        );
       }
 
       setDialogState({ isOpen: false });
@@ -51,7 +55,14 @@ export function useNodeDialogFactory({
         markTabDirty(activeTabId);
       }
     },
-    [canvasRef, dialogState.position, activeTabId, markTabDirty, setDialogState, config]
+    [
+      canvasRef,
+      dialogState.position,
+      activeTabId,
+      markTabDirty,
+      setDialogState,
+      config,
+    ],
   );
 
   const handleCancel = useCallback(() => {
@@ -63,10 +74,14 @@ export function useNodeDialogFactory({
       const name = config.extractNameFromPath(filePath);
 
       if (canvasRef.current) {
-        canvasRef.current.addBuiltinSchemaNode(config.nodeType, dialogState.position, {
-          name,
-          file_path: filePath,
-        });
+        canvasRef.current.addBuiltinSchemaNode(
+          config.nodeType,
+          dialogState.position,
+          {
+            name,
+            file_path: filePath,
+          },
+        );
       }
 
       setDialogState({ isOpen: false });
@@ -74,7 +89,14 @@ export function useNodeDialogFactory({
         markTabDirty(activeTabId);
       }
     },
-    [canvasRef, dialogState.position, activeTabId, markTabDirty, setDialogState, config]
+    [
+      canvasRef,
+      dialogState.position,
+      activeTabId,
+      markTabDirty,
+      setDialogState,
+      config,
+    ],
   );
 
   return {

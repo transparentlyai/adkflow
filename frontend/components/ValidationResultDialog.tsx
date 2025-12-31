@@ -63,7 +63,9 @@ export default function ValidationResultDialog({
               <div className="text-xs text-muted-foreground">Tabs</div>
             </div>
             <div className="rounded-md bg-muted p-2">
-              <div className="text-2xl font-bold">{result.teleporter_count}</div>
+              <div className="text-2xl font-bold">
+                {result.teleporter_count}
+              </div>
               <div className="text-xs text-muted-foreground">Teleporters</div>
             </div>
           </div>
@@ -77,7 +79,10 @@ export default function ValidationResultDialog({
               </div>
               <ul className="space-y-1 text-sm">
                 {result.errors.map((error, i) => (
-                  <li key={i} className="rounded bg-red-500/10 px-2 py-1 text-red-400">
+                  <li
+                    key={i}
+                    className="rounded bg-red-500/10 px-2 py-1 text-red-400"
+                  >
                     {error}
                   </li>
                 ))}
@@ -94,7 +99,10 @@ export default function ValidationResultDialog({
               </div>
               <ul className="space-y-1 text-sm">
                 {result.warnings.map((warning, i) => (
-                  <li key={i} className="rounded bg-yellow-500/10 px-2 py-1 text-yellow-400">
+                  <li
+                    key={i}
+                    className="rounded bg-yellow-500/10 px-2 py-1 text-yellow-400"
+                  >
                     {warning}
                   </li>
                 ))}

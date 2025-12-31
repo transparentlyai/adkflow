@@ -2,7 +2,10 @@ import { useCallback } from "react";
 import type { Node } from "@xyflow/react";
 import type { NodeTypeOption } from "@/components/CanvasContextMenu";
 import type { CustomNodeSchema } from "@/components/nodes/CustomNode";
-import type { ContextMenuState, TeleportNamePromptState } from "./useDialogState";
+import type {
+  ContextMenuState,
+  TeleportNamePromptState,
+} from "./useDialogState";
 
 interface UseContextMenuSelectParams {
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
@@ -115,11 +118,19 @@ export function useContextMenuSelect({
 
         // Teleport nodes require name prompt dialog
         case "teleportOut":
-          setTeleportNamePrompt({ type: "teleportOut", position, parentGroupId });
+          setTeleportNamePrompt({
+            type: "teleportOut",
+            position,
+            parentGroupId,
+          });
           setTeleportNameInput("");
           break;
         case "teleportIn":
-          setTeleportNamePrompt({ type: "teleportIn", position, parentGroupId });
+          setTeleportNamePrompt({
+            type: "teleportIn",
+            position,
+            parentGroupId,
+          });
           setTeleportNameInput("");
           break;
 
@@ -127,27 +138,52 @@ export function useContextMenuSelect({
         case "prompt":
           onRequestPromptCreation
             ? onRequestPromptCreation(position)
-            : addBuiltinSchemaNode(nodeType, position, undefined, parentGroupId);
+            : addBuiltinSchemaNode(
+                nodeType,
+                position,
+                undefined,
+                parentGroupId,
+              );
           break;
         case "context":
           onRequestContextCreation
             ? onRequestContextCreation(position)
-            : addBuiltinSchemaNode(nodeType, position, undefined, parentGroupId);
+            : addBuiltinSchemaNode(
+                nodeType,
+                position,
+                undefined,
+                parentGroupId,
+              );
           break;
         case "tool":
           onRequestToolCreation
             ? onRequestToolCreation(position)
-            : addBuiltinSchemaNode(nodeType, position, undefined, parentGroupId);
+            : addBuiltinSchemaNode(
+                nodeType,
+                position,
+                undefined,
+                parentGroupId,
+              );
           break;
         case "process":
           onRequestProcessCreation
             ? onRequestProcessCreation(position)
-            : addBuiltinSchemaNode(nodeType, position, undefined, parentGroupId);
+            : addBuiltinSchemaNode(
+                nodeType,
+                position,
+                undefined,
+                parentGroupId,
+              );
           break;
         case "outputFile":
           onRequestOutputFileCreation
             ? onRequestOutputFileCreation(position)
-            : addBuiltinSchemaNode(nodeType, position, undefined, parentGroupId);
+            : addBuiltinSchemaNode(
+                nodeType,
+                position,
+                undefined,
+                parentGroupId,
+              );
           break;
 
         // All other built-in nodes

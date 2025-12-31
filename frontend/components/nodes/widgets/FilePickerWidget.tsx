@@ -23,7 +23,12 @@ export default function FilePickerWidget({
     if (!onRequestFilePicker || disabled) return;
 
     // Determine file extensions based on field configuration or defaults
-    const extensions = field.options?.map((opt) => opt.value) || [".py", ".md", ".txt", ".json"];
+    const extensions = field.options?.map((opt) => opt.value) || [
+      ".py",
+      ".md",
+      ".txt",
+      ".json",
+    ];
     const filterLabel = field.help_text || "Select a file";
 
     onRequestFilePicker(
@@ -31,9 +36,16 @@ export default function FilePickerWidget({
       (newPath) => {
         onChange(newPath);
       },
-      { extensions, filterLabel }
+      { extensions, filterLabel },
     );
-  }, [onRequestFilePicker, filePath, onChange, disabled, field.options, field.help_text]);
+  }, [
+    onRequestFilePicker,
+    filePath,
+    onChange,
+    disabled,
+    field.options,
+    field.help_text,
+  ]);
 
   return (
     <div className="flex items-center gap-1">

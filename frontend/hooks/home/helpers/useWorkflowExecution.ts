@@ -23,8 +23,12 @@ interface UseWorkflowExecutionProps {
   saveTabFlow: (
     projectPath: string,
     tabId: string,
-    flow: { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } },
-    projectName?: string
+    flow: {
+      nodes: Node[];
+      edges: Edge[];
+      viewport: { x: number; y: number; zoom: number };
+    },
+    projectName?: string,
   ) => Promise<boolean>;
 }
 
@@ -53,11 +57,17 @@ export function useWorkflowExecution({
     try {
       const validation = await validateWorkflow(currentProjectPath);
 
-      if (validation.node_errors && Object.keys(validation.node_errors).length > 0) {
+      if (
+        validation.node_errors &&
+        Object.keys(validation.node_errors).length > 0
+      ) {
         canvasRef.current?.highlightErrorNodes(validation.node_errors);
       }
 
-      if (validation.node_warnings && Object.keys(validation.node_warnings).length > 0) {
+      if (
+        validation.node_warnings &&
+        Object.keys(validation.node_warnings).length > 0
+      ) {
         canvasRef.current?.highlightWarningNodes(validation.node_warnings);
       }
 
@@ -162,7 +172,12 @@ export function useWorkflowExecution({
     if (canvasRef.current && activeTabId && currentProjectPath) {
       const flow = canvasRef.current.saveFlow();
       if (flow) {
-        const success = await saveTabFlow(currentProjectPath, activeTabId, flow, workflowName);
+        const success = await saveTabFlow(
+          currentProjectPath,
+          activeTabId,
+          flow,
+          workflowName,
+        );
         if (success) {
           setIsProjectSaved(true);
         }

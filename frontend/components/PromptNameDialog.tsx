@@ -53,7 +53,8 @@ export default function PromptNameDialog({
     },
     context: {
       title: "Create New Static Context",
-      description: "Enter a name for the context file or select an existing one",
+      description:
+        "Enter a name for the context file or select an existing one",
       inputLabel: "Context Name",
       placeholder: "e.g., API Documentation, Product Catalog",
       fileExtension: ".context.md",
@@ -79,7 +80,8 @@ export default function PromptNameDialog({
     },
     process: {
       title: "Create New Process",
-      description: "Enter a name for the process file or select an existing one",
+      description:
+        "Enter a name for the process file or select an existing one",
       inputLabel: "Process Name",
       placeholder: "e.g., Data Transformer, Validator",
       fileExtension: ".py",
@@ -144,14 +146,17 @@ export default function PromptNameDialog({
 
   const isPythonFile = type === "tool" || type === "process";
   const fileNamePreview = promptName
-    ? promptName.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, isPythonFile ? "_" : "-")
+    ? promptName
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, "")
+        .replace(/\s+/g, isPythonFile ? "_" : "-")
     : type === "prompt"
-    ? "prompt-name"
-    : type === "context"
-    ? "context-name"
-    : type === "outputFile"
-    ? "output"
-    : "tool_name";
+      ? "prompt-name"
+      : type === "context"
+        ? "context-name"
+        : type === "outputFile"
+          ? "output"
+          : "tool_name";
 
   const canSelectExisting = !!onSelectExisting && !!projectPath;
 
@@ -168,13 +173,22 @@ export default function PromptNameDialog({
             {canSelectExisting && (
               <RadioGroup
                 value={mode}
-                onValueChange={(value) => setMode(value as "create" | "existing")}
+                onValueChange={(value) =>
+                  setMode(value as "create" | "existing")
+                }
                 className="space-y-3"
               >
                 <div className="flex items-start space-x-3">
-                  <RadioGroupItem value="create" id="mode-create" className="mt-1" />
+                  <RadioGroupItem
+                    value="create"
+                    id="mode-create"
+                    className="mt-1"
+                  />
                   <div className="flex-1 space-y-2">
-                    <Label htmlFor="mode-create" className="cursor-pointer font-medium">
+                    <Label
+                      htmlFor="mode-create"
+                      className="cursor-pointer font-medium"
+                    >
                       Create new file
                     </Label>
                     {mode === "create" && (
@@ -189,7 +203,8 @@ export default function PromptNameDialog({
                         <p className="text-xs text-muted-foreground">
                           File will be saved as:{" "}
                           <span className="font-mono">
-                            {labels[type].directory}{fileNamePreview}
+                            {labels[type].directory}
+                            {fileNamePreview}
                             {labels[type].fileExtension}
                           </span>
                         </p>
@@ -199,9 +214,16 @@ export default function PromptNameDialog({
                 </div>
 
                 <div className="flex items-start space-x-3">
-                  <RadioGroupItem value="existing" id="mode-existing" className="mt-1" />
+                  <RadioGroupItem
+                    value="existing"
+                    id="mode-existing"
+                    className="mt-1"
+                  />
                   <div className="flex-1 space-y-2">
-                    <Label htmlFor="mode-existing" className="cursor-pointer font-medium">
+                    <Label
+                      htmlFor="mode-existing"
+                      className="cursor-pointer font-medium"
+                    >
                       Select existing file
                     </Label>
                     {mode === "existing" && (
@@ -236,7 +258,8 @@ export default function PromptNameDialog({
                 <p className="text-xs text-muted-foreground">
                   File will be saved as:{" "}
                   <span className="font-mono">
-                    {labels[type].directory}{fileNamePreview}
+                    {labels[type].directory}
+                    {fileNamePreview}
                     {labels[type].fileExtension}
                   </span>
                 </p>
@@ -254,7 +277,9 @@ export default function PromptNameDialog({
                 Cancel
               </Button>
               <Button type="submit">
-                {mode === "existing" ? labels[type].selectButton : labels[type].button}
+                {mode === "existing"
+                  ? labels[type].selectButton
+                  : labels[type].button}
               </Button>
             </DialogFooter>
           </form>

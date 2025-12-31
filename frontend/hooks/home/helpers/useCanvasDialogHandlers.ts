@@ -53,14 +53,20 @@ export function useCanvasDialogHandlers({
       if (!currentProjectPath) return;
       await savePrompt(currentProjectPath, filePath, content);
     },
-    [currentProjectPath]
+    [currentProjectPath],
   );
 
   // File picker handlers
   const handleRequestFilePicker = useCallback(
-    (currentFilePath: string, onSelect: (newPath: string) => void, options?: FilePickerOptions) => {
+    (
+      currentFilePath: string,
+      onSelect: (newPath: string) => void,
+      options?: FilePickerOptions,
+    ) => {
       const fullPath =
-        currentFilePath && !currentFilePath.startsWith("/") && currentProjectPath
+        currentFilePath &&
+        !currentFilePath.startsWith("/") &&
+        currentProjectPath
           ? `${currentProjectPath}/${currentFilePath}`
           : currentFilePath;
       setFilePickerState({
@@ -70,7 +76,7 @@ export function useCanvasDialogHandlers({
         options,
       });
     },
-    [currentProjectPath, setFilePickerState]
+    [currentProjectPath, setFilePickerState],
   );
 
   const handleFilePickerSelect = useCallback(
@@ -86,7 +92,7 @@ export function useCanvasDialogHandlers({
       }
       setFilePickerState({ isOpen: false, callback: null });
     },
-    [filePickerState.callback, currentProjectPath, setFilePickerState]
+    [filePickerState, currentProjectPath, setFilePickerState],
   );
 
   const handleFilePickerCancel = useCallback(() => {

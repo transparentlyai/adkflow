@@ -64,7 +64,7 @@ export default function TabBar({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -110,7 +110,9 @@ export default function TabBar({
                   </div>
                 </ContextMenuTrigger>
                 <ContextMenuContent>
-                  <ContextMenuItem onClick={() => onTabRename(tab.id, tab.name)}>
+                  <ContextMenuItem
+                    onClick={() => onTabRename(tab.id, tab.name)}
+                  >
                     Rename
                   </ContextMenuItem>
                   <ContextMenuItem onClick={() => onDuplicateTab(tab.id)}>
