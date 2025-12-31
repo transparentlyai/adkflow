@@ -236,7 +236,7 @@ Understanding the codebase:
 | Canvas | `frontend/components/ReactFlowCanvas.tsx` | Main canvas component |
 | Nodes | `frontend/components/nodes/` | Node type components |
 | API | `backend/src/api/routes/` | REST endpoints |
-| Execution | `backend/src/api/execution_routes.py` | Workflow execution |
+| Execution | `backend/src/api/execution_routes.py`, `run_manager.py` | Workflow execution |
 | Runner | `packages/adkflow-runner/` | Standalone execution engine |
 
 See [Architecture](./technical/architecture.md) for details.

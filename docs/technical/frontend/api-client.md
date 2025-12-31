@@ -6,7 +6,17 @@ Backend communication in ADKFlow.
 
 The API client handles all communication with the FastAPI backend:
 
-**Location**: `lib/api.ts`
+**Location**: `lib/api/` (modular directory structure)
+
+The API client is split into focused modules:
+- `lib/api/client.ts` - Axios configuration
+- `lib/api/project.ts` - Project management APIs
+- `lib/api/tabs.ts` - Tab management APIs
+- `lib/api/execution.ts` - Workflow execution APIs
+- `lib/api/filesystem.ts` - File system APIs
+- `lib/api/settings.ts` - Settings APIs
+- `lib/api/extensions.ts` - Extension APIs
+- `lib/api/index.ts` - Re-exports all APIs
 
 ## API Object
 

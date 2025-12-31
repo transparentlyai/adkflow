@@ -173,9 +173,13 @@ Workflow tab management.
 
 ### RunPanel
 
-**Location**: `components/RunPanel.tsx`
+**Location**: `components/RunPanel/` (modular directory)
 
-Execution output and user input.
+Execution output and user input. Split into:
+- `RunPanel/index.tsx` - Main component
+- `RunPanel/UserInputPanel.tsx` - User input subcomponent
+- `RunPanel/helpers.ts` - Event formatting helpers
+- `RunPanel/types.ts` - Type definitions
 
 ```tsx
 <RunPanel
