@@ -10,7 +10,9 @@ interface CanvasActionsContextValue {
   isLocked: boolean;
 }
 
-const CanvasActionsContext = createContext<CanvasActionsContextValue | null>(null);
+const CanvasActionsContext = createContext<CanvasActionsContextValue | null>(
+  null,
+);
 
 export function CanvasActionsProvider({
   children,

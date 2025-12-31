@@ -50,26 +50,37 @@ export default function FilePicker({
   const [error, setError] = useState("");
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [manualPath, setManualPath] = useState("");
-  const [showAllFiles, setShowAllFiles] = useState(!defaultExtensions || defaultExtensions.length === 0);
+  const [showAllFiles, setShowAllFiles] = useState(
+    !defaultExtensions || defaultExtensions.length === 0,
+  );
   const [newFileName, setNewFileName] = useState("");
 
   // Filter function based on extensions
-  const extensionFilter = useCallback((entry: DirectoryEntry): boolean => {
-    if (showAllFiles || !defaultExtensions || defaultExtensions.length === 0) return true;
-    const ext = '.' + entry.name.split('.').pop()?.toLowerCase();
-    return defaultExtensions.some(e => e.toLowerCase() === ext);
-  }, [showAllFiles, defaultExtensions]);
+  const extensionFilter = useCallback(
+    (entry: DirectoryEntry): boolean => {
+      if (showAllFiles || !defaultExtensions || defaultExtensions.length === 0)
+        return true;
+      const ext = "." + entry.name.split(".").pop()?.toLowerCase();
+      return defaultExtensions.some((e) => e.toLowerCase() === ext);
+    },
+    [showAllFiles, defaultExtensions],
+  );
 
   // Combined filter: custom filter AND extension filter
-  const combinedFilter = useCallback((entry: DirectoryEntry): boolean => {
-    if (entry.is_directory) return true;
-    const passesExtensionFilter = extensionFilter(entry);
-    const passesCustomFilter = fileFilter ? fileFilter(entry) : true;
-    return passesExtensionFilter && passesCustomFilter;
-  }, [extensionFilter, fileFilter]);
+  const combinedFilter = useCallback(
+    (entry: DirectoryEntry): boolean => {
+      if (entry.is_directory) return true;
+      const passesExtensionFilter = extensionFilter(entry);
+      const passesCustomFilter = fileFilter ? fileFilter(entry) : true;
+      return passesExtensionFilter && passesCustomFilter;
+    },
+    [extensionFilter, fileFilter],
+  );
 
   useEffect(() => {
-    const loadDirectoryWithFallback = async (path: string): Promise<boolean> => {
+    const loadDirectoryWithFallback = async (
+      path: string,
+    ): Promise<boolean> => {
       try {
         const response = await listDirectory(path);
         setCurrentPath(response.current_path);
@@ -216,20 +227,42 @@ export default function FilePicker({
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent
         className="max-w-2xl max-h-[70vh] flex flex-col p-0 gap-0 z-[60]"
-        style={{ backgroundColor: theme.colors.nodes.common.container.background }}
+        style={{
+          backgroundColor: theme.colors.nodes.common.container.background,
+        }}
       >
-        <DialogHeader className="px-6 py-4 border-b" style={{ borderColor: theme.colors.nodes.common.container.border }}>
-          <DialogTitle style={{ color: theme.colors.nodes.common.text.primary }}>{title}</DialogTitle>
-          <DialogDescription style={{ color: theme.colors.nodes.common.text.secondary }}>{description}</DialogDescription>
+        <DialogHeader
+          className="px-6 py-4 border-b"
+          style={{ borderColor: theme.colors.nodes.common.container.border }}
+        >
+          <DialogTitle
+            style={{ color: theme.colors.nodes.common.text.primary }}
+          >
+            {title}
+          </DialogTitle>
+          <DialogDescription
+            style={{ color: theme.colors.nodes.common.text.secondary }}
+          >
+            {description}
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="px-6 py-3 border-b" style={{ backgroundColor: theme.colors.nodes.common.footer.background, borderColor: theme.colors.nodes.common.container.border }}>
+        <div
+          className="px-6 py-3 border-b"
+          style={{
+            backgroundColor: theme.colors.nodes.common.footer.background,
+            borderColor: theme.colors.nodes.common.container.border,
+          }}
+        >
           <div className="flex items-center gap-2">
             <button
               onClick={handleGoUp}
               disabled={!parentPath || loading}
               className="px-3 py-1 rounded text-sm font-medium transition-colors hover:opacity-80 disabled:opacity-50"
-              style={{ backgroundColor: theme.colors.ui.muted, color: theme.colors.nodes.common.text.secondary }}
+              style={{
+                backgroundColor: theme.colors.ui.muted,
+                color: theme.colors.nodes.common.text.secondary,
+              }}
               title="Go up one directory"
             >
               ↑ Up
@@ -244,11 +277,17 @@ export default function FilePicker({
                 }
               }}
               className="flex-1 text-sm font-mono rounded px-2 py-1 border focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              style={{ color: theme.colors.nodes.common.text.secondary, backgroundColor: theme.colors.nodes.common.container.background, borderColor: theme.colors.ui.border }}
+              style={{
+                color: theme.colors.nodes.common.text.secondary,
+                backgroundColor: theme.colors.nodes.common.container.background,
+                borderColor: theme.colors.ui.border,
+              }}
               placeholder="Enter path..."
             />
             <button
-              onClick={() => manualPath.trim() && loadDirectory(manualPath.trim())}
+              onClick={() =>
+                manualPath.trim() && loadDirectory(manualPath.trim())
+              }
               disabled={loading || !manualPath.trim()}
               className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded text-sm font-medium transition-colors"
             >
@@ -259,7 +298,10 @@ export default function FilePicker({
 
         <div className="flex-1 overflow-auto p-4 min-h-[250px]">
           {loading && (
-            <div className="flex items-center justify-center h-full" style={{ color: theme.colors.nodes.common.text.muted }}>
+            <div
+              className="flex items-center justify-center h-full"
+              style={{ color: theme.colors.nodes.common.text.muted }}
+            >
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
                 Loading...
@@ -274,7 +316,10 @@ export default function FilePicker({
           )}
 
           {!loading && !error && entries.length === 0 && (
-            <div className="text-center py-8" style={{ color: theme.colors.nodes.common.text.muted }}>
+            <div
+              className="text-center py-8"
+              style={{ color: theme.colors.nodes.common.text.muted }}
+            >
               <p className="text-sm">No files found</p>
             </div>
           )}
@@ -290,36 +335,50 @@ export default function FilePicker({
                     className="w-full text-left px-4 py-2 rounded-md transition-colors flex items-center gap-3"
                     style={{
                       backgroundColor: isSelected
-                        ? theme.colors.ui.primary + '20'
+                        ? theme.colors.ui.primary + "20"
                         : entry.is_directory
                           ? theme.colors.ui.muted
-                          : 'transparent',
-                      boxShadow: isSelected ? `0 0 0 2px ${theme.colors.ui.primary}` : 'none',
+                          : "transparent",
+                      boxShadow: isSelected
+                        ? `0 0 0 2px ${theme.colors.ui.primary}`
+                        : "none",
                     }}
                     onMouseEnter={(e) => {
                       if (!isSelected) {
-                        e.currentTarget.style.backgroundColor = theme.colors.ui.accent;
+                        e.currentTarget.style.backgroundColor =
+                          theme.colors.ui.accent;
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (!isSelected) {
-                        e.currentTarget.style.backgroundColor = entry.is_directory
-                          ? theme.colors.ui.muted
-                          : 'transparent';
+                        e.currentTarget.style.backgroundColor =
+                          entry.is_directory
+                            ? theme.colors.ui.muted
+                            : "transparent";
                       }
                     }}
                   >
                     <span className="text-lg">
                       {entry.is_directory ? "📁" : getFileIcon(entry.name)}
                     </span>
-                    <span className="flex-1 text-sm" style={{
-                      color: entry.is_directory ? theme.colors.nodes.common.text.secondary : theme.colors.nodes.common.text.primary,
-                      fontWeight: entry.is_directory ? 500 : 400
-                    }}>
+                    <span
+                      className="flex-1 text-sm"
+                      style={{
+                        color: entry.is_directory
+                          ? theme.colors.nodes.common.text.secondary
+                          : theme.colors.nodes.common.text.primary,
+                        fontWeight: entry.is_directory ? 500 : 400,
+                      }}
+                    >
                       {entry.name}
                     </span>
                     {entry.is_directory && (
-                      <span className="text-xs" style={{ color: theme.colors.nodes.common.text.muted }}>→</span>
+                      <span
+                        className="text-xs"
+                        style={{ color: theme.colors.nodes.common.text.muted }}
+                      >
+                        →
+                      </span>
                     )}
                   </button>
                 );
@@ -329,9 +388,20 @@ export default function FilePicker({
         </div>
 
         {allowCreate && (
-          <div className="px-6 py-3 border-t" style={{ backgroundColor: theme.colors.nodes.common.footer.background, borderColor: theme.colors.nodes.common.container.border }}>
+          <div
+            className="px-6 py-3 border-t"
+            style={{
+              backgroundColor: theme.colors.nodes.common.footer.background,
+              borderColor: theme.colors.nodes.common.container.border,
+            }}
+          >
             <div className="flex items-center gap-2">
-              <label className="text-sm whitespace-nowrap" style={{ color: theme.colors.nodes.common.text.secondary }}>New file:</label>
+              <label
+                className="text-sm whitespace-nowrap"
+                style={{ color: theme.colors.nodes.common.text.secondary }}
+              >
+                New file:
+              </label>
               <input
                 type="text"
                 value={newFileName}
@@ -348,11 +418,19 @@ export default function FilePicker({
                 }}
                 placeholder="Enter filename..."
                 className="flex-1 text-sm font-mono rounded px-2 py-1 border focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                style={{ color: theme.colors.nodes.common.text.secondary, backgroundColor: theme.colors.nodes.common.container.background, borderColor: theme.colors.ui.border }}
+                style={{
+                  color: theme.colors.nodes.common.text.secondary,
+                  backgroundColor:
+                    theme.colors.nodes.common.container.background,
+                  borderColor: theme.colors.ui.border,
+                }}
               />
             </div>
             {newFileName.trim() && (
-              <div className="mt-1 text-xs font-mono truncate" style={{ color: theme.colors.nodes.common.text.muted }}>
+              <div
+                className="mt-1 text-xs font-mono truncate"
+                style={{ color: theme.colors.nodes.common.text.muted }}
+              >
                 {getRelativePath(currentPath)}/{newFileName.trim()}
               </div>
             )}
@@ -363,24 +441,44 @@ export default function FilePicker({
           <div
             className="px-6 py-2 border-t"
             style={{
-              backgroundColor: theme.colors.ui.primary + '15',
-              borderColor: theme.colors.ui.primary + '30',
+              backgroundColor: theme.colors.ui.primary + "15",
+              borderColor: theme.colors.ui.primary + "30",
             }}
           >
             <div className="text-sm">
-              <span style={{ color: theme.colors.nodes.common.text.secondary }}>Selected: </span>
-              <span className="font-mono" style={{ color: theme.colors.ui.primary }}>{getRelativePath(selectedFile)}</span>
+              <span style={{ color: theme.colors.nodes.common.text.secondary }}>
+                Selected:{" "}
+              </span>
+              <span
+                className="font-mono"
+                style={{ color: theme.colors.ui.primary }}
+              >
+                {getRelativePath(selectedFile)}
+              </span>
             </div>
           </div>
         )}
 
-        <div className="px-6 py-4 border-t flex justify-between items-center" style={{ backgroundColor: theme.colors.nodes.common.footer.background, borderColor: theme.colors.nodes.common.container.border }}>
+        <div
+          className="px-6 py-4 border-t flex justify-between items-center"
+          style={{
+            backgroundColor: theme.colors.nodes.common.footer.background,
+            borderColor: theme.colors.nodes.common.container.border,
+          }}
+        >
           <div className="flex items-center gap-4">
-            <div className="text-xs" style={{ color: theme.colors.nodes.common.text.muted }}>
-              {entries.filter(e => !e.is_directory).length} files, {entries.filter(e => e.is_directory).length} folders
+            <div
+              className="text-xs"
+              style={{ color: theme.colors.nodes.common.text.muted }}
+            >
+              {entries.filter((e) => !e.is_directory).length} files,{" "}
+              {entries.filter((e) => e.is_directory).length} folders
             </div>
             {defaultExtensions && defaultExtensions.length > 0 && (
-              <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: theme.colors.nodes.common.text.secondary }}>
+              <label
+                className="flex items-center gap-2 text-xs cursor-pointer"
+                style={{ color: theme.colors.nodes.common.text.secondary }}
+              >
                 <input
                   type="checkbox"
                   checked={showAllFiles}
@@ -390,7 +488,9 @@ export default function FilePicker({
                 />
                 <span>Show all files</span>
                 {!showAllFiles && filterLabel && (
-                  <span style={{ color: theme.colors.nodes.common.text.muted }}>({filterLabel})</span>
+                  <span style={{ color: theme.colors.nodes.common.text.muted }}>
+                    ({filterLabel})
+                  </span>
                 )}
               </label>
             )}

@@ -101,7 +101,7 @@ const ValidationIndicator = memo(
         </Tooltip>
       </TooltipProvider>
     );
-  }
+  },
 );
 
 ValidationIndicator.displayName = "ValidationIndicator";

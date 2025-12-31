@@ -37,7 +37,9 @@ export default function SaveConfirmDialog({
               <p>You have unsaved changes in your current project.</p>
               {projectPath && (
                 <div className="p-3 bg-muted rounded-md">
-                  <p className="text-xs text-muted-foreground mb-1">Current project:</p>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Current project:
+                  </p>
                   <p className="text-sm font-mono break-all">{projectPath}</p>
                 </div>
               )}

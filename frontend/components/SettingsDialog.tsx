@@ -16,8 +16,18 @@ interface SettingsDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export default function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
-  const { theme, themeId, builtInThemes, customThemes, setTheme, removeCustomTheme } = useTheme();
+export default function SettingsDialog({
+  open,
+  onOpenChange,
+}: SettingsDialogProps) {
+  const {
+    theme,
+    themeId,
+    builtInThemes,
+    customThemes,
+    setTheme,
+    removeCustomTheme,
+  } = useTheme();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -98,10 +108,14 @@ export default function SettingsDialog({ open, onOpenChange }: SettingsDialogPro
 
           {/* Current Theme Info */}
           <div className="space-y-2 pt-4 border-t">
-            <Label className="text-sm text-muted-foreground">Current Theme</Label>
+            <Label className="text-sm text-muted-foreground">
+              Current Theme
+            </Label>
             <div className="flex items-center gap-2">
               <span className="font-medium">{theme.name}</span>
-              <span className="text-sm text-muted-foreground">v{theme.version}</span>
+              <span className="text-sm text-muted-foreground">
+                v{theme.version}
+              </span>
             </div>
             {theme.author && (
               <div className="text-sm text-muted-foreground">

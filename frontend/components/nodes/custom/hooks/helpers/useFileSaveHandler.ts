@@ -30,7 +30,14 @@ export function useFileSaveHandler({
     } finally {
       setIsSaving(false);
     }
-  }, [onSaveFile, filePath, codeContent, codeEditorField, setIsSaving, setSavedContent]);
+  }, [
+    onSaveFile,
+    filePath,
+    codeContent,
+    codeEditorField,
+    setIsSaving,
+    setSavedContent,
+  ]);
 
   return { handleFileSave };
 }

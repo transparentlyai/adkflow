@@ -21,8 +21,12 @@ interface UseTopologyHandlersProps {
   saveTabFlow: (
     projectPath: string,
     tabId: string,
-    flow: { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } },
-    projectName?: string
+    flow: {
+      nodes: Node[];
+      edges: Edge[];
+      viewport: { x: number; y: number; zoom: number };
+    },
+    projectName?: string,
   ) => Promise<boolean>;
 }
 
@@ -56,7 +60,7 @@ export function useTopologyHandlers({
       setLastRunStatus("failed");
       setIsRunPanelOpen(true);
     },
-    [canvasRef, setRunEvents, setLastRunStatus, setIsRunPanelOpen]
+    [canvasRef, setRunEvents, setLastRunStatus, setIsRunPanelOpen],
   );
 
   const executeShowTopology = useCallback(async () => {
@@ -67,7 +71,9 @@ export function useTopologyHandlers({
       setTopologyResult(result);
     } catch (error) {
       console.error("Failed to get topology:", error);
-      showErrorsInConsole([`Failed to generate topology: ${(error as Error).message}`]);
+      showErrorsInConsole([
+        `Failed to generate topology: ${(error as Error).message}`,
+      ]);
     }
   }, [currentProjectPath, setTopologyResult, showErrorsInConsole]);
 
@@ -80,7 +86,13 @@ export function useTopologyHandlers({
     }
 
     await executeShowTopology();
-  }, [currentProjectPath, activeTab, isProjectSaved, setIsTopologySaveDialogOpen, executeShowTopology]);
+  }, [
+    currentProjectPath,
+    activeTab,
+    isProjectSaved,
+    setIsTopologySaveDialogOpen,
+    executeShowTopology,
+  ]);
 
   const handleTopologySaveAndShow = useCallback(async () => {
     setIsTopologySaveDialogOpen(false);
@@ -88,7 +100,12 @@ export function useTopologyHandlers({
     if (canvasRef.current && activeTabId && currentProjectPath) {
       const flow = canvasRef.current.saveFlow();
       if (flow) {
-        const success = await saveTabFlow(currentProjectPath, activeTabId, flow, workflowName);
+        const success = await saveTabFlow(
+          currentProjectPath,
+          activeTabId,
+          flow,
+          workflowName,
+        );
         if (success) {
           setIsProjectSaved(true);
         }

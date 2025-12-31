@@ -65,7 +65,9 @@ export default function ChatLogWidget({
       ) : (
         <div
           className="divide-y"
-          style={{ borderColor: options.theme.colors.nodes.common.container.border }}
+          style={{
+            borderColor: options.theme.colors.nodes.common.container.border,
+          }}
         >
           {messages.map((msg, i) => (
             <div key={i} className="p-2">
@@ -79,7 +81,9 @@ export default function ChatLogWidget({
                 {msg.timestamp && (
                   <span
                     className="text-xs"
-                    style={{ color: options.theme.colors.nodes.common.text.muted }}
+                    style={{
+                      color: options.theme.colors.nodes.common.text.muted,
+                    }}
                   >
                     {new Date(msg.timestamp).toLocaleTimeString()}
                   </span>
@@ -87,7 +91,9 @@ export default function ChatLogWidget({
               </div>
               <div
                 className="text-xs whitespace-pre-wrap"
-                style={{ color: options.theme.colors.nodes.common.text.primary }}
+                style={{
+                  color: options.theme.colors.nodes.common.text.primary,
+                }}
               >
                 {msg.content}
               </div>

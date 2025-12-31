@@ -10,359 +10,27 @@ Provides endpoints for:
 import asyncio
 import json
 import time
-import uuid
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
-from adkflow_runner import (
-    Compiler,
-    RunConfig,
-    RunResult,
-    WorkflowRunner,
-    RunEvent,
-    RunStatus,
-    EventType,
-    UserInputRequest,
+from adkflow_runner import Compiler, RunEvent
+
+from backend.src.api.execution_models import (
+    RunRequest,
+    RunResponse,
+    RunStatusResponse,
+    ValidateRequest,
+    ValidateResponse,
+    TopologyRequest,
+    TopologyResponse,
+    UserInputSubmission,
+    UserInputSubmissionResponse,
 )
+from backend.src.api.run_manager import run_manager
 
 router = APIRouter(prefix="/api/execution", tags=["execution"])
-
-
-# Request/Response Models
-
-
-class RunRequest(BaseModel):
-    """Request to start a workflow run."""
-
-    project_path: str = Field(..., description="Path to the project directory")
-    tab_id: str | None = Field(None, description="Specific tab to run")
-    input_data: dict[str, Any] = Field(
-        default_factory=dict, description="Input data for the workflow"
-    )
-    timeout_seconds: float = Field(
-        default=300, description="Execution timeout in seconds"
-    )
-    validate_workflow: bool = Field(
-        default=True, description="Whether to validate before running"
-    )
-
-
-class RunResponse(BaseModel):
-    """Response when starting a run."""
-
-    run_id: str = Field(..., description="Unique run identifier")
-    status: str = Field(..., description="Run status")
-    message: str = Field(..., description="Status message")
-
-
-class RunStatusResponse(BaseModel):
-    """Response for run status check."""
-
-    run_id: str
-    status: str
-    output: str | None = None
-    error: str | None = None
-    duration_ms: float = 0
-    event_count: int = 0
-
-
-class ValidateRequest(BaseModel):
-    """Request to validate a workflow."""
-
-    project_path: str = Field(..., description="Path to the project directory")
-
-
-class ValidateResponse(BaseModel):
-    """Response from workflow validation."""
-
-    valid: bool
-    errors: list[str] = Field(default_factory=list)
-    warnings: list[str] = Field(default_factory=list)
-    error_node_ids: list[str] = Field(default_factory=list)
-    warning_node_ids: list[str] = Field(default_factory=list)
-    # Node ID -> list of error/warning messages for tooltip display
-    node_errors: dict[str, list[str]] = Field(default_factory=dict)
-    node_warnings: dict[str, list[str]] = Field(default_factory=dict)
-    agent_count: int = 0
-    tab_count: int = 0
-    teleporter_count: int = 0
-
-
-class TopologyRequest(BaseModel):
-    """Request to get workflow topology."""
-
-    project_path: str = Field(..., description="Path to the project directory")
-
-
-class TopologyResponse(BaseModel):
-    """Response with workflow topology as Mermaid diagram."""
-
-    mermaid: str = Field(..., description="Mermaid diagram source")
-    ascii: str = Field(..., description="ASCII tree representation")
-    agent_count: int = Field(0, description="Number of agents in workflow")
-
-
-class UserInputSubmission(BaseModel):
-    """Request to submit user input during a run."""
-
-    request_id: str = Field(
-        ..., description="The request ID from USER_INPUT_REQUIRED event"
-    )
-    user_input: str = Field(..., description="The user's input value")
-
-
-class UserInputSubmissionResponse(BaseModel):
-    """Response after submitting user input."""
-
-    success: bool
-    message: str
-    request_id: str
-
-
-# Run Manager (tracks active runs)
-
-
-@dataclass
-class PendingUserInput:
-    """Tracks a pending user input request."""
-
-    request_id: str
-    node_id: str
-    node_name: str
-    variable_name: str
-    timeout_seconds: float
-    timeout_behavior: str
-    predefined_text: str
-    created_at: float
-    input_event: asyncio.Event
-    input_value: str | None = None
-    timed_out: bool = False
-
-
-@dataclass
-class ActiveRun:
-    """Tracks state of an active run."""
-
-    run_id: str
-    config: RunConfig
-    task: asyncio.Task | None = None
-    result: RunResult | None = None
-    events: list[RunEvent] = field(default_factory=list)
-    subscribers: list[asyncio.Queue] = field(default_factory=list)
-    cancelled: bool = False
-    pending_inputs: dict[str, PendingUserInput] = field(default_factory=dict)
-
-
-class AsyncQueueInputProvider:
-    """User input provider that works with the backend API.
-
-    Uses asyncio.Event to coordinate between the runner and API endpoint.
-    When USER_INPUT_REQUIRED event is emitted, this provider waits for
-    the API endpoint to receive user input and trigger the event.
-    """
-
-    def __init__(self, active_run: "ActiveRun"):
-        self.active_run = active_run
-
-    async def request_input(self, request: UserInputRequest) -> str | None:
-        """Request user input and wait for response.
-
-        The USER_INPUT_REQUIRED event is already emitted by the runner.
-        This method creates a pending input record and waits for the
-        API endpoint to provide the user's response.
-        """
-        # Create pending input record
-        pending = PendingUserInput(
-            request_id=request.request_id,
-            node_id=request.node_id,
-            node_name=request.node_name,
-            variable_name=request.variable_name,
-            timeout_seconds=request.timeout_seconds,
-            timeout_behavior=request.timeout_behavior,
-            predefined_text=request.predefined_text,
-            created_at=time.time(),
-            input_event=asyncio.Event(),
-        )
-        self.active_run.pending_inputs[request.request_id] = pending
-
-        try:
-            # Wait for input or timeout
-            timeout = request.timeout_seconds if request.timeout_seconds > 0 else None
-            await asyncio.wait_for(
-                pending.input_event.wait(),
-                timeout=timeout,
-            )
-            return pending.input_value
-
-        except asyncio.TimeoutError:
-            pending.timed_out = True
-            raise TimeoutError(f"User input timeout for '{request.node_name}'")
-
-        finally:
-            # Clean up
-            if request.request_id in self.active_run.pending_inputs:
-                del self.active_run.pending_inputs[request.request_id]
-
-
-class RunManager:
-    """Manages active workflow runs."""
-
-    def __init__(self):
-        self.runs: dict[str, ActiveRun] = {}
-        self.runner = WorkflowRunner()
-
-    def generate_run_id(self) -> str:
-        """Generate a unique run ID."""
-        return str(uuid.uuid4())[:8]
-
-    async def start_run(self, request: RunRequest) -> str:
-        """Start a new workflow run."""
-        run_id = self.generate_run_id()
-
-        # Create callback that broadcasts to subscribers
-        class BroadcastCallbacks:
-            def __init__(self, active_run: ActiveRun):
-                self.active_run = active_run
-
-            async def on_event(self, event: RunEvent) -> None:
-                self.active_run.events.append(event)
-                # Print errors to CLI console
-                if event.type.value == "run_error":
-                    error_msg = event.data.get("error", "Unknown error")
-                    print(f"\n[ERROR] {error_msg}\n")
-                for queue in self.active_run.subscribers:
-                    try:
-                        await queue.put(event)
-                    except Exception:
-                        pass
-
-        config = RunConfig(
-            project_path=Path(request.project_path).resolve(),
-            tab_id=request.tab_id,
-            input_data=request.input_data,
-            timeout_seconds=request.timeout_seconds,
-            validate=request.validate_workflow,
-        )
-
-        active_run = ActiveRun(run_id=run_id, config=config)
-        config.callbacks = BroadcastCallbacks(active_run)  # type: ignore
-        config.user_input_provider = AsyncQueueInputProvider(active_run)  # type: ignore
-        self.runs[run_id] = active_run
-
-        # Start execution in background
-        active_run.task = asyncio.create_task(self._execute(run_id))
-
-        return run_id
-
-    async def _execute(self, run_id: str) -> None:
-        """Execute the run."""
-        active_run = self.runs.get(run_id)
-        if not active_run:
-            return
-
-        try:
-            result = await self.runner.run(active_run.config)
-            active_run.result = result
-        except asyncio.CancelledError:
-            active_run.result = RunResult(
-                run_id=run_id,
-                status=RunStatus.CANCELLED,
-                error="Run cancelled",
-            )
-        except Exception as e:
-            # Catch any unexpected exceptions and create error result
-            error_event = RunEvent(
-                type=EventType.ERROR,
-                timestamp=time.time(),
-                data={"error": str(e)},
-            )
-            active_run.events.append(error_event)
-            for queue in active_run.subscribers:
-                try:
-                    await queue.put(error_event)
-                except Exception:
-                    pass
-            active_run.result = RunResult(
-                run_id=run_id,
-                status=RunStatus.FAILED,
-                error=str(e),
-            )
-        finally:
-            # Signal completion to all subscribers
-            for queue in active_run.subscribers:
-                await queue.put(None)
-
-    def get_run(self, run_id: str) -> ActiveRun | None:
-        """Get an active run by ID."""
-        return self.runs.get(run_id)
-
-    async def subscribe(self, run_id: str) -> asyncio.Queue:
-        """Subscribe to events for a run."""
-        active_run = self.runs.get(run_id)
-        if not active_run:
-            raise ValueError(f"Run not found: {run_id}")
-
-        queue: asyncio.Queue = asyncio.Queue()
-        active_run.subscribers.append(queue)
-
-        # Send any existing events
-        for event in active_run.events:
-            await queue.put(event)
-
-        # If run already completed, send completion signal
-        if active_run.result is not None:
-            await queue.put(None)
-
-        return queue
-
-    def unsubscribe(self, run_id: str, queue: asyncio.Queue) -> None:
-        """Unsubscribe from events."""
-        active_run = self.runs.get(run_id)
-        if active_run and queue in active_run.subscribers:
-            active_run.subscribers.remove(queue)
-
-    async def cancel_run(self, run_id: str) -> bool:
-        """Cancel a running workflow."""
-        active_run = self.runs.get(run_id)
-        if not active_run:
-            return False
-
-        if active_run.task and not active_run.task.done():
-            active_run.cancelled = True
-            active_run.task.cancel()
-            return True
-
-        return False
-
-    def cleanup_old_runs(self, max_age_seconds: float = 3600) -> None:
-        """Remove old completed runs."""
-        import time
-
-        now = time.time()
-        to_remove = []
-
-        for run_id, active_run in self.runs.items():
-            if active_run.result:
-                # Check if run is old enough to clean up
-                if active_run.events:
-                    last_event_time = active_run.events[-1].timestamp
-                    if now - last_event_time > max_age_seconds:
-                        to_remove.append(run_id)
-
-        for run_id in to_remove:
-            del self.runs[run_id]
-
-
-# Global run manager instance
-run_manager = RunManager()
-
-
-# Endpoints
 
 
 @router.post("/run", response_model=RunResponse)
@@ -374,7 +42,6 @@ async def start_run(request: RunRequest) -> RunResponse:
     - Check status at /run/{run_id}/status
     - Cancel the run at /run/{run_id}/cancel
     """
-    # Validate project path
     project_path = Path(request.project_path).resolve()
     if not project_path.exists():
         raise HTTPException(
@@ -438,7 +105,6 @@ async def stream_events(run_id: str, request: Request):
                     yield {"event": "keepalive", "data": ""}
 
         except Exception as e:
-            # Send error event if something goes wrong
             yield {
                 "event": "run_error",
                 "data": json.dumps(
@@ -528,21 +194,18 @@ async def validate_workflow(request: ValidateRequest) -> ValidateResponse:
         graph = compiler.build_graph(parsed)
         result = compiler.validate_graph(graph, project)
 
-        # Extract node IDs from errors for highlighting
         error_node_ids = [
             e.location.node_id
             for e in result.errors
             if e.location and e.location.node_id
         ]
 
-        # Extract node IDs from warnings for highlighting
         warning_node_ids = [
             w.location.node_id
             for w in result.warnings
             if w.location and w.location.node_id
         ]
 
-        # Build node_id -> error messages mapping for tooltips
         node_errors: dict[str, list[str]] = {}
         for e in result.errors:
             if e.location and e.location.node_id:
@@ -551,7 +214,6 @@ async def validate_workflow(request: ValidateRequest) -> ValidateResponse:
                     node_errors[node_id] = []
                 node_errors[node_id].append(str(e))
 
-        # Build node_id -> warning messages mapping for tooltips
         node_warnings: dict[str, list[str]] = {}
         for w in result.warnings:
             if w.location and w.location.node_id:
@@ -669,8 +331,6 @@ async def submit_user_input(
             detail="Input request has timed out",
         )
 
-    # Provide the input and unblock the waiting coroutine
-    # The workflow_runner will emit USER_INPUT_RECEIVED when it processes the response
     pending.input_value = request.user_input
     pending.input_event.set()
 

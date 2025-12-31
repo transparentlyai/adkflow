@@ -23,14 +23,17 @@ export default function ResizeHandle({
   onResizeRef.current = onResize;
   onResizeEndRef.current = onResizeEnd;
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
 
-    startPos.current = { x: e.clientX, y: e.clientY };
-    zoomRef.current = getZoom();
-    setIsResizing(true);
-  }, [getZoom]);
+      startPos.current = { x: e.clientX, y: e.clientY };
+      zoomRef.current = getZoom();
+      setIsResizing(true);
+    },
+    [getZoom],
+  );
 
   useEffect(() => {
     if (!isResizing) return;
@@ -50,12 +53,12 @@ export default function ResizeHandle({
       onResizeEndRef.current?.();
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
   }, [isResizing]);
 
@@ -63,11 +66,11 @@ export default function ResizeHandle({
     <div
       onMouseDown={handleMouseDown}
       className={`absolute bottom-0 right-0 w-4 h-4 cursor-se-resize nodrag ${
-        isResizing ? 'z-50' : ''
+        isResizing ? "z-50" : ""
       }`}
       style={{
-        background: 'linear-gradient(135deg, transparent 50%, #9ca3af 50%)',
-        borderBottomRightRadius: '0.5rem',
+        background: "linear-gradient(135deg, transparent 50%, #9ca3af 50%)",
+        borderBottomRightRadius: "0.5rem",
       }}
       title="Drag to resize"
     />

@@ -73,7 +73,10 @@ export default function ProjectDialog({
 
   return (
     <>
-      <Dialog open={isOpen && !isPathPickerOpen} onOpenChange={(open) => !open && onClose?.()}>
+      <Dialog
+        open={isOpen && !isPathPickerOpen}
+        onOpenChange={(open) => !open && onClose?.()}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-2xl">Welcome to ADKFlow</DialogTitle>
@@ -123,7 +126,9 @@ export default function ProjectDialog({
                 {projectPath ? (
                   <span className="font-mono text-sm">{projectPath}</span>
                 ) : (
-                  <span className="text-muted-foreground text-sm">Click to browse...</span>
+                  <span className="text-muted-foreground text-sm">
+                    Click to browse...
+                  </span>
                 )}
               </Button>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -183,8 +188,16 @@ export default function ProjectDialog({
         initialPath="~"
         onSelect={handlePathSelected}
         onCancel={handlePathPickerCancel}
-        title={mode === "create" ? "Select Directory for New Project" : "Select Existing Project Directory"}
-        description={mode === "create" ? "Choose where to create your new workflow project" : "Choose the project directory to load"}
+        title={
+          mode === "create"
+            ? "Select Directory for New Project"
+            : "Select Existing Project Directory"
+        }
+        description={
+          mode === "create"
+            ? "Choose where to create your new workflow project"
+            : "Choose the project directory to load"
+        }
       />
     </>
   );

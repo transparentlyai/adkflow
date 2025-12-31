@@ -29,7 +29,10 @@ export interface NodeIconProps {
  * Custom SVG icon paths - extracted from old node components
  * These match the original icons exactly
  */
-const CUSTOM_SVG_ICONS: Record<string, { paths: React.ReactNode; viewBox?: string }> = {
+const CUSTOM_SVG_ICONS: Record<
+  string,
+  { paths: React.ReactNode; viewBox?: string }
+> = {
   // Document icon - from PromptNode.tsx (aliases: document, prompt)
   document: {
     paths: (
@@ -123,7 +126,10 @@ const ICON_ALIASES: Record<string, string> = {
 /**
  * Lucide-react icon components for specific node types
  */
-const LUCIDE_ICONS: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
+const LUCIDE_ICONS: Record<
+  string,
+  React.ComponentType<{ className?: string; style?: React.CSSProperties }>
+> = {
   // UserInput - Send icon
   user_input: Send,
   userInput: Send,
@@ -149,38 +155,43 @@ const LUCIDE_ICONS: Record<string, React.ComponentType<{ className?: string; sty
  * - Lucide-react icons for: user_input, output_file, start, end
  * - Falls back to null for nodes that don't use icons (variable, probes, teleport, agent_tool)
  */
-const NodeIcon = memo(({ icon, className = "w-3 h-3", style }: NodeIconProps) => {
-  if (!icon) return null;
+const NodeIcon = memo(
+  ({ icon, className = "w-3 h-3", style }: NodeIconProps) => {
+    if (!icon) return null;
 
-  const normalizedIcon = icon.toLowerCase();
-  // Resolve alias to canonical name
-  const canonicalIcon = ICON_ALIASES[normalizedIcon] || normalizedIcon;
+    const normalizedIcon = icon.toLowerCase();
+    // Resolve alias to canonical name
+    const canonicalIcon = ICON_ALIASES[normalizedIcon] || normalizedIcon;
 
-  // Check for custom SVG icon
-  const customIcon = CUSTOM_SVG_ICONS[canonicalIcon];
-  if (customIcon) {
-    return (
-      <svg
-        className={`${className} flex-shrink-0`}
-        fill="none"
-        stroke="currentColor"
-        viewBox={customIcon.viewBox || "0 0 24 24"}
-        style={style}
-      >
-        {customIcon.paths}
-      </svg>
-    );
-  }
+    // Check for custom SVG icon
+    const customIcon = CUSTOM_SVG_ICONS[canonicalIcon];
+    if (customIcon) {
+      return (
+        <svg
+          className={`${className} flex-shrink-0`}
+          fill="none"
+          stroke="currentColor"
+          viewBox={customIcon.viewBox || "0 0 24 24"}
+          style={style}
+        >
+          {customIcon.paths}
+        </svg>
+      );
+    }
 
-  // Check for Lucide icon (use original normalized name for Lucide icons)
-  const LucideIcon = LUCIDE_ICONS[normalizedIcon] || LUCIDE_ICONS[canonicalIcon];
-  if (LucideIcon) {
-    return <LucideIcon className={`${className} flex-shrink-0`} style={style} />;
-  }
+    // Check for Lucide icon (use original normalized name for Lucide icons)
+    const LucideIcon =
+      LUCIDE_ICONS[normalizedIcon] || LUCIDE_ICONS[canonicalIcon];
+    if (LucideIcon) {
+      return (
+        <LucideIcon className={`${className} flex-shrink-0`} style={style} />
+      );
+    }
 
-  // No icon for this type (variable, probes, teleport, agent_tool use text labels instead)
-  return null;
-});
+    // No icon for this type (variable, probes, teleport, agent_tool use text labels instead)
+    return null;
+  },
+);
 
 NodeIcon.displayName = "NodeIcon";
 
@@ -198,5 +209,9 @@ export function hasIcon(icon?: string): boolean {
   if (!icon) return false;
   const normalizedIcon = icon.toLowerCase();
   const canonicalIcon = ICON_ALIASES[normalizedIcon] || normalizedIcon;
-  return canonicalIcon in CUSTOM_SVG_ICONS || normalizedIcon in LUCIDE_ICONS || canonicalIcon in LUCIDE_ICONS;
+  return (
+    canonicalIcon in CUSTOM_SVG_ICONS ||
+    normalizedIcon in LUCIDE_ICONS ||
+    canonicalIcon in LUCIDE_ICONS
+  );
 }

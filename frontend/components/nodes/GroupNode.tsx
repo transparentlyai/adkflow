@@ -1,7 +1,14 @@
 "use client";
 
 import { memo, useState, useRef, useEffect, useCallback } from "react";
-import { NodeResizer, type NodeProps, useReactFlow, useStore, useStoreApi, type ResizeParams } from "@xyflow/react";
+import {
+  NodeResizer,
+  type NodeProps,
+  useReactFlow,
+  useStore,
+  useStoreApi,
+  type ResizeParams,
+} from "@xyflow/react";
 import { useProject } from "@/contexts/ProjectContext";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -18,7 +25,10 @@ function useDragInsideDetection(groupId: string): boolean {
 
   // Only subscribe to whether any non-group node is currently dragging
   const hasAnyDragging = useStore(
-    useCallback((state) => state.nodes.some((n) => n.dragging && n.type !== "group"), [])
+    useCallback(
+      (state) => state.nodes.some((n) => n.dragging && n.type !== "group"),
+      [],
+    ),
   );
 
   useEffect(() => {
@@ -43,10 +53,16 @@ function useDragInsideDetection(groupId: string): boolean {
         return;
       }
 
-      const groupWidth = groupNode.measured?.width ?? (groupNode.style?.width as number) ?? 300;
-      const groupHeight = groupNode.measured?.height ?? (groupNode.style?.height as number) ?? 200;
+      const groupWidth =
+        groupNode.measured?.width ?? (groupNode.style?.width as number) ?? 300;
+      const groupHeight =
+        groupNode.measured?.height ??
+        (groupNode.style?.height as number) ??
+        200;
 
-      const draggingNodes = state.nodes.filter((n) => n.dragging && n.type !== "group");
+      const draggingNodes = state.nodes.filter(
+        (n) => n.dragging && n.type !== "group",
+      );
 
       let foundInside = false;
       for (const draggedNode of draggingNodes) {
@@ -57,7 +73,9 @@ function useDragInsideDetection(groupId: string): boolean {
         let absoluteY = draggedNode.position.y;
 
         if (draggedNode.parentId) {
-          const parentNode = state.nodes.find((n) => n.id === draggedNode.parentId);
+          const parentNode = state.nodes.find(
+            (n) => n.id === draggedNode.parentId,
+          );
           if (parentNode) {
             absoluteX += parentNode.position.x;
             absoluteY += parentNode.position.y;
@@ -117,11 +135,17 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedLabel, setEditedLabel] = useState(label);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   // Only subscribe to parentId changes for this specific node
   const parentId = useStore(
-    useCallback((state) => state.nodes.find((n) => n.id === id)?.parentId, [id])
+    useCallback(
+      (state) => state.nodes.find((n) => n.id === id)?.parentId,
+      [id],
+    ),
   );
 
   const handleCopy = useCallback(() => {
@@ -165,8 +189,8 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
       nodes.map((node) =>
         node.id === id
           ? { ...node, data: { ...node.data, isNodeLocked: !isNodeLocked } }
-          : node
-      )
+          : node,
+      ),
     );
   }, [id, isNodeLocked, setNodes]);
 
@@ -186,7 +210,7 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
                 y: thisNode.position.y + parentNode.position.y,
               },
             }
-          : node
+          : node,
       );
     });
   }, [id, setNodes]);
@@ -203,8 +227,8 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
                   label: editedLabel.trim(),
                 },
               }
-            : node
-        )
+            : node,
+        ),
       );
     }
     setIsEditing(false);
@@ -232,11 +256,11 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
                   height: params.height,
                 },
               }
-            : node
-        )
+            : node,
+        ),
       );
     },
-    [id, setNodes]
+    [id, setNodes],
   );
 
   const isActive = selected || dragging || isNodeDraggingInside;
@@ -249,10 +273,10 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
         isVisible={selected && !isLocked && !isNodeLocked}
         lineStyle={{ borderColor: theme.colors.nodes.group.border }}
         handleStyle={{
-          width: '8px',
-          height: '8px',
+          width: "8px",
+          height: "8px",
           backgroundColor: theme.colors.nodes.group.border,
-          borderColor: theme.colors.nodes.group.border
+          borderColor: theme.colors.nodes.group.border,
         }}
         onResizeEnd={handleNodeResize}
       />
@@ -265,24 +289,33 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
             ? `2px solid ${theme.colors.nodes.group.borderActive}`
             : isActive
               ? `1px solid ${theme.colors.nodes.group.border}`
-              : 'none',
+              : "none",
           backgroundColor: isNodeDraggingInside
             ? theme.colors.nodes.group.dropZone
             : dragging
               ? theme.colors.nodes.group.dropZone
-              : 'transparent',
+              : "transparent",
         }}
       >
         <div
           className="group-drag-handle px-2 py-0.5 rounded-t-md cursor-grab flex items-center gap-1.5 transition-colors"
           style={{
-            backgroundColor: selected ? theme.colors.nodes.group.headerActive : theme.colors.nodes.group.header,
-            color: theme.colors.nodes.group.text
+            backgroundColor: selected
+              ? theme.colors.nodes.group.headerActive
+              : theme.colors.nodes.group.header,
+            color: theme.colors.nodes.group.text,
           }}
           onContextMenu={handleHeaderContextMenu}
         >
-          {isNodeLocked && <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />}
-          <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {isNodeLocked && (
+            <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />
+          )}
+          <svg
+            className="w-3 h-3 opacity-60"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path strokeWidth="2" d="M4 8h16M4 16h16" />
           </svg>
           {isEditing ? (
@@ -297,7 +330,7 @@ const GroupNode = memo(({ data, id, selected, dragging }: NodeProps) => {
               className="flex-1 px-1.5 py-0.5 rounded text-xs font-medium outline-none nodrag"
               style={{
                 backgroundColor: theme.colors.ui.background,
-                color: theme.colors.ui.foreground
+                color: theme.colors.ui.foreground,
               }}
             />
           ) : (

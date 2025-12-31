@@ -12,7 +12,11 @@ interface UseProjectManagementProps {
   tabFlowCacheRef: React.MutableRefObject<
     Map<
       string,
-      { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }
+      {
+        nodes: Node[];
+        edges: Edge[];
+        viewport: { x: number; y: number; zoom: number };
+      }
     >
   >;
   currentProjectPath: string | null;
@@ -34,11 +38,11 @@ interface UseProjectManagementProps {
   } | null>;
   createNewTab: (
     projectPath: string,
-    name: string
+    name: string,
   ) => Promise<{ id: string; name: string } | null>;
   loadTabFlow: (
     projectPath: string,
-    tabId: string
+    tabId: string,
   ) => Promise<{
     nodes: Node[];
     edges: Edge[];
@@ -47,10 +51,18 @@ interface UseProjectManagementProps {
   saveTabFlow: (
     projectPath: string,
     tabId: string,
-    flow: { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } },
-    projectName?: string
+    flow: {
+      nodes: Node[];
+      edges: Edge[];
+      viewport: { x: number; y: number; zoom: number };
+    },
+    projectName?: string,
   ) => Promise<boolean>;
-  syncTeleportersForTab: (tabId: string, tabName: string, nodes: Node[]) => void;
+  syncTeleportersForTab: (
+    tabId: string,
+    tabName: string,
+    nodes: Node[],
+  ) => void;
 }
 
 export function useProjectManagement({
@@ -119,7 +131,12 @@ export function useProjectManagement({
         return;
       }
 
-      const success = await saveTabFlow(currentProjectPath, activeTabId, flow, workflowName);
+      const success = await saveTabFlow(
+        currentProjectPath,
+        activeTabId,
+        flow,
+        workflowName,
+      );
       if (success) {
         setIsProjectSaved(true);
         tabFlowCacheRef.current.delete(activeTabId);
@@ -150,7 +167,12 @@ export function useProjectManagement({
     } else {
       setIsProjectSwitcherOpen(true);
     }
-  }, [hasUnsavedChanges, setProjectSwitcherMode, setIsSaveConfirmOpen, setIsProjectSwitcherOpen]);
+  }, [
+    hasUnsavedChanges,
+    setProjectSwitcherMode,
+    setIsSaveConfirmOpen,
+    setIsProjectSwitcherOpen,
+  ]);
 
   const handleLoadProject = useCallback(() => {
     setProjectSwitcherMode("open");
@@ -159,13 +181,22 @@ export function useProjectManagement({
     } else {
       setIsProjectSwitcherOpen(true);
     }
-  }, [hasUnsavedChanges, setProjectSwitcherMode, setIsSaveConfirmOpen, setIsProjectSwitcherOpen]);
+  }, [
+    hasUnsavedChanges,
+    setProjectSwitcherMode,
+    setIsSaveConfirmOpen,
+    setIsProjectSwitcherOpen,
+  ]);
 
   const handleSaveAndContinue = useCallback(async () => {
     await handleSaveCurrentProject();
     setIsSaveConfirmOpen(false);
     setIsProjectSwitcherOpen(true);
-  }, [handleSaveCurrentProject, setIsSaveConfirmOpen, setIsProjectSwitcherOpen]);
+  }, [
+    handleSaveCurrentProject,
+    setIsSaveConfirmOpen,
+    setIsProjectSwitcherOpen,
+  ]);
 
   const handleDontSave = useCallback(() => {
     setIsSaveConfirmOpen(false);
@@ -177,7 +208,7 @@ export function useProjectManagement({
       removeRecentProject(path);
       setRecentProjects(getRecentProjects());
     },
-    [setRecentProjects]
+    [setRecentProjects],
   );
 
   const handleCancelNewProject = useCallback(() => {

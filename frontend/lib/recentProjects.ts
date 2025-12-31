@@ -42,7 +42,7 @@ export function addRecentProject(project: RecentProject): void {
     const projects = getRecentProjects();
 
     // Remove existing entry for this path (if any)
-    const filtered = projects.filter(p => p.path !== project.path);
+    const filtered = projects.filter((p) => p.path !== project.path);
 
     // Add new entry at the beginning
     const updated = [project, ...filtered].slice(0, MAX_RECENT_PROJECTS);
@@ -67,7 +67,7 @@ export function removeRecentProject(path: string): void {
 
   try {
     const projects = getRecentProjects();
-    const filtered = projects.filter(p => p.path !== path);
+    const filtered = projects.filter((p) => p.path !== path);
     localStorage.setItem(RECENT_PROJECTS_KEY, JSON.stringify(filtered));
   } catch (error) {
     console.error("Failed to remove recent project:", error);

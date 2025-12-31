@@ -107,7 +107,7 @@ export default function TopologyDialog({
       } catch (error) {
         console.error("Mermaid render error:", error);
         setRenderError(
-          error instanceof Error ? error.message : "Failed to render diagram"
+          error instanceof Error ? error.message : "Failed to render diagram",
         );
       }
     };

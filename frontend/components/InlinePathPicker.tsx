@@ -5,7 +5,14 @@ import { listDirectory, createDirectory } from "@/lib/api";
 import type { DirectoryEntry } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronRight, FolderPlus, Folder, FileText, ArrowUp, Loader2 } from "lucide-react";
+import {
+  ChevronRight,
+  FolderPlus,
+  Folder,
+  FileText,
+  ArrowUp,
+  Loader2,
+} from "lucide-react";
 
 interface InlinePathPickerProps {
   currentPath: string;
@@ -163,7 +170,12 @@ export default function InlinePathPicker({
             disabled={loading}
             className="h-8 text-sm"
           />
-          <Button size="sm" onClick={handleCreateFolder} disabled={loading} className="h-8">
+          <Button
+            size="sm"
+            onClick={handleCreateFolder}
+            disabled={loading}
+            className="h-8"
+          >
             Create
           </Button>
           <Button
@@ -191,9 +203,7 @@ export default function InlinePathPicker({
         )}
 
         {error && !loading && (
-          <div className="p-4 text-sm text-destructive">
-            {error}
-          </div>
+          <div className="p-4 text-sm text-destructive">{error}</div>
         )}
 
         {!loading && !error && entries.length === 0 && (
@@ -232,7 +242,10 @@ export default function InlinePathPicker({
 
       {/* Footer with current path and action buttons */}
       <div className="px-3 py-2 bg-muted/50 border-t border-border">
-        <div className="text-xs text-muted-foreground font-mono truncate mb-2" title={internalPath}>
+        <div
+          className="text-xs text-muted-foreground font-mono truncate mb-2"
+          title={internalPath}
+        >
           {internalPath}
         </div>
         <div className="flex gap-2">

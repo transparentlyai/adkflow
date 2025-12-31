@@ -13,12 +13,7 @@ interface TabProps {
   onRename: (name: string) => void;
 }
 
-export default function Tab({
-  tab,
-  isActive,
-  onClick,
-  onRename,
-}: TabProps) {
+export default function Tab({ tab, isActive, onClick, onRename }: TabProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(tab.name);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -79,7 +74,7 @@ export default function Tab({
         isActive
           ? "border-primary bg-background text-foreground"
           : "border-transparent hover:bg-muted/50 text-muted-foreground",
-        isDragging && "opacity-50"
+        isDragging && "opacity-50",
       )}
       onClick={isEditing ? undefined : onClick}
       onDoubleClick={isEditing ? undefined : handleDoubleClick}

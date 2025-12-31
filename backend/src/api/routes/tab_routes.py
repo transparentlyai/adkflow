@@ -406,6 +406,8 @@ async def duplicate_tab(
             type=node.type,
             position=dict(node.position),
             data=new_data,
+            selected=None,
+            dragging=None,
             parentId=id_map.get(node.parentId) if node.parentId else None,
             extent=node.extent,
             style=dict(node.style) if node.style else None,
@@ -423,6 +425,7 @@ async def duplicate_tab(
                 target=id_map[edge.target],
                 sourceHandle=edge.sourceHandle,
                 targetHandle=edge.targetHandle,
+                selected=None,
                 animated=edge.animated,
                 style=dict(edge.style) if edge.style else None,
             )

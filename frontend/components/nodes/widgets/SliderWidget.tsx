@@ -2,7 +2,12 @@
 
 import type { WidgetProps } from "@/components/nodes/widgets/WidgetRenderer";
 
-export default function SliderWidget({ field, value, onChange, options }: WidgetProps) {
+export default function SliderWidget({
+  field,
+  value,
+  onChange,
+  options,
+}: WidgetProps) {
   const { disabled, theme } = options;
   const min = field.min_value ?? 0;
   const max = field.max_value ?? 100;

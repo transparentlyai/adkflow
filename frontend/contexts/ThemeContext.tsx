@@ -94,7 +94,8 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 
   const toggleTheme = useCallback(() => {
     setThemeState((current) => {
-      const newTheme = current.id === "light" ? builtInThemes[1] : builtInThemes[0];
+      const newTheme =
+        current.id === "light" ? builtInThemes[1] : builtInThemes[0];
       saveCurrentThemeId(newTheme.id);
       applyTheme(newTheme);
       return newTheme;
@@ -116,7 +117,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
         setTheme("dark");
       }
     },
-    [theme.id, setTheme]
+    [theme.id, setTheme],
   );
 
   const exportCurrentTheme = useCallback(() => {
@@ -132,7 +133,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       }
       return null;
     },
-    [addCustomTheme]
+    [addCustomTheme],
   );
 
   const allThemes = [...builtInThemes, ...customThemes];

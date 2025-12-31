@@ -7,7 +7,11 @@ import type { Node, Edge } from "@xyflow/react";
 interface SessionState {
   currentProjectPath: string | null;
   workflowName: string;
-  workflow: { nodes: Node[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } } | null;
+  workflow: {
+    nodes: Node[];
+    edges: Edge[];
+    viewport: { x: number; y: number; zoom: number };
+  } | null;
   hasUnsavedChanges: boolean;
 }
 

@@ -19,17 +19,21 @@ interface UseProjectLoadProps {
   } | null>;
   createNewTab: (
     projectPath: string,
-    name: string
+    name: string,
   ) => Promise<{ id: string; name: string } | null>;
   loadTabFlow: (
     projectPath: string,
-    tabId: string
+    tabId: string,
   ) => Promise<{
     nodes: Node[];
     edges: Edge[];
     viewport: { x: number; y: number; zoom: number };
   } | null>;
-  syncTeleportersForTab: (tabId: string, tabName: string, nodes: Node[]) => void;
+  syncTeleportersForTab: (
+    tabId: string,
+    tabName: string,
+    nodes: Node[],
+  ) => void;
 }
 
 export function useProjectLoad({
@@ -53,14 +57,20 @@ export function useProjectLoad({
         let projectName = "Untitled Workflow";
 
         if (!result || !result.firstTab) {
-          alert(`No tabs found at ${projectPath}. Creating a new project instead.`);
+          alert(
+            `No tabs found at ${projectPath}. Creating a new project instead.`,
+          );
           await createNewTab(projectPath, "Flow 1");
         } else {
           const flow = await loadTabFlow(projectPath, result.firstTab.id);
           if (flow && canvasRef.current) {
             canvasRef.current.restoreFlow(flow);
             loadedTabIdRef.current = result.firstTab.id;
-            syncTeleportersForTab(result.firstTab.id, result.firstTab.name, flow.nodes);
+            syncTeleportersForTab(
+              result.firstTab.id,
+              result.firstTab.name,
+              flow.nodes,
+            );
           }
           projectName = result.projectName;
         }
@@ -95,7 +105,7 @@ export function useProjectLoad({
       createNewTab,
       loadTabFlow,
       syncTeleportersForTab,
-    ]
+    ],
   );
 
   return { handleLoadExistingProject };

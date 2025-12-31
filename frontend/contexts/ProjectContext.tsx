@@ -17,7 +17,7 @@ interface ProjectContextValue {
   onRequestFilePicker?: (
     currentFilePath: string,
     onSelect: (newPath: string) => void,
-    options?: FilePickerOptions
+    options?: FilePickerOptions,
   ) => void;
   isLocked?: boolean;
 }
@@ -34,7 +34,7 @@ interface ProjectProviderProps {
   onRequestFilePicker?: (
     currentFilePath: string,
     onSelect: (newPath: string) => void,
-    options?: FilePickerOptions
+    options?: FilePickerOptions,
   ) => void;
   isLocked?: boolean;
 }
@@ -47,7 +47,9 @@ export function ProjectProvider({
   isLocked,
 }: ProjectProviderProps) {
   return (
-    <ProjectContext.Provider value={{ projectPath, onSaveFile, onRequestFilePicker, isLocked }}>
+    <ProjectContext.Provider
+      value={{ projectPath, onSaveFile, onRequestFilePicker, isLocked }}
+    >
       {children}
     </ProjectContext.Provider>
   );

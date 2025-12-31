@@ -1,7 +1,12 @@
-import ReactFlowCanvas, { type ReactFlowCanvasRef } from "@/components/ReactFlowCanvas";
+import ReactFlowCanvas, {
+  type ReactFlowCanvasRef,
+} from "@/components/ReactFlowCanvas";
 import TabBar from "@/components/TabBar";
 import ProjectSwitcher from "@/components/ProjectSwitcher";
-import { ProjectProvider, type FilePickerOptions } from "@/contexts/ProjectContext";
+import {
+  ProjectProvider,
+  type FilePickerOptions,
+} from "@/contexts/ProjectContext";
 import { RunWorkflowProvider } from "@/contexts/RunWorkflowContext";
 import type { Node, Edge } from "@xyflow/react";
 import type { TabState } from "@/lib/types";
@@ -36,7 +41,7 @@ interface HomeLayoutProps {
   onRequestFilePicker: (
     currentFilePath: string,
     onSelect: (newPath: string) => void,
-    options?: FilePickerOptions
+    options?: FilePickerOptions,
   ) => void;
   onRunWorkflow: () => void;
 

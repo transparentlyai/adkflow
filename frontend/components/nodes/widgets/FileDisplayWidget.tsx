@@ -59,7 +59,7 @@ export interface FileDisplayWidgetProps {
   onLoadChunk: (
     filePath: string,
     offset: number,
-    limit: number
+    limit: number,
   ) => Promise<FileChunkResponse>;
 }
 
@@ -119,7 +119,7 @@ export default function FileDisplayWidget({
         setIsRefreshing(false);
       }
     },
-    [filePath, chunkSize, onLoadChunk]
+    [filePath, chunkSize, onLoadChunk],
   );
 
   // Initial load
@@ -167,7 +167,7 @@ export default function FileDisplayWidget({
         }
       });
     },
-    [loadMore]
+    [loadMore],
   );
 
   const handleRefresh = useCallback(() => {

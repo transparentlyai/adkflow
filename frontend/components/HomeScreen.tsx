@@ -3,11 +3,20 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import InlinePathPicker from "@/components/InlinePathPicker";
 import RecentProjectsList from "@/components/RecentProjectsList";
 import type { RecentProject } from "@/lib/recentProjects";
-import { getLastUsedDirectory, sanitizeProjectName } from "@/lib/recentProjects";
+import {
+  getLastUsedDirectory,
+  sanitizeProjectName,
+} from "@/lib/recentProjects";
 import { FolderPlus, FolderOpen, ChevronDown, ChevronUp } from "lucide-react";
 
 interface HomeScreenProps {
@@ -44,9 +53,10 @@ export default function HomeScreen({
       return;
     }
 
-    const fullPath = projectLocation === "/"
-      ? `/${sanitizedName}`
-      : `${projectLocation}/${sanitizedName}`;
+    const fullPath =
+      projectLocation === "/"
+        ? `/${sanitizedName}`
+        : `${projectLocation}/${sanitizedName}`;
 
     onCreateProject(fullPath, projectName.trim());
   };
@@ -61,9 +71,12 @@ export default function HomeScreen({
   };
 
   const sanitizedName = sanitizeProjectName(projectName);
-  const fullPath = projectLocation === "/"
-    ? `/${sanitizedName}`
-    : sanitizedName ? `${projectLocation}/${sanitizedName}` : projectLocation;
+  const fullPath =
+    projectLocation === "/"
+      ? `/${sanitizedName}`
+      : sanitizedName
+        ? `${projectLocation}/${sanitizedName}`
+        : projectLocation;
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8">
@@ -82,9 +95,7 @@ export default function HomeScreen({
               <FolderPlus className="h-5 w-5" />
               Create New Project
             </CardTitle>
-            <CardDescription>
-              Start a new workflow from scratch
-            </CardDescription>
+            <CardDescription>Start a new workflow from scratch</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Project Name */}
@@ -110,7 +121,10 @@ export default function HomeScreen({
               </label>
               {!showPathPicker ? (
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 px-3 py-2 bg-muted rounded-md text-sm font-mono truncate" title={fullPath}>
+                  <div
+                    className="flex-1 px-3 py-2 bg-muted rounded-md text-sm font-mono truncate"
+                    title={fullPath}
+                  >
                     {fullPath}
                   </div>
                   <Button
@@ -137,9 +151,7 @@ export default function HomeScreen({
               )}
             </div>
 
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
             <Button onClick={handleCreateProject} className="w-full">
               Create Project
@@ -154,9 +166,7 @@ export default function HomeScreen({
               <FolderOpen className="h-5 w-5" />
               Recent Projects
             </CardTitle>
-            <CardDescription>
-              Continue where you left off
-            </CardDescription>
+            <CardDescription>Continue where you left off</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             <div className="max-h-[300px] overflow-y-auto">
