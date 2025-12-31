@@ -15,6 +15,8 @@ import {
   UNIVERSAL_FIELD_IDS,
   DEFAULT_TABS,
   VERTEX_AI_LOCATIONS,
+  DEFAULT_MODEL,
+  GEMINI_MODEL_OPTIONS,
 } from "./types";
 
 // Import all model schemas
@@ -41,11 +43,6 @@ const ALL_SCHEMAS: ModelSchema[] = [
 ];
 
 /**
- * Default model ID.
- */
-export const DEFAULT_MODEL = "gemini-2.5-flash";
-
-/**
  * Registry of all model schemas by modelId.
  */
 export const MODEL_SCHEMAS: Record<string, ModelSchema> = Object.fromEntries(
@@ -59,14 +56,12 @@ const DEFAULT_SCHEMA = MODEL_SCHEMAS[DEFAULT_MODEL];
 
 /**
  * Available Gemini models for agent configuration.
- * Derived from model schemas, sorted by order.
+ * Re-exported from types.ts for backward compatibility.
  */
-export const GEMINI_MODELS: ModelOption[] = ALL_SCHEMAS.sort(
-  (a, b) => (a.order ?? 999) - (b.order ?? 999),
-).map((schema) => ({
-  value: schema.modelId,
-  label: schema.label,
-}));
+export const GEMINI_MODELS: ModelOption[] = GEMINI_MODEL_OPTIONS;
+
+// Re-export DEFAULT_MODEL from types.ts
+export { DEFAULT_MODEL };
 
 /**
  * Get the schema for a specific model.
@@ -127,4 +122,5 @@ export {
   UNIVERSAL_FIELD_IDS,
   DEFAULT_TABS,
   VERTEX_AI_LOCATIONS,
+  GEMINI_MODEL_OPTIONS,
 } from "./types";

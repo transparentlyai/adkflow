@@ -6,6 +6,7 @@
  */
 
 import type { FieldDefinition } from "@/components/nodes/CustomNode/types";
+import { DEFAULT_MODEL, GEMINI_MODEL_OPTIONS } from "./types";
 
 /**
  * Creates the standard General tab fields.
@@ -38,8 +39,8 @@ export function createGeneralFields(
       id: "model",
       label: "Model",
       widget: "select",
-      default: "", // Will be set by index.ts with actual default model
-      options: [], // Will be populated by index.ts with discovered models
+      default: DEFAULT_MODEL,
+      options: GEMINI_MODEL_OPTIONS,
       help_text: "The LLM model to use for this agent",
       tab: "General",
     },

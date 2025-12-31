@@ -55,6 +55,25 @@ export const DEFAULT_TABS = [
 ];
 
 /**
+ * Default model ID.
+ */
+export const DEFAULT_MODEL = "gemini-2.5-flash";
+
+/**
+ * Available Gemini models for agent configuration.
+ * Order determines display order in dropdown (lower = higher in list).
+ */
+export const GEMINI_MODEL_OPTIONS: ModelOption[] = [
+  { value: "gemini-3-flash-preview", label: "Gemini 3 Flash (Preview)" },
+  { value: "gemini-3-pro-preview", label: "Gemini 3 Pro (Preview)" },
+  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+  { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+  { value: "gemini-2.0-flash-exp", label: "Gemini 2.0 Flash (Experimental)" },
+  { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
+  { value: "custom", label: "Custom Model" },
+];
+
+/**
  * Vertex AI locations/regions for Gemini models.
  * Used by ProjectSettingsDialog for location selection.
  * @see https://cloud.google.com/vertex-ai/generative-ai/docs/learn/locations
