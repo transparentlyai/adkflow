@@ -221,7 +221,12 @@ Features:
 
 Text annotation node.
 
-**Location**: `components/nodes/LabelNode.tsx`
+**Location**: `components/nodes/LabelNode/` (modular directory)
+
+Split into:
+- `LabelNode/index.tsx` - Main component
+- `LabelNode/LabelNodeExpanded.tsx` - Settings view
+- `LabelNode/types.ts` - Types and constants
 
 ## Connection Validation
 

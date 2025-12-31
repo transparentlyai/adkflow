@@ -31,7 +31,7 @@ SSE Stream → Frontend
 
 Manages active workflow runs.
 
-**Location**: `api/execution_routes.py`
+**Location**: `api/run_manager.py`
 
 ```python
 class RunManager:

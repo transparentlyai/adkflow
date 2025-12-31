@@ -26,7 +26,9 @@ backend/
 │   │   │   ├── file_routes.py
 │   │   │   ├── filesystem_routes.py
 │   │   │   └── extension_routes.py
-│   │   └── execution_routes.py
+│   │   ├── execution_routes.py   # Execution endpoints
+│   │   ├── execution_models.py   # Request/response models
+│   │   └── run_manager.py        # RunManager class
 │   └── models/
 │       └── workflow.py      # Pydantic models
 └── pyproject.toml           # Package configuration

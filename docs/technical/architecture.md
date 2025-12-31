@@ -146,7 +146,8 @@ Real-time execution updates use Server-Sent Events:
 |------|---------|
 | `main.py` | FastAPI app initialization |
 | `api/routes/*.py` | API endpoint definitions |
-| `api/execution_routes.py` | Workflow execution |
+| `api/execution_routes.py` | Workflow execution endpoints |
+| `api/run_manager.py` | Run lifecycle management |
 
 ### Shared Types
 

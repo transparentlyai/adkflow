@@ -31,7 +31,15 @@ frontend/
 ├── hooks/                 # Shared/page-level hooks
 │   └── home/              # Home page hooks
 └── lib/                   # Utilities and services
-    ├── api.ts             # API client
+    ├── api/               # API client (modular)
+    │   ├── client.ts      # Axios config
+    │   ├── project.ts     # Project APIs
+    │   ├── tabs.ts        # Tab APIs
+    │   ├── execution.ts   # Execution APIs
+    │   ├── filesystem.ts  # Filesystem APIs
+    │   ├── settings.ts    # Settings APIs
+    │   ├── extensions.ts  # Extension APIs
+    │   └── index.ts       # Re-exports
     ├── types.ts           # TypeScript types
     └── themes/            # Theme system
 ```
@@ -62,7 +70,7 @@ App (layout.tsx)
         │   │   ├── TabBar
         │   │   └── ReactFlowCanvas
         │   └── Dialogs
-        └── RunPanel
+        └── RunPanel/          # Modular component
 ```
 
 ### Data Flow
@@ -87,7 +95,7 @@ Re-render
 |------|---------|-------|
 | `components/ReactFlowCanvas.tsx` | Main canvas component | ~300 |
 | `components/nodes/CustomNode.tsx` | Base node component | ~200 |
-| `lib/api.ts` | API client | ~400 |
+| `lib/api/` | API client (modular) | ~600 total |
 | `lib/types.ts` | Type definitions | ~250 |
 
 ## Development
