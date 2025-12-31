@@ -1,18 +1,20 @@
 import { useEffect, useRef } from "react";
 import { useReactFlow } from "@xyflow/react";
-import {
-  getModelSchema,
-  getUniversalFieldIds,
-  getModelDefaults,
-} from "@/lib/constants/modelSchemas";
+import { getModelSchema, getModelDefaults } from "@/lib/constants/modelSchemas";
 import type { CustomNodeData } from "@/components/nodes/CustomNode/types";
+
+/**
+ * Fields to preserve when switching models.
+ * These are user-entered text fields that describe the agent.
+ */
+const PRESERVED_FIELDS = ["name", "description"];
 
 /**
  * Hook that synchronizes Agent Node fields when the model changes.
  *
  * When the user selects a different model:
- * 1. Preserves universal field values (description, temperature, etc.)
- * 2. Resets model-specific fields to the new model's defaults
+ * 1. Applies all defaults from the new model
+ * 2. Preserves only user-entered text fields (name, description)
  * 3. Updates the node's schema.ui.fields to match the new model
  *
  * @param nodeId - The node's unique ID
@@ -45,7 +47,6 @@ export function useModelFieldSync(
 
     // Model has changed - sync fields
     const newModelSchema = getModelSchema(currentModel);
-    const universalIds = new Set(getUniversalFieldIds());
     const newDefaults = getModelDefaults(currentModel);
 
     setNodes((nodes) =>
@@ -55,30 +56,14 @@ export function useModelFieldSync(
         const nodeData = node.data as unknown as CustomNodeData;
         const currentConfig = nodeData.config || {};
 
-        // Build new config:
-        // - Preserve universal fields
-        // - Reset model-specific fields to new model's defaults
-        const newConfig: Record<string, unknown> = {};
+        // Start with all new model defaults
+        const newConfig: Record<string, unknown> = { ...newDefaults };
 
-        // Copy universal field values
-        for (const fieldId of universalIds) {
+        // Preserve user-entered text fields
+        for (const fieldId of PRESERVED_FIELDS) {
           if (fieldId in currentConfig) {
             newConfig[fieldId] = currentConfig[fieldId];
-          } else if (fieldId in newDefaults) {
-            newConfig[fieldId] = newDefaults[fieldId];
           }
-        }
-
-        // Apply new model's defaults for non-universal fields
-        for (const [fieldId, defaultValue] of Object.entries(newDefaults)) {
-          if (!universalIds.has(fieldId)) {
-            newConfig[fieldId] = defaultValue;
-          }
-        }
-
-        // Also preserve the 'name' field (not in universal but should be kept)
-        if ("name" in currentConfig) {
-          newConfig.name = currentConfig.name;
         }
 
         return {
