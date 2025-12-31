@@ -38,7 +38,10 @@ class FileWatcher:
         self._legacy_path: Path | None = None
 
     def start_watching(
-        self, path: Path, poll_interval: float = 1.0, scope: ExtensionScope = ExtensionScope.PROJECT
+        self,
+        path: Path,
+        poll_interval: float = 1.0,
+        scope: ExtensionScope = ExtensionScope.PROJECT,
     ) -> None:
         """Start watching a path for changes (legacy single-path).
 
@@ -73,7 +76,12 @@ class FileWatcher:
         self._stop_global_watching.clear()
         self._global_watch_thread = threading.Thread(
             target=self._watch_loop,
-            args=(poll_interval, path, self._stop_global_watching, ExtensionScope.GLOBAL),
+            args=(
+                poll_interval,
+                path,
+                self._stop_global_watching,
+                ExtensionScope.GLOBAL,
+            ),
             daemon=True,
         )
         self._global_watch_thread.start()
@@ -92,7 +100,12 @@ class FileWatcher:
         self._stop_project_watching.clear()
         self._project_watch_thread = threading.Thread(
             target=self._watch_loop,
-            args=(poll_interval, path, self._stop_project_watching, ExtensionScope.PROJECT),
+            args=(
+                poll_interval,
+                path,
+                self._stop_project_watching,
+                ExtensionScope.PROJECT,
+            ),
             daemon=True,
         )
         self._project_watch_thread.start()
