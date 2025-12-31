@@ -55,7 +55,7 @@ export const agentNodeSchema: CustomNodeSchema = {
       // Hidden typed handles (for specific connection types)
       {
         id: "agent-input",
-        label: "Input (A2A)",
+        label: "Input (Agent)",
         source_type: "agent",
         data_type: "dict",
         accepted_sources: ["agent", "flow"],
@@ -69,7 +69,7 @@ export const agentNodeSchema: CustomNodeSchema = {
       },
       {
         id: "prompt-input",
-        label: "Instructions",
+        label: "Prompt",
         source_type: "prompt",
         data_type: "str",
         accepted_sources: ["prompt", "context"],
@@ -180,7 +180,7 @@ export const agentNodeSchema: CustomNodeSchema = {
           id: "prompt-input",
           type: "target",
           position: "left",
-          label: "Instructions",
+          label: "Prompt",
         },
         {
           id: "tools-input",
