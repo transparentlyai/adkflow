@@ -122,14 +122,28 @@ Visual style when collapsed:
 from adkflow_runner.extensions import NodeLayout
 
 UISchema(
-    layout=NodeLayout.STANDARD,  # Default expandable panel
-    layout=NodeLayout.PILL,      # Pill-shaped
-    layout=NodeLayout.CIRCLE,    # Circular
-    layout=NodeLayout.DIAMOND,   # Diamond-shaped
-    layout=NodeLayout.OCTAGON,   # Octagonal
-    layout=NodeLayout.COMPACT,   # Small pill
+    layout=NodeLayout.STANDARD,   # Default expandable panel
+    layout=NodeLayout.PILL,       # Pill-shaped (header only)
+    layout=NodeLayout.PILL_BODY,  # Pill with body section
+    layout=NodeLayout.FULL,       # Header + body + footer
+    layout=NodeLayout.CIRCLE,     # Circular button
+    layout=NodeLayout.OCTAGON,    # Octagonal (for End nodes)
+    layout=NodeLayout.TAG,        # Tag/arrow shape (for teleporters)
+    layout=NodeLayout.COMPACT,    # Small compact pill
+    layout=NodeLayout.PANEL,      # Full panel with sections (alias for standard)
 )
 ```
+
+| Layout | Shape | Use Case |
+|--------|-------|----------|
+| `standard` | Panel | Default expandable nodes |
+| `pill` | Rounded pill | Header only (Variable, Prompt, Context, Tool) |
+| `pill_body` | Pill + body | Header + body content (Process) |
+| `full` | Panel | Header + body + footer (Agent with type badge) |
+| `circle` | Circle | Buttons (Start node) |
+| `octagon` | Octagon | Special nodes (End node) |
+| `tag` | Tag/arrow | Teleport nodes (uses TeleporterContext colors) |
+| `compact` | Small pill | Auxiliary nodes (AgentTool) |
 
 See [Node Layouts](./node-layouts.md) for details.
 
@@ -142,9 +156,42 @@ from adkflow_runner.extensions import CollapsedDisplay
 
 UISchema(
     collapsed_display=CollapsedDisplay(
-        summary_fields=["name", "model"],  # Show these fields
-        format="{{name}} ({{model}})",     # Format string
-        show_connections=True,             # Show connected inputs
+        summary_fields=["name", "model"],  # Show these fields in header
+        format="{name}",                   # Format string with {field} placeholders
+        show_connections=True,             # Show connected input names
+        show_with_braces=True,             # Wrap in literal braces (for Variables)
+    ),
+)
+```
+
+### Collapsed Body (for pill_body and full layouts)
+
+```python
+from adkflow_runner.extensions import CollapsedBody
+
+UISchema(
+    layout=NodeLayout.FULL,
+    collapsed_body=CollapsedBody(
+        show_field="model",            # Show field value in body
+        show_connected=["prompt", "tools"],  # Show connected node names
+        show_function_signature=True,  # Parse function sig from code (Process)
+        code_field="code",             # Field containing code to parse
+    ),
+)
+```
+
+### Collapsed Footer (for full layout)
+
+```python
+from adkflow_runner.extensions import CollapsedFooter
+
+UISchema(
+    layout=NodeLayout.FULL,
+    collapsed_footer=CollapsedFooter(
+        left_text="Agent",             # Left side label
+        show_type_badge=True,          # Show type badge on right
+        type_field="type",             # Field containing type value
+        type_labels={"llm": "LLM", "sequential": "Sequential"},
     ),
 )
 ```

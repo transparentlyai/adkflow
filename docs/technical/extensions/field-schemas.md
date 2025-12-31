@@ -39,17 +39,25 @@ class FieldDefinition:
 
 ```python
 class WidgetType(str, Enum):
-    TEXT_INPUT = "text_input"
-    TEXT_AREA = "text_area"
-    NUMBER_INPUT = "number_input"
-    SELECT = "select"
-    CHECKBOX = "checkbox"
-    SLIDER = "slider"
-    FILE_PICKER = "file_picker"
-    CODE_EDITOR = "code_editor"
-    JSON_TREE = "json_tree"
-    CHAT_LOG = "chat_log"
+    TEXT_INPUT = "text_input"      # Single-line text
+    TEXT_AREA = "text_area"        # Multi-line text
+    NUMBER_INPUT = "number_input"  # Numeric input
+    SELECT = "select"              # Dropdown selection
+    SEARCHABLE_SELECT = "searchable_select"  # Searchable dropdown
+    CHECKBOX = "checkbox"          # Boolean toggle
+    SLIDER = "slider"              # Range slider
+    RADIO_GROUP = "radio_group"    # Radio button group
+    FILE_PICKER = "file_picker"    # File selection
+    FILE_DISPLAY = "file_display"  # Read-only file display
+    CODE_EDITOR = "code_editor"    # Monaco code editor
+    MONACO_EDITOR = "monaco_editor"  # Alias for code_editor
+    JSON_TREE = "json_tree"        # JSON tree viewer
+    CHAT_LOG = "chat_log"          # Chat message display
+    INFO_DISPLAY = "info_display"  # Read-only info text
+    VARIABLE_DISPLAY = "variable_display"  # Variable value display
 ```
+
+> **Note**: Widget type names support both lowercase (`text`, `textarea`) and snake_case (`text_input`, `text_area`) for Python compatibility.
 
 ## Text Input
 
@@ -168,6 +176,56 @@ FieldDefinition(
     label="Code",
     widget=WidgetType.CODE_EDITOR,
     default="# Enter your code here",
+    language="python",  # Syntax highlighting language
+)
+```
+
+## Searchable Select
+
+Dropdown with search functionality:
+
+```python
+FieldDefinition(
+    id="tool",
+    label="Tool",
+    widget=WidgetType.SEARCHABLE_SELECT,
+    options=[
+        {"value": "tool1", "label": "Tool 1"},
+        {"value": "tool2", "label": "Tool 2"},
+        # ... many options
+    ],
+    placeholder="Search tools...",
+)
+```
+
+## Radio Group
+
+Radio button selection:
+
+```python
+FieldDefinition(
+    id="mode",
+    label="Mode",
+    widget=WidgetType.RADIO_GROUP,
+    default="auto",
+    options=[
+        {"value": "auto", "label": "Auto"},
+        {"value": "manual", "label": "Manual"},
+        {"value": "hybrid", "label": "Hybrid"},
+    ],
+)
+```
+
+## Info Display
+
+Read-only information display:
+
+```python
+FieldDefinition(
+    id="location",
+    label="Location",
+    widget=WidgetType.INFO_DISPLAY,
+    help_text="Set in Project Settings",
 )
 ```
 
