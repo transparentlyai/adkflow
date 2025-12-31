@@ -11,7 +11,11 @@
 
 import type { FieldDefinition } from "@/components/nodes/CustomNode/types";
 import type { ModelSchema, ModelOption } from "./types";
-import { UNIVERSAL_FIELD_IDS, DEFAULT_TABS, VERTEX_AI_LOCATIONS } from "./types";
+import {
+  UNIVERSAL_FIELD_IDS,
+  DEFAULT_TABS,
+  VERTEX_AI_LOCATIONS,
+} from "./types";
 
 // Import all model schemas
 import { schema as gemini3FlashPreview } from "./gemini-3-flash-preview";
@@ -45,7 +49,7 @@ export const DEFAULT_MODEL = "gemini-2.5-flash";
  * Registry of all model schemas by modelId.
  */
 export const MODEL_SCHEMAS: Record<string, ModelSchema> = Object.fromEntries(
-  ALL_SCHEMAS.map((schema) => [schema.modelId, schema])
+  ALL_SCHEMAS.map((schema) => [schema.modelId, schema]),
 );
 
 /**
@@ -57,12 +61,12 @@ const DEFAULT_SCHEMA = MODEL_SCHEMAS[DEFAULT_MODEL];
  * Available Gemini models for agent configuration.
  * Derived from model schemas, sorted by order.
  */
-export const GEMINI_MODELS: ModelOption[] = ALL_SCHEMAS
-  .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
-  .map((schema) => ({
-    value: schema.modelId,
-    label: schema.label,
-  }));
+export const GEMINI_MODELS: ModelOption[] = ALL_SCHEMAS.sort(
+  (a, b) => (a.order ?? 999) - (b.order ?? 999),
+).map((schema) => ({
+  value: schema.modelId,
+  label: schema.label,
+}));
 
 /**
  * Get the schema for a specific model.
@@ -119,4 +123,8 @@ export function getProjectSettingsModels(): ModelOption[] {
 
 // Re-export types and constants
 export type { ModelSchema, ModelOption } from "./types";
-export { UNIVERSAL_FIELD_IDS, DEFAULT_TABS, VERTEX_AI_LOCATIONS } from "./types";
+export {
+  UNIVERSAL_FIELD_IDS,
+  DEFAULT_TABS,
+  VERTEX_AI_LOCATIONS,
+} from "./types";
