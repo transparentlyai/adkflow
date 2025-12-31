@@ -8,6 +8,8 @@ import { VERTEX_AI_LOCATIONS } from "@/lib/constants/modelSchemas";
 interface LocationBadgeProps {
   projectPath: string | null;
   onOpenSettings: () => void;
+  /** Increment to trigger a refresh of the location */
+  refreshKey?: number;
 }
 
 /**
@@ -25,11 +27,12 @@ interface LocationBadgeProps {
 export default function LocationBadge({
   projectPath,
   onOpenSettings,
+  refreshKey = 0,
 }: LocationBadgeProps) {
   const [location, setLocation] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Load location when project changes
+  // Load location when project changes or refreshKey updates
   useEffect(() => {
     if (!projectPath) {
       setLocation(null);
@@ -59,7 +62,7 @@ export default function LocationBadge({
     return () => {
       cancelled = true;
     };
-  }, [projectPath]);
+  }, [projectPath, refreshKey]);
 
   // Don't render if no project
   if (!projectPath) return null;

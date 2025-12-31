@@ -133,6 +133,7 @@ export function useHomeState() {
 
   // Project settings dialog state
   const [isProjectSettingsOpen, setIsProjectSettingsOpen] = useState(false);
+  const [settingsRefreshKey, setSettingsRefreshKey] = useState(0);
 
   // Pending focus node tracking
   const pendingFocusNodeIdRef = useRef<string | null>(null);
@@ -233,6 +234,8 @@ export function useHomeState() {
     // Project settings
     isProjectSettingsOpen,
     setIsProjectSettingsOpen,
+    settingsRefreshKey,
+    setSettingsRefreshKey,
 
     // Focus tracking
     pendingFocusNodeIdRef,

@@ -106,6 +106,7 @@ interface HomeDialogsProps {
   // Project settings dialog
   isProjectSettingsOpen: boolean;
   onProjectSettingsOpenChange: (open: boolean) => void;
+  onProjectSettingsSaved?: () => void;
 }
 
 export function HomeDialogs({
@@ -170,6 +171,7 @@ export function HomeDialogs({
   onStatusChange,
   isProjectSettingsOpen,
   onProjectSettingsOpenChange,
+  onProjectSettingsSaved,
 }: HomeDialogsProps) {
   return (
     <>
@@ -324,6 +326,7 @@ export function HomeDialogs({
         open={isProjectSettingsOpen}
         onOpenChange={onProjectSettingsOpenChange}
         projectPath={currentProjectPath}
+        onSaved={onProjectSettingsSaved}
       />
     </>
   );

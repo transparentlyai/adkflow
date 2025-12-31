@@ -98,6 +98,8 @@ function HomeContent() {
     hasSyncedAllTabsRef,
     isProjectSettingsOpen,
     setIsProjectSettingsOpen,
+    settingsRefreshKey,
+    setSettingsRefreshKey,
   } = state;
 
   const {
@@ -276,6 +278,7 @@ function HomeContent() {
         tabs={tabs}
         activeTabId={activeTabId}
         canvasRef={canvasRef}
+        settingsRefreshKey={settingsRefreshKey}
         onNewProject={projectManagement.handleNewProject}
         onLoadProject={projectManagement.handleLoadProject}
         onSaveProject={projectManagement.handleSaveCurrentProject}
@@ -397,6 +400,7 @@ function HomeContent() {
         onStatusChange={setLastRunStatus}
         isProjectSettingsOpen={isProjectSettingsOpen}
         onProjectSettingsOpenChange={setIsProjectSettingsOpen}
+        onProjectSettingsSaved={() => setSettingsRefreshKey((k) => k + 1)}
       />
     </div>
   );

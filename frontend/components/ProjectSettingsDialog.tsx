@@ -31,6 +31,8 @@ interface ProjectSettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectPath: string | null;
+  /** Called when settings are successfully saved */
+  onSaved?: () => void;
 }
 
 const PROJECT_MODELS = getProjectSettingsModels();
@@ -39,6 +41,7 @@ export default function ProjectSettingsDialog({
   open,
   onOpenChange,
   projectPath,
+  onSaved,
 }: ProjectSettingsDialogProps) {
   // Form state
   const [authMode, setAuthMode] = useState<"api_key" | "vertex_ai">("api_key");
@@ -107,6 +110,7 @@ export default function ProjectSettingsDialog({
       };
 
       await saveProjectSettings(projectPath, settings, env);
+      onSaved?.();
       onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save settings");
