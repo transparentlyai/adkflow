@@ -129,8 +129,7 @@ const GEMINI_2_5_FLASH_SCHEMA: ModelSchema = {
       id: "location",
       label: "Location",
       widget: "info_display",
-      help_text:
-        "Set in Project Settings (click ⚙️ in header or location badge)",
+      help_text: "Set in Project Settings",
       tab: "General",
     },
     {
@@ -406,8 +405,7 @@ const GEMINI_2_5_PRO_SCHEMA: ModelSchema = {
       id: "location",
       label: "Location",
       widget: "info_display",
-      help_text:
-        "Set in Project Settings (click ⚙️ in header or location badge)",
+      help_text: "Set in Project Settings",
       tab: "General",
     },
     {
@@ -683,8 +681,7 @@ const GEMINI_2_0_FLASH_EXP_SCHEMA: ModelSchema = {
       id: "location",
       label: "Location",
       widget: "info_display",
-      help_text:
-        "Set in Project Settings (click ⚙️ in header or location badge)",
+      help_text: "Set in Project Settings",
       tab: "General",
     },
     {
@@ -960,8 +957,7 @@ const GEMINI_2_0_FLASH_SCHEMA: ModelSchema = {
       id: "location",
       label: "Location",
       widget: "info_display",
-      help_text:
-        "Set in Project Settings (click ⚙️ in header or location badge)",
+      help_text: "Set in Project Settings",
       tab: "General",
     },
     {
@@ -1237,8 +1233,7 @@ const GEMINI_3_FLASH_PREVIEW_SCHEMA: ModelSchema = {
       id: "location",
       label: "Location",
       widget: "info_display",
-      help_text:
-        "Set in Project Settings (click ⚙️ in header or location badge)",
+      help_text: "Set in Project Settings",
       tab: "General",
     },
     {
@@ -1519,8 +1514,7 @@ const GEMINI_3_PRO_PREVIEW_SCHEMA: ModelSchema = {
       id: "location",
       label: "Location",
       widget: "info_display",
-      help_text:
-        "Set in Project Settings (click ⚙️ in header or location badge)",
+      help_text: "Set in Project Settings",
       tab: "General",
     },
     {
