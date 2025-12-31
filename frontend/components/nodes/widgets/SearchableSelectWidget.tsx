@@ -4,8 +4,33 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import type { WidgetProps } from "@/components/nodes/widgets/WidgetRenderer";
 
 /**
- * A searchable select widget with filtering capability.
- * Ideal for fields with many options (e.g., location selection with 30+ regions).
+ * SearchableSelectWidget - A dropdown with search/filter capability.
+ *
+ * Use this widget for fields with many options where users benefit from
+ * filtering (e.g., country selection, timezone picker, large enum lists).
+ *
+ * Features:
+ * - Type-to-filter: Filters options as user types in the search box
+ * - Matches both label and value
+ * - Keyboard support: Escape to close, Enter to select single match
+ * - Click outside to close
+ * - Styled consistently with other node widgets
+ *
+ * @example
+ * // In a field definition:
+ * {
+ *   id: "timezone",
+ *   label: "Timezone",
+ *   widget: "searchable_select",
+ *   options: [
+ *     { value: "America/New_York", label: "Eastern Time (US)" },
+ *     { value: "Europe/London", label: "London (UK)" },
+ *     // ... many more options
+ *   ],
+ * }
+ *
+ * @note Currently available but not used in production.
+ *       Reserved for future use cases requiring filterable dropdowns.
  */
 export default function SearchableSelectWidget({
   field,

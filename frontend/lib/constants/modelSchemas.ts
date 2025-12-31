@@ -30,20 +30,21 @@ export interface ModelSchema {
 
 /**
  * Universal field IDs that are always preserved when switching models.
+ * Note: "location" is not included as it's now a project-level setting.
  */
 const UNIVERSAL_FIELD_IDS = [
   "description",
   "model",
   "custom_model",
-  "location",
   "temperature",
 ];
 
 /**
  * Vertex AI locations/regions for Gemini models.
+ * Used by ProjectSettingsDialog for location selection.
  * @see https://cloud.google.com/vertex-ai/generative-ai/docs/learn/locations
  */
-const VERTEX_AI_LOCATIONS = [
+export const VERTEX_AI_LOCATIONS = [
   // Global
   { value: "global", label: "Global (Auto)" },
   // United States
@@ -127,11 +128,9 @@ const GEMINI_2_5_FLASH_SCHEMA: ModelSchema = {
     {
       id: "location",
       label: "Location",
-      widget: "searchable_select",
-      default: "us-central1",
-      options: VERTEX_AI_LOCATIONS,
+      widget: "info_display",
       help_text:
-        "Vertex AI region for model deployment. Choose a region close to your users for lower latency.",
+        "Set in Project Settings (click ⚙️ in header or location badge)",
       tab: "General",
     },
     {
@@ -406,11 +405,9 @@ const GEMINI_2_5_PRO_SCHEMA: ModelSchema = {
     {
       id: "location",
       label: "Location",
-      widget: "searchable_select",
-      default: "us-central1",
-      options: VERTEX_AI_LOCATIONS,
+      widget: "info_display",
       help_text:
-        "Vertex AI region for model deployment. Choose a region close to your users for lower latency.",
+        "Set in Project Settings (click ⚙️ in header or location badge)",
       tab: "General",
     },
     {
@@ -685,11 +682,9 @@ const GEMINI_2_0_FLASH_EXP_SCHEMA: ModelSchema = {
     {
       id: "location",
       label: "Location",
-      widget: "searchable_select",
-      default: "us-central1",
-      options: VERTEX_AI_LOCATIONS,
+      widget: "info_display",
       help_text:
-        "Vertex AI region for model deployment. Choose a region close to your users for lower latency.",
+        "Set in Project Settings (click ⚙️ in header or location badge)",
       tab: "General",
     },
     {
@@ -964,11 +959,9 @@ const GEMINI_2_0_FLASH_SCHEMA: ModelSchema = {
     {
       id: "location",
       label: "Location",
-      widget: "searchable_select",
-      default: "us-central1",
-      options: VERTEX_AI_LOCATIONS,
+      widget: "info_display",
       help_text:
-        "Vertex AI region for model deployment. Choose a region close to your users for lower latency.",
+        "Set in Project Settings (click ⚙️ in header or location badge)",
       tab: "General",
     },
     {
@@ -1243,11 +1236,9 @@ const GEMINI_3_FLASH_PREVIEW_SCHEMA: ModelSchema = {
     {
       id: "location",
       label: "Location",
-      widget: "searchable_select",
-      default: "us-central1",
-      options: VERTEX_AI_LOCATIONS,
+      widget: "info_display",
       help_text:
-        "Vertex AI region for model deployment. Choose a region close to your users for lower latency.",
+        "Set in Project Settings (click ⚙️ in header or location badge)",
       tab: "General",
     },
     {
@@ -1527,11 +1518,9 @@ const GEMINI_3_PRO_PREVIEW_SCHEMA: ModelSchema = {
     {
       id: "location",
       label: "Location",
-      widget: "searchable_select",
-      default: "us-central1",
-      options: VERTEX_AI_LOCATIONS,
+      widget: "info_display",
       help_text:
-        "Vertex AI region for model deployment. Choose a region close to your users for lower latency.",
+        "Set in Project Settings (click ⚙️ in header or location badge)",
       tab: "General",
     },
     {

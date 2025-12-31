@@ -11,17 +11,21 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Eye, EyeOff, ExternalLink, Loader2, ChevronDown } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  ExternalLink,
+  Loader2,
+  ChevronDown,
+  MapPin,
+} from "lucide-react";
 import { loadProjectSettings, saveProjectSettings } from "@/lib/api";
-import type {
-  ProjectSettings,
-  ProjectEnvSettings,
-  ProjectEnvSettingsUpdate,
-} from "@/lib/types";
+import type { ProjectSettings, ProjectEnvSettingsUpdate } from "@/lib/types";
 import {
   getProjectSettingsModels,
   DEFAULT_MODEL,
 } from "@/lib/constants/models";
+import { VERTEX_AI_LOCATIONS } from "@/lib/constants/modelSchemas";
 
 interface ProjectSettingsDialogProps {
   open: boolean;
@@ -30,16 +34,6 @@ interface ProjectSettingsDialogProps {
 }
 
 const PROJECT_MODELS = getProjectSettingsModels();
-
-const VERTEX_LOCATIONS = [
-  "us-central1",
-  "us-east1",
-  "us-west1",
-  "europe-west1",
-  "europe-west4",
-  "asia-northeast1",
-  "asia-southeast1",
-];
 
 export default function ProjectSettingsDialog({
   open,
@@ -151,8 +145,55 @@ export default function ProjectSettingsDialog({
               </div>
             )}
 
+            {/* Location Section - Top Level, Always Visible */}
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <Label htmlFor="location" className="text-sm font-medium">
+                  Location
+                </Label>
+              </div>
+              <select
+                id="location"
+                value={googleCloudLocation}
+                onChange={(e) => setGoogleCloudLocation(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                {VERTEX_AI_LOCATIONS.map((loc) => (
+                  <option key={loc.value} value={loc.value}>
+                    {loc.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Vertex AI region for all agents in this project
+              </p>
+            </div>
+
+            {/* Model Section */}
+            <div className="space-y-1.5">
+              <Label htmlFor="defaultModel" className="text-sm font-medium">
+                Default Model
+              </Label>
+              <select
+                id="defaultModel"
+                value={defaultModel}
+                onChange={(e) => setDefaultModel(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                {PROJECT_MODELS.map((model) => (
+                  <option key={model.value} value={model.value}>
+                    {model.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Used when creating new agents
+              </p>
+            </div>
+
             {/* Authentication Section - Progressive Disclosure */}
-            <div className="space-y-2">
+            <div className="space-y-2 pt-2 border-t border-border">
               <button
                 type="button"
                 onClick={() => setAuthExpanded(!authExpanded)}
@@ -256,28 +297,6 @@ export default function ProjectSettingsDialog({
                           className="h-8 text-sm"
                         />
                       </div>
-                      <div className="space-y-1">
-                        <Label
-                          htmlFor="googleCloudLocation"
-                          className="text-xs"
-                        >
-                          Location
-                        </Label>
-                        <select
-                          id="googleCloudLocation"
-                          value={googleCloudLocation}
-                          onChange={(e) =>
-                            setGoogleCloudLocation(e.target.value)
-                          }
-                          className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        >
-                          {VERTEX_LOCATIONS.map((loc) => (
-                            <option key={loc} value={loc}>
-                              {loc}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
                       <a
                         href="https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment"
                         target="_blank"
@@ -291,28 +310,6 @@ export default function ProjectSettingsDialog({
                   )}
                 </div>
               )}
-            </div>
-
-            {/* Model Section - Compact */}
-            <div className="space-y-1">
-              <Label htmlFor="defaultModel" className="text-sm font-medium">
-                Default Model
-              </Label>
-              <select
-                id="defaultModel"
-                value={defaultModel}
-                onChange={(e) => setDefaultModel(e.target.value)}
-                className="flex h-8 w-full rounded-md border border-input bg-transparent px-2 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                {PROJECT_MODELS.map((model) => (
-                  <option key={model.value} value={model.value}>
-                    {model.label}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-muted-foreground">
-                Used when creating new agents
-              </p>
             </div>
           </div>
         )}

@@ -1,5 +1,6 @@
 import TopMenubar from "@/components/TopMenubar";
 import GlobalSearch from "@/components/GlobalSearch";
+import LocationBadge from "@/components/LocationBadge";
 import { Lock, Save, Sun, Moon } from "lucide-react";
 import type { Node, Edge } from "@xyflow/react";
 import type { TabState } from "@/lib/types";
@@ -109,6 +110,10 @@ export function HomeHeader({
           )}
         </div>
         <div className="flex items-center gap-4">
+          <LocationBadge
+            projectPath={currentProjectPath}
+            onOpenSettings={onOpenProjectSettings}
+          />
           <button
             onClick={onToggleTheme}
             className="p-1.5 rounded-md hover:bg-accent transition-colors"

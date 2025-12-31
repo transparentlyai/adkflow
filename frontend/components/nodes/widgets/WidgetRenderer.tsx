@@ -6,6 +6,7 @@ import TextAreaWidget from "@/components/nodes/widgets/TextAreaWidget";
 import NumberInputWidget from "@/components/nodes/widgets/NumberInputWidget";
 import SelectWidget from "@/components/nodes/widgets/SelectWidget";
 import SearchableSelectWidget from "@/components/nodes/widgets/SearchableSelectWidget";
+import InfoDisplayWidget from "@/components/nodes/widgets/InfoDisplayWidget";
 import CheckboxWidget from "@/components/nodes/widgets/CheckboxWidget";
 import SliderWidget from "@/components/nodes/widgets/SliderWidget";
 import JsonTreeWidget from "@/components/nodes/widgets/JsonTreeWidget";
@@ -26,6 +27,7 @@ export type WidgetType =
   | "number_input"
   | "select"
   | "searchable_select"
+  | "info_display"
   | "checkbox"
   | "slider"
   | "color"
@@ -95,6 +97,7 @@ const WIDGET_MAP: Record<string, React.ComponentType<WidgetProps>> = {
   number_input: NumberInputWidget,
   select: SelectWidget,
   searchable_select: SearchableSelectWidget,
+  info_display: InfoDisplayWidget,
   checkbox: CheckboxWidget,
   slider: SliderWidget,
   json_tree: JsonTreeWidget,
