@@ -37,6 +37,7 @@ import {
   useConnectedInputs,
   useCustomNodeName,
   useFileOperations,
+  useModelFieldSync,
   CustomNodeCollapsed,
   CustomNodeExpanded,
 } from "@/components/nodes/custom";
@@ -60,6 +61,9 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
   const { tabs, activeTab, setActiveTab } = useCustomNodeTabs(schema);
   const handleTypes = useCustomNodeHandleTypes(schema);
   const connectedInputs = useConnectedInputs(id, schema.ui.inputs);
+
+  // Sync fields when model changes (Agent nodes only)
+  useModelFieldSync(id, config, schema, schema.unit_id);
 
   // Sync handleTypes to node.data for the connection registry
   // This ensures stale saved handleTypes are updated when schema changes

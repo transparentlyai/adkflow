@@ -13,6 +13,8 @@ export interface ModelOption {
  * The "custom" option allows users to specify a custom model name.
  */
 export const GEMINI_MODELS: ModelOption[] = [
+  { value: "gemini-3-flash-preview", label: "Gemini 3 Flash (prev)" },
+  { value: "gemini-3-pro-preview", label: "Gemini 3 Pro (prev)" },
   { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
   { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
   { value: "gemini-2.0-flash-exp", label: "Gemini 2.0 Flash Exp" },

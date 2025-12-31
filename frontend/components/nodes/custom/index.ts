@@ -20,6 +20,7 @@ export {
   type FilePickerOptions,
   type UseFileOperationsResult,
 } from "@/components/nodes/custom/hooks/useFileOperations";
+export { useModelFieldSync } from "@/components/nodes/custom/hooks/useModelFieldSync";
 
 // Components
 export {
