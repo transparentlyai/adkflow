@@ -5,9 +5,10 @@ import type { CustomNodeData } from "@/components/nodes/CustomNode/types";
 
 /**
  * Fields to preserve when switching models.
- * These are user-entered text fields that describe the agent.
+ * - name, description: user-entered text fields
+ * - model: the newly selected model (don't overwrite with default)
  */
-const PRESERVED_FIELDS = ["name", "description"];
+const PRESERVED_FIELDS = ["name", "description", "model"];
 
 /**
  * Hook that synchronizes Agent Node fields when the model changes.
