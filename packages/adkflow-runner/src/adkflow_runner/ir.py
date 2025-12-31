@@ -106,7 +106,6 @@ class AgentIR:
 
     # LLM-specific
     model: str = "gemini-2.5-flash"
-    location: str = "us-central1"  # Vertex AI region
     instruction: str | None = None
     temperature: float = 0.7
 

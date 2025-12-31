@@ -175,11 +175,6 @@ class WorkflowRunner:
         run_id = str(uuid.uuid4())[:8]
         session_state: dict[str, Any] = {}
 
-        # Set Vertex AI location from root agent's config
-        # ADK uses GOOGLE_CLOUD_LOCATION env var for the genai client
-        if ir.root_agent and ir.root_agent.location:
-            os.environ["GOOGLE_CLOUD_LOCATION"] = ir.root_agent.location
-
         # Track accumulated outputs for variable substitution
         accumulated_outputs: dict[str, str] = {}
 
