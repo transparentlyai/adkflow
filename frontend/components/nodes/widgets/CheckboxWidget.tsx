@@ -11,23 +11,15 @@ export default function CheckboxWidget({
   const { disabled, theme } = options;
 
   return (
-    <label className="flex items-center gap-2 cursor-pointer">
-      <input
-        type="checkbox"
-        checked={Boolean(value)}
-        onChange={(e) => onChange(e.target.checked)}
-        disabled={disabled}
-        className="w-4 h-4 rounded border"
-        style={{
-          accentColor: theme.colors.nodes.agent.header,
-        }}
-      />
-      <span
-        className="text-xs"
-        style={{ color: theme.colors.nodes.common.text.primary }}
-      >
-        {field.placeholder || "Enabled"}
-      </span>
-    </label>
+    <input
+      type="checkbox"
+      checked={Boolean(value)}
+      onChange={(e) => onChange(e.target.checked)}
+      disabled={disabled}
+      className="w-4 h-4 rounded border"
+      style={{
+        accentColor: theme.colors.nodes.agent.header,
+      }}
+    />
   );
 }
