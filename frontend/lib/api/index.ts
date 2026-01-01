@@ -72,3 +72,15 @@ export type {
   LoggingConfig,
   LoggingConfigUpdate,
 } from "./logging";
+
+// Log Explorer APIs (dev mode only)
+export { getLogFiles, getLogEntries, getLogStats } from "./logs";
+export type {
+  LogFileInfo,
+  LogEntry,
+  LogEntryException,
+  LogFilesResponse,
+  LogEntriesOptions,
+  LogEntriesResponse,
+  LogStats,
+} from "./logs";
