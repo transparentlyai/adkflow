@@ -2,6 +2,7 @@
  * Logging API functions for debug mode
  *
  * These endpoints are only available when running in dev mode (./adkflow dev).
+ * Settings are persisted to manifest.json under the "logging" key.
  */
 
 import axios from "axios";
@@ -54,8 +55,11 @@ export async function isDebugModeAvailable(): Promise<boolean> {
 /**
  * Get current logging configuration
  */
-export async function getLoggingConfig(): Promise<LoggingConfig> {
+export async function getLoggingConfig(
+  projectPath?: string,
+): Promise<LoggingConfig> {
   try {
+    const params = projectPath ? { project_path: projectPath } : {};
     const response = await apiClient.get<{
       global_level: string;
       categories: Record<string, string>;
@@ -63,7 +67,7 @@ export async function getLoggingConfig(): Promise<LoggingConfig> {
       file_path: string | null;
       console_colored: boolean;
       console_format: string;
-    }>("/api/debug/logging");
+    }>("/api/debug/logging", { params });
 
     // Transform snake_case to camelCase
     return {
@@ -89,8 +93,10 @@ export async function getLoggingConfig(): Promise<LoggingConfig> {
  */
 export async function updateLoggingConfig(
   update: LoggingConfigUpdate,
+  projectPath?: string,
 ): Promise<LoggingConfig> {
   try {
+    const params = projectPath ? { project_path: projectPath } : {};
     const response = await apiClient.put<{
       success: boolean;
       config: {
@@ -101,12 +107,16 @@ export async function updateLoggingConfig(
         console_colored: boolean;
         console_format: string;
       };
-    }>("/api/debug/logging", {
-      global_level: update.globalLevel,
-      categories: update.categories,
-      file_enabled: update.fileEnabled,
-      console_colored: update.consoleColored,
-    });
+    }>(
+      "/api/debug/logging",
+      {
+        global_level: update.globalLevel,
+        categories: update.categories,
+        file_enabled: update.fileEnabled,
+        console_colored: update.consoleColored,
+      },
+      { params },
+    );
 
     const config = response.data.config;
     return {
@@ -130,10 +140,14 @@ export async function updateLoggingConfig(
 /**
  * Get all logging categories
  */
-export async function getLoggingCategories(): Promise<CategoryInfo[]> {
+export async function getLoggingCategories(
+  projectPath?: string,
+): Promise<CategoryInfo[]> {
   try {
+    const params = projectPath ? { project_path: projectPath } : {};
     const response = await apiClient.get<CategoryInfo[]>(
       "/api/debug/logging/categories",
+      { params },
     );
     return response.data;
   } catch (error) {
@@ -149,9 +163,10 @@ export async function getLoggingCategories(): Promise<CategoryInfo[]> {
 /**
  * Reset logging configuration to defaults
  */
-export async function resetLoggingConfig(): Promise<void> {
+export async function resetLoggingConfig(projectPath?: string): Promise<void> {
   try {
-    await apiClient.post("/api/debug/logging/reset");
+    const params = projectPath ? { project_path: projectPath } : {};
+    await apiClient.post("/api/debug/logging/reset", null, { params });
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
       throw new Error(

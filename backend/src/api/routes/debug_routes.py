@@ -2,21 +2,24 @@
 
 These routes are only registered when ADKFLOW_DEV_MODE=1.
 They provide runtime configuration for logging and debugging.
+Settings are persisted to the project's manifest.json under the "logging" key.
 """
 
+import json
+from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query, HTTPException, status
 from pydantic import BaseModel, Field
 
 # Import logging configuration from adkflow_runner
-# This module is optional - routes will return 503 if not available
 from adkflow_runner.logging import (
     LogLevel,
     get_config,
     set_config,
     get_registry,
     reset_config as _reset_config,
+    LogConfig,
 )
 
 
@@ -106,10 +109,123 @@ def _parse_level(level_str: str) -> LogLevel:
     return level_map.get(level_str.upper(), LogLevel.INFO)
 
 
+def _load_manifest(project_path: str) -> dict[str, Any]:
+    """Load manifest.json from project directory."""
+    manifest_file = Path(project_path) / "manifest.json"
+    if manifest_file.exists():
+        with open(manifest_file) as f:
+            return json.load(f)
+    return {}
+
+
+def _save_manifest(project_path: str, manifest: dict[str, Any]) -> None:
+    """Save manifest.json to project directory."""
+    manifest_file = Path(project_path) / "manifest.json"
+    try:
+        with open(manifest_file, "w") as f:
+            json.dump(manifest, f, indent=2)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save manifest: {str(e)}",
+        )
+
+
+def _load_project_config(project_path: str | None) -> LogConfig:
+    """Load logging config from project's manifest.json if it exists."""
+    config = get_config()
+
+    if not project_path:
+        return config
+
+    manifest = _load_manifest(project_path)
+    logging_data = manifest.get("logging")
+
+    if logging_data:
+        try:
+            # Apply settings from manifest
+            if "level" in logging_data:
+                config.level = _parse_level(logging_data["level"])
+
+            if "categories" in logging_data:
+                for cat, level_str in logging_data["categories"].items():
+                    config.categories[cat] = _parse_level(level_str)
+
+            if "file" in logging_data:
+                fc = logging_data["file"]
+                if "enabled" in fc:
+                    config.file.enabled = fc["enabled"]
+
+            if "console" in logging_data:
+                cc = logging_data["console"]
+                if "colored" in cc:
+                    config.console.colored = cc["colored"]
+                if "format" in cc:
+                    config.console.format = cc["format"]
+
+            # Apply to runtime
+            set_config(config)
+
+            # Update registry
+            registry = get_registry()
+            registry.set_default_level(config.level)
+            for cat_pattern, level in config.categories.items():
+                registry.set_level(cat_pattern, level)
+
+        except Exception:
+            # If loading fails, just use the current config
+            pass
+
+    return config
+
+
+def _save_project_config(project_path: str | None, config: LogConfig) -> None:
+    """Save logging config to project's manifest.json."""
+    if not project_path:
+        return
+
+    # Load existing manifest
+    manifest = _load_manifest(project_path)
+
+    # Build logging config dict
+    logging_data: dict[str, Any] = {
+        "level": _get_level_name(config.level),
+    }
+
+    # Only save non-empty categories
+    if config.categories:
+        logging_data["categories"] = {
+            cat: _get_level_name(level) for cat, level in config.categories.items()
+        }
+
+    # Save file settings if not default
+    if not config.file.enabled:
+        logging_data["file"] = {"enabled": False}
+
+    # Save console settings if not default
+    if not config.console.colored or config.console.format != "readable":
+        logging_data["console"] = {}
+        if not config.console.colored:
+            logging_data["console"]["colored"] = False
+        if config.console.format != "readable":
+            logging_data["console"]["format"] = config.console.format
+
+    # Update manifest with logging config
+    manifest["logging"] = logging_data
+
+    # Save manifest
+    _save_manifest(project_path, manifest)
+
+
 @router.get("/logging", response_model=LoggingConfigResponse)
-async def get_logging_config() -> LoggingConfigResponse:
+async def get_logging_config(
+    project_path: str | None = Query(None, description="Project directory path"),
+) -> LoggingConfigResponse:
     """
     Get current logging configuration.
+
+    Args:
+        project_path: Optional project path to load project-specific config
 
     Returns:
         LoggingConfigResponse with current logging settings
@@ -117,7 +233,7 @@ async def get_logging_config() -> LoggingConfigResponse:
     Note:
         This endpoint is only available in development mode.
     """
-    config = get_config()
+    config = _load_project_config(project_path)
     registry = get_registry()
 
     # Build category levels from registry
@@ -140,26 +256,29 @@ async def get_logging_config() -> LoggingConfigResponse:
 @router.put("/logging", response_model=LoggingConfigUpdateResponse)
 async def update_logging_config(
     update: LoggingConfigUpdate,
+    project_path: str | None = Query(None, description="Project directory path"),
 ) -> LoggingConfigUpdateResponse:
     """
     Update logging configuration at runtime.
 
     Args:
         update: Configuration updates to apply
+        project_path: Optional project path to save project-specific config
 
     Returns:
         LoggingConfigUpdateResponse with success status and new config
 
     Note:
         This endpoint is only available in development mode.
-        Changes are applied immediately but not persisted to config file.
+        Changes are saved to manifest.json if project_path is provided.
     """
-    config = get_config()
+    config = _load_project_config(project_path)
     registry = get_registry()
 
     # Update global level
     if update.global_level is not None:
         config.level = _parse_level(update.global_level)
+        registry.set_default_level(config.level)
 
     # Update category levels
     if update.categories is not None:
@@ -179,17 +298,25 @@ async def update_logging_config(
     # Apply updated config
     set_config(config)
 
+    # Save to project's manifest.json
+    _save_project_config(project_path, config)
+
     # Return updated config
     return LoggingConfigUpdateResponse(
         success=True,
-        config=await get_logging_config(),
+        config=await get_logging_config(project_path),
     )
 
 
 @router.get("/logging/categories", response_model=list[CategoryInfo])
-async def list_logging_categories() -> list[CategoryInfo]:
+async def list_logging_categories(
+    project_path: str | None = Query(None, description="Project directory path"),
+) -> list[CategoryInfo]:
     """
     List all available logging categories with their hierarchy.
+
+    Args:
+        project_path: Optional project path to load project-specific config
 
     Returns:
         List of CategoryInfo objects describing each category
@@ -197,6 +324,9 @@ async def list_logging_categories() -> list[CategoryInfo]:
     Note:
         This endpoint is only available in development mode.
     """
+    # Load project config to ensure registry is up to date
+    _load_project_config(project_path)
+
     registry = get_registry()
     categories: list[CategoryInfo] = []
 
@@ -218,16 +348,32 @@ async def list_logging_categories() -> list[CategoryInfo]:
 
 
 @router.post("/logging/reset")
-async def reset_logging_config() -> dict[str, Any]:
+async def reset_logging_config(
+    project_path: str | None = Query(None, description="Project directory path"),
+) -> dict[str, Any]:
     """
     Reset logging configuration to defaults.
+
+    Args:
+        project_path: Optional project path to remove project-specific config
 
     Returns:
         Success message
 
     Note:
         This endpoint is only available in development mode.
+        If project_path is provided, removes the logging key from manifest.json.
     """
     _reset_config()
+
+    # Remove logging config from manifest
+    if project_path:
+        try:
+            manifest = _load_manifest(project_path)
+            if "logging" in manifest:
+                del manifest["logging"]
+                _save_manifest(project_path, manifest)
+        except Exception:
+            pass  # Ignore errors when removing
 
     return {"success": True, "message": "Logging configuration reset to defaults"}

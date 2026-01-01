@@ -3,9 +3,11 @@
  *
  * This hook provides access to runtime logging configuration.
  * Only available when running in dev mode (./adkflow dev).
+ * Settings are persisted to manifest.json under the "logging" key.
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { useProject } from "@/contexts/ProjectContext";
 import {
   isDebugModeAvailable,
   getLoggingConfig,
@@ -58,7 +60,12 @@ export interface UseLoggingConfigResult {
  * );
  * ```
  */
-export function useLoggingConfig(): UseLoggingConfigResult {
+export function useLoggingConfig(
+  /** Optional project path override (useful when outside ProjectProvider) */
+  projectPathOverride?: string | null,
+): UseLoggingConfigResult {
+  const { projectPath: contextProjectPath } = useProject();
+  const projectPath = projectPathOverride ?? contextProjectPath;
   const [isDevMode, setIsDevMode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -74,8 +81,8 @@ export function useLoggingConfig(): UseLoggingConfigResult {
 
         if (available) {
           const [configData, categoriesData] = await Promise.all([
-            getLoggingConfig(),
-            getLoggingCategories(),
+            getLoggingConfig(projectPath || undefined),
+            getLoggingCategories(projectPath || undefined),
           ]);
           setConfig(configData);
           setCategories(categoriesData);
@@ -90,7 +97,7 @@ export function useLoggingConfig(): UseLoggingConfigResult {
     };
 
     checkDevMode();
-  }, []);
+  }, [projectPath]);
 
   const refresh = useCallback(async () => {
     if (!isDevMode) return;
@@ -100,8 +107,8 @@ export function useLoggingConfig(): UseLoggingConfigResult {
 
     try {
       const [configData, categoriesData] = await Promise.all([
-        getLoggingConfig(),
-        getLoggingCategories(),
+        getLoggingConfig(projectPath || undefined),
+        getLoggingCategories(projectPath || undefined),
       ]);
       setConfig(configData);
       setCategories(categoriesData);
@@ -110,7 +117,7 @@ export function useLoggingConfig(): UseLoggingConfigResult {
     } finally {
       setIsLoading(false);
     }
-  }, [isDevMode]);
+  }, [isDevMode, projectPath]);
 
   const updateConfigHandler = useCallback(
     async (update: LoggingConfigUpdate) => {
@@ -119,7 +126,10 @@ export function useLoggingConfig(): UseLoggingConfigResult {
       setError(null);
 
       try {
-        const newConfig = await updateLoggingConfig(update);
+        const newConfig = await updateLoggingConfig(
+          update,
+          projectPath || undefined,
+        );
         setConfig(newConfig);
       } catch (err) {
         setError(
@@ -128,7 +138,7 @@ export function useLoggingConfig(): UseLoggingConfigResult {
         throw err;
       }
     },
-    [isDevMode],
+    [isDevMode, projectPath],
   );
 
   const resetConfigHandler = useCallback(async () => {
@@ -137,13 +147,13 @@ export function useLoggingConfig(): UseLoggingConfigResult {
     setError(null);
 
     try {
-      await resetLoggingConfig();
+      await resetLoggingConfig(projectPath || undefined);
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to reset config");
       throw err;
     }
-  }, [isDevMode, refresh]);
+  }, [isDevMode, projectPath, refresh]);
 
   return {
     isDevMode,
