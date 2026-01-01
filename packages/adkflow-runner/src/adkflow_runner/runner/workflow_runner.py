@@ -18,6 +18,7 @@ from google.genai import types
 
 from adkflow_runner.compiler import Compiler
 from adkflow_runner.ir import WorkflowIR
+from adkflow_runner.logging import Logger, configure_logging, get_logger, log_timing
 from adkflow_runner.runner.agent_factory import AgentFactory
 from adkflow_runner.runner.types import (
     RunStatus,
@@ -36,6 +37,9 @@ from adkflow_runner.runner.execution_engine import (
     write_output_files,
     process_adk_event,
 )
+
+# Get workflow logger
+_log = get_logger("runner.workflow")
 
 
 class WorkflowRunner:
@@ -70,16 +74,33 @@ class WorkflowRunner:
         if env_file.exists():
             load_dotenv(env_file, override=True)
 
+        # Initialize logging for this project (writes to project/logs/)
+        configure_logging(project_path=config.project_path)
+        Logger.initialize(project_path=config.project_path)
+
         run_id = str(uuid.uuid4())[:8]
         start_time = time.time()
         events: list[RunEvent] = []
         callbacks = config.callbacks or NoOpCallbacks()
+
+        # Create run-scoped logger with context
+        run_log = _log.with_context(
+            run_id=run_id,
+            project=config.project_path.name,
+        )
 
         async def emit(event: RunEvent) -> None:
             events.append(event)
             await callbacks.on_event(event)
 
         try:
+            run_log.info(
+                "Workflow starting",
+                project_path=str(config.project_path),
+                tab_id=config.tab_id,
+                input_keys=list(config.input_data.keys()),
+            )
+
             # Emit run start
             await emit(
                 RunEvent(
@@ -93,14 +114,27 @@ class WorkflowRunner:
                 )
             )
 
-            # Compile workflow
-            ir = self.compiler.compile(
-                config.project_path,
-                validate=config.validate,
+            # Compile workflow with timing
+            with log_timing(run_log, "compile") as ctx:
+                ir = self.compiler.compile(
+                    config.project_path,
+                    validate=config.validate,
+                )
+                ctx["agent_count"] = len(ir.all_agents)
+                ctx["tool_count"] = sum(len(a.tools) for a in ir.all_agents.values())
+                ctx["custom_node_count"] = len(ir.custom_nodes)
+
+            run_log.debug(
+                "Compiled workflow",
+                root_agent=ir.root_agent.name,
+                root_type=ir.root_agent.type,
+                agents=[a.name for a in ir.all_agents.values()],
             )
 
-            # Execute
-            output = await self._execute(ir, config, emit)
+            # Execute with timing
+            with log_timing(run_log, "execute") as ctx:
+                output = await self._execute(ir, config, emit)
+                ctx["output_length"] = len(output) if output else 0
 
             # Emit completion
             await emit(
@@ -111,12 +145,22 @@ class WorkflowRunner:
                 )
             )
 
+            duration_ms = (time.time() - start_time) * 1000
+            run_log.info(
+                "Workflow complete",
+                status="completed",
+                duration_ms=duration_ms,
+                output_preview=output[:200] + "..."
+                if output and len(output) > 200
+                else output,
+            )
+
             return RunResult(
                 run_id=run_id,
                 status=RunStatus.COMPLETED,
                 output=output,
                 events=events,
-                duration_ms=(time.time() - start_time) * 1000,
+                duration_ms=duration_ms,
                 metadata={
                     "project_path": str(config.project_path),
                     "tab_id": config.tab_id,
@@ -124,6 +168,9 @@ class WorkflowRunner:
             )
 
         except asyncio.CancelledError:
+            duration_ms = (time.time() - start_time) * 1000
+            run_log.warning("Workflow cancelled", duration_ms=duration_ms)
+
             await emit(
                 RunEvent(
                     type=EventType.ERROR,
@@ -136,11 +183,18 @@ class WorkflowRunner:
                 status=RunStatus.CANCELLED,
                 error="Run cancelled",
                 events=events,
-                duration_ms=(time.time() - start_time) * 1000,
+                duration_ms=duration_ms,
             )
 
         except Exception as e:
+            duration_ms = (time.time() - start_time) * 1000
             error_msg = str(e)
+
+            run_log.error(
+                "Workflow failed",
+                exception=e,
+                duration_ms=duration_ms,
+            )
 
             # Provide friendly error messages for common issues
             full_error = format_error(error_msg, config.project_path)
@@ -162,7 +216,7 @@ class WorkflowRunner:
                 status=RunStatus.FAILED,
                 error=full_error,
                 events=events,
-                duration_ms=(time.time() - start_time) * 1000,
+                duration_ms=duration_ms,
             )
 
     async def _execute(

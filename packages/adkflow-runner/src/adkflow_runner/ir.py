@@ -118,6 +118,7 @@ class AgentIR:
     output_schema: str | None = None
     input_schema: str | None = None
     include_contents: Literal["default", "none"] = "default"
+    strip_contents: bool = False  # Strip injected "[agent] said:" context
 
     # Loop-specific
     max_iterations: int = 5

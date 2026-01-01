@@ -15,6 +15,9 @@ from adkflow_runner.errors import (
     ValidationResult,
 )
 from adkflow_runner.ir import AgentIR, WorkflowIR
+from adkflow_runner.logging import get_logger
+
+_log = get_logger("compiler.validator")
 
 
 class WorkflowValidator:
@@ -86,6 +89,25 @@ class WorkflowValidator:
 
         # Check for missing agent descriptions
         self._check_missing_descriptions(graph, result)
+
+        # Log validation results
+        if result.valid:
+            _log.info(
+                "Validation passed",
+                warnings=len(result.warnings),
+            )
+        else:
+            _log.warning(
+                "Validation failed",
+                errors=len(result.errors),
+                warnings=len(result.warnings),
+            )
+
+        _log.debug(
+            "Validation details",
+            errors=[str(e) for e in result.errors],
+            warnings=[str(w) for w in result.warnings],
+        )
 
         return result
 
@@ -241,18 +263,6 @@ class WorkflowValidator:
                         f"Loop agent '{agent_name}' has high max_iterations ({max_iterations})",
                         location=self._make_location(node),
                     )
-
-            # include_contents="none" requires output_key
-            include_contents = agent_data.get("include_contents", "default")
-            output_key = agent_data.get("output_key")
-            if include_contents == "none" and not output_key:
-                result.add_error(
-                    ValidationError(
-                        f"Agent '{agent_name}' has include_contents='none' but no output_key. "
-                        "Output key is required when include_contents is 'none'.",
-                        location=self._make_location(node),
-                    )
-                )
 
     def _check_sequential_data_flow(
         self,

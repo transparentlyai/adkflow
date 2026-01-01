@@ -21,6 +21,9 @@ from adkflow_runner.errors import (
     PromptLoadError,
     ToolLoadError,
 )
+from adkflow_runner.logging import get_logger
+
+_log = get_logger("compiler.loader")
 
 
 @dataclass
@@ -101,10 +104,14 @@ class ProjectLoader:
         """
         project_path = Path(project_path).resolve()
 
+        _log.debug("Loading project", path=str(project_path))
+
         if not project_path.exists():
+            _log.error("Project path does not exist", path=str(project_path))
             raise CompilationError(f"Project path does not exist: {project_path}")
 
         if not project_path.is_dir():
+            _log.error("Project path is not a directory", path=str(project_path))
             raise CompilationError(f"Project path is not a directory: {project_path}")
 
         # Load manifest
@@ -124,6 +131,14 @@ class ProjectLoader:
         # Scan for referenced prompts and tools in the flow data
         if self.load_prompts or self.load_tools:
             self._load_referenced_files(project)
+
+        _log.info(
+            "Project loaded",
+            name=project.name,
+            tabs=len(project.tabs),
+            prompts=len(project.prompts),
+            tools=len(project.tools),
+        )
 
         return project
 
