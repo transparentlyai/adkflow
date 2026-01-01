@@ -307,16 +307,24 @@ export function createSchemaFields(): FieldDefinition[] {
     },
     {
       id: "include_contents",
-      label: "Include Contents",
-      widget: "select",
-      default: "default",
-      options: [
-        { value: "default", label: "Default" },
-        { value: "none", label: "None" },
-      ],
-      help_text: "Controls content inclusion in agent processing",
+      label: "Receives History",
+      widget: "checkbox",
+      default: true,
+      help_text:
+        "ADK property: include_contents. When enabled, agent receives prior conversation history. Disable for stateless operation.",
       section: "Output Options",
       tab: "Schema",
+    },
+    {
+      id: "strip_contents",
+      label: "Full Isolation",
+      widget: "checkbox",
+      default: false,
+      help_text:
+        "Completely isolates this agent from prior context. ADK still injects '[agent] said:' even with history disabled - this removes it. See: github.com/google/adk-python/issues/2207",
+      section: "Output Options",
+      tab: "Schema",
+      show_if: { include_contents: false },
     },
     {
       id: "input_schema",
