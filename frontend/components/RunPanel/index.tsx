@@ -12,16 +12,13 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { RunEvent, UserInputRequest } from "@/lib/types";
-import {
-  createRunEventSource,
-  cancelRun,
-  getRunStatus,
-  submitUserInput,
-} from "@/lib/api";
-import { formatEventContent, getEventColor } from "./helpers";
+import type { UserInputRequest } from "@/lib/types";
+import { cancelRun, submitUserInput } from "@/lib/api";
+import { getEventColor } from "./helpers";
 import UserInputPanel from "./UserInputPanel";
 import DebugPanel from "./DebugPanel";
+import { useRunEvents } from "./useRunEvents";
+import { useStatusPolling } from "./useStatusPolling";
 import type { DisplayEvent, RunPanelProps } from "./types";
 
 const MIN_HEIGHT = 120;
@@ -53,8 +50,8 @@ export default function RunPanel({
   const [userInputValue, setUserInputValue] = useState("");
   const [isSubmittingInput, setIsSubmittingInput] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const eventSourceRef = useRef<EventSource | null>(null);
 
+  // Resize handling
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setIsResizing(true);
@@ -81,272 +78,43 @@ export default function RunPanel({
     };
   }, [isResizing]);
 
-  // Periodic status polling as fallback for missed events
-  useEffect(() => {
-    if (!runId || status !== "running") return;
+  // User input callbacks
+  const handleUserInputRequired = useCallback((request: UserInputRequest) => {
+    setPendingInput(request);
+    setUserInputValue("");
+  }, []);
 
-    const pollInterval = setInterval(async () => {
-      try {
-        const statusResponse = await getRunStatus(runId);
+  const handleUserInputComplete = useCallback(() => {
+    setPendingInput(null);
+    setUserInputValue("");
+  }, []);
 
-        if (statusResponse.status === "failed") {
-          const errorMsg = statusResponse.error || "Workflow execution failed";
-          onEventsChange((prev) => [
-            ...prev,
-            {
-              id: `polled-error-${Date.now()}`,
-              type: "run_error",
-              content: errorMsg,
-              timestamp: Date.now(),
-            },
-          ]);
-          onStatusChange("failed");
-          onClearExecutionState?.();
-        } else if (statusResponse.status === "completed") {
-          onStatusChange("completed");
-          onClearExecutionState?.();
-          onRunComplete?.(
-            statusResponse.status,
-            statusResponse.output,
-            statusResponse.error,
-          );
-        }
-      } catch {
-        // Ignore polling errors
-      }
-    }, 2000);
+  // SSE event handling
+  useRunEvents({
+    runId,
+    projectPath,
+    onEventsChange,
+    onStatusChange,
+    onRunComplete,
+    onAgentStateChange,
+    onToolStateChange,
+    onUserInputStateChange,
+    onClearExecutionState,
+    onUserInputRequired: handleUserInputRequired,
+    onUserInputComplete: handleUserInputComplete,
+  });
 
-    return () => clearInterval(pollInterval);
-  }, [
+  // Status polling fallback
+  useStatusPolling({
     runId,
     status,
     onEventsChange,
     onStatusChange,
     onClearExecutionState,
     onRunComplete,
-  ]);
+  });
 
-  // Immediate status check when run starts
-  useEffect(() => {
-    if (!runId) return;
-
-    const immediateCheck = setTimeout(async () => {
-      try {
-        const statusResponse = await getRunStatus(runId);
-
-        if (statusResponse.status === "failed") {
-          const errorMsg = statusResponse.error || "Workflow execution failed";
-          onEventsChange((prev) => [
-            ...prev,
-            {
-              id: `early-error-${Date.now()}`,
-              type: "run_error",
-              content: errorMsg,
-              timestamp: Date.now(),
-            },
-          ]);
-          onStatusChange("failed");
-          onClearExecutionState?.();
-        }
-      } catch {
-        // Ignore
-      }
-    }, 500);
-
-    return () => clearTimeout(immediateCheck);
-  }, [runId, onEventsChange, onStatusChange, onClearExecutionState]);
-
-  useEffect(() => {
-    if (!runId) return;
-
-    let eventCounter = 0;
-
-    const handleEvent = (event: RunEvent) => {
-      eventCounter++;
-      const content = formatEventContent(event, projectPath);
-      const displayEvent: DisplayEvent = {
-        id: `${event.type}-${event.timestamp}-${eventCounter}-${Math.random().toString(36).slice(2, 7)}`,
-        type: event.type,
-        content,
-        agentName: event.agent_name,
-        timestamp: event.timestamp,
-      };
-
-      onEventsChange((prev) => [...prev, displayEvent]);
-
-      if (event.type === "agent_start" && event.agent_name) {
-        onAgentStateChange?.(event.agent_name, "running");
-      } else if (event.type === "agent_end" && event.agent_name) {
-        onAgentStateChange?.(event.agent_name, "completed");
-      } else if (event.type === "run_error" && event.agent_name) {
-        onAgentStateChange?.(event.agent_name, "error");
-      }
-
-      if (event.type === "tool_call" && event.data.tool_name) {
-        onToolStateChange?.(event.data.tool_name as string, "running");
-      } else if (event.type === "tool_result" && event.data.tool_name) {
-        onToolStateChange?.(event.data.tool_name as string, "completed");
-      }
-
-      if (event.type === "user_input_required") {
-        const inputRequest: UserInputRequest = {
-          request_id: event.data.request_id as string,
-          node_id: event.data.node_id as string,
-          node_name: event.data.node_name as string,
-          variable_name: event.data.variable_name as string,
-          is_trigger: event.data.is_trigger as boolean,
-          previous_output: event.data.previous_output as string | null,
-          source_node_name: null,
-          timeout_seconds: event.data.timeout_seconds as number,
-        };
-        setPendingInput(inputRequest);
-        setUserInputValue("");
-        onUserInputStateChange?.(inputRequest.node_id, true);
-      } else if (
-        event.type === "user_input_received" ||
-        event.type === "user_input_timeout"
-      ) {
-        const nodeId = event.data.node_id as string;
-        if (nodeId) {
-          onUserInputStateChange?.(nodeId, false);
-        }
-        setPendingInput(null);
-        setUserInputValue("");
-      }
-
-      if (event.type === "run_complete") {
-        onStatusChange("completed");
-        onClearExecutionState?.();
-        setPendingInput(null);
-      } else if (event.type === "run_error") {
-        onStatusChange("failed");
-        onClearExecutionState?.();
-        setPendingInput(null);
-      }
-    };
-
-    onStatusChange("running");
-    onEventsChange([
-      {
-        id: "start",
-        type: "info",
-        content: `Starting workflow run: ${runId}`,
-        timestamp: Date.now(),
-      },
-    ]);
-
-    const eventSource = createRunEventSource(runId);
-    eventSourceRef.current = eventSource;
-
-    const eventTypes = [
-      "run_start",
-      "run_complete",
-      "agent_start",
-      "agent_end",
-      "agent_output",
-      "tool_call",
-      "tool_result",
-      "thinking",
-      "run_error",
-      "user_input_required",
-      "user_input_received",
-      "user_input_timeout",
-    ];
-
-    eventTypes.forEach((eventType) => {
-      eventSource.addEventListener(eventType, (e: MessageEvent) => {
-        try {
-          const data = JSON.parse(e.data) as RunEvent;
-          handleEvent(data);
-        } catch (err) {
-          console.error("Failed to parse event:", err);
-        }
-      });
-    });
-
-    eventSource.addEventListener("complete", () => {
-      eventSource.close();
-      getRunStatus(runId).then((statusResponse) => {
-        onStatusChange(statusResponse.status);
-        onRunComplete?.(
-          statusResponse.status,
-          statusResponse.output,
-          statusResponse.error,
-        );
-      });
-    });
-
-    eventSource.onerror = async () => {
-      eventSource.close();
-
-      try {
-        const statusResponse = await getRunStatus(runId);
-
-        if (statusResponse.status === "failed" && statusResponse.error) {
-          onEventsChange((prev) => [
-            ...prev,
-            {
-              id: `error-${Date.now()}`,
-              type: "run_error",
-              content: statusResponse.error ?? "Unknown error",
-              timestamp: Date.now(),
-            },
-          ]);
-          onStatusChange("failed");
-          onClearExecutionState?.();
-        } else if (statusResponse.status === "completed") {
-          onStatusChange("completed");
-          onClearExecutionState?.();
-          onRunComplete?.(
-            statusResponse.status,
-            statusResponse.output,
-            statusResponse.error,
-          );
-        } else {
-          onEventsChange((prev) => [
-            ...prev,
-            {
-              id: `error-${Date.now()}`,
-              type: "run_error",
-              content:
-                "Connection to server lost. Check the backend console for errors.",
-              timestamp: Date.now(),
-            },
-          ]);
-          onStatusChange("failed");
-          onClearExecutionState?.();
-        }
-      } catch {
-        onEventsChange((prev) => [
-          ...prev,
-          {
-            id: `error-${Date.now()}`,
-            type: "run_error",
-            content: "Connection to server lost",
-            timestamp: Date.now(),
-          },
-        ]);
-        onStatusChange("failed");
-        onClearExecutionState?.();
-      }
-    };
-
-    return () => {
-      eventSource.close();
-      eventSourceRef.current = null;
-    };
-  }, [
-    runId,
-    onRunComplete,
-    projectPath,
-    onAgentStateChange,
-    onToolStateChange,
-    onUserInputStateChange,
-    onClearExecutionState,
-    onEventsChange,
-    onStatusChange,
-  ]);
-
+  // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
