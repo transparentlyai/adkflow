@@ -58,3 +58,17 @@ export { loadProjectSettings, saveProjectSettings } from "./settings";
 // Extensions APIs
 export { getExtensionNodes } from "./extensions";
 export type { ExtensionNodesResponse } from "./extensions";
+
+// Logging APIs (dev mode only)
+export {
+  isDebugModeAvailable,
+  getLoggingConfig,
+  updateLoggingConfig,
+  getLoggingCategories,
+  resetLoggingConfig,
+} from "./logging";
+export type {
+  CategoryInfo,
+  LoggingConfig,
+  LoggingConfigUpdate,
+} from "./logging";

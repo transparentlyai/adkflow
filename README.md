@@ -118,6 +118,51 @@ my-project/
 
 ---
 
+## Logging
+
+ADKFlow includes comprehensive logging for debugging workflows. Logs are written to the executed project's `logs/` directory.
+
+### Quick Enable
+
+```bash
+# Enable debug logging
+export ADKFLOW_LOG_LEVEL=DEBUG
+
+# Or enable specific categories
+export ADKFLOW_LOG_CATEGORIES=api.*,runner.agent=DEBUG
+
+# Run your workflow
+adkflow run /path/to/project
+```
+
+### Log Categories
+
+| Category | What it logs |
+|----------|--------------|
+| `api.request` | LLM API requests to Gemini |
+| `api.response` | LLM API responses |
+| `runner.agent.config` | Agent configuration before execution |
+| `runner.tool` | Tool calls and results |
+| `compiler.*` | Workflow compilation |
+
+### Configuration File
+
+Create `.adkflow/logging.yaml` in your project:
+
+```yaml
+level: INFO
+categories:
+  api: DEBUG
+  runner.agent.config: DEBUG
+file:
+  enabled: true
+  path: logs
+```
+
+See [docs/technical/backend/logging.md](docs/technical/backend/logging.md) for full documentation.
+
+---
+
 ## Development
 
 ### Prerequisites

@@ -4,6 +4,8 @@ Transforms the workflow graph into Intermediate Representation (IR)
 that can be executed by the Runner.
 """
 
+from typing import Literal
+
 from adkflow_runner.compiler.graph import GraphNode, WorkflowGraph
 from adkflow_runner.compiler.hierarchy import HierarchyBuilder
 from adkflow_runner.compiler.loader import LoadedProject
@@ -23,6 +25,9 @@ from adkflow_runner.ir import (
     UserInputIR,
     WorkflowIR,
 )
+from adkflow_runner.logging import get_logger
+
+_log = get_logger("compiler.transformer")
 
 
 def _sanitize_variable_name(name: str) -> str:
@@ -63,6 +68,12 @@ class IRTransformer:
         Returns:
             WorkflowIR ready for execution
         """
+        _log.debug(
+            "Starting IR transformation",
+            node_count=len(graph.nodes),
+            edge_count=len(graph.edges),
+        )
+
         # Transform all agents
         all_agents: dict[str, AgentIR] = {}
         for node in graph.get_agent_nodes():
@@ -111,6 +122,23 @@ class IRTransformer:
         # Detect flow control nodes (for topology visualization)
         has_start_node = any(n.type == "start" for n in graph.nodes.values())
         has_end_node = any(n.type == "end" for n in graph.nodes.values())
+
+        # Log transformation results
+        _log.info(
+            "IR transformation complete",
+            agents=len(all_agents),
+            teleporters=len(teleporters),
+            output_files=len(output_files),
+            user_inputs=len(user_inputs),
+            custom_nodes=len(custom_nodes),
+        )
+
+        _log.debug(
+            "IR details",
+            root_agent=root_agent.name,
+            root_type=root_agent.type,
+            agent_names=[a.name for a in all_agents.values()],
+        )
 
         return WorkflowIR(
             root_agent=root_agent,
@@ -196,7 +224,7 @@ class IRTransformer:
 
         return AgentIR(
             id=node.id,
-            name=agent_data.get("name", f"agent_{node.id[:8]}"),
+            name=agent_data.get("name", node.id),
             type=agent_data.get("type", "llm"),
             model=agent_data.get("model", self.config.default_model),
             instruction=instruction,
@@ -205,7 +233,8 @@ class IRTransformer:
             output_key=agent_data.get("output_key"),
             output_schema=agent_data.get("output_schema"),
             input_schema=agent_data.get("input_schema"),
-            include_contents=agent_data.get("include_contents", "default"),
+            include_contents=self._resolve_include_contents(agent_data),
+            strip_contents=agent_data.get("strip_contents", False),
             max_iterations=agent_data.get("max_iterations", 5),
             disallow_transfer_to_parent=agent_data.get(
                 "disallow_transfer_to_parent", False
@@ -268,6 +297,26 @@ class IRTransformer:
                         parts.append(f"{{{var_name}}}: {var_value}")
 
         return "\n\n".join(parts) if parts else None
+
+    def _resolve_include_contents(
+        self,
+        agent_data: dict,
+    ) -> Literal["default", "none"]:
+        """Resolve include_contents from boolean or string.
+
+        Frontend uses checkbox (boolean), backend expects "default" or "none".
+
+        Returns:
+            Literal "default" or "none"
+        """
+        value = agent_data.get("include_contents", True)
+        # Handle boolean (new format)
+        if isinstance(value, bool):
+            return "default" if value else "none"
+        # Handle string (legacy format)
+        if value == "none":
+            return "none"
+        return "default"
 
     def _resolve_tools(
         self,
