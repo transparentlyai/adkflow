@@ -15,4 +15,14 @@ Prefer clean, direct implementations over defensive patterns.
 @packages/adkflow-runner is part of this project and need to be considered when refactoring, debuging, fixing, and implemeting features.
 
 ---
-Use `uv run` to ran python code and `uv add` to install packages.
+Use `uv run` to run python code and `uv add` to install packages.
+
+## Python Linting
+
+Always run from project root (not from backend/ or packages/):
+
+```bash
+uv run pyright <files>        # Type checking (run FIRST)
+uv run ruff check --fix <files>  # Lint
+uv run ruff format <files>       # Format
+```
