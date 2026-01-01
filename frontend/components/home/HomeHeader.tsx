@@ -90,6 +90,7 @@ export function HomeHeader({
             onZoomOut={onZoomOut}
             onFitView={onFitView}
             hasProjectPath={!!currentProjectPath}
+            projectPath={currentProjectPath}
             isLocked={isCanvasLocked}
             onToggleLock={onToggleLock}
             onRunWorkflow={onRunWorkflow}

@@ -36,9 +36,12 @@ import {
   Terminal,
   Check,
   Network,
+  Bug,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useLoggingConfig } from "@/hooks/useLoggingConfig";
 import SettingsDialog from "@/components/SettingsDialog";
+import DebugDialog from "@/components/DebugDialog";
 import { formatShortcut } from "@/lib/utils";
 
 interface TopMenubarProps {
@@ -50,6 +53,7 @@ interface TopMenubarProps {
   onZoomOut?: () => void;
   onFitView?: () => void;
   hasProjectPath: boolean;
+  projectPath?: string | null;
   isLocked?: boolean;
   onToggleLock?: () => void;
   onRunWorkflow?: () => void;
@@ -70,6 +74,7 @@ export default function TopMenubar({
   onZoomOut,
   onFitView,
   hasProjectPath,
+  projectPath,
   isLocked,
   onToggleLock,
   onRunWorkflow,
@@ -82,7 +87,9 @@ export default function TopMenubar({
 }: TopMenubarProps) {
   const { themeId, allThemes, setTheme, exportCurrentTheme, importTheme } =
     useTheme();
+  const { isDevMode } = useLoggingConfig();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [debugOpen, setDebugOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExportTheme = () => {
@@ -201,6 +208,22 @@ export default function TopMenubar({
           </MenubarContent>
         </MenubarMenu>
 
+        {/* Debug Menu - Only visible in dev mode */}
+        {isDevMode && (
+          <MenubarMenu>
+            <MenubarTrigger className="text-sm font-normal">
+              <Bug className="mr-1 h-3 w-3" />
+              Debug
+            </MenubarTrigger>
+            <MenubarContent>
+              <MenubarItem onClick={() => setDebugOpen(true)}>
+                <Bug className="mr-2 h-4 w-4" />
+                Debug Settings...
+              </MenubarItem>
+            </MenubarContent>
+          </MenubarMenu>
+        )}
+
         {/* Edit Menu */}
         <MenubarMenu>
           <MenubarTrigger className="text-sm font-normal">Edit</MenubarTrigger>
@@ -298,6 +321,11 @@ export default function TopMenubar({
       </Menubar>
 
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <DebugDialog
+        open={debugOpen}
+        onOpenChange={setDebugOpen}
+        projectPath={projectPath}
+      />
     </>
   );
 }
