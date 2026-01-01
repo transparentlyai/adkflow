@@ -37,11 +37,13 @@ import {
   Check,
   Network,
   Bug,
+  FileText,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useLoggingConfig } from "@/hooks/useLoggingConfig";
 import SettingsDialog from "@/components/SettingsDialog";
 import DebugDialog from "@/components/DebugDialog";
+import { LogExplorerDialog } from "@/components/LogExplorer";
 import { formatShortcut } from "@/lib/utils";
 
 interface TopMenubarProps {
@@ -90,6 +92,7 @@ export default function TopMenubar({
   const { isDevMode } = useLoggingConfig();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [debugOpen, setDebugOpen] = useState(false);
+  const [logExplorerOpen, setLogExplorerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExportTheme = () => {
@@ -220,6 +223,14 @@ export default function TopMenubar({
                 <Bug className="mr-2 h-4 w-4" />
                 Debug Settings...
               </MenubarItem>
+              <MenubarSeparator />
+              <MenubarItem
+                onClick={() => setLogExplorerOpen(true)}
+                disabled={!hasProjectPath}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Log Explorer...
+              </MenubarItem>
             </MenubarContent>
           </MenubarMenu>
         )}
@@ -325,6 +336,11 @@ export default function TopMenubar({
         open={debugOpen}
         onOpenChange={setDebugOpen}
         projectPath={projectPath}
+      />
+      <LogExplorerDialog
+        open={logExplorerOpen}
+        onOpenChange={setLogExplorerOpen}
+        projectPath={projectPath ?? null}
       />
     </>
   );

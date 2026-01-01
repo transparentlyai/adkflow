@@ -36,8 +36,17 @@ if DEV_MODE:
     except ImportError as e:
         debug_router = None
         log_startup(f"Debug routes not available: {e}", "WARNING")
+
+    try:
+        from backend.src.api.routes.log_explorer_routes import (
+            router as log_explorer_router,
+        )
+    except ImportError as e:
+        log_explorer_router = None
+        log_startup(f"Log explorer routes not available: {e}", "WARNING")
 else:
     debug_router = None
+    log_explorer_router = None
 
 
 # Try to import extension system
@@ -97,6 +106,10 @@ app.include_router(extension_router)
 if DEV_MODE and debug_router is not None:
     app.include_router(debug_router)
     log_startup("Debug API routes enabled at /api/debug/*")
+
+if DEV_MODE and log_explorer_router is not None:
+    app.include_router(log_explorer_router)
+    log_startup("Log Explorer API routes enabled at /api/debug/logs/*")
 
 
 @app.api_route("/", methods=["GET", "HEAD"])
