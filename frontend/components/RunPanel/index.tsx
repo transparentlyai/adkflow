@@ -21,6 +21,7 @@ import {
 } from "@/lib/api";
 import { formatEventContent, getEventColor } from "./helpers";
 import UserInputPanel from "./UserInputPanel";
+import DebugPanel from "./DebugPanel";
 import type { DisplayEvent, RunPanelProps } from "./types";
 
 const MIN_HEIGHT = 120;
@@ -437,6 +438,7 @@ export default function RunPanel({
           <span className="text-xs text-gray-500 capitalize">{status}</span>
         </div>
         <div className="flex items-center gap-1">
+          <DebugPanel />
           {status === "running" && (
             <Button
               variant="ghost"
