@@ -72,6 +72,34 @@ export function createGeneralFields(
       help_text: temperatureHelpText,
       tab: "General",
     },
+    {
+      id: "output_key",
+      label: "Output Key",
+      widget: "text",
+      default: "",
+      placeholder: "e.g., result",
+      help_text: "Saves agent output to session state with this key",
+      tab: "General",
+    },
+    {
+      id: "include_contents",
+      label: "Receives History",
+      widget: "checkbox",
+      default: true,
+      help_text:
+        "ADK property: include_contents. When enabled, agent receives prior conversation history. Disable for stateless operation.",
+      tab: "General",
+    },
+    {
+      id: "strip_contents",
+      label: "Full Isolation",
+      widget: "checkbox",
+      default: false,
+      help_text:
+        "Completely isolates this agent from prior context. ADK still injects '[agent] said:' even with history disabled - this removes it. See: github.com/google/adk-python/issues/2207",
+      tab: "General",
+      show_if: { include_contents: false },
+    },
   ];
 }
 
@@ -295,37 +323,6 @@ export function createFlowFields(): FieldDefinition[] {
  */
 export function createSchemaFields(): FieldDefinition[] {
   return [
-    {
-      id: "output_key",
-      label: "Output Key",
-      widget: "text",
-      default: "",
-      placeholder: "e.g., result",
-      help_text: "Saves agent output to session state with this key",
-      section: "Output Options",
-      tab: "Schema",
-    },
-    {
-      id: "include_contents",
-      label: "Receives History",
-      widget: "checkbox",
-      default: true,
-      help_text:
-        "ADK property: include_contents. When enabled, agent receives prior conversation history. Disable for stateless operation.",
-      section: "Output Options",
-      tab: "Schema",
-    },
-    {
-      id: "strip_contents",
-      label: "Full Isolation",
-      widget: "checkbox",
-      default: false,
-      help_text:
-        "Completely isolates this agent from prior context. ADK still injects '[agent] said:' even with history disabled - this removes it. See: github.com/google/adk-python/issues/2207",
-      section: "Output Options",
-      tab: "Schema",
-      show_if: { include_contents: false },
-    },
     {
       id: "input_schema",
       label: "Input Schema",

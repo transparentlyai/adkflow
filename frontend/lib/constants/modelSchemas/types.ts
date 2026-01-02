@@ -43,6 +43,9 @@ export const UNIVERSAL_FIELD_IDS = [
   "model",
   "custom_model",
   "temperature",
+  "output_key",
+  "include_contents",
+  "strip_contents",
 ];
 
 /**
