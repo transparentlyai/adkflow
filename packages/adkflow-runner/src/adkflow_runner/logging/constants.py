@@ -36,9 +36,8 @@ DEFAULT_CATEGORY_LEVELS: dict[str, LogLevel] = {
     "runner.agent.config": LogLevel.DEBUG,  # Agent config is DEBUG by default
 }
 
-# Log file defaults
-DEFAULT_LOG_FILE_NAME = "adkflow.log"
-DEFAULT_JSON_LOG_FILE_NAME = "adkflow.jsonl"
+# Log file defaults (JSON format only)
+DEFAULT_LOG_FILE_NAME = "adkflow.jsonl"
 DEFAULT_MAX_BYTES = 10 * 1024 * 1024  # 10MB
 DEFAULT_BACKUP_COUNT = 5
 DEFAULT_LOG_DIR = "logs"
