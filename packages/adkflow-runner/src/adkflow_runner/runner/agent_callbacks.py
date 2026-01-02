@@ -115,7 +115,7 @@ def create_agent_callbacks(
         return None
 
     def after_model_callback(callback_context: Any, llm_response: Any) -> None:
-        """Log LLM API response from Gemini."""
+        """Log LLM API response from Gemini with full metadata."""
         content = getattr(llm_response, "content", None)
         text = ""
         if content and hasattr(content, "parts") and content.parts:
@@ -125,13 +125,33 @@ def create_agent_callbacks(
                     break
 
         preview = text[:200] + "..." if len(text) > 200 else text
-        has_content = bool(content)
+
+        # Extract usage metadata
+        usage = getattr(llm_response, "usage_metadata", None)
+        usage_data = {}
+        if usage:
+            usage_data = {
+                "input_tokens": getattr(usage, "prompt_token_count", None),
+                "output_tokens": getattr(usage, "candidates_token_count", None),
+                "total_tokens": getattr(usage, "total_token_count", None),
+                "cached_tokens": getattr(usage, "cached_content_token_count", None),
+            }
+
+        # Extract finish reason
+        finish_reason = getattr(llm_response, "finish_reason", None)
+        finish_reason_str = finish_reason.name if finish_reason else None
+
+        # Extract model version
+        model_version = getattr(llm_response, "model_version", None)
 
         _api_response_log.info(
             f"LLM response: {agent_name}",
             agent=agent_name,
-            has_content=has_content,
+            has_content=bool(content),
             preview=preview,
+            finish_reason=finish_reason_str,
+            model_version=model_version,
+            **usage_data,
         )
 
         _api_response_log.debug(
