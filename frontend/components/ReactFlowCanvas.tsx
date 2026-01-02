@@ -5,9 +5,6 @@ import {
   ReactFlow,
   ReactFlowProvider,
   Background,
-  Controls,
-  ControlButton,
-  MiniMap,
   SelectionMode,
   type Node,
   type Edge,
@@ -16,15 +13,13 @@ import "@xyflow/react/dist/style.css";
 
 import { CanvasActionsProvider } from "@/contexts/CanvasActionsContext";
 import { ConnectionProvider } from "@/contexts/ConnectionContext";
-import { Lock, LockOpen, Grid3X3 } from "lucide-react";
 
 import type { CustomNodeSchema } from "@/components/nodes/CustomNode";
 import { builtinNodeSchemas } from "@/lib/builtinNodeHelpers";
 import { getExtensionNodes } from "@/lib/api";
 import CanvasContextMenu from "./CanvasContextMenu";
-import ConfirmDialog from "./ConfirmDialog";
-import GroupDeleteDialog from "./GroupDeleteDialog";
-import TeleportNameDialog from "./TeleportNameDialog";
+import { ReactFlowDialogs } from "./ReactFlowDialogs";
+import { ReactFlowControls } from "./ReactFlowControls";
 import type { NodeExecutionState } from "@/lib/types";
 
 import {
@@ -42,7 +37,6 @@ import {
   useValidation,
   useEdgeHighlight,
   useEdgeTabOpacity,
-  getMiniMapNodeColor,
   getCanvasStyles,
 } from "./hooks/canvas";
 
@@ -463,32 +457,12 @@ const ReactFlowCanvasInner = forwardRef<
             {snapToGrid && (
               <Background color={theme.colors.canvas.grid} gap={16} />
             )}
-            <Controls showInteractive={false}>
-              <ControlButton
-                className="lucide-btn"
-                onClick={onToggleLock}
-                title={isLocked ? "Unlock canvas" : "Lock canvas"}
-              >
-                {isLocked ? <Lock size={12} /> : <LockOpen size={12} />}
-              </ControlButton>
-              <ControlButton
-                className="lucide-btn"
-                onClick={() => setSnapToGrid(!snapToGrid)}
-                title={
-                  snapToGrid ? "Disable snap to grid" : "Enable snap to grid"
-                }
-              >
-                <Grid3X3 size={12} style={{ opacity: snapToGrid ? 1 : 0.4 }} />
-              </ControlButton>
-            </Controls>
-            <MiniMap
-              nodeColor={(node) => getMiniMapNodeColor(node, theme)}
-              bgColor={theme.colors.canvas.minimap.background}
-              maskColor={theme.colors.canvas.minimap.mask}
-              nodeStrokeColor={theme.colors.canvas.minimap.nodeStroke}
-              nodeStrokeWidth={1}
-              pannable
-              zoomable
+            <ReactFlowControls
+              isLocked={isLocked}
+              onToggleLock={onToggleLock}
+              snapToGrid={snapToGrid}
+              onToggleSnapToGrid={() => setSnapToGrid(!snapToGrid)}
+              theme={theme}
             />
           </ReactFlow>
         </CanvasActionsProvider>
@@ -513,34 +487,21 @@ const ReactFlowCanvasInner = forwardRef<
             onSelectCustom={handleSelectCustomNode}
           />
         )}
-        <ConfirmDialog
-          isOpen={!!deleteConfirm}
-          title="Delete Selection"
-          description={deleteConfirm?.message || ""}
-          confirmLabel="Delete"
-          variant="destructive"
-          onConfirm={handleDeleteConfirm}
-          onCancel={handleDeleteCancel}
+        <ReactFlowDialogs
+          deleteConfirm={deleteConfirm}
+          onDeleteConfirm={handleDeleteConfirm}
+          onDeleteCancel={handleDeleteCancel}
+          groupDeleteConfirm={groupDeleteConfirm}
+          onGroupDeleteGroupOnly={handleGroupDeleteGroupOnly}
+          onGroupDeleteAll={handleGroupDeleteAll}
+          onGroupDeleteCancel={handleGroupDeleteCancel}
+          teleportNamePrompt={teleportNamePrompt}
+          teleportNameInput={teleportNameInput}
+          onTeleportNameChange={setTeleportNameInput}
+          onTeleportNameSubmit={handleTeleportNameSubmit}
+          onTeleportNameCancel={handleTeleportNameCancel}
+          theme={theme}
         />
-        <GroupDeleteDialog
-          isOpen={!!groupDeleteConfirm}
-          groupCount={groupDeleteConfirm?.groupIds.length || 0}
-          childCount={groupDeleteConfirm?.childIds.length || 0}
-          onCancel={handleGroupDeleteCancel}
-          onDeleteGroupOnly={handleGroupDeleteGroupOnly}
-          onDeleteAll={handleGroupDeleteAll}
-        />
-
-        {teleportNamePrompt && (
-          <TeleportNameDialog
-            type={teleportNamePrompt.type}
-            value={teleportNameInput}
-            onChange={setTeleportNameInput}
-            onSubmit={handleTeleportNameSubmit}
-            onCancel={handleTeleportNameCancel}
-            theme={theme}
-          />
-        )}
       </div>
     );
   },
