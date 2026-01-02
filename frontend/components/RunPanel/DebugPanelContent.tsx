@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { RotateCcw, Loader2, Save, Settings2 } from "lucide-react";
+import { RotateCcw, Loader2, Save, Settings2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -47,12 +47,16 @@ export function DebugPanelContent({
   const [categoriesToRemove, setCategoriesToRemove] = useState<Set<string>>(
     new Set(),
   );
+  const [pendingClearBeforeRun, setPendingClearBeforeRun] = useState<
+    boolean | null
+  >(null);
 
   // Reset pending changes when config changes from server
   useEffect(() => {
     setPendingGlobalLevel(null);
     setPendingCategories({});
     setCategoriesToRemove(new Set());
+    setPendingClearBeforeRun(null);
   }, [config]);
 
   // Compute effective values (pending or saved)
@@ -67,10 +71,14 @@ export function DebugPanelContent({
     return { ...base, ...pendingCategories };
   }, [config?.categories, pendingCategories, categoriesToRemove]);
 
+  const effectiveClearBeforeRun =
+    pendingClearBeforeRun ?? (config?.fileClearBeforeRun || false);
+
   const hasChanges =
     pendingGlobalLevel !== null ||
     Object.keys(pendingCategories).length > 0 ||
-    categoriesToRemove.size > 0;
+    categoriesToRemove.size > 0 ||
+    pendingClearBeforeRun !== null;
 
   const handleToggle = useCallback((name: string) => {
     setExpanded((prev) => {
@@ -142,6 +150,10 @@ export function DebugPanelContent({
         update.globalLevel = pendingGlobalLevel;
       }
 
+      if (pendingClearBeforeRun !== null) {
+        update.fileClearBeforeRun = pendingClearBeforeRun;
+      }
+
       const finalCategories: Record<string, string> = {
         ...(config?.categories || {}),
       };
@@ -168,6 +180,7 @@ export function DebugPanelContent({
       setPendingGlobalLevel(null);
       setPendingCategories({});
       setCategoriesToRemove(new Set());
+      setPendingClearBeforeRun(null);
     } finally {
       setIsResetting(false);
     }
@@ -253,6 +266,25 @@ export function DebugPanelContent({
               onChange={handleGlobalLevelChange}
               disabled={isLoading || isSaving}
             />
+          </div>
+
+          {/* Clear Before Run Toggle */}
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">
+                Clear logs before run
+              </span>
+            </div>
+            <Button
+              variant={effectiveClearBeforeRun ? "default" : "outline"}
+              size="sm"
+              className="h-6 px-2 text-xs"
+              disabled={isLoading || isSaving}
+              onClick={() => setPendingClearBeforeRun(!effectiveClearBeforeRun)}
+            >
+              {effectiveClearBeforeRun ? "On" : "Off"}
+            </Button>
           </div>
 
           {/* Quick Presets */}

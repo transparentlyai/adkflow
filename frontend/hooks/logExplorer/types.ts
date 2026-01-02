@@ -1,4 +1,4 @@
-import type { LogFileInfo, LogEntry, LogStats } from "@/lib/api";
+import type { LogFileInfo, LogEntry, LogStats, RunInfo } from "@/lib/api";
 
 export interface LogFilters {
   level: string | null;
@@ -6,6 +6,8 @@ export interface LogFilters {
   search: string;
   startTime: string | null;
   endTime: string | null;
+  runId: string | null;
+  lastRunOnly: boolean;
 }
 
 export const DEFAULT_FILTERS: LogFilters = {
@@ -14,6 +16,8 @@ export const DEFAULT_FILTERS: LogFilters = {
   search: "",
   startTime: null,
   endTime: null,
+  runId: null,
+  lastRunOnly: false,
 };
 
 export const PAGE_SIZE = 500;
@@ -36,4 +40,9 @@ export interface UseLogExplorerResult {
   error: string | null;
   refresh: () => Promise<void>;
   exportFiltered: () => Promise<void>;
+  // Run-related properties
+  runs: RunInfo[];
+  lastRunId: string | null;
+  isLoadingRuns: boolean;
+  setLastRunOnly: (lastRunOnly: boolean) => void;
 }

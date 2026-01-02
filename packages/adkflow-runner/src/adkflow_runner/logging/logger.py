@@ -10,6 +10,7 @@ from typing import Any, Callable
 from adkflow_runner.logging.categories import CategoryRegistry, get_registry
 from adkflow_runner.logging.config import LogConfig, get_config
 from adkflow_runner.logging.constants import LogLevel
+from adkflow_runner.logging.run_context import get_run_id
 from adkflow_runner.logging.handlers import (
     ConsoleHandler,
     Handler,
@@ -99,6 +100,7 @@ class Logger:
                         log_dir=log_dir,
                         max_bytes=config.file.max_bytes,
                         backup_count=config.file.retain,
+                        clear_on_init=config.file.clear_before_run,
                     )
                 )
 
@@ -168,6 +170,11 @@ class Logger:
                     evaluated_context[key] = f"<error evaluating {key}: {e}>"
             else:
                 evaluated_context[key] = value
+
+        # Auto-inject run_id from contextvar if not already present
+        run_id = get_run_id()
+        if run_id is not None and "run_id" not in evaluated_context:
+            evaluated_context["run_id"] = run_id
 
         record = LogRecord(
             timestamp=datetime.now(),

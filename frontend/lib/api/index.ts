@@ -74,7 +74,7 @@ export type {
 } from "./logging";
 
 // Log Explorer APIs (dev mode only)
-export { getLogFiles, getLogEntries, getLogStats } from "./logs";
+export { getLogFiles, getLogEntries, getLogStats, getLogRuns } from "./logs";
 export type {
   LogFileInfo,
   LogEntry,
@@ -83,4 +83,6 @@ export type {
   LogEntriesOptions,
   LogEntriesResponse,
   LogStats,
+  RunInfo,
+  RunListResponse,
 } from "./logs";

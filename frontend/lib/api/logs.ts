@@ -40,6 +40,7 @@ export interface LogEntry {
   context: Record<string, unknown> | null;
   durationMs: number | null;
   exception: LogEntryException | null;
+  runId: string | null;
 }
 
 /**
@@ -62,6 +63,7 @@ export interface LogEntriesOptions {
   search?: string;
   startTime?: string;
   endTime?: string;
+  runId?: string;
 }
 
 /**
@@ -84,6 +86,24 @@ export interface LogStats {
   categoryCounts: Record<string, number>;
   timeRange: { start: string | null; end: string | null };
   fileSizeBytes: number;
+}
+
+/**
+ * Information about a workflow run
+ */
+export interface RunInfo {
+  runId: string;
+  firstTimestamp: string;
+  lastTimestamp: string;
+  entryCount: number;
+}
+
+/**
+ * Response for listing runs
+ */
+export interface RunListResponse {
+  runs: RunInfo[];
+  fileName: string;
 }
 
 /**
@@ -144,6 +164,7 @@ export async function getLogEntries(
     if (options.search) params.search = options.search;
     if (options.startTime) params.start_time = options.startTime;
     if (options.endTime) params.end_time = options.endTime;
+    if (options.runId) params.run_id = options.runId;
 
     const response = await apiClient.get<{
       entries: Array<{
@@ -159,6 +180,7 @@ export async function getLogEntries(
           message: string;
           traceback: string[];
         } | null;
+        run_id: string | null;
       }>;
       total_count: number;
       has_more: boolean;
@@ -176,6 +198,7 @@ export async function getLogEntries(
         context: e.context,
         durationMs: e.duration_ms,
         exception: e.exception,
+        runId: e.run_id,
       })),
       totalCount: response.data.total_count,
       hasMore: response.data.has_more,
@@ -220,6 +243,43 @@ export async function getLogStats(
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
       throw new Error(error.response.data.detail || "Failed to get log stats");
+    }
+    throw error;
+  }
+}
+
+/**
+ * Get list of runs from a log file
+ */
+export async function getLogRuns(
+  projectPath: string,
+  fileName: string = "adkflow.jsonl",
+): Promise<RunListResponse> {
+  try {
+    const response = await apiClient.get<{
+      runs: Array<{
+        run_id: string;
+        first_timestamp: string;
+        last_timestamp: string;
+        entry_count: number;
+      }>;
+      file_name: string;
+    }>("/api/debug/logs/runs", {
+      params: { project_path: projectPath, file_name: fileName },
+    });
+
+    return {
+      runs: response.data.runs.map((r) => ({
+        runId: r.run_id,
+        firstTimestamp: r.first_timestamp,
+        lastTimestamp: r.last_timestamp,
+        entryCount: r.entry_count,
+      })),
+      fileName: response.data.file_name,
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.detail || "Failed to get log runs");
     }
     throw error;
   }

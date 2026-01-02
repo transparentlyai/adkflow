@@ -114,6 +114,7 @@ class RotatingFileHandler(Handler):
         max_bytes: int = DEFAULT_MAX_BYTES,
         backup_count: int = DEFAULT_BACKUP_COUNT,
         formatter: LogFormatter | None = None,
+        clear_on_init: bool = False,
     ) -> None:
         self.log_dir = Path(log_dir)
         self.filename = filename
@@ -127,7 +128,24 @@ class RotatingFileHandler(Handler):
 
         # Ensure directory exists
         self.log_dir.mkdir(parents=True, exist_ok=True)
+
+        # Clear log file if requested
+        if clear_on_init:
+            self._clear_file()
+
         self._open_file()
+
+    def _clear_file(self) -> None:
+        """Clear the log file and its rotated backups."""
+        file_path = self.log_dir / self.filename
+        if file_path.exists():
+            file_path.unlink()
+
+        # Also remove rotated files
+        for i in range(1, self.backup_count + 1):
+            rotated = self.log_dir / f"{self.filename}.{i}"
+            if rotated.exists():
+                rotated.unlink()
 
     def _open_file(self) -> None:
         """Open the log file for appending."""

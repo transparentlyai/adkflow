@@ -33,6 +33,9 @@ export function LogExplorerPage({ projectPath }: LogExplorerPageProps) {
     error,
     refresh,
     exportFiltered,
+    runs,
+    isLoadingRuns,
+    setLastRunOnly,
   } = useLogExplorer(projectPath);
 
   const [formatJson, setFormatJson] = useState(true);
@@ -96,6 +99,9 @@ export function LogExplorerPage({ projectPath }: LogExplorerPageProps) {
             stats={stats}
             formatJson={formatJson}
             onFormatJsonChange={setFormatJson}
+            runs={runs}
+            isLoadingRuns={isLoadingRuns}
+            onLastRunOnlyChange={setLastRunOnly}
           />
 
           <LogExplorerList

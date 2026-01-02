@@ -9,6 +9,8 @@ import {
 import type { LogFilters } from "./types";
 import { PAGE_SIZE } from "./types";
 
+const POLL_INTERVAL_MS = 3000; // Poll every 3 seconds when watching last run
+
 interface UseLogEntriesResult {
   entries: LogEntry[];
   stats: LogStats | null;
@@ -60,6 +62,7 @@ export function useLogEntries(
         if (filters.search) options.search = filters.search;
         if (filters.startTime) options.startTime = filters.startTime;
         if (filters.endTime) options.endTime = filters.endTime;
+        if (filters.runId) options.runId = filters.runId;
 
         const [entriesResponse, statsResponse] = await Promise.all([
           getLogEntries(projectPath, options),
@@ -116,6 +119,7 @@ export function useLogEntries(
       if (filters.search) options.search = filters.search;
       if (filters.startTime) options.startTime = filters.startTime;
       if (filters.endTime) options.endTime = filters.endTime;
+      if (filters.runId) options.runId = filters.runId;
 
       const response = await getLogEntries(projectPath, options);
 
@@ -132,6 +136,47 @@ export function useLogEntries(
   const triggerRefresh = useCallback(() => {
     setRefreshKey((k) => k + 1);
   }, []);
+
+  // Auto-poll for new entries when lastRunOnly is enabled
+  useEffect(() => {
+    if (!projectPath || !selectedFile || !filters.lastRunOnly) return;
+
+    const pollForNewEntries = async () => {
+      try {
+        const options: LogEntriesOptions = {
+          fileName: selectedFile,
+          offset: 0,
+          limit: PAGE_SIZE,
+        };
+
+        if (filters.level) options.level = filters.level;
+        if (filters.category) options.category = filters.category;
+        if (filters.search) options.search = filters.search;
+        if (filters.startTime) options.startTime = filters.startTime;
+        if (filters.endTime) options.endTime = filters.endTime;
+        if (filters.runId) options.runId = filters.runId;
+
+        const [entriesResponse, statsResponse] = await Promise.all([
+          getLogEntries(projectPath, options),
+          getLogStats(projectPath, selectedFile),
+        ]);
+
+        // Only update if we have new entries
+        if (entriesResponse.totalCount !== totalCount) {
+          setEntries(entriesResponse.entries);
+          setTotalCount(entriesResponse.totalCount);
+          setHasMore(entriesResponse.hasMore);
+          setStats(statsResponse);
+          setOffset(0);
+        }
+      } catch {
+        // Silently ignore polling errors
+      }
+    };
+
+    const intervalId = setInterval(pollForNewEntries, POLL_INTERVAL_MS);
+    return () => clearInterval(intervalId);
+  }, [projectPath, selectedFile, filters, totalCount]);
 
   return {
     entries,

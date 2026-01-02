@@ -18,7 +18,13 @@ from google.genai import types
 
 from adkflow_runner.compiler import Compiler
 from adkflow_runner.ir import WorkflowIR
-from adkflow_runner.logging import Logger, configure_logging, get_logger, log_timing
+from adkflow_runner.logging import (
+    Logger,
+    configure_logging,
+    get_logger,
+    log_timing,
+    run_context,
+)
 from adkflow_runner.runner.agent_factory import AgentFactory
 from adkflow_runner.runner.types import (
     RunStatus,
@@ -78,14 +84,21 @@ class WorkflowRunner:
         configure_logging(project_path=config.project_path)
         Logger.initialize(project_path=config.project_path)
 
-        run_id = str(uuid.uuid4())[:8]
+        # Use provided run_id or generate one
+        run_id = config.run_id or str(uuid.uuid4())[:8]
+
+        # Set run context so all logs automatically include run_id
+        with run_context(run_id):
+            return await self._run_with_context(config, run_id)
+
+    async def _run_with_context(self, config: RunConfig, run_id: str) -> RunResult:
+        """Execute the workflow run within a run context."""
         start_time = time.time()
         events: list[RunEvent] = []
         callbacks = config.callbacks or NoOpCallbacks()
 
-        # Create run-scoped logger with context
+        # Create run-scoped logger with context (run_id is auto-injected)
         run_log = _log.with_context(
-            run_id=run_id,
             project=config.project_path.name,
         )
 
@@ -133,7 +146,7 @@ class WorkflowRunner:
 
             # Execute with timing
             with log_timing(run_log, "execute") as ctx:
-                output = await self._execute(ir, config, emit)
+                output = await self._execute(ir, config, emit, run_id)
                 ctx["output_length"] = len(output) if output else 0
 
             # Emit completion
@@ -224,9 +237,9 @@ class WorkflowRunner:
         ir: WorkflowIR,
         config: RunConfig,
         emit: Any,
+        run_id: str,
     ) -> str:
         """Execute the compiled workflow."""
-        run_id = str(uuid.uuid4())[:8]
         session_state: dict[str, Any] = {}
 
         # Track accumulated outputs for variable substitution

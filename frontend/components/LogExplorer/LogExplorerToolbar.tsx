@@ -6,7 +6,7 @@
 
 import { useState } from "react";
 import type { LogFilters } from "@/hooks/logExplorer";
-import type { LogStats } from "@/lib/api";
+import type { LogStats, RunInfo } from "@/lib/api";
 import type { LogLevel } from "./logExplorerUtils";
 import {
   LogLevelFilter,
@@ -15,6 +15,7 @@ import {
   LogTimeRangeFilter,
   TimeRangeRow,
   LogToolbarActions,
+  LogRunFilter,
 } from "./toolbar";
 
 interface LogExplorerToolbarProps {
@@ -24,6 +25,10 @@ interface LogExplorerToolbarProps {
   stats: LogStats | null;
   formatJson: boolean;
   onFormatJsonChange: (formatJson: boolean) => void;
+  // Run-related props
+  runs: RunInfo[];
+  isLoadingRuns: boolean;
+  onLastRunOnlyChange: (lastRunOnly: boolean) => void;
 }
 
 export function LogExplorerToolbar({
@@ -33,6 +38,9 @@ export function LogExplorerToolbar({
   stats,
   formatJson,
   onFormatJsonChange,
+  runs,
+  isLoadingRuns,
+  onLastRunOnlyChange,
 }: LogExplorerToolbarProps) {
   const [showTimeRange, setShowTimeRange] = useState(false);
 
@@ -59,12 +67,25 @@ export function LogExplorerToolbar({
     filters.category ||
     filters.search ||
     filters.startTime ||
-    filters.endTime;
+    filters.endTime ||
+    filters.runId ||
+    filters.lastRunOnly;
 
   return (
     <div className="flex flex-col border-b bg-muted/30">
       {/* Main toolbar row */}
       <div className="flex items-center gap-2 p-3">
+        <LogRunFilter
+          runs={runs}
+          selectedRunId={filters.runId}
+          lastRunOnly={filters.lastRunOnly}
+          isLoading={isLoadingRuns}
+          onRunIdChange={(runId) => onFiltersChange({ runId })}
+          onLastRunOnlyChange={onLastRunOnlyChange}
+        />
+
+        <div className="h-6 w-px bg-border" />
+
         <LogLevelFilter
           selectedLevels={selectedLevels}
           stats={stats}

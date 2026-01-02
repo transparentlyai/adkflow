@@ -90,6 +90,13 @@ export const LogEntryRow = memo(function LogEntryRow({
           {entry.category}
         </span>
 
+        {/* Run ID badge */}
+        {entry.runId && (
+          <span className="text-xs font-mono text-primary/80 bg-primary/10 px-1.5 py-0.5 rounded flex-shrink-0">
+            {entry.runId}
+          </span>
+        )}
+
         {/* Message */}
         <span className="text-sm flex-1 truncate">
           <HighlightedText text={entry.message} search={searchTerm} />
