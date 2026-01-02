@@ -2,24 +2,29 @@
  * LogEntryDetail - Expanded view of a log entry
  *
  * Shows full context, exception traceback, and copy functionality.
+ * Optionally displays JSON with syntax highlighting using Monaco Editor.
  */
 
 import { Copy, Check } from "lucide-react";
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import Editor from "@monaco-editor/react";
 import { Button } from "@/components/ui/button";
 import type { LogEntry } from "@/lib/api";
 import {
   formatFullTimestamp,
   formatDuration,
   copyEntryAsJson,
+  deepFormatJson,
 } from "./logExplorerUtils";
 
 interface LogEntryDetailProps {
   entry: LogEntry;
+  formatJson: boolean;
 }
 
-export function LogEntryDetail({ entry }: LogEntryDetailProps) {
+export function LogEntryDetail({ entry, formatJson }: LogEntryDetailProps) {
   const [copied, setCopied] = useState(false);
+  const [editorHeight, setEditorHeight] = useState(200);
 
   const handleCopy = async () => {
     const success = await copyEntryAsJson(entry);
@@ -28,6 +33,28 @@ export function LogEntryDetail({ entry }: LogEntryDetailProps) {
       setTimeout(() => setCopied(false), 2000);
     }
   };
+
+  const handleResizeMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      const startY = e.clientY;
+      const startHeight = editorHeight;
+
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        const delta = moveEvent.clientY - startY;
+        setEditorHeight(Math.max(100, Math.min(500, startHeight + delta)));
+      };
+
+      const handleMouseUp = () => {
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    },
+    [editorHeight],
+  );
 
   return (
     <div className="bg-muted/50 border-t px-4 py-3 space-y-3 text-sm">
@@ -75,9 +102,37 @@ export function LogEntryDetail({ entry }: LogEntryDetailProps) {
           <div className="text-xs font-medium text-muted-foreground mb-1">
             Context
           </div>
-          <pre className="bg-background p-2 rounded text-xs font-mono whitespace-pre-wrap break-all max-h-48 overflow-auto">
-            {JSON.stringify(entry.context, null, 2)}
-          </pre>
+          {formatJson ? (
+            <div className="rounded overflow-hidden border">
+              <Editor
+                height={`${editorHeight}px`}
+                language="json"
+                value={deepFormatJson(entry.context)}
+                options={{
+                  readOnly: true,
+                  minimap: { enabled: false },
+                  scrollBeyondLastLine: false,
+                  lineNumbers: "off",
+                  folding: true,
+                  fontSize: 12,
+                  wordWrap: "on",
+                  automaticLayout: true,
+                }}
+                theme="vs-dark"
+              />
+              {/* Vertical resize handle */}
+              <div
+                onMouseDown={handleResizeMouseDown}
+                className="h-2 cursor-ns-resize bg-muted hover:bg-primary/20 flex items-center justify-center transition-colors"
+              >
+                <div className="w-8 h-0.5 bg-muted-foreground/50 rounded" />
+              </div>
+            </div>
+          ) : (
+            <pre className="bg-background p-2 rounded text-xs font-mono whitespace-pre-wrap break-all max-h-48 overflow-auto">
+              {JSON.stringify(entry.context, null, 2)}
+            </pre>
+          )}
         </div>
       )}
 

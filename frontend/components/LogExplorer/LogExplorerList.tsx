@@ -24,6 +24,7 @@ interface LogExplorerListProps {
   hasMore: boolean;
   onLoadMore: () => void;
   searchTerm?: string;
+  formatJson: boolean;
 }
 
 const ROW_HEIGHT_COLLAPSED = 40;
@@ -36,6 +37,7 @@ export function LogExplorerList({
   hasMore,
   onLoadMore,
   searchTerm,
+  formatJson,
 }: LogExplorerListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
@@ -243,6 +245,7 @@ export function LogExplorerList({
                   setFocusedIndex(virtualRow.index);
                 }}
                 searchTerm={searchTerm}
+                formatJson={formatJson}
               />
             </div>
           );

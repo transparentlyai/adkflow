@@ -222,3 +222,117 @@ export async function copyEntryAsJson(entry: LogEntry): Promise<boolean> {
   );
   return copyToClipboard(json);
 }
+
+/**
+ * Unescape Python-style escape sequences in a string.
+ * Converts \\n to actual newlines, \\t to tabs, etc.
+ */
+function unescapePythonString(str: string): string {
+  return str
+    .replace(/\\n/g, "\n")
+    .replace(/\\t/g, "\t")
+    .replace(/\\r/g, "\r")
+    .replace(/\\'/g, "'")
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, "\\");
+}
+
+/**
+ * Check if a string looks like Python repr format.
+ * Detects patterns like: Part(...), [Part(...)], name='value', etc.
+ */
+function isPythonRepr(str: string): boolean {
+  // Check for common Python patterns
+  const pythonPatterns = [
+    /^\w+\(.*\)$/, // Function/class call: Part(...), Config(...)
+    /^\[.*\]$/, // List: [...]
+    /^\(.*\)$/, // Tuple: (...)
+    /\w+\s*=\s*['"\[\{]/, // Keyword arg: name='value', items=[...]
+    /\\n/, // Contains escape sequences
+    /Part\(/, // Specific pattern from the example
+  ];
+  return pythonPatterns.some((pattern) => pattern.test(str));
+}
+
+/**
+ * Format a Python repr string with proper indentation.
+ */
+function formatPythonRepr(str: string, baseIndent: number): string {
+  // First unescape the string
+  const formatted = unescapePythonString(str);
+
+  // Add indentation to each line
+  const spaces = "  ".repeat(baseIndent);
+  const lines = formatted.split("\n");
+
+  if (lines.length === 1) {
+    return `"${formatted}"`;
+  }
+
+  // Multi-line: format as a block string
+  const indentedLines = lines.map((line, i) => {
+    if (i === 0) return line;
+    return spaces + "  " + line;
+  });
+
+  return `"${indentedLines.join("\n")}"`;
+}
+
+/**
+ * Recursively format JSON, attempting to parse and format nested JSON strings.
+ * Also handles Python repr strings by unescaping and formatting them.
+ */
+export function deepFormatJson(value: unknown, indent = 0): string {
+  const spaces = "  ".repeat(indent);
+  const childSpaces = "  ".repeat(indent + 1);
+
+  if (value === null) return "null";
+  if (value === undefined) return "undefined";
+
+  if (typeof value === "string") {
+    // Try to parse as JSON first
+    const trimmed = value.trim();
+    if (
+      (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+      (trimmed.startsWith("[") && trimmed.endsWith("]"))
+    ) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return deepFormatJson(parsed, indent);
+      } catch {
+        // Not valid JSON, continue to other checks
+      }
+    }
+
+    // Check if it's a Python repr string
+    if (isPythonRepr(value)) {
+      return formatPythonRepr(value, indent);
+    }
+
+    // Regular string - escape for JSON display
+    return JSON.stringify(value);
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "[]";
+    const items = value.map((item) => {
+      return `${childSpaces}${deepFormatJson(item, indent + 1)}`;
+    });
+    return `[\n${items.join(",\n")}\n${spaces}]`;
+  }
+
+  if (typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (entries.length === 0) return "{}";
+    const items = entries.map(([key, val]) => {
+      return `${childSpaces}${JSON.stringify(key)}: ${deepFormatJson(val, indent + 1)}`;
+    });
+    return `{\n${items.join(",\n")}\n${spaces}}`;
+  }
+
+  return String(value);
+}
