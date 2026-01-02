@@ -139,15 +139,120 @@ export function useHomeState() {
   const pendingFocusNodeIdRef = useRef<string | null>(null);
   const hasSyncedAllTabsRef = useRef(false);
 
+  // Grouped state objects for cleaner destructuring
+  const workflow = {
+    name: workflowName,
+    setName: setWorkflowName,
+    canvasRef,
+    activeTabRef,
+    loadedTabIdRef,
+    isRestoringFlowRef,
+    tabFlowCacheRef,
+    isSessionLoaded,
+    setIsSessionLoaded,
+  };
+
+  const project = {
+    path: currentProjectPath,
+    setPath: setCurrentProjectPath,
+    isSaved: isProjectSaved,
+    setIsSaved: setIsProjectSaved,
+    isSwitcherOpen: isProjectSwitcherOpen,
+    setIsSwitcherOpen: setIsProjectSwitcherOpen,
+    switcherMode: projectSwitcherMode,
+    setSwitcherMode: setProjectSwitcherMode,
+    isSaveConfirmOpen,
+    setIsSaveConfirmOpen,
+    showHomeScreen,
+    setShowHomeScreen,
+    recentProjects,
+    setRecentProjects,
+    isSaving,
+    setIsSaving,
+    hasUnsavedChanges,
+    isSettingsOpen: isProjectSettingsOpen,
+    setIsSettingsOpen: setIsProjectSettingsOpen,
+    settingsRefreshKey,
+    setSettingsRefreshKey,
+  };
+
+  const dialogs = {
+    prompt: promptDialogState,
+    setPrompt: setPromptDialogState,
+    context: contextDialogState,
+    setContext: setContextDialogState,
+    tool: toolDialogState,
+    setTool: setToolDialogState,
+    process: processDialogState,
+    setProcess: setProcessDialogState,
+    outputFile: outputFileDialogState,
+    setOutputFile: setOutputFileDialogState,
+    isClearOpen: isClearDialogOpen,
+    setIsClearOpen: setIsClearDialogOpen,
+    filePicker: filePickerState,
+    setFilePicker: setFilePickerState,
+    isTopologySaveOpen: isTopologySaveDialogOpen,
+    setIsTopologySaveOpen: setIsTopologySaveDialogOpen,
+    isValidationSaveOpen: isValidationSaveDialogOpen,
+    setIsValidationSaveOpen: setIsValidationSaveDialogOpen,
+    isTabDeleteOpen: isTabDeleteDialogOpen,
+    setIsTabDeleteOpen: setIsTabDeleteDialogOpen,
+    pendingDeleteTabId,
+    setPendingDeleteTabId,
+    topologyResult,
+    setTopologyResult,
+  };
+
+  const run = {
+    isPanelOpen: isRunPanelOpen,
+    setIsPanelOpen: setIsRunPanelOpen,
+    currentId: currentRunId,
+    setCurrentId: setCurrentRunId,
+    isRunning,
+    setIsRunning,
+    events: runEvents,
+    setEvents: setRunEvents,
+    isConfirmDialogOpen: isRunConfirmDialogOpen,
+    setIsConfirmDialogOpen: setIsRunConfirmDialogOpen,
+    lastStatus: lastRunStatus,
+    setLastStatus: setLastRunStatus,
+  };
+
+  const canvas = {
+    isLocked: isCanvasLocked,
+    setIsLocked: setIsCanvasLocked,
+  };
+
+  const tabs = {
+    context: tabsContext,
+    syncTeleportersForTab,
+    updateTabName,
+    pendingFocusNodeIdRef,
+    hasSyncedAllTabsRef,
+  };
+
+  const theme = {
+    id: themeId,
+    toggle: toggleTheme,
+  };
+
   return {
-    // Context values
+    // Grouped state objects
+    workflow,
+    project,
+    dialogs,
+    run,
+    canvas,
+    tabs,
+    theme,
+
+    // Legacy flat exports for backwards compatibility during migration
+    // TODO: Remove after all consumers are migrated to grouped accessors
     tabsContext,
     syncTeleportersForTab,
     updateTabName,
     themeId,
     toggleTheme,
-
-    // Core workflow state
     workflowName,
     setWorkflowName,
     canvasRef,
@@ -157,8 +262,6 @@ export function useHomeState() {
     tabFlowCacheRef,
     isSessionLoaded,
     setIsSessionLoaded,
-
-    // Project state
     currentProjectPath,
     setCurrentProjectPath,
     isProjectSaved,
@@ -176,8 +279,6 @@ export function useHomeState() {
     isSaving,
     setIsSaving,
     hasUnsavedChanges,
-
-    // Node creation dialog states
     promptDialogState,
     setPromptDialogState,
     contextDialogState,
@@ -188,20 +289,12 @@ export function useHomeState() {
     setProcessDialogState,
     outputFileDialogState,
     setOutputFileDialogState,
-
-    // Clear canvas dialog
     isClearDialogOpen,
     setIsClearDialogOpen,
-
-    // Canvas lock
     isCanvasLocked,
     setIsCanvasLocked,
-
-    // File picker
     filePickerState,
     setFilePickerState,
-
-    // Run panel
     isRunPanelOpen,
     setIsRunPanelOpen,
     currentRunId,
@@ -214,30 +307,20 @@ export function useHomeState() {
     setIsRunConfirmDialogOpen,
     lastRunStatus,
     setLastRunStatus,
-
-    // Topology
     topologyResult,
     setTopologyResult,
     isTopologySaveDialogOpen,
     setIsTopologySaveDialogOpen,
-
-    // Validation save dialog
     isValidationSaveDialogOpen,
     setIsValidationSaveDialogOpen,
-
-    // Tab delete
     isTabDeleteDialogOpen,
     setIsTabDeleteDialogOpen,
     pendingDeleteTabId,
     setPendingDeleteTabId,
-
-    // Project settings
     isProjectSettingsOpen,
     setIsProjectSettingsOpen,
     settingsRefreshKey,
     setSettingsRefreshKey,
-
-    // Focus tracking
     pendingFocusNodeIdRef,
     hasSyncedAllTabsRef,
   };
