@@ -4,19 +4,17 @@ import { getModelSchema, getModelDefaults } from "@/lib/constants/modelSchemas";
 import type { CustomNodeData } from "@/components/nodes/CustomNode/types";
 
 /**
- * Fields to preserve when switching models.
- * - name, description: user-entered text fields
- * - model: the newly selected model (don't overwrite with default)
- */
-const PRESERVED_FIELDS = ["name", "description", "model"];
-
-/**
  * Hook that synchronizes Agent Node fields when the model changes.
  *
  * When the user selects a different model:
- * 1. Applies all defaults from the new model
- * 2. Preserves only user-entered text fields (name, description)
- * 3. Updates the node's schema.ui.fields to match the new model
+ * 1. Updates the node's schema.ui.fields to match the new model
+ * 2. Applies all defaults from the new model
+ * 3. Preserves all user values for fields that exist in both old and new models
+ *
+ * This approach avoids maintaining a list of "universal" fields - any field
+ * that exists in the new model will preserve its value from the old config.
+ * Model-specific fields (e.g., thinking_budget vs thinking_level) naturally
+ * get their new defaults since they don't exist in the other model.
  *
  * @param nodeId - The node's unique ID
  * @param config - Current node configuration
@@ -50,6 +48,11 @@ export function useModelFieldSync(
     const newModelSchema = getModelSchema(currentModel);
     const newDefaults = getModelDefaults(currentModel);
 
+    // Get the set of field IDs that exist in the new model
+    const newFieldIds = new Set(newModelSchema.fields.map((f) => f.id));
+    // Also preserve "name" which is a config field, not a schema field
+    newFieldIds.add("name");
+
     setNodes((nodes) =>
       nodes.map((node) => {
         if (node.id !== nodeId) return node;
@@ -60,10 +63,10 @@ export function useModelFieldSync(
         // Start with all new model defaults
         const newConfig: Record<string, unknown> = { ...newDefaults };
 
-        // Preserve user-entered text fields
-        for (const fieldId of PRESERVED_FIELDS) {
-          if (fieldId in currentConfig) {
-            newConfig[fieldId] = currentConfig[fieldId];
+        // Preserve all fields from current config that exist in the new model
+        for (const [fieldId, value] of Object.entries(currentConfig)) {
+          if (newFieldIds.has(fieldId)) {
+            newConfig[fieldId] = value;
           }
         }
 

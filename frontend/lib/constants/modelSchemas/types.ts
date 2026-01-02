@@ -33,8 +33,10 @@ export interface ModelOption {
 }
 
 /**
- * Universal field IDs that are always preserved when switching models.
- * Note: "location" is not included as it's now a project-level setting.
+ * Universal field IDs shared across all models (for documentation/metadata).
+ *
+ * Note: useModelFieldSync dynamically preserves all fields that exist in the
+ * new model, so this list is only used as metadata in model schema definitions.
  */
 export const UNIVERSAL_FIELD_IDS = [
   "description",
