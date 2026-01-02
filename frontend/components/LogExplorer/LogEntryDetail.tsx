@@ -5,7 +5,7 @@
  * Optionally displays JSON with syntax highlighting using Monaco Editor.
  */
 
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, ExternalLink } from "lucide-react";
 import { useState, useCallback } from "react";
 import Editor from "@monaco-editor/react";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,14 @@ export function LogEntryDetail({ entry, formatJson }: LogEntryDetailProps) {
     [editorHeight],
   );
 
+  const handleOpenContextInNewTab = useCallback(() => {
+    if (!entry.context) return;
+    const key = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const content = deepFormatJson(entry.context);
+    localStorage.setItem(`log-context-${key}`, content);
+    window.open(`/logs/context?key=${key}`, "_blank");
+  }, [entry.context]);
+
   return (
     <div className="bg-muted/50 border-t px-4 py-3 space-y-3 text-sm">
       {/* Header with copy button */}
@@ -99,8 +107,19 @@ export function LogEntryDetail({ entry, formatJson }: LogEntryDetailProps) {
       {/* Context */}
       {entry.context && Object.keys(entry.context).length > 0 && (
         <div>
-          <div className="text-xs font-medium text-muted-foreground mb-1">
-            Context
+          <div className="text-xs font-medium text-muted-foreground mb-1 flex items-center justify-between">
+            <span>Context</span>
+            {formatJson && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5"
+                onClick={handleOpenContextInNewTab}
+                title="Open in new tab"
+              >
+                <ExternalLink className="h-3 w-3" />
+              </Button>
+            )}
           </div>
           {formatJson ? (
             <div className="rounded overflow-hidden border">

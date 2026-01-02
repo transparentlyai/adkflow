@@ -6,3 +6,4 @@
  */
 
 export { LogExplorerDialog } from "./LogExplorerDialog";
+export { LogExplorerPage } from "./LogExplorerPage";

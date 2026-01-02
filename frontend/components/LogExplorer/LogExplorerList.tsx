@@ -75,10 +75,14 @@ export function LogExplorerList({
     overscan: 10,
   });
 
-  // Re-measure when expansion changes
+  // Re-measure when expansion or format changes - delay to allow DOM to update first
   useEffect(() => {
-    virtualizer.measure();
-  }, [expandedIds, virtualizer]);
+    // Use requestAnimationFrame to ensure DOM has updated before measuring
+    const frame = requestAnimationFrame(() => {
+      virtualizer.measure();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [expandedIds, formatJson, virtualizer]);
 
   // Infinite scroll: load more when near bottom
   const items = virtualizer.getVirtualItems();
