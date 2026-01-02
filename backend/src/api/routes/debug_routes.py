@@ -5,11 +5,9 @@ They provide runtime configuration for logging and debugging.
 Settings are persisted to the project's manifest.json under the "logging" key.
 """
 
-import json
-from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Query, HTTPException, status
+from fastapi import APIRouter, Query, HTTPException
 from pydantic import BaseModel, Field
 
 # Import logging configuration from adkflow_runner
@@ -21,6 +19,8 @@ from adkflow_runner.logging import (
     reset_config as _reset_config,
     LogConfig,
 )
+
+from backend.src.api.routes.manifest import load_manifest, save_manifest
 
 
 router = APIRouter(prefix="/api/debug", tags=["debug"])
@@ -60,7 +60,7 @@ class LoggingConfigUpdate(BaseModel):
 
     global_level: str | None = Field(
         default=None,
-        description="Global log level (DEBUG/INFO/WARNING/ERROR)",
+        description="Global log level (DEBUG/INFO/WARNING/ERROR/OFF)",
     )
     categories: dict[str, str] | None = Field(
         default=None,
@@ -92,6 +92,7 @@ def _get_level_name(level: LogLevel | int) -> str:
             30: "WARNING",
             40: "ERROR",
             50: "CRITICAL",
+            100: "OFF",
         }
         return level_map.get(level, "INFO")
     return level.name
@@ -105,30 +106,9 @@ def _parse_level(level_str: str) -> LogLevel:
         "WARNING": LogLevel.WARNING,
         "ERROR": LogLevel.ERROR,
         "CRITICAL": LogLevel.CRITICAL,
+        "OFF": LogLevel.OFF,
     }
     return level_map.get(level_str.upper(), LogLevel.INFO)
-
-
-def _load_manifest(project_path: str) -> dict[str, Any]:
-    """Load manifest.json from project directory."""
-    manifest_file = Path(project_path) / "manifest.json"
-    if manifest_file.exists():
-        with open(manifest_file) as f:
-            return json.load(f)
-    return {}
-
-
-def _save_manifest(project_path: str, manifest: dict[str, Any]) -> None:
-    """Save manifest.json to project directory."""
-    manifest_file = Path(project_path) / "manifest.json"
-    try:
-        with open(manifest_file, "w") as f:
-            json.dump(manifest, f, indent=2)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to save manifest: {str(e)}",
-        )
 
 
 def _load_project_config(project_path: str | None) -> LogConfig:
@@ -138,8 +118,12 @@ def _load_project_config(project_path: str | None) -> LogConfig:
     if not project_path:
         return config
 
-    manifest = _load_manifest(project_path)
-    logging_data = manifest.get("logging")
+    try:
+        manifest = load_manifest(project_path)
+        logging_data = manifest.logging
+    except HTTPException:
+        # Manifest doesn't exist yet
+        return config
 
     if logging_data:
         try:
@@ -184,8 +168,12 @@ def _save_project_config(project_path: str | None, config: LogConfig) -> None:
     if not project_path:
         return
 
-    # Load existing manifest
-    manifest = _load_manifest(project_path)
+    # Load existing manifest (create if missing)
+    try:
+        manifest = load_manifest(project_path)
+    except HTTPException:
+        # Manifest doesn't exist - create empty one
+        manifest = load_manifest(project_path, create_if_missing=True)
 
     # Build logging config dict
     logging_data: dict[str, Any] = {
@@ -211,10 +199,10 @@ def _save_project_config(project_path: str | None, config: LogConfig) -> None:
             logging_data["console"]["format"] = config.console.format
 
     # Update manifest with logging config
-    manifest["logging"] = logging_data
+    manifest.logging = logging_data
 
     # Save manifest
-    _save_manifest(project_path, manifest)
+    save_manifest(project_path, manifest)
 
 
 @router.get("/logging", response_model=LoggingConfigResponse)
@@ -280,8 +268,21 @@ async def update_logging_config(
         config.level = _parse_level(update.global_level)
         registry.set_default_level(config.level)
 
-    # Update category levels
+    # Update category levels (replace, not merge)
     if update.categories is not None:
+        # Clear categories that are no longer explicitly set
+        old_categories = set(config.categories.keys())
+        new_categories = set(update.categories.keys())
+        removed_categories = old_categories - new_categories
+
+        for category in removed_categories:
+            # Clear the level in registry (set to None = inherit)
+            registry.clear_level(category)
+
+        # Replace config categories entirely
+        config.categories = {}
+
+        # Set new levels
         for category, level_str in update.categories.items():
             level = _parse_level(level_str)
             registry.set_level(category, level)
@@ -369,10 +370,10 @@ async def reset_logging_config(
     # Remove logging config from manifest
     if project_path:
         try:
-            manifest = _load_manifest(project_path)
-            if "logging" in manifest:
-                del manifest["logging"]
-                _save_manifest(project_path, manifest)
+            manifest = load_manifest(project_path)
+            if manifest.logging is not None:
+                manifest.logging = None
+                save_manifest(project_path, manifest)
         except Exception:
             pass  # Ignore errors when removing
 
