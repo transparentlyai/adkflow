@@ -52,7 +52,7 @@ export function LogExplorerDialog({
     exportFiltered,
   } = useLogExplorer(projectPath);
 
-  const [formatJson, setFormatJson] = useState(false);
+  const [formatJson, setFormatJson] = useState(true);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
