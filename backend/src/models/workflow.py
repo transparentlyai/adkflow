@@ -106,6 +106,9 @@ class ProjectManifest(BaseModel):
     settings: ProjectSettings = Field(
         default_factory=ProjectSettings, description="Project settings"
     )
+    logging: Optional[dict[str, Any]] = Field(
+        default=None, description="Debug logging configuration"
+    )
 
     def get_tab(self, tab_id: str) -> TabMetadata | None:
         """Get tab metadata by ID."""
