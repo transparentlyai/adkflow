@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useLogExplorer } from "@/hooks/useLogExplorer";
+import { useLogExplorer } from "@/hooks/logExplorer";
 import { LogExplorerHeader } from "./LogExplorerHeader";
 import { LogExplorerToolbar } from "./LogExplorerToolbar";
 import { LogExplorerList } from "./LogExplorerList";
