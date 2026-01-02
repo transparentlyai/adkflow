@@ -1,6 +1,7 @@
 import TopMenubar from "@/components/TopMenubar";
 import GlobalSearch from "@/components/GlobalSearch";
 import LocationBadge from "@/components/LocationBadge";
+import { useState, useRef, useCallback } from "react";
 import { Lock, Save, Sun, Moon, Maximize2, Minimize2 } from "lucide-react";
 import { useFullscreen } from "@/hooks/useFullscreen";
 import type { Node, Edge } from "@xyflow/react";
@@ -78,14 +79,32 @@ export function HomeHeader({
   navigateToNode,
 }: HomeHeaderProps) {
   const { isFullscreen, toggleFullscreen } = useFullscreen();
+  const [isHeaderVisible, setIsHeaderVisible] = useState(false);
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = useCallback(() => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+    setIsHeaderVisible(true);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    hideTimeoutRef.current = setTimeout(() => {
+      setIsHeaderVisible(false);
+    }, 2000);
+  }, []);
 
   return (
     <div
       className={
         isFullscreen
-          ? "fixed top-0 left-0 right-0 z-50 transition-transform duration-300 -translate-y-full hover:translate-y-0"
+          ? `fixed top-0 left-0 right-0 z-50 transition-transform duration-300 ${isHeaderVisible ? "translate-y-0" : "-translate-y-full"}`
           : ""
       }
+      onMouseEnter={isFullscreen ? handleMouseEnter : undefined}
+      onMouseLeave={isFullscreen ? handleMouseLeave : undefined}
     >
       {isFullscreen && (
         <div className="absolute top-full left-0 right-0 h-4 bg-transparent" />
