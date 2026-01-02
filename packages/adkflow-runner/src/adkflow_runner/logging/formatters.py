@@ -121,23 +121,13 @@ class JSONFormatter(LogFormatter):
         return json.dumps(data, default=str, ensure_ascii=False)
 
 
-class CompactFormatter(LogFormatter):
-    """Compact format for high-volume logs."""
-
-    def format(self, record: "LogRecord") -> str:
-        level_char = record.level.name[0]
-        timestamp = record.timestamp.strftime("%H:%M:%S")
-        duration = f" {record.duration_ms:.0f}ms" if record.duration_ms else ""
-        return (
-            f"{level_char} {timestamp} [{record.category}] {record.message}{duration}"
-        )
-
-
 def get_formatter(format_name: str, colored: bool = True) -> LogFormatter:
-    """Get a formatter by name."""
+    """Get a formatter by name.
+
+    Args:
+        format_name: "json" for structured output, "readable" for human-readable
+        colored: Whether to use Rich markup (only applies to readable format)
+    """
     if format_name == "json":
         return JSONFormatter()
-    elif format_name == "compact":
-        return CompactFormatter()
-    else:  # readable
-        return ConsoleFormatter(colored=colored)
+    return ConsoleFormatter(colored=colored)

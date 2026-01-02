@@ -79,7 +79,6 @@ from adkflow_runner.logging.context import LogContext, log_scope, log_timing
 from adkflow_runner.logging.handlers import (
     ConsoleHandler,
     Handler,
-    JSONFileHandler,
     LogRecord,
     NullHandler,
     RotatingFileHandler,
@@ -113,7 +112,6 @@ __all__ = [
     "Handler",
     "ConsoleHandler",
     "RotatingFileHandler",
-    "JSONFileHandler",
     "NullHandler",
     # Testing
     "reset_loggers",

@@ -1,15 +1,13 @@
 """Log Explorer API routes for development mode only.
 
 These routes are only registered when ADKFLOW_DEV_MODE=1.
-They provide read access to log files (both JSONL and readable format)
-from the project's logs/ directory.
+They provide read access to JSONL log files from the project's logs/ directory.
 """
 
 from __future__ import annotations
 
 import json
-import re
-from datetime import datetime, date
+from datetime import datetime
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
@@ -30,7 +28,7 @@ class LogFileInfo(BaseModel):
     line_count: int | None = Field(
         None, description="Approximate line count (None for large files)"
     )
-    format: str = Field("unknown", description="Log format: jsonl or readable")
+    format: str = Field("unknown", description="Log format: jsonl or unknown")
 
 
 class LogFilesResponse(BaseModel):
@@ -89,19 +87,6 @@ class LogStats(BaseModel):
     file_size_bytes: int = Field(..., description="File size in bytes")
 
 
-# Regex for parsing readable log format:
-# HH:MM:SS.mmm LEVEL    category message key=value key='value'
-READABLE_LOG_PATTERN = re.compile(
-    r"^(\d{2}:\d{2}:\d{2}\.\d{3})\s+"  # Timestamp
-    r"(DEBUG|INFO|WARNING|ERROR|CRITICAL)\s+"  # Level
-    r"(\S+)\s+"  # Category
-    r"(.*)$"  # Message (rest of line)
-)
-
-# Pattern to extract key=value or key='value' pairs from message
-CONTEXT_PATTERN = re.compile(r"(\w+)=(?:'([^']*)'|\"([^\"]*)\"|(\S+))")
-
-
 def _get_logs_dir(project_path: str) -> Path:
     """Get the logs directory for a project."""
     return Path(project_path) / "logs"
@@ -121,106 +106,12 @@ def _count_lines_fast(file_path: Path, max_lines: int = 100000) -> int | None:
     return count
 
 
-def _detect_log_format(file_path: Path) -> str:
-    """Detect whether a log file is JSONL or readable format."""
+def _parse_record(line: str) -> dict[str, Any] | None:
+    """Parse a JSON log line."""
     try:
-        with open(file_path, encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                # Try to parse as JSON
-                try:
-                    json.loads(line)
-                    return "jsonl"
-                except json.JSONDecodeError:
-                    # Check if it matches readable format
-                    if READABLE_LOG_PATTERN.match(line):
-                        return "readable"
-                    return "unknown"
-    except Exception:
-        return "unknown"
-    return "unknown"
-
-
-def _parse_readable_log_line(line: str, line_number: int) -> dict[str, Any] | None:
-    """Parse a readable log line into a record dict."""
-    match = READABLE_LOG_PATTERN.match(line)
-    if not match:
+        return json.loads(line)
+    except json.JSONDecodeError:
         return None
-
-    timestamp_str, level, category, message = match.groups()
-
-    # Extract context from message (key=value pairs)
-    context: dict[str, Any] = {}
-    duration_ms: float | None = None
-
-    for ctx_match in CONTEXT_PATTERN.finditer(message):
-        key = ctx_match.group(1)
-        # Value is in one of the capture groups (quoted or unquoted)
-        value = ctx_match.group(2) or ctx_match.group(3) or ctx_match.group(4)
-
-        # Try to parse as number
-        if value:
-            try:
-                if "." in value:
-                    value = float(value)
-                else:
-                    value = int(value)
-            except ValueError:
-                pass  # Keep as string
-
-        context[key] = value
-
-    # Extract duration if present (look for patterns like "(123ms)" or duration_ms=123)
-    duration_match = re.search(r"\((\d+(?:\.\d+)?)\s*ms\)", message)
-    if duration_match:
-        duration_ms = float(duration_match.group(1))
-    elif "duration_ms" in context:
-        try:
-            duration_ms = float(context.pop("duration_ms"))
-        except (ValueError, TypeError):
-            pass
-
-    # Clean up message by removing trailing context
-    # Find where the main message ends and context begins
-    clean_message = message
-    first_ctx = CONTEXT_PATTERN.search(message)
-    if first_ctx:
-        clean_message = message[: first_ctx.start()].strip()
-
-    # Build timestamp - add today's date if only time
-    today = date.today().isoformat()
-    full_timestamp = f"{today}T{timestamp_str}"
-
-    return {
-        "timestamp": full_timestamp,
-        "level": level,
-        "category": category,
-        "message": clean_message or message,
-        "context": context if context else None,
-        "duration_ms": duration_ms,
-        "exception": None,
-    }
-
-
-def _parse_record(
-    line: str, line_number: int, file_format: str
-) -> dict[str, Any] | None:
-    """Parse a log line based on detected format."""
-    if file_format == "jsonl":
-        try:
-            return json.loads(line)
-        except json.JSONDecodeError:
-            return None
-    elif file_format == "readable":
-        return _parse_readable_log_line(line, line_number)
-    else:
-        # Try JSON first, then readable
-        try:
-            return json.loads(line)
-        except json.JSONDecodeError:
-            return _parse_readable_log_line(line, line_number)
 
 
 def _matches_filters(
@@ -306,9 +197,9 @@ async def list_log_files(
     project_path: str = Query(..., description="Project directory path"),
 ) -> LogFilesResponse:
     """
-    List all log files in the project's logs/ directory.
+    List all JSONL log files in the project's logs/ directory.
 
-    Returns JSONL and .log files sorted by modification time (newest first).
+    Returns .jsonl files sorted by modification time (newest first).
     """
     logs_dir = _get_logs_dir(project_path)
 
@@ -317,16 +208,14 @@ async def list_log_files(
 
     files: list[LogFileInfo] = []
     for file_path in logs_dir.iterdir():
-        if file_path.is_file() and file_path.suffix in (".jsonl", ".log"):
+        # Only include .jsonl files (JSON format logs)
+        if file_path.is_file() and file_path.suffix == ".jsonl":
             stat = file_path.stat()
 
             # Only count lines for small files (< 5MB)
             line_count = None
             if stat.st_size < 5 * 1024 * 1024:
                 line_count = _count_lines_fast(file_path)
-
-            # Detect format
-            log_format = _detect_log_format(file_path)
 
             files.append(
                 LogFileInfo(
@@ -335,7 +224,7 @@ async def list_log_files(
                     size_bytes=stat.st_size,
                     modified_at=datetime.fromtimestamp(stat.st_mtime).isoformat(),
                     line_count=line_count,
-                    format=log_format,
+                    format="jsonl",
                 )
             )
 
@@ -348,7 +237,7 @@ async def list_log_files(
 @router.get("/entries", response_model=LogEntriesResponse)
 async def read_log_entries(
     project_path: str = Query(..., description="Project directory path"),
-    file_name: str = Query("adkflow.log", description="Log file name"),
+    file_name: str = Query("adkflow.jsonl", description="Log file name"),
     offset: int = Query(0, ge=0, description="Number of matching entries to skip"),
     limit: int = Query(500, ge=1, le=2000, description="Max entries to return"),
     level: str | None = Query(
@@ -366,9 +255,8 @@ async def read_log_entries(
     ),
 ) -> LogEntriesResponse:
     """
-    Read log entries from a log file with filtering and pagination.
+    Read log entries from a JSONL log file with filtering and pagination.
 
-    Supports both JSONL and readable log formats.
     Entries are returned in file order (oldest first by default).
     Use offset and limit for pagination.
     """
@@ -380,9 +268,6 @@ async def read_log_entries(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Log file not found: {file_name}",
         )
-
-    # Detect file format
-    file_format = _detect_log_format(log_file)
 
     # Parse time filters
     parsed_start_time = None
@@ -418,7 +303,7 @@ async def read_log_entries(
                 if not line:
                     continue
 
-                record = _parse_record(line, line_number, file_format)
+                record = _parse_record(line)
                 if record is None:
                     continue
 
@@ -459,12 +344,11 @@ async def read_log_entries(
 @router.get("/stats", response_model=LogStats)
 async def get_log_stats(
     project_path: str = Query(..., description="Project directory path"),
-    file_name: str = Query("adkflow.log", description="Log file name"),
+    file_name: str = Query("adkflow.jsonl", description="Log file name"),
 ) -> LogStats:
     """
     Get statistics about a log file.
 
-    Supports both JSONL and readable log formats.
     Scans the entire file to compute level counts, category counts,
     and time range. May be slow for very large files.
     """
@@ -476,9 +360,6 @@ async def get_log_stats(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Log file not found: {file_name}",
         )
-
-    # Detect file format
-    file_format = _detect_log_format(log_file)
 
     total_lines = 0
     level_counts: dict[str, int] = {}
@@ -495,7 +376,7 @@ async def get_log_stats(
                 if not line:
                     continue
 
-                record = _parse_record(line, line_number, file_format)
+                record = _parse_record(line)
                 if record is None:
                     continue
 

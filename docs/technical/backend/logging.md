@@ -50,8 +50,7 @@ Logs are written to the executed project's directory:
 ```
 /path/to/project/
 ├── logs/
-│   ├── adkflow.log      # Main log file (rotated)
-│   └── adkflow.json     # Structured JSON logs
+│   └── adkflow.jsonl    # Structured JSON logs (rotated)
 ├── manifest.json
 └── ...
 ```
@@ -300,7 +299,7 @@ Log files are automatically rotated:
 
 - Default max size: 10MB per file
 - Default backup count: 5 files
-- Rotation creates: `adkflow.log.1`, `adkflow.log.2`, etc.
+- Rotation creates: `adkflow.jsonl.1`, `adkflow.jsonl.2`, etc.
 
 Configure in `logging.yaml`:
 
@@ -326,14 +325,14 @@ file:
 ### Finding Specific Logs
 
 ```bash
-# Search for errors
-grep -r "ERROR" /path/to/project/logs/
-
-# Search JSON logs with jq
-cat logs/adkflow.json | jq 'select(.level == "ERROR")'
+# Search for errors in JSON logs
+cat logs/adkflow.jsonl | jq 'select(.level == "ERROR")'
 
 # Filter by category
-cat logs/adkflow.json | jq 'select(.category | startswith("api"))'
+cat logs/adkflow.jsonl | jq 'select(.category | startswith("api"))'
+
+# Search for specific text
+grep "workflow" logs/adkflow.jsonl | jq .
 ```
 
 ## See Also

@@ -19,13 +19,15 @@ from adkflow_runner.logging.constants import (
 
 @dataclass
 class FileConfig:
-    """File logging configuration."""
+    """File logging configuration.
+
+    Note: File output is always JSON format (adkflow.jsonl).
+    """
 
     enabled: bool = True
     path: str = DEFAULT_LOG_DIR  # Relative to project root
     rotation: str = "10MB"  # Size-based rotation
     retain: int = DEFAULT_BACKUP_COUNT  # Number of rotated files to keep
-    format: str = "readable"  # readable | json
 
     @property
     def max_bytes(self) -> int:
@@ -47,7 +49,7 @@ class ConsoleConfig:
 
     enabled: bool = True
     colored: bool = True
-    format: str = "readable"  # readable | json | compact
+    format: str = "readable"  # readable | json
 
 
 @dataclass
@@ -147,7 +149,7 @@ class LogConfig:
             for cat, level_str in data["categories"].items():
                 config.categories[cat] = _parse_level(level_str)
 
-        # Parse file config
+        # Parse file config (format is always JSON, ignored if specified)
         if "file" in data:
             fc = data["file"]
             config.file = FileConfig(
@@ -155,7 +157,6 @@ class LogConfig:
                 path=fc.get("path", DEFAULT_LOG_DIR),
                 rotation=fc.get("rotation", "10MB"),
                 retain=fc.get("retain", DEFAULT_BACKUP_COUNT),
-                format=fc.get("format", "readable"),
             )
 
         # Parse console config
@@ -234,7 +235,6 @@ class LogConfig:
                 "path": self.file.path,
                 "rotation": self.file.rotation,
                 "retain": self.file.retain,
-                "format": self.file.format,
             },
             "console": {
                 "enabled": self.console.enabled,

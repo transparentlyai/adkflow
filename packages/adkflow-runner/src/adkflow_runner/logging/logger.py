@@ -13,7 +13,6 @@ from adkflow_runner.logging.constants import LogLevel
 from adkflow_runner.logging.handlers import (
     ConsoleHandler,
     Handler,
-    JSONFileHandler,
     LogRecord,
     RotatingFileHandler,
 )
@@ -92,25 +91,16 @@ class Logger:
                 )
 
             # File handler (if enabled and project path is set)
+            # Always outputs JSON format to adkflow.jsonl
             if config.file.enabled and cls._project_path:
                 log_dir = cls._project_path / config.file.path
-
-                if config.file.format == "json":
-                    cls._handlers.append(
-                        JSONFileHandler(
-                            log_dir=log_dir,
-                            max_bytes=config.file.max_bytes,
-                            backup_count=config.file.retain,
-                        )
+                cls._handlers.append(
+                    RotatingFileHandler(
+                        log_dir=log_dir,
+                        max_bytes=config.file.max_bytes,
+                        backup_count=config.file.retain,
                     )
-                else:
-                    cls._handlers.append(
-                        RotatingFileHandler(
-                            log_dir=log_dir,
-                            max_bytes=config.file.max_bytes,
-                            backup_count=config.file.retain,
-                        )
-                    )
+                )
 
             cls._initialized = True
 
@@ -168,12 +158,23 @@ class Logger:
             except Exception as e:
                 message = f"<error evaluating message: {e}>"
 
+        # Evaluate lazy context values (callables)
+        evaluated_context: dict[str, Any] = {}
+        for key, value in {**self._context, **context}.items():
+            if callable(value):
+                try:
+                    evaluated_context[key] = value()
+                except Exception as e:
+                    evaluated_context[key] = f"<error evaluating {key}: {e}>"
+            else:
+                evaluated_context[key] = value
+
         record = LogRecord(
             timestamp=datetime.now(),
             level=level,
             category=self.category,
             message=message,
-            context={**self._context, **context},
+            context=evaluated_context,
             duration_ms=duration_ms,
             exception=exception,
         )

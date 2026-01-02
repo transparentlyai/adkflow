@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Any, TextIO
 
 from adkflow_runner.logging.constants import (
     DEFAULT_BACKUP_COUNT,
-    DEFAULT_JSON_LOG_FILE_NAME,
     DEFAULT_LOG_FILE_NAME,
     DEFAULT_MAX_BYTES,
     LogLevel,
@@ -103,7 +102,10 @@ class ConsoleHandler(Handler):
 
 
 class RotatingFileHandler(Handler):
-    """File handler with size-based rotation."""
+    """File handler with size-based rotation.
+
+    Outputs JSON format (one object per line) by default.
+    """
 
     def __init__(
         self,
@@ -117,7 +119,7 @@ class RotatingFileHandler(Handler):
         self.filename = filename
         self.max_bytes = max_bytes
         self.backup_count = backup_count
-        self.formatter = formatter or ConsoleFormatter(colored=False)
+        self.formatter = formatter or JSONFormatter()
         self._lock = threading.Lock()
 
         self._file: TextIO | None = None
@@ -175,33 +177,6 @@ class RotatingFileHandler(Handler):
             if self._file:
                 self._file.close()
                 self._file = None
-
-
-class JSONFileHandler(Handler):
-    """Handler that outputs structured JSON (one object per line)."""
-
-    def __init__(
-        self,
-        log_dir: Path,
-        filename: str = DEFAULT_JSON_LOG_FILE_NAME,
-        max_bytes: int = DEFAULT_MAX_BYTES,
-        backup_count: int = DEFAULT_BACKUP_COUNT,
-    ) -> None:
-        self._inner = RotatingFileHandler(
-            log_dir=log_dir,
-            filename=filename,
-            max_bytes=max_bytes,
-            backup_count=backup_count,
-            formatter=JSONFormatter(),
-        )
-
-    def emit(self, record: LogRecord) -> None:
-        """Emit a log record as JSON."""
-        self._inner.emit(record)
-
-    def close(self) -> None:
-        """Close the handler."""
-        self._inner.close()
 
 
 class NullHandler(Handler):
