@@ -83,26 +83,23 @@ export ADKFLOW_LOG_CATEGORIES="api.response=CRITICAL"
 
 ### Config File
 
-Create `.adkflow/logging.yaml` in your project directory:
+Logging configuration is stored in `manifest.json` under the `logging` key:
 
-```yaml
-level: INFO
-
-categories:
-  api: DEBUG
-  compiler: WARNING
-  runner.agent.config: DEBUG
-
-file:
-  enabled: true
-  path: logs           # Relative to project directory
-  max_bytes: 10485760  # 10MB
-  backup_count: 5
-
-console:
-  colored: true
-  format: readable     # or "json"
+```json
+{
+  "name": "my-project",
+  "logging": {
+    "level": "INFO",
+    "categories": {
+      "api": "DEBUG",
+      "compiler": "WARNING",
+      "runner.agent.config": "DEBUG"
+    }
+  }
+}
 ```
+
+The logging settings are managed via the Debug Panel UI when running in dev mode.
 
 ## Category Hierarchy
 
@@ -300,14 +297,6 @@ Log files are automatically rotated:
 - Default max size: 10MB per file
 - Default backup count: 5 files
 - Rotation creates: `adkflow.jsonl.1`, `adkflow.jsonl.2`, etc.
-
-Configure in `logging.yaml`:
-
-```yaml
-file:
-  max_bytes: 52428800  # 50MB
-  backup_count: 10
-```
 
 ## Troubleshooting
 

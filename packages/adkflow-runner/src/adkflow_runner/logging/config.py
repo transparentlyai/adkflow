@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import threading
 from dataclasses import dataclass, field
@@ -104,22 +105,20 @@ class LogConfig:
     def load(
         cls,
         project_path: Path | None = None,
-        config_file: Path | None = None,
     ) -> LogConfig:
         """Load configuration with precedence:
         1. Environment variables (highest)
-        2. Config file
+        2. manifest.json logging config
         3. Defaults (lowest)
         """
         config = cls()
         config.project_path = project_path
 
-        # 1. Load from config file
-        if config_file is None and project_path:
-            config_file = project_path / ".adkflow" / "logging.yaml"
-
-        if config_file and config_file.exists():
-            config = cls._load_from_yaml(config_file, project_path)
+        # 1. Load from manifest.json
+        if project_path:
+            manifest_file = project_path / "manifest.json"
+            if manifest_file.exists():
+                config = cls._load_from_manifest(manifest_file, project_path)
 
         # 2. Override with environment variables
         config = cls._apply_env_overrides(config)
@@ -127,18 +126,21 @@ class LogConfig:
         return config
 
     @classmethod
-    def _load_from_yaml(cls, path: Path, project_path: Path | None = None) -> LogConfig:
-        """Load configuration from YAML file."""
-        try:
-            import yaml
-        except ImportError:
-            # yaml not available, return defaults
-            return cls(project_path=project_path)
-
-        with open(path) as f:
-            data = yaml.safe_load(f) or {}
-
+    def _load_from_manifest(
+        cls, manifest_path: Path, project_path: Path | None = None
+    ) -> LogConfig:
+        """Load configuration from manifest.json's 'logging' key."""
         config = cls(project_path=project_path)
+
+        try:
+            with open(manifest_path, encoding="utf-8") as f:
+                manifest = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return config
+
+        data = manifest.get("logging")
+        if not data:
+            return config
 
         # Parse level
         if "level" in data:
@@ -149,7 +151,7 @@ class LogConfig:
             for cat, level_str in data["categories"].items():
                 config.categories[cat] = _parse_level(level_str)
 
-        # Parse file config (format is always JSON, ignored if specified)
+        # Parse file config
         if "file" in data:
             fc = data["file"]
             config.file = FileConfig(

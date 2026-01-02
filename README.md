@@ -147,19 +147,21 @@ adkflow run /path/to/project
 
 ### Configuration File
 
-Create `.adkflow/logging.yaml` in your project:
+Logging is configured in `manifest.json` under the `logging` key:
 
-```yaml
-level: INFO
-categories:
-  api: DEBUG
-  runner.agent.config: DEBUG
-file:
-  enabled: true
-  path: logs
+```json
+{
+  "logging": {
+    "level": "INFO",
+    "categories": {
+      "api": "DEBUG",
+      "runner.agent.config": "DEBUG"
+    }
+  }
+}
 ```
 
-See [docs/technical/backend/logging.md](docs/technical/backend/logging.md) for full documentation.
+Use the Debug Panel UI to configure logging at runtime. See [docs/technical/backend/logging.md](docs/technical/backend/logging.md) for full documentation.
 
 ---
 
