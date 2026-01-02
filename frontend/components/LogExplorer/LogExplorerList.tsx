@@ -13,9 +13,10 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import { Loader2, FileX } from "lucide-react";
+import { Loader2, FileX, Play } from "lucide-react";
 import type { LogEntry } from "@/lib/api";
 import { LogEntryRow } from "./LogEntryRow";
+import { formatTimestamp } from "./logExplorerUtils";
 
 interface LogExplorerListProps {
   entries: LogEntry[];
@@ -224,6 +225,12 @@ export function LogExplorerList({
 
           const isFocused = focusedIndex === virtualRow.index;
 
+          // Check if this is the start of a new run
+          const prevEntry =
+            virtualRow.index > 0 ? entries[virtualRow.index - 1] : null;
+          const isNewRun =
+            entry.runId && prevEntry && entry.runId !== prevEntry.runId;
+
           return (
             <div
               key={virtualRow.key}
@@ -241,6 +248,18 @@ export function LogExplorerList({
               }}
               className={isFocused ? "ring-2 ring-inset ring-primary" : ""}
             >
+              {/* Run divider */}
+              {isNewRun && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border-y border-primary/20">
+                  <Play className="h-3 w-3 text-primary" />
+                  <span className="text-xs font-medium text-primary font-mono">
+                    Run {entry.runId}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {formatTimestamp(entry.timestamp)}
+                  </span>
+                </div>
+              )}
               <LogEntryRow
                 entry={entry}
                 isExpanded={expandedIds.has(entry.lineNumber)}

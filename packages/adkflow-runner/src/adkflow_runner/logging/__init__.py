@@ -76,6 +76,7 @@ from adkflow_runner.logging.config import (
 )
 from adkflow_runner.logging.constants import LogLevel
 from adkflow_runner.logging.context import LogContext, log_scope, log_timing
+from adkflow_runner.logging.run_context import get_run_id, run_context, set_run_id
 from adkflow_runner.logging.handlers import (
     ConsoleHandler,
     Handler,
@@ -104,6 +105,10 @@ __all__ = [
     "log_timing",
     "log_scope",
     "LogContext",
+    # Run context
+    "run_context",
+    "get_run_id",
+    "set_run_id",
     # Registry
     "CategoryRegistry",
     "get_registry",

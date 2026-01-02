@@ -26,6 +26,7 @@ export interface LoggingConfig {
   categories: Record<string, string>;
   fileEnabled: boolean;
   filePath: string | null;
+  fileClearBeforeRun: boolean;
   consoleColored: boolean;
   consoleFormat: string;
 }
@@ -37,6 +38,7 @@ export interface LoggingConfigUpdate {
   globalLevel?: string;
   categories?: Record<string, string>;
   fileEnabled?: boolean;
+  fileClearBeforeRun?: boolean;
   consoleColored?: boolean;
 }
 
@@ -65,6 +67,7 @@ export async function getLoggingConfig(
       categories: Record<string, string>;
       file_enabled: boolean;
       file_path: string | null;
+      file_clear_before_run: boolean;
       console_colored: boolean;
       console_format: string;
     }>("/api/debug/logging", { params });
@@ -75,6 +78,7 @@ export async function getLoggingConfig(
       categories: response.data.categories,
       fileEnabled: response.data.file_enabled,
       filePath: response.data.file_path,
+      fileClearBeforeRun: response.data.file_clear_before_run,
       consoleColored: response.data.console_colored,
       consoleFormat: response.data.console_format,
     };
@@ -104,6 +108,7 @@ export async function updateLoggingConfig(
         categories: Record<string, string>;
         file_enabled: boolean;
         file_path: string | null;
+        file_clear_before_run: boolean;
         console_colored: boolean;
         console_format: string;
       };
@@ -113,6 +118,7 @@ export async function updateLoggingConfig(
         global_level: update.globalLevel,
         categories: update.categories,
         file_enabled: update.fileEnabled,
+        file_clear_before_run: update.fileClearBeforeRun,
         console_colored: update.consoleColored,
       },
       { params },
@@ -124,6 +130,7 @@ export async function updateLoggingConfig(
       categories: config.categories,
       fileEnabled: config.file_enabled,
       filePath: config.file_path,
+      fileClearBeforeRun: config.file_clear_before_run,
       consoleColored: config.console_colored,
       consoleFormat: config.console_format,
     };

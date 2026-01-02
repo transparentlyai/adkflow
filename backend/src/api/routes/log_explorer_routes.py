@@ -57,6 +57,7 @@ class LogEntry(BaseModel):
     context: dict[str, Any] | None = Field(None, description="Additional context")
     duration_ms: float | None = Field(None, description="Operation duration in ms")
     exception: LogEntryException | None = Field(None, description="Exception info")
+    run_id: str | None = Field(None, description="Run identifier")
 
 
 class LogEntriesResponse(BaseModel):
@@ -85,6 +86,22 @@ class LogStats(BaseModel):
         default_factory=dict, description="Earliest and latest timestamps"
     )
     file_size_bytes: int = Field(..., description="File size in bytes")
+
+
+class RunInfo(BaseModel):
+    """Information about a workflow run."""
+
+    run_id: str = Field(..., description="Run identifier (8-char UUID)")
+    first_timestamp: str = Field(..., description="First log entry timestamp")
+    last_timestamp: str = Field(..., description="Last log entry timestamp")
+    entry_count: int = Field(..., description="Number of log entries in this run")
+
+
+class RunListResponse(BaseModel):
+    """Response for listing runs."""
+
+    runs: list[RunInfo] = Field(default_factory=list)
+    file_name: str = Field(..., description="Name of the log file")
 
 
 def _get_logs_dir(project_path: str) -> Path:
@@ -121,8 +138,15 @@ def _matches_filters(
     search: str | None,
     start_time: datetime | None,
     end_time: datetime | None,
+    run_id: str | None = None,
 ) -> bool:
     """Check if a log record matches the given filters."""
+    # Run ID filter
+    if run_id:
+        record_run_id = record.get("run_id", "")
+        if record_run_id != run_id:
+            return False
+
     # Level filter
     if level:
         levels = [lv.strip().upper() for lv in level.split(",")]
@@ -189,6 +213,7 @@ def _parse_log_entry(record: dict[str, Any], line_number: int) -> LogEntry:
         context=record.get("context"),
         duration_ms=record.get("duration_ms"),
         exception=exception,
+        run_id=record.get("run_id"),
     )
 
 
@@ -253,6 +278,7 @@ async def read_log_entries(
     end_time: str | None = Query(
         None, description="Filter entries before this time (ISO format)"
     ),
+    run_id: str | None = Query(None, description="Filter by run ID"),
 ) -> LogEntriesResponse:
     """
     Read log entries from a JSONL log file with filtering and pagination.
@@ -308,7 +334,13 @@ async def read_log_entries(
                     continue
 
                 if _matches_filters(
-                    record, level, category, search, parsed_start_time, parsed_end_time
+                    record,
+                    level,
+                    category,
+                    search,
+                    parsed_start_time,
+                    parsed_end_time,
+                    run_id,
                 ):
                     matched_count += 1
                     if matched_count > offset and len(entries) < limit:
@@ -331,6 +363,8 @@ async def read_log_entries(
         applied_filters["start_time"] = start_time
     if end_time:
         applied_filters["end_time"] = end_time
+    if run_id:
+        applied_filters["run_id"] = run_id
 
     return LogEntriesResponse(
         entries=entries,
@@ -412,3 +446,74 @@ async def get_log_stats(
         time_range={"start": earliest_time, "end": latest_time},
         file_size_bytes=log_file.stat().st_size,
     )
+
+
+@router.get("/runs", response_model=RunListResponse)
+async def list_runs(
+    project_path: str = Query(..., description="Project directory path"),
+    file_name: str = Query("adkflow.jsonl", description="Log file name"),
+) -> RunListResponse:
+    """
+    List all unique run IDs in a log file.
+
+    Returns runs ordered by first timestamp (newest first).
+    Each run includes the first and last timestamp and entry count.
+    """
+    logs_dir = _get_logs_dir(project_path)
+    log_file = logs_dir / file_name
+
+    if not log_file.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Log file not found: {file_name}",
+        )
+
+    # Track runs: run_id -> {first_timestamp, last_timestamp, count}
+    runs_data: dict[str, dict[str, Any]] = {}
+
+    try:
+        with open(log_file, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+
+                record = _parse_record(line)
+                if record is None:
+                    continue
+
+                run_id = record.get("run_id")
+                if not run_id:
+                    continue
+
+                timestamp = record.get("timestamp", "")
+
+                if run_id not in runs_data:
+                    runs_data[run_id] = {
+                        "first_timestamp": timestamp,
+                        "last_timestamp": timestamp,
+                        "entry_count": 1,
+                    }
+                else:
+                    runs_data[run_id]["last_timestamp"] = timestamp
+                    runs_data[run_id]["entry_count"] += 1
+
+    except PermissionError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Permission denied reading: {file_name}",
+        )
+
+    # Convert to list and sort by first_timestamp descending (newest first)
+    runs = [
+        RunInfo(
+            run_id=run_id,
+            first_timestamp=data["first_timestamp"],
+            last_timestamp=data["last_timestamp"],
+            entry_count=data["entry_count"],
+        )
+        for run_id, data in runs_data.items()
+    ]
+    runs.sort(key=lambda r: r.first_timestamp, reverse=True)
+
+    return RunListResponse(runs=runs, file_name=file_name)

@@ -9,7 +9,7 @@
  * - Export functionality
  */
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AlertCircle, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,9 +51,22 @@ export function LogExplorerDialog({
     error,
     refresh,
     exportFiltered,
+    runs,
+    isLoadingRuns,
+    setLastRunOnly,
   } = useLogExplorer(projectPath);
 
   const [formatJson, setFormatJson] = useState(true);
+  const wasOpenRef = useRef(false);
+
+  // Refresh data when dialog opens
+  useEffect(() => {
+    if (open && !wasOpenRef.current) {
+      // Dialog just opened - refresh to get latest data
+      refresh();
+    }
+    wasOpenRef.current = open;
+  }, [open, refresh]);
 
   const handleOpenInNewTab = () => {
     const url = projectPath
@@ -125,6 +138,9 @@ export function LogExplorerDialog({
               stats={stats}
               formatJson={formatJson}
               onFormatJsonChange={setFormatJson}
+              runs={runs}
+              isLoadingRuns={isLoadingRuns}
+              onLastRunOnlyChange={setLastRunOnly}
             />
 
             <LogExplorerList

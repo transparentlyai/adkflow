@@ -29,6 +29,7 @@ class FileConfig:
     path: str = DEFAULT_LOG_DIR  # Relative to project root
     rotation: str = "10MB"  # Size-based rotation
     retain: int = DEFAULT_BACKUP_COUNT  # Number of rotated files to keep
+    clear_before_run: bool = False  # Clear log file before each workflow run
 
     @property
     def max_bytes(self) -> int:
@@ -159,6 +160,7 @@ class LogConfig:
                 path=fc.get("path", DEFAULT_LOG_DIR),
                 rotation=fc.get("rotation", "10MB"),
                 retain=fc.get("retain", DEFAULT_BACKUP_COUNT),
+                clear_before_run=fc.get("clear_before_run", False),
             )
 
         # Parse console config
@@ -237,6 +239,7 @@ class LogConfig:
                 "path": self.file.path,
                 "rotation": self.file.rotation,
                 "retain": self.file.retain,
+                "clear_before_run": self.file.clear_before_run,
             },
             "console": {
                 "enabled": self.console.enabled,

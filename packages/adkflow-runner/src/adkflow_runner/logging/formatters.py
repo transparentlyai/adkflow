@@ -98,8 +98,14 @@ class JSONFormatter(LogFormatter):
             "message": record.message,
         }
 
-        # Add context
-        if record.context:
+        # Extract run_id from context and promote to top level
+        if record.context and "run_id" in record.context:
+            data["run_id"] = record.context["run_id"]
+            # Create context without run_id to avoid duplication
+            context = {k: v for k, v in record.context.items() if k != "run_id"}
+            if context:
+                data["context"] = context
+        elif record.context:
             data["context"] = record.context
 
         # Add duration

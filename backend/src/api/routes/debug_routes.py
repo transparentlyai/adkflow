@@ -49,6 +49,9 @@ class LoggingConfigResponse(BaseModel):
         default=False, description="Whether file logging is enabled"
     )
     file_path: str | None = Field(default=None, description="Log file path")
+    file_clear_before_run: bool = Field(
+        default=False, description="Whether to clear log file before each run"
+    )
     console_colored: bool = Field(
         default=True, description="Whether console output is colored"
     )
@@ -69,6 +72,10 @@ class LoggingConfigUpdate(BaseModel):
     file_enabled: bool | None = Field(
         default=None,
         description="Enable/disable file logging",
+    )
+    file_clear_before_run: bool | None = Field(
+        default=None,
+        description="Clear log file before each run",
     )
     console_colored: bool | None = Field(
         default=None,
@@ -139,6 +146,8 @@ def _load_project_config(project_path: str | None) -> LogConfig:
                 fc = logging_data["file"]
                 if "enabled" in fc:
                     config.file.enabled = fc["enabled"]
+                if "clear_before_run" in fc:
+                    config.file.clear_before_run = fc["clear_before_run"]
 
             if "console" in logging_data:
                 cc = logging_data["console"]
@@ -187,8 +196,12 @@ def _save_project_config(project_path: str | None, config: LogConfig) -> None:
         }
 
     # Save file settings if not default
-    if not config.file.enabled:
-        logging_data["file"] = {"enabled": False}
+    if not config.file.enabled or config.file.clear_before_run:
+        logging_data["file"] = {}
+        if not config.file.enabled:
+            logging_data["file"]["enabled"] = False
+        if config.file.clear_before_run:
+            logging_data["file"]["clear_before_run"] = True
 
     # Save console settings if not default
     if not config.console.colored or config.console.format != "readable":
@@ -236,6 +249,7 @@ async def get_logging_config(
         categories=category_levels,
         file_enabled=config.file.enabled,
         file_path=config.file.path,
+        file_clear_before_run=config.file.clear_before_run,
         console_colored=config.console.colored,
         console_format=config.console.format,
     )
@@ -291,6 +305,9 @@ async def update_logging_config(
     # Update file settings
     if update.file_enabled is not None:
         config.file.enabled = update.file_enabled
+
+    if update.file_clear_before_run is not None:
+        config.file.clear_before_run = update.file_clear_before_run
 
     # Update console settings
     if update.console_colored is not None:

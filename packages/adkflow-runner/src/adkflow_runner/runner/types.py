@@ -163,3 +163,6 @@ class RunConfig:
     timeout_seconds: float = 300  # 5 minutes default
     validate: bool = True
     user_input_provider: UserInputProvider | None = None
+    run_id: str | None = (
+        None  # Optional: pass in run_id for consistency with external tracking
+    )

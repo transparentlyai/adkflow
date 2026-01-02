@@ -5,10 +5,12 @@
  * Only available when running in dev mode (./adkflow dev).
  */
 
+import { useCallback } from "react";
 import { useProject } from "@/contexts/ProjectContext";
 import { useLogFiles } from "./useLogFiles";
 import { useLogEntries } from "./useLogEntries";
 import { useLogFilters } from "./useLogFilters";
+import { useLogRuns } from "./useLogRuns";
 import { useExportLogEntries } from "./useExportLogEntries";
 import type { UseLogExplorerResult, LogFilters } from "./types";
 
@@ -33,6 +35,26 @@ export function useLogExplorer(
   const { filters, setFilters, resetFilters } = useLogFilters();
 
   const {
+    runs,
+    lastRunId,
+    isLoading: runsLoading,
+    refresh: refreshRuns,
+    triggerRefresh: triggerRunsRefresh,
+  } = useLogRuns(projectPath, selectedFile);
+
+  // Handle lastRunOnly toggle
+  const setLastRunOnly = useCallback(
+    (lastRunOnly: boolean) => {
+      if (lastRunOnly && lastRunId) {
+        setFilters({ lastRunOnly: true, runId: lastRunId });
+      } else {
+        setFilters({ lastRunOnly: false, runId: null });
+      }
+    },
+    [lastRunId, setFilters],
+  );
+
+  const {
     entries,
     stats,
     totalCount,
@@ -55,11 +77,12 @@ export function useLogExplorer(
   const isLoading = filesLoading || entriesLoading;
   const error = filesError || entriesError || exportError;
 
-  // Refresh both files and entries
-  const refresh = async () => {
+  // Refresh files, runs, and entries
+  const refresh = useCallback(async () => {
     await refreshFiles();
+    triggerRunsRefresh();
     triggerRefresh();
-  };
+  }, [refreshFiles, triggerRunsRefresh, triggerRefresh]);
 
   return {
     files,
@@ -79,6 +102,11 @@ export function useLogExplorer(
     error,
     refresh,
     exportFiltered,
+    // Run-related properties
+    runs,
+    lastRunId,
+    isLoadingRuns: runsLoading,
+    setLastRunOnly,
   };
 }
 

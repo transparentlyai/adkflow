@@ -137,6 +137,7 @@ class RunManager:
             input_data=request.input_data,
             timeout_seconds=request.timeout_seconds,
             validate=request.validate_workflow,
+            run_id=run_id,  # Pass run_id so logging uses the same ID
         )
 
         active_run = ActiveRun(run_id=run_id, config=config)
