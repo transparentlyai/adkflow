@@ -128,6 +128,9 @@ export function useLogExplorer(
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Refresh key to force entry reload
+  const [refreshKey, setRefreshKey] = useState(0);
+
   // Debounce ref for search
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -216,7 +219,7 @@ export function useLogExplorer(
         clearTimeout(searchDebounceRef.current);
       }
     };
-  }, [projectPath, selectedFile, filters]);
+  }, [projectPath, selectedFile, filters, refreshKey]);
 
   // Set filters with partial update
   const setFilters = useCallback((update: Partial<LogFilters>) => {
@@ -271,11 +274,15 @@ export function useLogExplorer(
       const response = await getLogFiles(projectPath);
       setFiles(response.files);
 
-      // Reload entries if file still exists
+      // Check if selected file still exists
       if (selectedFile) {
         const fileExists = response.files.some((f) => f.name === selectedFile);
         if (!fileExists && response.files.length > 0) {
+          // File was deleted, select a new one (this triggers entry reload)
           setSelectedFile(response.files[0].name);
+        } else {
+          // File still exists, force entry reload via refreshKey
+          setRefreshKey((k) => k + 1);
         }
       }
     } catch (err) {

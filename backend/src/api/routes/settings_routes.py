@@ -1,6 +1,5 @@
 """API routes for project settings management."""
 
-import json
 import re
 from pathlib import Path
 from typing import Literal
@@ -8,7 +7,8 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from backend.src.models.workflow import ProjectManifest, ProjectSettings
+from backend.src.models.workflow import ProjectSettings
+from backend.src.api.routes.manifest import load_manifest, save_manifest
 
 
 router = APIRouter()
@@ -164,16 +164,15 @@ async def get_project_settings(
     """
     try:
         project_path = Path(path).resolve()
-        manifest_file = project_path / "manifest.json"
         env_file = project_path / ".env"
 
         # Load settings from manifest
         settings = ProjectSettings()
-        if manifest_file.exists():
-            with open(manifest_file, "r", encoding="utf-8") as f:
-                manifest_data = json.load(f)
-            manifest = ProjectManifest(**manifest_data)
+        try:
+            manifest = load_manifest(project_path)
             settings = manifest.settings
+        except HTTPException:
+            pass  # Manifest doesn't exist yet, use defaults
 
         # Load env settings
         env_vars = parse_env_file(env_file)
@@ -226,25 +225,16 @@ async def update_project_settings(
     """
     try:
         project_path = Path(request.project_path).resolve()
-        manifest_file = project_path / "manifest.json"
         env_file = project_path / ".env"
 
         # Load or create manifest
-        if manifest_file.exists():
-            with open(manifest_file, "r", encoding="utf-8") as f:
-                manifest_data = json.load(f)
-            manifest = ProjectManifest(**manifest_data)
-        else:
-            manifest = ProjectManifest()
+        manifest = load_manifest(project_path, create_if_missing=True)
 
         # Update settings
         manifest.settings = request.settings
 
-        # Save manifest (use by_alias for camelCase in JSON)
-        with open(manifest_file, "w", encoding="utf-8") as f:
-            json.dump(
-                manifest.model_dump(exclude_none=True, by_alias=True), f, indent=2
-            )
+        # Save manifest
+        save_manifest(project_path, manifest)
 
         # Load existing env vars
         existing_env = parse_env_file(env_file)

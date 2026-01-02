@@ -10,7 +10,11 @@ import {
 import { useLoggingConfig } from "@/hooks/useLoggingConfig";
 import { DebugPanelContent } from "./DebugPanelContent";
 
-export function DebugPanel() {
+interface DebugPanelProps {
+  projectPath?: string | null;
+}
+
+export function DebugPanel({ projectPath }: DebugPanelProps) {
   const {
     isDevMode,
     isLoading,
@@ -19,7 +23,7 @@ export function DebugPanel() {
     categories,
     updateConfig,
     resetConfig,
-  } = useLoggingConfig();
+  } = useLoggingConfig(projectPath);
 
   // Only render in dev mode
   if (!isDevMode) {

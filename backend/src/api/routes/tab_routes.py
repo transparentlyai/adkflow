@@ -4,7 +4,6 @@ Tabs are stored as metadata in manifest.json with nodes/edges at the root level.
 Each node has data.tabId to indicate which tab it belongs to.
 """
 
-import json
 import uuid
 from pathlib import Path
 
@@ -14,7 +13,6 @@ from backend.src.models.workflow import (
     ReactFlowEdge,
     ReactFlowNode,
     TabMetadata,
-    ProjectManifest,
     Viewport,
 )
 from backend.src.api.routes.models import (
@@ -27,6 +25,7 @@ from backend.src.api.routes.models import (
     TabReorderRequest,
 )
 from backend.src.api.routes.helpers import generate_tab_id
+from backend.src.api.routes.manifest import load_manifest, save_manifest
 
 router = APIRouter()
 
@@ -39,49 +38,6 @@ FILE_CONTENT_FIELDS = {
     "tool": "code",
     "process": "code",
 }
-
-
-def load_manifest(
-    project_path: Path, create_if_missing: bool = False
-) -> ProjectManifest:
-    """Load manifest.json from project path.
-
-    Args:
-        project_path: Path to project directory
-        create_if_missing: If True, create an empty manifest if it doesn't exist
-
-    Returns:
-        ProjectManifest
-    """
-    manifest_file = project_path / "manifest.json"
-
-    if not manifest_file.exists():
-        if create_if_missing:
-            # Create project directory if needed
-            project_path.mkdir(parents=True, exist_ok=True)
-            # Return empty manifest (will be saved by caller)
-            return ProjectManifest(
-                name=project_path.name,
-                tabs=[],
-                nodes=[],
-                edges=[],
-            )
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Project manifest not found: {manifest_file}",
-        )
-
-    with open(manifest_file, "r", encoding="utf-8") as f:
-        manifest_data = json.load(f)
-
-    return ProjectManifest(**manifest_data)
-
-
-def save_manifest(project_path: Path, manifest: ProjectManifest) -> None:
-    """Save manifest.json to project path."""
-    manifest_file = project_path / "manifest.json"
-    with open(manifest_file, "w", encoding="utf-8") as f:
-        json.dump(manifest.model_dump(exclude_none=True), f, indent=2)
 
 
 def strip_file_content_from_nodes(nodes: list[ReactFlowNode]) -> list[ReactFlowNode]:

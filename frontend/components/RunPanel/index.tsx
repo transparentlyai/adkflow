@@ -206,7 +206,7 @@ export default function RunPanel({
           <span className="text-xs text-gray-500 capitalize">{status}</span>
         </div>
         <div className="flex items-center gap-1">
-          <DebugPanel />
+          <DebugPanel projectPath={projectPath} />
           {status === "running" && (
             <Button
               variant="ghost"
