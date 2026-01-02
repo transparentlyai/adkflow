@@ -114,6 +114,7 @@ export function LogEntryDetail({ entry, formatJson }: LogEntryDetailProps) {
                   scrollBeyondLastLine: false,
                   lineNumbers: "off",
                   folding: true,
+                  showFoldingControls: "always",
                   fontSize: 12,
                   wordWrap: "on",
                   automaticLayout: true,
