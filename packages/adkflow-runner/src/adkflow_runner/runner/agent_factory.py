@@ -33,6 +33,154 @@ _api_request_log = get_logger("api.request")
 _api_response_log = get_logger("api.response")
 
 
+def _serialize_agent_config(agent: Agent) -> dict[str, Any]:
+    """Serialize an ADK Agent's configuration for logging.
+
+    Captures exactly what was passed to the Agent constructor,
+    preserving the full hierarchy of nested Pydantic models.
+    """
+    config: dict[str, Any] = {
+        # BaseAgent fields
+        "name": agent.name,
+        "description": agent.description,
+        "sub_agents": [sa.name for sa in agent.sub_agents] if agent.sub_agents else [],
+        # LlmAgent fields
+        "model": agent.model if isinstance(agent.model, str) else str(agent.model),
+        "instruction": agent.instruction
+        if isinstance(agent.instruction, str)
+        else "<callable>",
+        "global_instruction": (
+            agent.global_instruction
+            if isinstance(agent.global_instruction, str)
+            else "<callable>"
+            if agent.global_instruction
+            else ""
+        ),
+        "tools": [getattr(t, "name", str(t)) for t in agent.tools]
+        if agent.tools
+        else [],
+        "disallow_transfer_to_parent": agent.disallow_transfer_to_parent,
+        "disallow_transfer_to_peers": agent.disallow_transfer_to_peers,
+        "include_contents": agent.include_contents,
+        "output_key": agent.output_key,
+        "input_schema": agent.input_schema.__name__ if agent.input_schema else None,
+        "output_schema": agent.output_schema.__name__ if agent.output_schema else None,
+    }
+
+    # Serialize generate_content_config with full hierarchy
+    if agent.generate_content_config:
+        gcc = agent.generate_content_config
+        gcc_dict: dict[str, Any] = {
+            "temperature": gcc.temperature,
+            "top_p": gcc.top_p,
+            "top_k": gcc.top_k,
+            "max_output_tokens": gcc.max_output_tokens,
+            "stop_sequences": gcc.stop_sequences,
+            "presence_penalty": gcc.presence_penalty,
+            "frequency_penalty": gcc.frequency_penalty,
+            "seed": gcc.seed,
+            "response_mime_type": gcc.response_mime_type,
+        }
+
+        # Nested http_options
+        if gcc.http_options:
+            http_opts = gcc.http_options
+            http_dict: dict[str, Any] = {
+                "base_url": http_opts.base_url,
+                "timeout": http_opts.timeout,
+            }
+
+            # Nested retry_options
+            if http_opts.retry_options:
+                retry = http_opts.retry_options
+                http_dict["retry_options"] = {
+                    "attempts": retry.attempts,
+                    "initial_delay": retry.initial_delay,
+                    "max_delay": retry.max_delay,
+                    "exp_base": retry.exp_base,
+                    "jitter": retry.jitter,
+                    "http_status_codes": list(retry.http_status_codes)
+                    if retry.http_status_codes
+                    else None,
+                }
+            else:
+                http_dict["retry_options"] = None
+
+            gcc_dict["http_options"] = http_dict
+        else:
+            gcc_dict["http_options"] = None
+
+        # Nested thinking_config
+        if gcc.thinking_config:
+            tc = gcc.thinking_config
+            gcc_dict["thinking_config"] = {
+                "thinking_budget": tc.thinking_budget,
+                "thinking_level": str(tc.thinking_level) if tc.thinking_level else None,
+                "include_thoughts": tc.include_thoughts,
+            }
+        else:
+            gcc_dict["thinking_config"] = None
+
+        config["generate_content_config"] = gcc_dict
+    else:
+        config["generate_content_config"] = None
+
+    # Serialize planner
+    if agent.planner:
+        planner = agent.planner
+        planner_dict: dict[str, Any] = {
+            "type": type(planner).__name__,
+        }
+        # BuiltInPlanner has thinking_config
+        if isinstance(planner, BuiltInPlanner) and planner.thinking_config:
+            tc = planner.thinking_config
+            planner_dict["thinking_config"] = {
+                "thinking_budget": tc.thinking_budget,
+                "thinking_level": str(tc.thinking_level) if tc.thinking_level else None,
+                "include_thoughts": tc.include_thoughts,
+            }
+        config["planner"] = planner_dict
+    else:
+        config["planner"] = None
+
+    # Serialize code_executor
+    if agent.code_executor:
+        config["code_executor"] = {
+            "type": type(agent.code_executor).__name__,
+        }
+    else:
+        config["code_executor"] = None
+
+    # Callbacks - log presence (not serializable)
+    config["before_agent_callback"] = agent.before_agent_callback is not None
+    config["after_agent_callback"] = agent.after_agent_callback is not None
+    config["before_model_callback"] = agent.before_model_callback is not None
+    config["after_model_callback"] = agent.after_model_callback is not None
+    config["before_tool_callback"] = agent.before_tool_callback is not None
+    config["after_tool_callback"] = agent.after_tool_callback is not None
+
+    return config
+
+
+def _serialize_workflow_agent_config(
+    agent: SequentialAgent | ParallelAgent | LoopAgent,
+) -> dict[str, Any]:
+    """Serialize a workflow agent's configuration for logging."""
+    config: dict[str, Any] = {
+        "name": agent.name,
+        "description": agent.description,
+        "sub_agents": [sa.name for sa in agent.sub_agents] if agent.sub_agents else [],
+        "before_agent_callback": agent.before_agent_callback is not None,
+        "after_agent_callback": agent.after_agent_callback is not None,
+    }
+
+    # LoopAgent-specific
+    if isinstance(agent, LoopAgent):
+        config["max_iterations"] = agent.max_iterations
+
+    return config
+
+
 def sanitize_agent_name(name: str) -> str:
     """Convert agent name to valid Python identifier.
 
@@ -384,34 +532,13 @@ class AgentFactory:
         # Sanitize name to valid identifier
         name = sanitize_agent_name(agent_ir.name)
 
-        # Log agent configuration
+        # Log agent creation start (INFO level)
         _agent_config_log.info(
             f"Creating agent: {agent_ir.name}",
             agent_id=agent_ir.id,
             agent_type=agent_ir.type,
             model=agent_ir.model,
-            temperature=agent_ir.temperature,
             tool_count=len(agent_ir.tools),
-        )
-
-        _agent_config_log.debug(
-            "Agent full configuration",
-            agent_id=agent_ir.id,
-            agent_name=agent_ir.name,
-            instruction_preview=(
-                agent_ir.instruction[:200] + "..."
-                if agent_ir.instruction and len(agent_ir.instruction) > 200
-                else agent_ir.instruction
-            ),
-            tools=[t.name for t in agent_ir.tools],
-            planner_type=agent_ir.planner.type if agent_ir.planner else None,
-            thinking_budget=agent_ir.planner.thinking_budget
-            if agent_ir.planner
-            else None,
-            output_key=agent_ir.output_key,
-            output_schema=agent_ir.output_schema,
-            include_contents=agent_ir.include_contents,
-            strip_contents=agent_ir.strip_contents,
             subagent_count=len(agent_ir.subagents),
         )
 
@@ -431,9 +558,21 @@ class AgentFactory:
                 # Use default ThinkingConfig when no budget specified
                 planner = BuiltInPlanner(thinking_config=types.ThinkingConfig())
 
+        # Build HTTP options for retry/timeout behavior
+        http_options = types.HttpOptions(
+            timeout=agent_ir.http_options.timeout,
+            retry_options=types.HttpRetryOptions(
+                initial_delay=agent_ir.http_options.retry_delay / 1000,  # ms to seconds
+                exp_base=agent_ir.http_options.retry_backoff_multiplier,
+                attempts=agent_ir.http_options.max_retries,
+                http_status_codes=[429, 500, 502, 503, 504],
+            ),
+        )
+
         # Build generate config with HTTP options
         generate_config = types.GenerateContentConfig(
             temperature=agent_ir.temperature,
+            http_options=http_options,
         )
 
         # Create callbacks for real-time updates and logging (use original name)
@@ -487,39 +626,94 @@ class AgentFactory:
                 **callbacks,
             )
 
-        _agent_config_log.debug(f"Agent created: {agent_ir.name}", agent_id=agent_ir.id)
+        # Log full ADK agent configuration (DEBUG level)
+        # Uses lazy evaluation to avoid serialization overhead when DEBUG is disabled
+        _agent_config_log.debug(
+            f"Agent created: {agent_ir.name}",
+            agent_id=agent_ir.id,
+            adk_config=lambda: _serialize_agent_config(agent),
+        )
         return agent
 
     def _create_sequential_agent(self, agent_ir: AgentIR) -> SequentialAgent:
         """Create a sequential agent."""
         name = sanitize_agent_name(agent_ir.name)
+
+        _agent_config_log.info(
+            f"Creating sequential agent: {agent_ir.name}",
+            agent_id=agent_ir.id,
+            agent_type=agent_ir.type,
+            subagent_count=len(agent_ir.subagents),
+        )
+
         sub_agents = [self.create(sa) for sa in agent_ir.subagents]
 
-        return SequentialAgent(
+        agent = SequentialAgent(
             name=name,
             sub_agents=sub_agents,
         )
+
+        # Log full ADK agent configuration (DEBUG level)
+        _agent_config_log.debug(
+            f"Sequential agent created: {agent_ir.name}",
+            agent_id=agent_ir.id,
+            adk_config=lambda: _serialize_workflow_agent_config(agent),
+        )
+        return agent
 
     def _create_parallel_agent(self, agent_ir: AgentIR) -> ParallelAgent:
         """Create a parallel agent."""
         name = sanitize_agent_name(agent_ir.name)
+
+        _agent_config_log.info(
+            f"Creating parallel agent: {agent_ir.name}",
+            agent_id=agent_ir.id,
+            agent_type=agent_ir.type,
+            subagent_count=len(agent_ir.subagents),
+        )
+
         sub_agents = [self.create(sa) for sa in agent_ir.subagents]
 
-        return ParallelAgent(
+        agent = ParallelAgent(
             name=name,
             sub_agents=sub_agents,
         )
+
+        # Log full ADK agent configuration (DEBUG level)
+        _agent_config_log.debug(
+            f"Parallel agent created: {agent_ir.name}",
+            agent_id=agent_ir.id,
+            adk_config=lambda: _serialize_workflow_agent_config(agent),
+        )
+        return agent
 
     def _create_loop_agent(self, agent_ir: AgentIR) -> LoopAgent:
         """Create a loop agent."""
         name = sanitize_agent_name(agent_ir.name)
+
+        _agent_config_log.info(
+            f"Creating loop agent: {agent_ir.name}",
+            agent_id=agent_ir.id,
+            agent_type=agent_ir.type,
+            subagent_count=len(agent_ir.subagents),
+            max_iterations=agent_ir.max_iterations,
+        )
+
         sub_agents = [self.create(sa) for sa in agent_ir.subagents]
 
-        return LoopAgent(
+        agent = LoopAgent(
             name=name,
             sub_agents=sub_agents,
             max_iterations=agent_ir.max_iterations,
         )
+
+        # Log full ADK agent configuration (DEBUG level)
+        _agent_config_log.debug(
+            f"Loop agent created: {agent_ir.name}",
+            agent_id=agent_ir.id,
+            adk_config=lambda: _serialize_workflow_agent_config(agent),
+        )
+        return agent
 
     def _load_tools(self, agent_ir: AgentIR) -> list[Any]:
         """Load tools for an agent."""
