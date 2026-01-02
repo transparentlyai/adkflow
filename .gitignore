@@ -54,7 +54,7 @@ Thumbs.db
 
 # Logs
 *.log
-logs/
+/logs/
 /tmp/adkflow-*.log
 
 # Testing

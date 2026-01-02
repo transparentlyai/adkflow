@@ -10,7 +10,8 @@
  */
 
 import { useState } from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -54,11 +55,28 @@ export function LogExplorerDialog({
 
   const [formatJson, setFormatJson] = useState(true);
 
+  const handleOpenInNewTab = () => {
+    const url = projectPath
+      ? `/logs?project=${encodeURIComponent(projectPath)}`
+      : "/logs";
+    window.open(url, "_blank");
+    onOpenChange(false);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="px-4 py-3 border-b flex-shrink-0">
+        <DialogHeader className="px-4 py-3 border-b flex-shrink-0 flex-row items-center justify-between space-y-0">
           <DialogTitle>Log Explorer</DialogTitle>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 mr-6"
+            onClick={handleOpenInNewTab}
+            title="Open in new tab"
+          >
+            <ExternalLink className="h-4 w-4" />
+          </Button>
         </DialogHeader>
 
         {/* Error banner */}
