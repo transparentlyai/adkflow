@@ -6,7 +6,7 @@
 
 import { useState } from "react";
 import { AlertCircle, FileText } from "lucide-react";
-import { useLogExplorer } from "@/hooks/useLogExplorer";
+import { useLogExplorer } from "@/hooks/logExplorer";
 import { LogExplorerHeader } from "./LogExplorerHeader";
 import { LogExplorerToolbar } from "./LogExplorerToolbar";
 import { LogExplorerList } from "./LogExplorerList";

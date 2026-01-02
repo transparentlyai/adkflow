@@ -5,7 +5,7 @@
  */
 
 import { useState } from "react";
-import type { LogFilters } from "@/hooks/useLogExplorer";
+import type { LogFilters } from "@/hooks/logExplorer";
 import type { LogStats } from "@/lib/api";
 import type { LogLevel } from "./logExplorerUtils";
 import {
