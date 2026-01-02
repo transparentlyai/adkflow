@@ -130,6 +130,23 @@ class CategoryRegistry:
                 else:
                     self.register(category_pattern, level=level)
 
+    def clear_level(self, category_pattern: str) -> None:
+        """Clear the explicit level for a category (revert to inheritance).
+
+        Sets level to None so the category inherits from its parent.
+        """
+        with self._lock:
+            if "*" in category_pattern:
+                for path in list(self._all_paths):
+                    if fnmatch.fnmatch(path, category_pattern):
+                        node = self._get_unlocked(path)
+                        if node:
+                            node.level = None
+            else:
+                node = self._get_unlocked(category_pattern)
+                if node:
+                    node.level = None
+
     def set_enabled(self, category_pattern: str, enabled: bool) -> None:
         """Enable/disable a category pattern."""
         with self._lock:

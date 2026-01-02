@@ -11,6 +11,7 @@ class LogLevel(IntEnum):
     WARNING = 30
     ERROR = 40
     CRITICAL = 50
+    OFF = 100  # Disables logging for a category
 
 
 # Default category hierarchy
@@ -49,6 +50,7 @@ LEVEL_COLORS: dict[str, str] = {
     "WARNING": "yellow",
     "ERROR": "red",
     "CRITICAL": "bold red",
+    "OFF": "dim strike",
 }
 
 # API payload limits

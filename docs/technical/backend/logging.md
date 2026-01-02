@@ -77,8 +77,12 @@ export ADKFLOW_LOG_CATEGORIES="api.*"
 # Multiple categories with different levels
 export ADKFLOW_LOG_CATEGORIES="api.*,runner.agent=DEBUG,compiler=WARNING"
 
-# Disable a specific category
-export ADKFLOW_LOG_CATEGORIES="api.response=CRITICAL"
+# Disable a specific category completely
+export ADKFLOW_LOG_CATEGORIES="api.response=OFF"
+
+# Disable all logging except errors
+export ADKFLOW_LOG_LEVEL=OFF
+export ADKFLOW_LOG_CATEGORIES="runner=ERROR"
 ```
 
 ### Config File
@@ -132,6 +136,7 @@ api
 | `WARNING` | 30 | Potential issues |
 | `ERROR` | 40 | Errors that don't stop execution |
 | `CRITICAL` | 50 | Fatal errors |
+| `OFF` | 100 | Completely disable logging for a category |
 
 ## ADK Integration
 
@@ -285,6 +290,7 @@ function DebugPanel() {
       <option value="INFO">INFO</option>
       <option value="WARNING">WARNING</option>
       <option value="ERROR">ERROR</option>
+      <option value="OFF">OFF</option>
     </select>
   );
 }

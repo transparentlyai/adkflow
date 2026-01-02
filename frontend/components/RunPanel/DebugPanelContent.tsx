@@ -1,13 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import {
-  ChevronRight,
-  ChevronDown,
-  RotateCcw,
-  Loader2,
-  Save,
-} from "lucide-react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { RotateCcw, Loader2, Save, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -17,12 +11,8 @@ import type {
   LoggingConfigUpdate,
 } from "@/lib/api";
 import type { LogLevel } from "./debugPanelUtils";
-import { ADK_DEBUG_CATEGORIES, buildCategoryTree } from "./debugPanelUtils";
-import {
-  LevelSelector,
-  CategoryItem,
-  AdkDebugToggle,
-} from "./DebugPanelControls";
+import { LOGGING_PRESETS, buildCategoryTree } from "./debugPanelUtils";
+import { LevelSelector, CategoryItem, PresetCard } from "./DebugPanelControls";
 
 export interface DebugPanelContentProps {
   isLoading: boolean;
@@ -44,7 +34,6 @@ export function DebugPanelContent({
   showHeader = true,
 }: DebugPanelContentProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -55,25 +44,35 @@ export function DebugPanelContent({
   const [pendingCategories, setPendingCategories] = useState<
     Record<string, string>
   >({});
+  const [categoriesToRemove, setCategoriesToRemove] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Reset pending changes when config changes from server
   useEffect(() => {
     setPendingGlobalLevel(null);
     setPendingCategories({});
+    setCategoriesToRemove(new Set());
   }, [config]);
 
   // Compute effective values (pending or saved)
   const effectiveGlobalLevel =
     pendingGlobalLevel ?? ((config?.globalLevel || "INFO") as LogLevel);
+
   const effectiveCategoryLevels = useMemo(() => {
-    return { ...(config?.categories || {}), ...pendingCategories };
-  }, [config?.categories, pendingCategories]);
+    const base = { ...(config?.categories || {}) };
+    for (const cat of categoriesToRemove) {
+      delete base[cat];
+    }
+    return { ...base, ...pendingCategories };
+  }, [config?.categories, pendingCategories, categoriesToRemove]);
 
-  // Check if there are unsaved changes
   const hasChanges =
-    pendingGlobalLevel !== null || Object.keys(pendingCategories).length > 0;
+    pendingGlobalLevel !== null ||
+    Object.keys(pendingCategories).length > 0 ||
+    categoriesToRemove.size > 0;
 
-  const handleToggle = (name: string) => {
+  const handleToggle = useCallback((name: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(name)) {
@@ -83,29 +82,55 @@ export function DebugPanelContent({
       }
       return next;
     });
-  };
+  }, []);
 
-  const handleGlobalLevelChange = (level: LogLevel) => {
-    setPendingGlobalLevel(level);
-  };
+  const handleGlobalLevelChange = useCallback((level: LogLevel | "inherit") => {
+    if (level !== "inherit") {
+      setPendingGlobalLevel(level);
+    }
+  }, []);
 
-  const handleCategoryLevelChange = (name: string, level: LogLevel) => {
-    setPendingCategories((prev) => ({ ...prev, [name]: level }));
-  };
-
-  const handleAdkToggle = (
-    categoryNames: readonly string[],
-    enabled: boolean,
-  ) => {
-    const level = enabled ? "DEBUG" : "INFO";
-    setPendingCategories((prev) => {
-      const next = { ...prev };
-      for (const cat of categoryNames) {
-        next[cat] = level;
+  const handleCategoryLevelChange = useCallback(
+    (name: string, level: LogLevel | "inherit") => {
+      if (level === "inherit") {
+        setCategoriesToRemove((prev) => new Set([...prev, name]));
+        setPendingCategories((prev) => {
+          const next = { ...prev };
+          delete next[name];
+          return next;
+        });
+      } else {
+        setCategoriesToRemove((prev) => {
+          const next = new Set(prev);
+          next.delete(name);
+          return next;
+        });
+        setPendingCategories((prev) => ({ ...prev, [name]: level }));
       }
-      return next;
-    });
-  };
+    },
+    [],
+  );
+
+  const handlePresetApply = useCallback(
+    (presetId: string) => {
+      const preset = LOGGING_PRESETS.find((p) => p.id === presetId);
+      if (!preset) return;
+
+      const newCategories = preset.apply(categories);
+      const allCategoryNames = categories.map((c) => c.name);
+      setCategoriesToRemove(new Set(allCategoryNames));
+      setPendingCategories(newCategories);
+
+      if (presetId === "production") {
+        setPendingGlobalLevel("WARNING");
+      } else if (presetId === "debug-all") {
+        setPendingGlobalLevel("DEBUG");
+      } else if (presetId === "silent") {
+        setPendingGlobalLevel("OFF");
+      }
+    },
+    [categories],
+  );
 
   const handleSave = async () => {
     if (!hasChanges) return;
@@ -116,9 +141,20 @@ export function DebugPanelContent({
       if (pendingGlobalLevel !== null) {
         update.globalLevel = pendingGlobalLevel;
       }
-      if (Object.keys(pendingCategories).length > 0) {
-        update.categories = pendingCategories;
+
+      const finalCategories: Record<string, string> = {
+        ...(config?.categories || {}),
+      };
+
+      for (const cat of categoriesToRemove) {
+        delete finalCategories[cat];
       }
+
+      for (const [cat, level] of Object.entries(pendingCategories)) {
+        finalCategories[cat] = level;
+      }
+
+      update.categories = finalCategories;
       await updateConfig(update);
     } finally {
       setIsSaving(false);
@@ -131,80 +167,87 @@ export function DebugPanelContent({
       await resetConfig();
       setPendingGlobalLevel(null);
       setPendingCategories({});
+      setCategoriesToRemove(new Set());
     } finally {
       setIsResetting(false);
     }
   };
 
-  const categoryTree = buildCategoryTree(categories, effectiveCategoryLevels);
+  const categoryTree = useMemo(
+    () =>
+      buildCategoryTree(
+        categories,
+        effectiveCategoryLevels,
+        effectiveGlobalLevel,
+      ),
+    [categories, effectiveCategoryLevels, effectiveGlobalLevel],
+  );
 
   return (
-    <>
+    <div className="flex flex-col">
       {/* Header */}
       {showHeader && (
-        <>
-          <div className="flex items-center justify-between px-2 py-1.5 pr-12">
+        <div className="flex items-center justify-between pl-3 pr-10 py-2 border-b border-border/50">
+          <div className="flex items-center gap-2">
+            <Settings2 className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">Debug Settings</span>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-                onClick={handleReset}
-                disabled={isLoading || isResetting || isSaving}
-                title="Reset to defaults"
-              >
-                {isResetting ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <RotateCcw className="h-3 w-3" />
-                )}
-              </Button>
-              <Button
-                variant={hasChanges ? "default" : "ghost"}
-                size="sm"
-                className={cn(
-                  "h-6 px-2 text-xs",
-                  hasChanges
-                    ? "bg-blue-500 hover:bg-blue-600 text-white"
-                    : "text-muted-foreground",
-                )}
-                onClick={handleSave}
-                disabled={isLoading || isSaving || !hasChanges}
-                title={hasChanges ? "Save changes" : "No changes to save"}
-              >
-                {isSaving ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <>
-                    <Save className="h-3 w-3 mr-1" />
-                    Save
-                  </>
-                )}
-              </Button>
-            </div>
           </div>
-          <div className="h-px bg-border my-1" />
-        </>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+              onClick={handleReset}
+              disabled={isLoading || isResetting || isSaving}
+              title="Reset to defaults"
+            >
+              {isResetting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RotateCcw className="h-3.5 w-3.5" />
+              )}
+            </Button>
+            <Button
+              size="sm"
+              className={cn(
+                "h-7 px-2.5 text-xs gap-1.5",
+                hasChanges
+                  ? "bg-blue-600 hover:bg-blue-700 text-white"
+                  : "bg-muted text-muted-foreground hover:bg-muted",
+              )}
+              onClick={handleSave}
+              disabled={isLoading || isSaving || !hasChanges}
+            >
+              {isSaving ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Save className="h-3 w-3" />
+              )}
+              Save
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* Error display */}
       {error && (
-        <div className="px-2 py-1.5 text-xs text-red-400 bg-red-400/10 rounded mx-1 mb-1">
+        <div className="mx-3 mt-2 px-2 py-1.5 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded">
           {error}
         </div>
       )}
 
       {/* Loading state */}
       {isLoading && !config ? (
-        <div className="flex items-center justify-center py-4">
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <>
+        <div className="flex flex-col gap-3 p-3">
           {/* Global Level */}
-          <div className="flex items-center justify-between px-2 py-1.5">
-            <span className="text-xs text-muted-foreground">Global Level</span>
+          <div className="flex items-center justify-between px-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              Default Level
+            </span>
             <LevelSelector
               value={effectiveGlobalLevel}
               onChange={handleGlobalLevelChange}
@@ -212,71 +255,65 @@ export function DebugPanelContent({
             />
           </div>
 
-          <div className="h-px bg-border my-1" />
-
-          {/* ADK Debugging Section */}
-          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-            ADK Debugging
-          </div>
-          <div className="py-1 space-y-0.5">
-            {ADK_DEBUG_CATEGORIES.map((cat) => (
-              <AdkDebugToggle
-                key={cat.id}
-                name={cat.name}
-                description={cat.description}
-                icon={cat.icon}
-                categories={cat.categories}
-                categoryLevels={effectiveCategoryLevels}
-                onToggle={handleAdkToggle}
-                disabled={isLoading || isSaving}
-              />
-            ))}
-          </div>
-
-          <div className="h-px bg-border my-1" />
-
-          {/* Advanced Categories Toggle */}
-          <button
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="flex items-center gap-1 w-full px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded-sm"
-          >
-            {showAdvanced ? (
-              <ChevronDown className="h-3 w-3" />
-            ) : (
-              <ChevronRight className="h-3 w-3" />
-            )}
-            <span>All Categories</span>
-            <span className="ml-auto text-[10px] opacity-60">
-              {categories.length} registered
+          {/* Quick Presets */}
+          <div className="space-y-2">
+            <span className="text-xs font-medium text-muted-foreground px-1">
+              Quick Presets
             </span>
-          </button>
+            <div className="flex flex-wrap gap-1.5">
+              {LOGGING_PRESETS.map((preset) => (
+                <PresetCard
+                  key={preset.id}
+                  preset={preset}
+                  onClick={() => handlePresetApply(preset.id)}
+                  disabled={isLoading || isSaving}
+                />
+              ))}
+            </div>
+          </div>
 
-          {/* Categories (Advanced) */}
-          {showAdvanced && (
-            <ScrollArea className="max-h-48">
-              {categoryTree.length === 0 ? (
-                <div className="px-2 py-2 text-xs text-muted-foreground text-center">
-                  No categories registered
-                </div>
-              ) : (
-                <div className="py-1">
-                  {categoryTree.map((node) => (
-                    <CategoryItem
-                      key={node.name}
-                      node={node}
-                      expanded={expanded}
-                      onToggle={handleToggle}
-                      onLevelChange={handleCategoryLevelChange}
-                      disabled={isLoading || isSaving}
-                    />
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
-          )}
-        </>
+          {/* Categories */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs font-medium text-muted-foreground">
+                Categories
+              </span>
+              <span className="text-[10px] text-muted-foreground/60 tabular-nums">
+                {categories.length} registered
+              </span>
+            </div>
+
+            <div className="rounded-lg border border-border/50 bg-muted/20 overflow-hidden">
+              <ScrollArea className="max-h-52">
+                {categoryTree.length === 0 ? (
+                  <div className="px-3 py-4 text-xs text-muted-foreground text-center">
+                    No categories registered
+                  </div>
+                ) : (
+                  <div className="py-1">
+                    {categoryTree.map((node) => (
+                      <CategoryItem
+                        key={node.name}
+                        node={node}
+                        expanded={expanded}
+                        onToggle={handleToggle}
+                        onLevelChange={handleCategoryLevelChange}
+                        disabled={isLoading || isSaving}
+                        isRoot
+                      />
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
+
+            <p className="text-[10px] text-muted-foreground/50 px-1">
+              Click to change • * = inherited from parent
+            </p>
+          </div>
+        </div>
       )}
-    </>
+    </div>
   );
 }
 
