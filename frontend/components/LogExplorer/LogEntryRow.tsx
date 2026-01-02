@@ -22,6 +22,7 @@ interface LogEntryRowProps {
   isExpanded: boolean;
   onToggleExpand: () => void;
   searchTerm?: string;
+  formatJson: boolean;
 }
 
 function HighlightedText({
@@ -52,6 +53,7 @@ export const LogEntryRow = memo(function LogEntryRow({
   isExpanded,
   onToggleExpand,
   searchTerm,
+  formatJson,
 }: LogEntryRowProps) {
   const level = entry.level as LogLevel;
   const LevelIcon = LEVEL_ICONS[level] || LEVEL_ICONS.INFO;
@@ -109,7 +111,7 @@ export const LogEntryRow = memo(function LogEntryRow({
       </button>
 
       {/* Expanded detail */}
-      {isExpanded && <LogEntryDetail entry={entry} />}
+      {isExpanded && <LogEntryDetail entry={entry} formatJson={formatJson} />}
     </div>
   );
 });

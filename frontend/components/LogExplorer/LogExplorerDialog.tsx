@@ -9,6 +9,7 @@
  * - Export functionality
  */
 
+import { useState } from "react";
 import { AlertCircle } from "lucide-react";
 import {
   Dialog,
@@ -50,6 +51,8 @@ export function LogExplorerDialog({
     refresh,
     exportFiltered,
   } = useLogExplorer(projectPath);
+
+  const [formatJson, setFormatJson] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -102,6 +105,8 @@ export function LogExplorerDialog({
               onFiltersChange={setFilters}
               onResetFilters={resetFilters}
               stats={stats}
+              formatJson={formatJson}
+              onFormatJsonChange={setFormatJson}
             />
 
             <LogExplorerList
@@ -111,6 +116,7 @@ export function LogExplorerDialog({
               hasMore={hasMore}
               onLoadMore={loadMore}
               searchTerm={filters.search || undefined}
+              formatJson={formatJson}
             />
           </>
         )}

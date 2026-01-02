@@ -5,7 +5,7 @@
  */
 
 import { useState, useRef, useEffect } from "react";
-import { Search, X, Filter, Calendar, ChevronDown } from "lucide-react";
+import { Search, X, Filter, Calendar, ChevronDown, Code } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -25,6 +25,8 @@ interface LogExplorerToolbarProps {
   onFiltersChange: (filters: Partial<LogFilters>) => void;
   onResetFilters: () => void;
   stats: LogStats | null;
+  formatJson: boolean;
+  onFormatJsonChange: (formatJson: boolean) => void;
 }
 
 export function LogExplorerToolbar({
@@ -32,6 +34,8 @@ export function LogExplorerToolbar({
   onFiltersChange,
   onResetFilters,
   stats,
+  formatJson,
+  onFormatJsonChange,
 }: LogExplorerToolbarProps) {
   // Parse selected levels from comma-separated string
   const selectedLevels = filters.level
@@ -337,6 +341,17 @@ export function LogExplorerToolbar({
           <ChevronDown
             className={`h-3 w-3 ml-1 transition-transform ${showTimeRange ? "rotate-180" : ""}`}
           />
+        </Button>
+
+        {/* Format JSON toggle */}
+        <Button
+          variant={formatJson ? "default" : "outline"}
+          size="sm"
+          onClick={() => onFormatJsonChange(!formatJson)}
+          className="h-8"
+        >
+          <Code className="h-3.5 w-3.5 mr-1.5" />
+          Format JSON
         </Button>
 
         {/* Spacer */}
