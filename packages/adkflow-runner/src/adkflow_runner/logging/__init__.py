@@ -31,16 +31,16 @@ Configuration:
     - ADKFLOW_LOG_FILE: Log file path override
     - ADKFLOW_LOG_FORMAT: Console format (readable/json)
 
-    Config file (project/.adkflow/logging.yaml):
-        level: INFO
-        categories:
-          api: DEBUG
-          compiler: WARNING
-        file:
-          enabled: true
-          path: logs
-        console:
-          colored: true
+    Config file (project/manifest.json "logging" key):
+        {
+          "logging": {
+            "level": "INFO",
+            "categories": {
+              "api": "DEBUG",
+              "compiler": "WARNING"
+            }
+          }
+        }
 
 Category Hierarchy:
     compiler
