@@ -19,10 +19,11 @@ import {
   Search,
   BarChart2,
   ShieldCheck,
-  HelpCircle,
+  CircleDot,
   Cpu,
   FunctionSquare,
   List,
+  Play,
 } from "lucide-react";
 import { useTraceExplorer } from "@/hooks/traceExplorer";
 import { cn } from "@/lib/utils";
@@ -184,12 +185,21 @@ function getSpanTypeClass(name: string): {
       label: "GUARDRAIL",
     };
   }
+  if (lowerName.includes("invoke") || lowerName.includes("invocation")) {
+    return {
+      bg: "bg-agentprism-badge-agent",
+      text: "text-agentprism-badge-agent-foreground",
+      badge: "bg-agentprism-avatar-agent",
+      icon: Play,
+      label: "INVOKE",
+    };
+  }
 
   return {
     bg: "bg-agentprism-badge-unknown",
     text: "text-agentprism-badge-unknown-foreground",
     badge: "bg-agentprism-avatar-unknown",
-    icon: HelpCircle,
+    icon: CircleDot,
     label: "SPAN",
   };
 }
