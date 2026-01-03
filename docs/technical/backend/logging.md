@@ -332,6 +332,7 @@ grep "workflow" logs/adkflow.jsonl | jq .
 
 ## See Also
 
+- [Tracing System](./tracing.md) - OpenTelemetry tracing for execution flow visualization
 - [Execution Engine](./execution-engine.md) - How workflows are executed
 - [API Reference](./api-reference.md) - Backend API endpoints
 - [Troubleshooting](../../user-manual/troubleshooting.md) - Common issues and solutions
