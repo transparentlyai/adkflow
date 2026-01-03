@@ -15,6 +15,7 @@ interface UseLogRunsResult {
 export function useLogRuns(
   projectPath: string | null,
   selectedFile: string | null,
+  isRunning: boolean = false,
 ): UseLogRunsResult {
   const [runs, setRuns] = useState<RunInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -49,9 +50,9 @@ export function useLogRuns(
     loadRuns();
   }, [projectPath, selectedFile, refreshKey]);
 
-  // Auto-poll for new runs while the hook is active
+  // Auto-poll for new runs only while a workflow is actively running
   useEffect(() => {
-    if (!projectPath || !selectedFile) return;
+    if (!projectPath || !selectedFile || !isRunning) return;
 
     const pollForNewRuns = async () => {
       try {
@@ -68,7 +69,7 @@ export function useLogRuns(
 
     const intervalId = setInterval(pollForNewRuns, POLL_INTERVAL_MS);
     return () => clearInterval(intervalId);
-  }, [projectPath, selectedFile]);
+  }, [projectPath, selectedFile, isRunning]);
 
   // Trigger a refresh (increment key to re-run effect)
   const triggerRefresh = useCallback(() => {
