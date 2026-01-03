@@ -174,6 +174,83 @@ export interface ScrollbarColors {
   thumbHover: string;
 }
 
+/**
+ * AgentPrism trace type colors (avatar, badge, timeline for each trace type)
+ */
+export interface AgentPrismTraceTypeColors {
+  avatar: string;
+  badge: string;
+  badgeForeground: string;
+  timeline: string;
+}
+
+/**
+ * AgentPrism colors for trace visualization
+ * These colors are used by the AgentPrism component library
+ */
+export interface AgentPrismColors {
+  /** General purpose colors */
+  background: string;
+  foreground: string;
+  primary: string;
+  primaryForeground: string;
+  secondary: string;
+  secondaryForeground: string;
+  muted: string;
+  mutedForeground: string;
+  accent: string;
+  accentForeground: string;
+
+  /** Brand colors */
+  brand: string;
+  brandForeground: string;
+  brandSecondary: string;
+  brandSecondaryForeground: string;
+
+  /** Border colors */
+  border: string;
+  borderSubtle: string;
+  borderStrong: string;
+  borderInverse: string;
+
+  /** Status colors */
+  success: string;
+  successMuted: string;
+  successMutedForeground: string;
+  error: string;
+  errorMuted: string;
+  errorMutedForeground: string;
+  warning: string;
+  warningMuted: string;
+  warningMutedForeground: string;
+  pending: string;
+  pendingMuted: string;
+  pendingMutedForeground: string;
+
+  /** Code syntax highlighting */
+  codeString: string;
+  codeNumber: string;
+  codeKey: string;
+  codeBase: string;
+
+  /** Badge default colors */
+  badgeDefault: string;
+  badgeDefaultForeground: string;
+
+  /** Trace type colors */
+  llm: AgentPrismTraceTypeColors;
+  agent: AgentPrismTraceTypeColors;
+  tool: AgentPrismTraceTypeColors;
+  chain: AgentPrismTraceTypeColors;
+  retrieval: AgentPrismTraceTypeColors;
+  embedding: AgentPrismTraceTypeColors;
+  guardrail: AgentPrismTraceTypeColors;
+  createAgent: AgentPrismTraceTypeColors;
+  span: AgentPrismTraceTypeColors;
+  event: AgentPrismTraceTypeColors;
+  unknown: AgentPrismTraceTypeColors;
+}
+
 export interface TopologyColors {
   /** Colors for agent nodes in the Mermaid diagram */
   agentNode: {
@@ -220,6 +297,8 @@ export interface ThemeColors {
   topology: TopologyColors;
   state: StateColors;
   monaco: "vs" | "vs-dark";
+  /** AgentPrism trace visualization colors */
+  agentPrism: AgentPrismColors;
 }
 
 export interface Theme {

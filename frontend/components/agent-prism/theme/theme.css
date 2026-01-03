@@ -1,0 +1,17 @@
+/**
+ * AgentPrism Theme - ADKFlow Integration
+ *
+ * This file is intentionally empty. AgentPrism colors are provided by the
+ * ADKFlow theme system via:
+ * - frontend/lib/themes/themes/light.json (agentPrism section)
+ * - frontend/lib/themes/themes/dark.json (agentPrism section)
+ *
+ * CSS variables are applied at runtime by themeLoader.ts
+ * Tailwind classes are configured in tailwind.config.ts
+ *
+ * The AgentPrism components use Tailwind classes like:
+ * - bg-agentprism-background
+ * - text-agentprism-foreground
+ * - border-agentprism-border
+ * - bg-agentprism-badge-llm, etc.
+ */

@@ -1,4 +1,4 @@
-import type { Theme } from "./types";
+import type { AgentPrismTraceTypeColors, Theme } from "./types";
 import lightTheme from "./themes/light.json";
 import darkTheme from "./themes/dark.json";
 
@@ -411,6 +411,105 @@ export function applyTheme(theme: Theme): void {
   root.style.setProperty("--state-success", colors.state.success);
   root.style.setProperty("--state-warning", colors.state.warning);
   root.style.setProperty("--state-danger", colors.state.danger);
+
+  // AgentPrism colors (for trace visualization)
+  const ap = colors.agentPrism;
+
+  // General purpose colors
+  root.style.setProperty("--agentprism-background", ap.background);
+  root.style.setProperty("--agentprism-foreground", ap.foreground);
+  root.style.setProperty("--agentprism-primary", ap.primary);
+  root.style.setProperty("--agentprism-primary-foreground", ap.primaryForeground);
+  root.style.setProperty("--agentprism-secondary", ap.secondary);
+  root.style.setProperty(
+    "--agentprism-secondary-foreground",
+    ap.secondaryForeground,
+  );
+  root.style.setProperty("--agentprism-muted", ap.muted);
+  root.style.setProperty("--agentprism-muted-foreground", ap.mutedForeground);
+  root.style.setProperty("--agentprism-accent", ap.accent);
+  root.style.setProperty("--agentprism-accent-foreground", ap.accentForeground);
+
+  // Brand colors
+  root.style.setProperty("--agentprism-brand", ap.brand);
+  root.style.setProperty("--agentprism-brand-foreground", ap.brandForeground);
+  root.style.setProperty("--agentprism-brand-secondary", ap.brandSecondary);
+  root.style.setProperty(
+    "--agentprism-brand-secondary-foreground",
+    ap.brandSecondaryForeground,
+  );
+
+  // Borders
+  root.style.setProperty("--agentprism-border", ap.border);
+  root.style.setProperty("--agentprism-border-subtle", ap.borderSubtle);
+  root.style.setProperty("--agentprism-border-strong", ap.borderStrong);
+  root.style.setProperty("--agentprism-border-inverse", ap.borderInverse);
+
+  // Status colors
+  root.style.setProperty("--agentprism-success", ap.success);
+  root.style.setProperty("--agentprism-success-muted", ap.successMuted);
+  root.style.setProperty(
+    "--agentprism-success-muted-foreground",
+    ap.successMutedForeground,
+  );
+  root.style.setProperty("--agentprism-error", ap.error);
+  root.style.setProperty("--agentprism-error-muted", ap.errorMuted);
+  root.style.setProperty(
+    "--agentprism-error-muted-foreground",
+    ap.errorMutedForeground,
+  );
+  root.style.setProperty("--agentprism-warning", ap.warning);
+  root.style.setProperty("--agentprism-warning-muted", ap.warningMuted);
+  root.style.setProperty(
+    "--agentprism-warning-muted-foreground",
+    ap.warningMutedForeground,
+  );
+  root.style.setProperty("--agentprism-pending", ap.pending);
+  root.style.setProperty("--agentprism-pending-muted", ap.pendingMuted);
+  root.style.setProperty(
+    "--agentprism-pending-muted-foreground",
+    ap.pendingMutedForeground,
+  );
+
+  // Code syntax highlighting
+  root.style.setProperty("--agentprism-code-string", ap.codeString);
+  root.style.setProperty("--agentprism-code-number", ap.codeNumber);
+  root.style.setProperty("--agentprism-code-key", ap.codeKey);
+  root.style.setProperty("--agentprism-code-base", ap.codeBase);
+
+  // Badge defaults
+  root.style.setProperty("--agentprism-badge-default", ap.badgeDefault);
+  root.style.setProperty(
+    "--agentprism-badge-default-foreground",
+    ap.badgeDefaultForeground,
+  );
+
+  // Helper to apply trace type colors
+  const applyTraceTypeColors = (
+    prefix: string,
+    colors: AgentPrismTraceTypeColors,
+  ) => {
+    root.style.setProperty(`--agentprism-avatar-${prefix}`, colors.avatar);
+    root.style.setProperty(`--agentprism-badge-${prefix}`, colors.badge);
+    root.style.setProperty(
+      `--agentprism-badge-${prefix}-foreground`,
+      colors.badgeForeground,
+    );
+    root.style.setProperty(`--agentprism-timeline-${prefix}`, colors.timeline);
+  };
+
+  // Trace type colors
+  applyTraceTypeColors("llm", ap.llm);
+  applyTraceTypeColors("agent", ap.agent);
+  applyTraceTypeColors("tool", ap.tool);
+  applyTraceTypeColors("chain", ap.chain);
+  applyTraceTypeColors("retrieval", ap.retrieval);
+  applyTraceTypeColors("embedding", ap.embedding);
+  applyTraceTypeColors("guardrail", ap.guardrail);
+  applyTraceTypeColors("create-agent", ap.createAgent);
+  applyTraceTypeColors("span", ap.span);
+  applyTraceTypeColors("event", ap.event);
+  applyTraceTypeColors("unknown", ap.unknown);
 }
 
 /**

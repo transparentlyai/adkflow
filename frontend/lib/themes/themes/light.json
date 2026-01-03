@@ -244,6 +244,110 @@
       }
     },
     "monaco": "vs",
+    "agentPrism": {
+      "background": "#ffffff",
+      "foreground": "#111827",
+      "primary": "#111827",
+      "primaryForeground": "#fafafa",
+      "secondary": "#f3f4f6",
+      "secondaryForeground": "#6b7280",
+      "muted": "#fafafa",
+      "mutedForeground": "#4b5563",
+      "accent": "#f3f4f6",
+      "accentForeground": "#f3f4f6",
+      "brand": "#7c3aed",
+      "brandForeground": "#ffffff",
+      "brandSecondary": "#f97316",
+      "brandSecondaryForeground": "#ffffff",
+      "border": "#e5e7eb",
+      "borderSubtle": "#f3f4f6",
+      "borderStrong": "#d1d5db",
+      "borderInverse": "#111827",
+      "success": "#10b981",
+      "successMuted": "#ecfdf5",
+      "successMutedForeground": "#047857",
+      "error": "#ef4444",
+      "errorMuted": "#fef2f2",
+      "errorMutedForeground": "#dc2626",
+      "warning": "#eab308",
+      "warningMuted": "#fefce8",
+      "warningMutedForeground": "#a16207",
+      "pending": "#7c3aed",
+      "pendingMuted": "#ede9fe",
+      "pendingMutedForeground": "#6d28d9",
+      "codeString": "#dc2626",
+      "codeNumber": "#dc2626",
+      "codeKey": "#2563eb",
+      "codeBase": "#6b7280",
+      "badgeDefault": "#f3f4f6",
+      "badgeDefaultForeground": "#4b5563",
+      "llm": {
+        "avatar": "#a855f7",
+        "badge": "#faf5ff",
+        "badgeForeground": "#a855f7",
+        "timeline": "#c084fc"
+      },
+      "agent": {
+        "avatar": "#1e40af",
+        "badge": "#eef2ff",
+        "badgeForeground": "#1e40af",
+        "timeline": "#6366f1"
+      },
+      "tool": {
+        "avatar": "#f97316",
+        "badge": "#fff7ed",
+        "badgeForeground": "#f97316",
+        "timeline": "#fb923c"
+      },
+      "chain": {
+        "avatar": "#14b8a6",
+        "badge": "#f0fdfa",
+        "badgeForeground": "#14b8a6",
+        "timeline": "#2dd4bf"
+      },
+      "retrieval": {
+        "avatar": "#06b6d4",
+        "badge": "#ecfeff",
+        "badgeForeground": "#06b6d4",
+        "timeline": "#22d3ee"
+      },
+      "embedding": {
+        "avatar": "#10b981",
+        "badge": "#ecfdf5",
+        "badgeForeground": "#10b981",
+        "timeline": "#34d399"
+      },
+      "guardrail": {
+        "avatar": "#ef4444",
+        "badge": "#fef2f2",
+        "badgeForeground": "#ef4444",
+        "timeline": "#f87171"
+      },
+      "createAgent": {
+        "avatar": "#0ea5e9",
+        "badge": "#f0f9ff",
+        "badgeForeground": "#0ea5e9",
+        "timeline": "#38bdf8"
+      },
+      "span": {
+        "avatar": "#06b6d4",
+        "badge": "#ecfeff",
+        "badgeForeground": "#06b6d4",
+        "timeline": "#22d3ee"
+      },
+      "event": {
+        "avatar": "#10b981",
+        "badge": "#ecfdf5",
+        "badgeForeground": "#10b981",
+        "timeline": "#34d399"
+      },
+      "unknown": {
+        "avatar": "#6b7280",
+        "badge": "#fafafa",
+        "badgeForeground": "#6b7280",
+        "timeline": "#9ca3af"
+      }
+    },
     "state": {
       "running": {
         "ring": "rgba(59, 130, 246, 0.8)",
