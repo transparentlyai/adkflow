@@ -282,70 +282,70 @@
       "badgeDefault": "#3d3d5c",
       "badgeDefaultForeground": "#9898b0",
       "llm": {
-        "avatar": "#d8b4fe",
-        "badge": "#2a1a3a",
-        "badgeForeground": "#d8b4fe",
-        "timeline": "#c084fc"
+        "avatar": "#c084fc",
+        "badge": "#3b1f5c",
+        "badgeForeground": "#e9d5ff",
+        "timeline": "#a855f7"
       },
       "agent": {
-        "avatar": "#a5b4fc",
-        "badge": "#1a2a4a",
-        "badgeForeground": "#a5b4fc",
-        "timeline": "#818cf8"
+        "avatar": "#4ade80",
+        "badge": "#14532d",
+        "badgeForeground": "#bbf7d0",
+        "timeline": "#22c55e"
       },
       "tool": {
-        "avatar": "#fdba74",
-        "badge": "#3a2a1a",
-        "badgeForeground": "#fdba74",
-        "timeline": "#fb923c"
+        "avatar": "#f97316",
+        "badge": "#7c2d12",
+        "badgeForeground": "#fed7aa",
+        "timeline": "#ea580c"
       },
       "chain": {
-        "avatar": "#5eead4",
-        "badge": "#1a3a3a",
-        "badgeForeground": "#5eead4",
-        "timeline": "#2dd4bf"
+        "avatar": "#818cf8",
+        "badge": "#312e81",
+        "badgeForeground": "#c7d2fe",
+        "timeline": "#6366f1"
       },
       "retrieval": {
-        "avatar": "#67e8f9",
-        "badge": "#1a2a3a",
-        "badgeForeground": "#67e8f9",
-        "timeline": "#22d3ee"
+        "avatar": "#22d3ee",
+        "badge": "#164e63",
+        "badgeForeground": "#a5f3fc",
+        "timeline": "#06b6d4"
       },
       "embedding": {
-        "avatar": "#6ee7b7",
-        "badge": "#1a3a2a",
-        "badgeForeground": "#6ee7b7",
-        "timeline": "#34d399"
+        "avatar": "#2dd4bf",
+        "badge": "#134e4a",
+        "badgeForeground": "#99f6e4",
+        "timeline": "#14b8a6"
       },
       "guardrail": {
-        "avatar": "#fca5a5",
-        "badge": "#3a1a1a",
-        "badgeForeground": "#fca5a5",
-        "timeline": "#f87171"
+        "avatar": "#f87171",
+        "badge": "#7f1d1d",
+        "badgeForeground": "#fecaca",
+        "timeline": "#ef4444"
       },
       "createAgent": {
-        "avatar": "#7dd3fc",
-        "badge": "#1a2a3a",
-        "badgeForeground": "#7dd3fc",
-        "timeline": "#38bdf8"
+        "avatar": "#38bdf8",
+        "badge": "#0c4a6e",
+        "badgeForeground": "#bae6fd",
+        "timeline": "#0ea5e9"
       },
       "span": {
-        "avatar": "#67e8f9",
-        "badge": "#1a2a3a",
-        "badgeForeground": "#67e8f9",
-        "timeline": "#22d3ee"
+        "avatar": "#60a5fa",
+        "badge": "#1e3a5f",
+        "badgeForeground": "#bfdbfe",
+        "timeline": "#3b82f6"
       },
       "event": {
-        "avatar": "#6ee7b7",
-        "badge": "#1a3a2a",
-        "badgeForeground": "#6ee7b7",
-        "timeline": "#34d399"
+        "avatar": "#a78bfa",
+        "badge": "#2e1065",
+        "badgeForeground": "#ddd6fe",
+        "timeline": "#8b5cf6"
       },
       "unknown": {
-        "avatar": "#d1d5db",
-        "badge": "#252538",
-        "badgeForeground": "#d1d5db",
-        "timeline": "#9ca3af"
+        "avatar": "#94a3b8",
+        "badge": "#1e293b",
+        "badgeForeground": "#cbd5e1",
+        "timeline": "#64748b"
       }
     },
     "state": {
