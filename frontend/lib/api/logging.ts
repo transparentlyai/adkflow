@@ -27,6 +27,7 @@ export interface LoggingConfig {
   fileEnabled: boolean;
   filePath: string | null;
   fileClearBeforeRun: boolean;
+  traceClearBeforeRun: boolean;
   consoleColored: boolean;
   consoleFormat: string;
 }
@@ -39,6 +40,7 @@ export interface LoggingConfigUpdate {
   categories?: Record<string, string>;
   fileEnabled?: boolean;
   fileClearBeforeRun?: boolean;
+  traceClearBeforeRun?: boolean;
   consoleColored?: boolean;
 }
 
@@ -68,6 +70,7 @@ export async function getLoggingConfig(
       file_enabled: boolean;
       file_path: string | null;
       file_clear_before_run: boolean;
+      trace_clear_before_run: boolean;
       console_colored: boolean;
       console_format: string;
     }>("/api/debug/logging", { params });
@@ -79,6 +82,7 @@ export async function getLoggingConfig(
       fileEnabled: response.data.file_enabled,
       filePath: response.data.file_path,
       fileClearBeforeRun: response.data.file_clear_before_run,
+      traceClearBeforeRun: response.data.trace_clear_before_run,
       consoleColored: response.data.console_colored,
       consoleFormat: response.data.console_format,
     };
@@ -109,6 +113,7 @@ export async function updateLoggingConfig(
         file_enabled: boolean;
         file_path: string | null;
         file_clear_before_run: boolean;
+        trace_clear_before_run: boolean;
         console_colored: boolean;
         console_format: string;
       };
@@ -119,6 +124,7 @@ export async function updateLoggingConfig(
         categories: update.categories,
         file_enabled: update.fileEnabled,
         file_clear_before_run: update.fileClearBeforeRun,
+        trace_clear_before_run: update.traceClearBeforeRun,
         console_colored: update.consoleColored,
       },
       { params },
@@ -131,6 +137,7 @@ export async function updateLoggingConfig(
       fileEnabled: config.file_enabled,
       filePath: config.file_path,
       fileClearBeforeRun: config.file_clear_before_run,
+      traceClearBeforeRun: config.trace_clear_before_run,
       consoleColored: config.console_colored,
       consoleFormat: config.console_format,
     };
