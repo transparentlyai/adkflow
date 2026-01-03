@@ -185,6 +185,12 @@ class IRTransformer:
 
         # Extract code executor config (flat keys: code_executor_enabled, or nested)
         code_exec_data = agent_data.get("code_executor", {})
+        # Default delimiters
+        default_code_delimiters = [
+            ("```tool_code\n", "\n```"),
+            ("```python\n", "\n```"),
+        ]
+        default_result_delimiters = ("```tool_output\n", "\n```")
         code_executor = CodeExecutorConfig(
             enabled=agent_data.get("code_executor_enabled", False)
             if "code_executor_enabled" in agent_data
@@ -192,9 +198,29 @@ class IRTransformer:
             stateful=agent_data.get("code_executor_stateful", False)
             if "code_executor_stateful" in agent_data
             else code_exec_data.get("stateful", False),
-            error_retry_attempts=agent_data.get("code_executor_error_retry", 3)
+            error_retry_attempts=agent_data.get("code_executor_error_retry", 2)
             if "code_executor_error_retry" in agent_data
-            else code_exec_data.get("error_retry_attempts", 3),
+            else code_exec_data.get("error_retry_attempts", 2),
+            optimize_data_file=agent_data.get("code_executor_optimize_data_file", False)
+            if "code_executor_optimize_data_file" in agent_data
+            else code_exec_data.get("optimize_data_file", False),
+            code_block_delimiters=agent_data.get(
+                "code_executor_code_block_delimiters", default_code_delimiters
+            )
+            if "code_executor_code_block_delimiters" in agent_data
+            else code_exec_data.get("code_block_delimiters", default_code_delimiters),
+            execution_result_delimiters=tuple(
+                agent_data.get(
+                    "code_executor_execution_result_delimiters",
+                    default_result_delimiters,
+                )
+            )
+            if "code_executor_execution_result_delimiters" in agent_data
+            else tuple(
+                code_exec_data.get(
+                    "execution_result_delimiters", default_result_delimiters
+                )
+            ),
         )
 
         # Extract HTTP options (flat keys: http_timeout, or nested: http_options.timeout)

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 from google.adk.agents import Agent, LoopAgent, ParallelAgent, SequentialAgent
 from google.adk.agents.base_agent import BaseAgent
+from google.adk.code_executors import BuiltInCodeExecutor
 from google.adk.planners import BuiltInPlanner
 from google.genai import types
 
@@ -130,6 +131,17 @@ class AgentFactory:
                 # Use default ThinkingConfig when no budget specified
                 planner = BuiltInPlanner(thinking_config=types.ThinkingConfig())
 
+        # Build code executor if enabled
+        code_executor = None
+        if agent_ir.code_executor.enabled:
+            code_executor = BuiltInCodeExecutor(
+                stateful=agent_ir.code_executor.stateful,
+                error_retry_attempts=agent_ir.code_executor.error_retry_attempts,
+                optimize_data_file=agent_ir.code_executor.optimize_data_file,
+                code_block_delimiters=agent_ir.code_executor.code_block_delimiters,
+                execution_result_delimiters=agent_ir.code_executor.execution_result_delimiters,
+            )
+
         # Build HTTP options for retry/timeout behavior
         http_options = types.HttpOptions(
             timeout=agent_ir.http_options.timeout,
@@ -168,12 +180,14 @@ class AgentFactory:
         # Create the agent - tools must be a list or omitted entirely
         agent = Agent(
             name=name,
+            description=agent_ir.description or "",
             model=agent_ir.model,
             instruction=agent_ir.instruction or "",
             tools=tools if tools else [],
             output_key=agent_ir.output_key,
             include_contents=agent_ir.include_contents,
             planner=planner,
+            code_executor=code_executor,
             disallow_transfer_to_parent=agent_ir.disallow_transfer_to_parent,
             disallow_transfer_to_peers=agent_ir.disallow_transfer_to_peers,
             generate_content_config=generate_config,
@@ -185,6 +199,7 @@ class AgentFactory:
             sub_agents = [self.create(sa) for sa in agent_ir.subagents]
             agent = Agent(
                 name=name,
+                description=agent_ir.description or "",
                 model=agent_ir.model,
                 instruction=agent_ir.instruction or "",
                 tools=tools if tools else [],
@@ -192,6 +207,7 @@ class AgentFactory:
                 output_key=agent_ir.output_key,
                 include_contents=agent_ir.include_contents,
                 planner=planner,
+                code_executor=code_executor,
                 disallow_transfer_to_parent=agent_ir.disallow_transfer_to_parent,
                 disallow_transfer_to_peers=agent_ir.disallow_transfer_to_peers,
                 generate_content_config=generate_config,
@@ -222,6 +238,7 @@ class AgentFactory:
 
         agent = SequentialAgent(
             name=name,
+            description=agent_ir.description or "",
             sub_agents=sub_agents,
         )
 
@@ -248,6 +265,7 @@ class AgentFactory:
 
         agent = ParallelAgent(
             name=name,
+            description=agent_ir.description or "",
             sub_agents=sub_agents,
         )
 
@@ -275,6 +293,7 @@ class AgentFactory:
 
         agent = LoopAgent(
             name=name,
+            description=agent_ir.description or "",
             sub_agents=sub_agents,
             max_iterations=agent_ir.max_iterations,
         )

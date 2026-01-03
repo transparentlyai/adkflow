@@ -30,7 +30,12 @@ class CodeExecutorConfig:
 
     enabled: bool = False
     stateful: bool = False
-    error_retry_attempts: int = 3
+    error_retry_attempts: int = 2
+    optimize_data_file: bool = False
+    code_block_delimiters: list[tuple[str, str]] = field(
+        default_factory=lambda: [("```tool_code\n", "\n```"), ("```python\n", "\n```")]
+    )
+    execution_result_delimiters: tuple[str, str] = ("```tool_output\n", "\n```")
 
 
 @dataclass
