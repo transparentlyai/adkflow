@@ -4,7 +4,8 @@
  * Uses AgentPrism components for rendering trace data.
  */
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import Editor from "@monaco-editor/react";
 import {
   Activity,
   AlertCircle,
@@ -448,6 +449,48 @@ function SpanTreeNode({
 }
 
 /**
+ * Attributes editor with Monaco syntax highlighting
+ */
+function AttributesEditor({
+  attributes,
+}: {
+  attributes: Record<string, unknown>;
+}) {
+  const jsonContent = useMemo(
+    () => JSON.stringify(attributes, null, 2),
+    [attributes],
+  );
+
+  return (
+    <div className="flex-1 flex flex-col min-h-0">
+      <h4 className="text-sm font-semibold mb-2 text-agentprism-muted-foreground flex-shrink-0">
+        Attributes
+      </h4>
+      <div className="flex-1 rounded overflow-hidden border border-agentprism-border min-h-0">
+        <Editor
+          height="100%"
+          language="json"
+          value={jsonContent}
+          options={{
+            readOnly: true,
+            minimap: { enabled: false },
+            scrollBeyondLastLine: false,
+            lineNumbers: "off",
+            folding: true,
+            showFoldingControls: "always",
+            fontSize: 12,
+            wordWrap: "on",
+            automaticLayout: true,
+            padding: { top: 8, bottom: 8 },
+          }}
+          theme="vs-dark"
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
  * Span details panel
  */
 function SpanDetailsPanel({ span }: { span: TraceSpan }) {
@@ -457,8 +500,8 @@ function SpanDetailsPanel({ span }: { span: TraceSpan }) {
   const Icon = typeClass.icon;
 
   return (
-    <div className="h-full overflow-auto p-4">
-      <div className="mb-4">
+    <div className="h-full flex flex-col p-4 overflow-hidden">
+      <div className="flex-shrink-0 mb-4">
         <div className="flex items-center gap-2 mb-3">
           <span
             className={cn(
@@ -532,16 +575,7 @@ function SpanDetailsPanel({ span }: { span: TraceSpan }) {
       </div>
 
       {Object.keys(span.attributes).length > 0 && (
-        <div>
-          <h4 className="text-sm font-semibold mb-2 text-agentprism-muted-foreground">
-            Attributes
-          </h4>
-          <div className="bg-agentprism-muted rounded p-3 overflow-auto">
-            <pre className="text-xs whitespace-pre-wrap">
-              {JSON.stringify(span.attributes, null, 2)}
-            </pre>
-          </div>
-        </div>
+        <AttributesEditor attributes={span.attributes} />
       )}
     </div>
   );
