@@ -28,9 +28,14 @@ export function useLogFiles(projectPath: string | null): UseLogFilesResult {
         const response = await getLogFiles(projectPath);
         setFiles(response.files);
 
-        // Auto-select first JSONL file
+        // Auto-select adkflow.jsonl (preferred), or first JSONL file
+        const adkflowFile = response.files.find(
+          (f) => f.name === "adkflow.jsonl",
+        );
         const jsonlFile = response.files.find((f) => f.name.endsWith(".jsonl"));
-        if (jsonlFile) {
+        if (adkflowFile) {
+          setSelectedFile(adkflowFile.name);
+        } else if (jsonlFile) {
           setSelectedFile(jsonlFile.name);
         } else if (response.files.length > 0) {
           setSelectedFile(response.files[0].name);

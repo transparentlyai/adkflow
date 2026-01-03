@@ -4,18 +4,30 @@
  * Used when opening the Log Explorer in a dedicated browser tab.
  */
 
-import { useState } from "react";
-import { AlertCircle, FileText } from "lucide-react";
+import { useState, useEffect } from "react";
+import { AlertCircle, FileText, Activity } from "lucide-react";
 import { useLogExplorer } from "@/hooks/logExplorer";
 import { LogExplorerHeader } from "./LogExplorerHeader";
 import { LogExplorerToolbar } from "./LogExplorerToolbar";
 import { LogExplorerList } from "./LogExplorerList";
+import type { TimeRangeFilter } from "@/app/debug/page";
 
 interface LogExplorerPageProps {
   projectPath: string | null;
+  /** Initial time filter from cross-tab navigation */
+  initialTimeFilter?: TimeRangeFilter | null;
+  /** Called after the time filter has been applied */
+  onTimeFilterApplied?: () => void;
+  /** Navigate to traces tab with optional time filter */
+  onNavigateToTraces?: (timeRange?: TimeRangeFilter) => void;
 }
 
-export function LogExplorerPage({ projectPath }: LogExplorerPageProps) {
+export function LogExplorerPage({
+  projectPath,
+  initialTimeFilter,
+  onTimeFilterApplied,
+  onNavigateToTraces,
+}: LogExplorerPageProps) {
   const {
     files,
     selectedFile,
@@ -40,6 +52,20 @@ export function LogExplorerPage({ projectPath }: LogExplorerPageProps) {
 
   const [formatJson, setFormatJson] = useState(true);
 
+  // Apply initial time filter from cross-tab navigation
+  useEffect(() => {
+    if (initialTimeFilter) {
+      setFilters({
+        startTime: initialTimeFilter.startTime,
+        endTime: initialTimeFilter.endTime,
+      });
+      onTimeFilterApplied?.();
+    }
+  }, [initialTimeFilter, setFilters, onTimeFilterApplied]);
+
+  // Check if time filter is active (for showing "View Traces" button)
+  const hasTimeFilter = filters.startTime || filters.endTime;
+
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Page header */}
@@ -50,6 +76,26 @@ export function LogExplorerPage({ projectPath }: LogExplorerPageProps) {
           <span className="text-sm text-muted-foreground">
             — {projectPath.split("/").pop()}
           </span>
+        )}
+        <div className="flex-1" />
+        {onNavigateToTraces && (
+          <button
+            onClick={() =>
+              onNavigateToTraces(
+                hasTimeFilter
+                  ? {
+                      startTime: filters.startTime!,
+                      endTime: filters.endTime!,
+                    }
+                  : undefined,
+              )
+            }
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+            title="View traces for this time range"
+          >
+            <Activity className="h-4 w-4" />
+            View Traces
+          </button>
         )}
       </div>
 

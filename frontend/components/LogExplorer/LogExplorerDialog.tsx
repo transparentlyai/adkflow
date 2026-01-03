@@ -1,16 +1,13 @@
 /**
- * LogExplorerDialog - Main dialog for browsing log files
+ * LogExplorerDialog - Main dialog for browsing logs and traces
  *
- * Provides a full-featured log exploration interface with:
- * - File selection
- * - Level/category/text filtering
- * - Virtual scrolling for large files
- * - Expandable log entries with full context
- * - Export functionality
+ * Provides a full-featured debug interface with:
+ * - Logs tab: File selection, filtering, virtual scrolling, export
+ * - Traces tab: OpenTelemetry trace visualization
  */
 
 import { useState, useEffect, useRef } from "react";
-import { AlertCircle, ExternalLink } from "lucide-react";
+import { AlertCircle, ExternalLink, FileText, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,6 +19,10 @@ import { useLogExplorer } from "@/hooks/logExplorer";
 import { LogExplorerHeader } from "./LogExplorerHeader";
 import { LogExplorerToolbar } from "./LogExplorerToolbar";
 import { LogExplorerList } from "./LogExplorerList";
+import { TraceExplorerPage } from "@/components/TraceExplorer/TraceExplorerPage";
+import { cn } from "@/lib/utils";
+
+type TabId = "logs" | "traces";
 
 interface LogExplorerDialogProps {
   open: boolean;
@@ -57,6 +58,7 @@ export function LogExplorerDialog({
   } = useLogExplorer(projectPath);
 
   const [formatJson, setFormatJson] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabId>("logs");
   const wasOpenRef = useRef(false);
 
   // Refresh data when dialog opens
@@ -70,8 +72,8 @@ export function LogExplorerDialog({
 
   const handleOpenInNewTab = () => {
     const url = projectPath
-      ? `/logs?project=${encodeURIComponent(projectPath)}`
-      : "/logs";
+      ? `/debug?project=${encodeURIComponent(projectPath)}&tab=${activeTab}`
+      : `/debug?tab=${activeTab}`;
     window.open(url, "_blank");
     onOpenChange(false);
   };
@@ -79,8 +81,36 @@ export function LogExplorerDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="px-4 py-3 border-b flex-shrink-0 flex-row items-center justify-between space-y-0">
-          <DialogTitle>Log Explorer</DialogTitle>
+        <DialogHeader className="px-4 py-2 border-b flex-shrink-0 flex-row items-center space-y-0">
+          <DialogTitle className="sr-only">Debug Explorer</DialogTitle>
+          {/* Tabs */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setActiveTab("logs")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                activeTab === "logs"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted",
+              )}
+            >
+              <FileText className="h-4 w-4" />
+              Logs
+            </button>
+            <button
+              onClick={() => setActiveTab("traces")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                activeTab === "traces"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted",
+              )}
+            >
+              <Activity className="h-4 w-4" />
+              Traces
+            </button>
+          </div>
+          <div className="flex-1" />
           <Button
             variant="ghost"
             size="icon"
@@ -92,67 +122,79 @@ export function LogExplorerDialog({
           </Button>
         </DialogHeader>
 
-        {/* Error banner */}
-        {error && (
-          <div className="px-4 py-2 bg-destructive/10 text-destructive flex items-center gap-2 text-sm">
-            <AlertCircle className="h-4 w-4 flex-shrink-0" />
-            <span>{error}</span>
+        {/* Logs tab content */}
+        {activeTab === "logs" && (
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Error banner */}
+            {error && (
+              <div className="px-4 py-2 bg-destructive/10 text-destructive flex items-center gap-2 text-sm">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* No project selected */}
+            {!projectPath && (
+              <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                No project selected. Open a project to view logs.
+              </div>
+            )}
+
+            {/* No log files */}
+            {projectPath && files.length === 0 && !isLoading && (
+              <div className="flex-1 flex items-center justify-center text-muted-foreground flex-col gap-2">
+                <span>No log files found in project.</span>
+                <span className="text-xs">
+                  Run your workflow to generate logs in the logs/ directory.
+                </span>
+              </div>
+            )}
+
+            {/* Main content */}
+            {projectPath && (files.length > 0 || isLoading) && (
+              <>
+                <LogExplorerHeader
+                  files={files}
+                  selectedFile={selectedFile}
+                  onSelectFile={setSelectedFile}
+                  stats={stats}
+                  totalCount={totalCount}
+                  isLoading={isLoading}
+                  onRefresh={refresh}
+                  onExport={exportFiltered}
+                />
+
+                <LogExplorerToolbar
+                  filters={filters}
+                  onFiltersChange={setFilters}
+                  onResetFilters={resetFilters}
+                  stats={stats}
+                  formatJson={formatJson}
+                  onFormatJsonChange={setFormatJson}
+                  runs={runs}
+                  isLoadingRuns={isLoadingRuns}
+                  onLastRunOnlyChange={setLastRunOnly}
+                />
+
+                <LogExplorerList
+                  entries={entries}
+                  isLoading={isLoading}
+                  isLoadingMore={isLoadingMore}
+                  hasMore={hasMore}
+                  onLoadMore={loadMore}
+                  searchTerm={filters.search || undefined}
+                  formatJson={formatJson}
+                />
+              </>
+            )}
           </div>
         )}
 
-        {/* No project selected */}
-        {!projectPath && (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            No project selected. Open a project to view logs.
+        {/* Traces tab content */}
+        {activeTab === "traces" && (
+          <div className="flex-1 overflow-hidden">
+            <TraceExplorerPage projectPath={projectPath} />
           </div>
-        )}
-
-        {/* No log files */}
-        {projectPath && files.length === 0 && !isLoading && (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground flex-col gap-2">
-            <span>No log files found in project.</span>
-            <span className="text-xs">
-              Run your workflow to generate logs in the logs/ directory.
-            </span>
-          </div>
-        )}
-
-        {/* Main content */}
-        {projectPath && (files.length > 0 || isLoading) && (
-          <>
-            <LogExplorerHeader
-              files={files}
-              selectedFile={selectedFile}
-              onSelectFile={setSelectedFile}
-              stats={stats}
-              totalCount={totalCount}
-              isLoading={isLoading}
-              onRefresh={refresh}
-              onExport={exportFiltered}
-            />
-
-            <LogExplorerToolbar
-              filters={filters}
-              onFiltersChange={setFilters}
-              onResetFilters={resetFilters}
-              stats={stats}
-              formatJson={formatJson}
-              onFormatJsonChange={setFormatJson}
-              runs={runs}
-              isLoadingRuns={isLoadingRuns}
-              onLastRunOnlyChange={setLastRunOnly}
-            />
-
-            <LogExplorerList
-              entries={entries}
-              isLoading={isLoading}
-              isLoadingMore={isLoadingMore}
-              hasMore={hasMore}
-              onLoadMore={loadMore}
-              searchTerm={filters.search || undefined}
-              formatJson={formatJson}
-            />
-          </>
         )}
       </DialogContent>
     </Dialog>
