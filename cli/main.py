@@ -108,7 +108,7 @@ def dev(backend_port: int, frontend_port: int):
         print_msg("Press Ctrl+C to stop all servers", "dim")
         print_msg("")
 
-        def stream_output(proc, prefix, style):
+        def stream_output(proc: subprocess.Popen, prefix: str, style: str) -> None:
             while proc.poll() is None:
                 if proc.stdout:
                     line = proc.stdout.readline()

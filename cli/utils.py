@@ -16,7 +16,7 @@ except ImportError:
     Panel = None  # type: ignore[assignment]
 
 
-def print_msg(msg: str, style: str | None = None):
+def print_msg(msg: str, style: str | None = None) -> None:
     """Print message with optional styling."""
     if HAS_RICH and console:
         if style:
@@ -27,7 +27,7 @@ def print_msg(msg: str, style: str | None = None):
         print(msg)
 
 
-def print_panel(msg: str, style: str = "bold blue"):
+def print_panel(msg: str, style: str = "bold blue") -> None:
     """Print a panel message."""
     if HAS_RICH and console and Panel:
         console.print(Panel.fit(msg, style=style))
@@ -54,7 +54,7 @@ def get_project_root() -> Path:
     return current
 
 
-def load_env():
+def load_env() -> None:
     """Load .env file from project root."""
     project_root = get_project_root()
     env_file = project_root / ".env"
