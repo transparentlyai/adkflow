@@ -39,6 +39,7 @@ class TracingConfig:
 
     enabled: bool = True
     file: str = DEFAULT_TRACE_FILE
+    clear_before_run: bool = False
 
     @classmethod
     def load(cls, project_path: Path | None = None) -> TracingConfig:
@@ -83,6 +84,9 @@ class TracingConfig:
 
         if "file" in tracing_config:
             config.file = str(tracing_config["file"])
+
+        if "clear_before_run" in tracing_config:
+            config.clear_before_run = bool(tracing_config["clear_before_run"])
 
         return config
 

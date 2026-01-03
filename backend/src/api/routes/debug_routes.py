@@ -19,6 +19,7 @@ from adkflow_runner.logging import (
     reset_config as _reset_config,
     LogConfig,
 )
+from adkflow_runner.telemetry.setup import TracingConfig
 
 from backend.src.api.routes.manifest import load_manifest, save_manifest
 
@@ -52,6 +53,9 @@ class LoggingConfigResponse(BaseModel):
     file_clear_before_run: bool = Field(
         default=False, description="Whether to clear log file before each run"
     )
+    trace_clear_before_run: bool = Field(
+        default=False, description="Whether to clear trace file before each run"
+    )
     console_colored: bool = Field(
         default=True, description="Whether console output is colored"
     )
@@ -76,6 +80,10 @@ class LoggingConfigUpdate(BaseModel):
     file_clear_before_run: bool | None = Field(
         default=None,
         description="Clear log file before each run",
+    )
+    trace_clear_before_run: bool | None = Field(
+        default=None,
+        description="Clear trace file before each run",
     )
     console_colored: bool | None = Field(
         default=None,
@@ -118,19 +126,22 @@ def _parse_level(level_str: str) -> LogLevel:
     return level_map.get(level_str.upper(), LogLevel.INFO)
 
 
-def _load_project_config(project_path: str | None) -> LogConfig:
-    """Load logging config from project's manifest.json if it exists."""
+def _load_project_config(
+    project_path: str | None,
+) -> tuple[LogConfig, TracingConfig]:
+    """Load logging and tracing config from project's manifest.json if it exists."""
     config = get_config()
+    tracing_config = TracingConfig()
 
     if not project_path:
-        return config
+        return config, tracing_config
 
     try:
         manifest = load_manifest(project_path)
         logging_data = manifest.logging
     except HTTPException:
         # Manifest doesn't exist yet
-        return config
+        return config, tracing_config
 
     if logging_data:
         try:
@@ -156,6 +167,16 @@ def _load_project_config(project_path: str | None) -> LogConfig:
                 if "format" in cc:
                     config.console.format = cc["format"]
 
+            # Load tracing config
+            if "tracing" in logging_data:
+                tc = logging_data["tracing"]
+                if "enabled" in tc:
+                    tracing_config.enabled = tc["enabled"]
+                if "file" in tc:
+                    tracing_config.file = tc["file"]
+                if "clear_before_run" in tc:
+                    tracing_config.clear_before_run = tc["clear_before_run"]
+
             # Apply to runtime
             set_config(config)
 
@@ -169,10 +190,14 @@ def _load_project_config(project_path: str | None) -> LogConfig:
             # If loading fails, just use the current config
             pass
 
-    return config
+    return config, tracing_config
 
 
-def _save_project_config(project_path: str | None, config: LogConfig) -> None:
+def _save_project_config(
+    project_path: str | None,
+    config: LogConfig,
+    tracing_config: TracingConfig | None = None,
+) -> None:
     """Save logging config to project's manifest.json."""
     if not project_path:
         return
@@ -211,6 +236,10 @@ def _save_project_config(project_path: str | None, config: LogConfig) -> None:
         if config.console.format != "readable":
             logging_data["console"]["format"] = config.console.format
 
+    # Save tracing settings if not default
+    if tracing_config and tracing_config.clear_before_run:
+        logging_data["tracing"] = {"clear_before_run": True}
+
     # Update manifest with logging config
     manifest.logging = logging_data
 
@@ -234,7 +263,7 @@ async def get_logging_config(
     Note:
         This endpoint is only available in development mode.
     """
-    config = _load_project_config(project_path)
+    config, tracing_config = _load_project_config(project_path)
     registry = get_registry()
 
     # Build category levels from registry
@@ -250,6 +279,7 @@ async def get_logging_config(
         file_enabled=config.file.enabled,
         file_path=config.file.path,
         file_clear_before_run=config.file.clear_before_run,
+        trace_clear_before_run=tracing_config.clear_before_run,
         console_colored=config.console.colored,
         console_format=config.console.format,
     )
@@ -274,7 +304,7 @@ async def update_logging_config(
         This endpoint is only available in development mode.
         Changes are saved to manifest.json if project_path is provided.
     """
-    config = _load_project_config(project_path)
+    config, tracing_config = _load_project_config(project_path)
     registry = get_registry()
 
     # Update global level
@@ -309,6 +339,10 @@ async def update_logging_config(
     if update.file_clear_before_run is not None:
         config.file.clear_before_run = update.file_clear_before_run
 
+    # Update tracing settings
+    if update.trace_clear_before_run is not None:
+        tracing_config.clear_before_run = update.trace_clear_before_run
+
     # Update console settings
     if update.console_colored is not None:
         config.console.colored = update.console_colored
@@ -317,7 +351,7 @@ async def update_logging_config(
     set_config(config)
 
     # Save to project's manifest.json
-    _save_project_config(project_path, config)
+    _save_project_config(project_path, config, tracing_config)
 
     # Return updated config
     return LoggingConfigUpdateResponse(
@@ -343,7 +377,9 @@ async def list_logging_categories(
         This endpoint is only available in development mode.
     """
     # Load project config to ensure registry is up to date
-    _load_project_config(project_path)
+    _load_project_config(
+        project_path
+    )  # Returns tuple, but we only need the side effect
 
     registry = get_registry()
     categories: list[CategoryInfo] = []
