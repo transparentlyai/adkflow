@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,43 @@ async def app():
     from backend.src.main import app
 
     yield app
+
+
+@pytest.fixture
+async def dev_app():
+    """Create FastAPI app with dev mode enabled for testing debug routes."""
+    import importlib
+    import sys
+
+    # Set dev mode before importing
+    os.environ["ADKFLOW_DEV_MODE"] = "1"
+
+    # Remove cached module to force re-import with dev mode
+    modules_to_remove = [k for k in sys.modules if k.startswith("backend.src.main")]
+    for mod in modules_to_remove:
+        del sys.modules[mod]
+
+    # Import with dev mode enabled
+    import backend.src.main
+
+    importlib.reload(backend.src.main)
+    yield backend.src.main.app
+
+    # Cleanup: restore original state
+    os.environ.pop("ADKFLOW_DEV_MODE", None)
+    for mod in modules_to_remove:
+        if mod in sys.modules:
+            del sys.modules[mod]
+
+
+@pytest.fixture
+async def dev_client(dev_app: Any) -> AsyncGenerator[AsyncClient, None]:
+    """Create async HTTP client for testing debug API endpoints."""
+    async with AsyncClient(
+        transport=ASGITransport(app=dev_app),
+        base_url="http://test",
+    ) as ac:
+        yield ac
 
 
 @pytest.fixture

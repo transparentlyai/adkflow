@@ -238,3 +238,99 @@ class TestMockCallbacks:
         assert len(callbacks.events) == 2
         assert callbacks.events[0].type == EventType.RUN_START
         assert callbacks.events[1].type == EventType.AGENT_START
+
+
+class TestWorkflowRunnerRun:
+    """Tests for WorkflowRunner.run method."""
+
+    @pytest.mark.asyncio
+    async def test_run_with_compilation_error(self, tmp_path, mock_adk):
+        """Run handles compilation errors gracefully."""
+        # Create invalid manifest
+        (tmp_path / "manifest.json").write_text("{}")
+
+        callbacks = MockCallbacks()
+        runner = WorkflowRunner()
+        config = RunConfig(
+            project_path=tmp_path,
+            callbacks=callbacks,
+        )
+
+        result = await runner.run(config)
+
+        assert result.status == RunStatus.FAILED
+        assert result.error is not None
+        event_types = [e.type for e in callbacks.events]
+        assert EventType.ERROR in event_types
+
+    @pytest.mark.asyncio
+    async def test_run_with_missing_manifest(self, tmp_path, mock_adk):
+        """Run handles missing manifest gracefully."""
+        callbacks = MockCallbacks()
+        runner = WorkflowRunner()
+        config = RunConfig(
+            project_path=tmp_path,
+            callbacks=callbacks,
+        )
+
+        result = await runner.run(config)
+
+        assert result.status == RunStatus.FAILED
+        assert result.error is not None
+
+    @pytest.mark.asyncio
+    async def test_run_initializes_logging(self, simple_project, mock_adk):
+        """Run initializes logging for the project."""
+        # This will fail at execution but should still call logging setup
+        runner = WorkflowRunner()
+        config = RunConfig(project_path=simple_project)
+
+        await runner.run(config)
+
+        mock_adk["logging"].assert_called()
+        mock_adk["logger"].initialize.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_run_initializes_tracing(self, simple_project, mock_adk):
+        """Run initializes tracing for the project."""
+        runner = WorkflowRunner()
+        config = RunConfig(project_path=simple_project)
+
+        await runner.run(config)
+
+        mock_adk["tracing"].assert_called_once_with(simple_project)
+
+    @pytest.mark.asyncio
+    async def test_run_generates_run_id_if_not_provided(self, simple_project, mock_adk):
+        """Run generates a run_id if not provided."""
+        runner = WorkflowRunner()
+        config = RunConfig(project_path=simple_project)
+
+        result = await runner.run(config)
+
+        # run_id should be an 8-character UUID segment
+        assert result.run_id is not None
+        assert len(result.run_id) == 8
+
+    @pytest.mark.asyncio
+    async def test_run_uses_provided_run_id(self, simple_project, mock_adk):
+        """Run uses provided run_id instead of generating one."""
+        runner = WorkflowRunner()
+        config = RunConfig(
+            project_path=simple_project,
+            run_id="custom-id",
+        )
+
+        result = await runner.run(config)
+        assert result.run_id == "custom-id"
+
+    @pytest.mark.asyncio
+    async def test_run_result_includes_duration(self, simple_project, mock_adk):
+        """Run result includes duration."""
+        runner = WorkflowRunner()
+        config = RunConfig(project_path=simple_project)
+
+        result = await runner.run(config)
+
+        assert result.duration_ms is not None
+        assert result.duration_ms >= 0

@@ -275,6 +275,65 @@ async def list_traces(
     )
 
 
+@router.get("/stats", response_model=TraceStats)
+async def get_trace_stats(
+    project_path: str = Query(..., description="Path to the project directory"),
+    file_name: str = Query("traces.jsonl", description="Trace file name"),
+) -> TraceStats:
+    """Get statistics about the trace file.
+
+    Returns counts by span name, status, and overall metrics.
+    """
+    file_path = _get_trace_file(project_path, file_name)
+
+    if not file_path.exists():
+        return TraceStats(
+            total_traces=0,
+            total_spans=0,
+            span_name_counts={},
+            status_counts={},
+            time_range={"start": None, "end": None},
+            file_size_bytes=0,
+        )
+
+    # Read all spans
+    all_spans = _read_all_spans(file_path)
+    traces_map = _group_spans_by_trace(all_spans)
+
+    # Count by span name
+    span_name_counts: dict[str, int] = {}
+    status_counts: dict[str, int] = {}
+    all_times: list[str] = []
+
+    for span in all_spans:
+        name = span.get("name", "unknown")
+        span_name_counts[name] = span_name_counts.get(name, 0) + 1
+
+        status = span.get("status", "UNSET")
+        status_counts[status] = status_counts.get(status, 0) + 1
+
+        if span.get("start_time"):
+            all_times.append(span["start_time"])
+
+    # Get time range
+    time_range = {
+        "start": min(all_times) if all_times else None,
+        "end": max(all_times) if all_times else None,
+    }
+
+    # Get file size
+    file_size = file_path.stat().st_size if file_path.exists() else 0
+
+    return TraceStats(
+        total_traces=len(traces_map),
+        total_spans=len(all_spans),
+        span_name_counts=span_name_counts,
+        status_counts=status_counts,
+        time_range=time_range,
+        file_size_bytes=file_size,
+    )
+
+
 @router.get("/{trace_id}", response_model=TraceDetailResponse)
 async def get_trace(
     trace_id: str,
@@ -347,63 +406,4 @@ async def get_trace(
         duration_ms=duration_ms,
         start_time=trace_start,
         end_time=trace_end,
-    )
-
-
-@router.get("/stats", response_model=TraceStats)
-async def get_trace_stats(
-    project_path: str = Query(..., description="Path to the project directory"),
-    file_name: str = Query("traces.jsonl", description="Trace file name"),
-) -> TraceStats:
-    """Get statistics about the trace file.
-
-    Returns counts by span name, status, and overall metrics.
-    """
-    file_path = _get_trace_file(project_path, file_name)
-
-    if not file_path.exists():
-        return TraceStats(
-            total_traces=0,
-            total_spans=0,
-            span_name_counts={},
-            status_counts={},
-            time_range={"start": None, "end": None},
-            file_size_bytes=0,
-        )
-
-    # Read all spans
-    all_spans = _read_all_spans(file_path)
-    traces_map = _group_spans_by_trace(all_spans)
-
-    # Count by span name
-    span_name_counts: dict[str, int] = {}
-    status_counts: dict[str, int] = {}
-    all_times: list[str] = []
-
-    for span in all_spans:
-        name = span.get("name", "unknown")
-        span_name_counts[name] = span_name_counts.get(name, 0) + 1
-
-        status = span.get("status", "UNSET")
-        status_counts[status] = status_counts.get(status, 0) + 1
-
-        if span.get("start_time"):
-            all_times.append(span["start_time"])
-
-    # Get time range
-    time_range = {
-        "start": min(all_times) if all_times else None,
-        "end": max(all_times) if all_times else None,
-    }
-
-    # Get file size
-    file_size = file_path.stat().st_size if file_path.exists() else 0
-
-    return TraceStats(
-        total_traces=len(traces_map),
-        total_spans=len(all_spans),
-        span_name_counts=span_name_counts,
-        status_counts=status_counts,
-        time_range=time_range,
-        file_size_bytes=file_size,
     )
