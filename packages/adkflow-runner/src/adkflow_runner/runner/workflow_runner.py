@@ -25,6 +25,7 @@ from adkflow_runner.logging import (
     log_timing,
     run_context,
 )
+from adkflow_runner.telemetry import setup_tracing
 from adkflow_runner.runner.agent_factory import AgentFactory
 from adkflow_runner.runner.types import (
     RunStatus,
@@ -83,6 +84,9 @@ class WorkflowRunner:
         # Initialize logging for this project (writes to project/logs/)
         configure_logging(project_path=config.project_path)
         Logger.initialize(project_path=config.project_path)
+
+        # Initialize tracing (writes to project/logs/traces.jsonl)
+        setup_tracing(config.project_path)
 
         # Use provided run_id or generate one
         run_id = config.run_id or str(uuid.uuid4())[:8]
