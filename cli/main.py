@@ -1,13 +1,10 @@
 """CLI interface for ADKFlow development server management."""
 
-import signal
 import subprocess
 import sys
 import threading
-import time
 
 import click
-import requests
 from adkflow_runner.cli import run_command, validate_command
 
 from cli.utils import (
@@ -19,74 +16,22 @@ from cli.utils import (
     console,
 )
 from cli.servers import start_backend_server, start_frontend_server
+from cli.process_manager import (
+    create_dev_manager,
+    create_prod_manager,
+    create_backend_manager,
+    create_frontend_manager,
+    wait_for_server_health,
+    wait_for_process_running,
+    BACKEND_PROCESS_PATTERN,
+    FRONTEND_DEV_PATTERN,
+    FRONTEND_PROD_PATTERN,
+)
 
 
 # Server configuration constants
 DEFAULT_BACKEND_PORT = 6000
 DEFAULT_FRONTEND_PORT = 6006
-
-# Health check configuration
-HEALTH_CHECK_MAX_ATTEMPTS = 30  # Max attempts (30 * 0.5s = 15s timeout)
-HEALTH_CHECK_INTERVAL = 0.5  # Seconds between attempts
-PROCESS_TERMINATION_TIMEOUT = 5  # Seconds to wait for graceful shutdown
-
-
-def wait_for_server_health(
-    url: str,
-    proc: subprocess.Popen,
-    max_attempts: int = HEALTH_CHECK_MAX_ATTEMPTS,
-    interval: float = HEALTH_CHECK_INTERVAL,
-) -> bool:
-    """Wait for server to become healthy by polling health endpoint.
-
-    Args:
-        url: Health check URL (e.g., http://localhost:6000/health)
-        proc: The server process to monitor
-        max_attempts: Maximum number of health check attempts
-        interval: Seconds between attempts
-
-    Returns:
-        True if server is healthy, False if it failed to start
-    """
-    for attempt in range(max_attempts):
-        # Check if process crashed
-        if proc.poll() is not None:
-            return False
-
-        try:
-            response = requests.get(url, timeout=1)
-            if response.status_code == 200:
-                return True
-        except requests.RequestException:
-            pass  # Server not ready yet
-
-        time.sleep(interval)
-
-    return False
-
-
-def wait_for_process_running(
-    proc: subprocess.Popen,
-    max_attempts: int = HEALTH_CHECK_MAX_ATTEMPTS,
-    interval: float = HEALTH_CHECK_INTERVAL,
-) -> bool:
-    """Wait for process to stabilize (for frontend without health endpoint).
-
-    Args:
-        proc: The server process to monitor
-        max_attempts: Maximum number of attempts
-        interval: Seconds between attempts
-
-    Returns:
-        True if process is still running, False if it crashed
-    """
-    for _ in range(max_attempts):
-        if proc.poll() is not None:
-            return False
-        time.sleep(interval)
-        if proc.poll() is None:
-            return True
-    return proc.poll() is None
 
 
 @click.group()
@@ -125,31 +70,13 @@ def dev(backend_port: int, frontend_port: int):
     print_msg(f"  Frontend port: {frontend_port}")
     print_msg("")
 
-    backend_proc = None
-    frontend_proc = None
-
-    def cleanup(signum=None, frame=None):
-        print_msg("\nShutting down servers...", "yellow")
-        for proc in [backend_proc, frontend_proc]:
-            if proc and proc.poll() is None:
-                proc.terminate()
-                try:
-                    proc.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
-        subprocess.run(
-            ["pkill", "-f", "python -m backend.src.main"], capture_output=True
-        )
-        subprocess.run(["pkill", "-f", "next dev"], capture_output=True)
-        print_msg("Servers stopped", "green")
-        sys.exit(0)
-
-    signal.signal(signal.SIGINT, cleanup)
-    signal.signal(signal.SIGTERM, cleanup)
+    manager = create_dev_manager()
+    manager.setup_signal_handlers()
 
     try:
         print_msg("Starting backend server...", "blue")
         backend_proc = start_backend_server(project_root, backend_port, dev_mode=True)
+        manager.add_process(backend_proc)
 
         # Wait for backend to be healthy
         health_url = f"http://localhost:{backend_port}/health"
@@ -161,14 +88,14 @@ def dev(backend_port: int, frontend_port: int):
 
         print_msg("Starting frontend server...", "blue")
         frontend_proc = start_frontend_server(project_root, frontend_port, backend_port)
+        manager.add_process(frontend_proc)
 
         # Wait for frontend process to stabilize
         if not wait_for_process_running(frontend_proc, max_attempts=20):
             print_msg("Frontend failed to start", "red")
             if frontend_proc.stdout:
                 print_msg(frontend_proc.stdout.read().decode(errors="replace"))
-            cleanup()
-            raise click.Abort()
+            manager.cleanup(exit_code=1)
 
         print_msg("")
         print_panel("Development environment started!", "bold green")
@@ -202,18 +129,16 @@ def dev(backend_port: int, frontend_port: int):
         backend_thread.start()
         frontend_thread.start()
 
-        while True:
-            if backend_proc.poll() is not None:
-                print_msg("Backend server stopped unexpectedly", "red")
-                cleanup()
-            if frontend_proc.poll() is not None:
-                print_msg("Frontend server stopped unexpectedly", "red")
-                cleanup()
-            time.sleep(1)
+        # Monitor processes
+        manager.monitor_processes(
+            on_failure=lambda name: print_msg(f"{name} stopped unexpectedly", "red")
+        )
 
+    except click.Abort:
+        raise
     except Exception as e:
         print_msg(f"Error: {e}", "red")
-        cleanup()
+        manager.cleanup(exit_code=1)
 
 
 @cli.command()
@@ -249,31 +174,13 @@ def start(backend_port: int, frontend_port: int, build: bool):
     print_msg(f"  Frontend port: {frontend_port}")
     print_msg("")
 
-    backend_proc = None
-    frontend_proc = None
-
-    def cleanup(signum=None, frame=None):
-        print_msg("\nShutting down servers...", "yellow")
-        for proc in [backend_proc, frontend_proc]:
-            if proc and proc.poll() is None:
-                proc.terminate()
-                try:
-                    proc.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
-        subprocess.run(
-            ["pkill", "-f", "python -m backend.src.main"], capture_output=True
-        )
-        subprocess.run(["pkill", "-f", "next start"], capture_output=True)
-        print_msg("Servers stopped", "green")
-        sys.exit(0)
-
-    signal.signal(signal.SIGINT, cleanup)
-    signal.signal(signal.SIGTERM, cleanup)
+    manager = create_prod_manager()
+    manager.setup_signal_handlers()
 
     try:
         print_msg("Starting backend server...", "blue")
         backend_proc = start_backend_server(project_root, backend_port)
+        manager.add_process(backend_proc)
 
         # Wait for backend to be healthy
         health_url = f"http://localhost:{backend_port}/health"
@@ -296,14 +203,14 @@ def start(backend_port: int, frontend_port: int, build: bool):
         frontend_proc = start_frontend_server(
             project_root, frontend_port, backend_port, dev_mode=False
         )
+        manager.add_process(frontend_proc)
 
         # Wait for frontend process to stabilize
         if not wait_for_process_running(frontend_proc, max_attempts=20):
             print_msg("Frontend failed to start", "red")
             if frontend_proc.stdout:
                 print_msg(frontend_proc.stdout.read().decode(errors="replace"))
-            cleanup()
-            raise click.Abort()
+            manager.cleanup(exit_code=1)
 
         print_msg("")
         print_panel("ADKFlow started!", "bold green")
@@ -315,18 +222,16 @@ def start(backend_port: int, frontend_port: int, build: bool):
         print_msg("")
         print_msg("Press Ctrl+C to stop all servers", "dim")
 
-        while True:
-            if backend_proc.poll() is not None:
-                print_msg("Backend server stopped unexpectedly", "red")
-                cleanup()
-            if frontend_proc.poll() is not None:
-                print_msg("Frontend server stopped unexpectedly", "red")
-                cleanup()
-            time.sleep(1)
+        # Monitor processes
+        manager.monitor_processes(
+            on_failure=lambda name: print_msg(f"{name} stopped unexpectedly", "red")
+        )
 
+    except click.Abort:
+        raise
     except Exception as e:
         print_msg(f"Error: {e}", "red")
-        cleanup()
+        manager.cleanup(exit_code=1)
 
 
 @cli.command()
@@ -349,24 +254,13 @@ def backend(port: int):
     print_msg(f"  Port: {port}")
     print_msg("")
 
-    proc = None
-
-    def cleanup(signum=None, frame=None):
-        print_msg("\nShutting down backend...", "yellow")
-        if proc and proc.poll() is None:
-            proc.terminate()
-            try:
-                proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-        print_msg("Backend stopped", "green")
-        sys.exit(0)
-
-    signal.signal(signal.SIGINT, cleanup)
-    signal.signal(signal.SIGTERM, cleanup)
+    manager = create_backend_manager()
+    manager.setup_signal_handlers()
 
     try:
         proc = start_backend_server(project_root, port)
+        manager.add_process(proc)
+
         print_msg("")
         print_msg(f"Backend running at http://localhost:{port}", "green")
         print_msg(f"API docs at http://localhost:{port}/docs", "green")
@@ -379,9 +273,11 @@ def backend(port: int):
                 if line:
                     print(line.decode().rstrip())
 
+    except click.Abort:
+        raise
     except Exception as e:
         print_msg(f"Error: {e}", "red")
-        cleanup()
+        manager.cleanup(exit_code=1)
 
 
 @cli.command()
@@ -412,24 +308,13 @@ def frontend(port: int, backend_port: int):
     print_msg(f"  Backend: http://localhost:{backend_port}")
     print_msg("")
 
-    proc = None
-
-    def cleanup(signum=None, frame=None):
-        print_msg("\nShutting down frontend...", "yellow")
-        if proc and proc.poll() is None:
-            proc.terminate()
-            try:
-                proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-        print_msg("Frontend stopped", "green")
-        sys.exit(0)
-
-    signal.signal(signal.SIGINT, cleanup)
-    signal.signal(signal.SIGTERM, cleanup)
+    manager = create_frontend_manager()
+    manager.setup_signal_handlers()
 
     try:
         proc = start_frontend_server(project_root, port, backend_port)
+        manager.add_process(proc)
+
         print_msg("")
         print_msg(f"Frontend running at http://localhost:{port}", "green")
         print_msg("")
@@ -441,9 +326,11 @@ def frontend(port: int, backend_port: int):
                 if line:
                     print(line.decode().rstrip())
 
+    except click.Abort:
+        raise
     except Exception as e:
         print_msg(f"Error: {e}", "red")
-        cleanup()
+        manager.cleanup(exit_code=1)
 
 
 @cli.command()
@@ -452,18 +339,20 @@ def stop():
     print_msg("Stopping ADKFlow servers...", "yellow")
 
     result = subprocess.run(
-        ["pkill", "-f", "python -m backend.src.main"], capture_output=True
+        ["pkill", "-f", BACKEND_PROCESS_PATTERN], capture_output=True
     )
     if result.returncode == 0:
         print_msg("Backend stopped", "green")
     else:
         print_msg("No backend process found", "dim")
 
-    result = subprocess.run(["pkill", "-f", "next dev"], capture_output=True)
+    result = subprocess.run(["pkill", "-f", FRONTEND_DEV_PATTERN], capture_output=True)
     if result.returncode == 0:
         print_msg("Frontend (dev) stopped", "green")
     else:
-        result = subprocess.run(["pkill", "-f", "next start"], capture_output=True)
+        result = subprocess.run(
+            ["pkill", "-f", FRONTEND_PROD_PATTERN], capture_output=True
+        )
         if result.returncode == 0:
             print_msg("Frontend (prod) stopped", "green")
         else:
