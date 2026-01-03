@@ -12,7 +12,7 @@ export interface UseCustomNodeNameOptions {
 export interface UseCustomNodeNameResult {
   isEditing: boolean;
   editedName: string;
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
   handleNameClick: (e: React.MouseEvent) => void;
   handleNameChange: (value: string) => void;
   handleNameSave: () => void;

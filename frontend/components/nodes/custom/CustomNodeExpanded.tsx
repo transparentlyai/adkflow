@@ -45,7 +45,7 @@ export interface CustomNodeExpandedProps {
   isFieldVisible: (field: FieldDefinition) => boolean;
   isEditing: boolean;
   editedName: string;
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
   onNameClick: (e: React.MouseEvent) => void;
   onNameChange: (value: string) => void;
   onNameSave: () => void;

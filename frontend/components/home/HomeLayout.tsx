@@ -13,7 +13,7 @@ import type { TabState } from "@/lib/types";
 import type { RecentProject } from "@/lib/recentProjects";
 
 interface HomeLayoutProps {
-  canvasRef: React.RefObject<ReactFlowCanvasRef>;
+  canvasRef: React.RefObject<ReactFlowCanvasRef | null>;
   currentProjectPath: string | null;
   tabs: TabState[];
   activeTabId: string | null;

@@ -33,7 +33,7 @@ export interface CustomNodeCollapsedProps {
   // Name editing props
   isEditing: boolean;
   editedName: string;
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
   onNameClick: (e: React.MouseEvent) => void;
   onNameChange: (value: string) => void;
   onNameSave: () => void;
