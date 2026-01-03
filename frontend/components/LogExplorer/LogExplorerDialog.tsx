@@ -28,12 +28,14 @@ interface LogExplorerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectPath: string | null;
+  isRunning?: boolean;
 }
 
 export function LogExplorerDialog({
   open,
   onOpenChange,
   projectPath,
+  isRunning = false,
 }: LogExplorerDialogProps) {
   const {
     files,
@@ -55,7 +57,7 @@ export function LogExplorerDialog({
     runs,
     isLoadingRuns,
     setLastRunOnly,
-  } = useLogExplorer(projectPath);
+  } = useLogExplorer(projectPath, isRunning);
 
   const [formatJson, setFormatJson] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>("logs");

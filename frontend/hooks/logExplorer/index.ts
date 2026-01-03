@@ -18,6 +18,7 @@ export type { LogFilters, UseLogExplorerResult };
 
 export function useLogExplorer(
   projectPathOverride?: string | null,
+  isRunning: boolean = false,
 ): UseLogExplorerResult {
   const { projectPath: contextProjectPath } = useProject();
   const projectPath = projectPathOverride ?? contextProjectPath;
@@ -40,7 +41,7 @@ export function useLogExplorer(
     isLoading: runsLoading,
     refresh: refreshRuns,
     triggerRefresh: triggerRunsRefresh,
-  } = useLogRuns(projectPath, selectedFile);
+  } = useLogRuns(projectPath, selectedFile, isRunning);
 
   // Handle lastRunOnly toggle
   const setLastRunOnly = useCallback(

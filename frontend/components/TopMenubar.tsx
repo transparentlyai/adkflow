@@ -341,6 +341,7 @@ export default function TopMenubar({
         open={logExplorerOpen}
         onOpenChange={setLogExplorerOpen}
         projectPath={projectPath ?? null}
+        isRunning={isRunning}
       />
     </>
   );
