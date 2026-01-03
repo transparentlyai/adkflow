@@ -50,6 +50,9 @@ export function DebugPanelContent({
   const [pendingClearBeforeRun, setPendingClearBeforeRun] = useState<
     boolean | null
   >(null);
+  const [pendingTraceClearBeforeRun, setPendingTraceClearBeforeRun] = useState<
+    boolean | null
+  >(null);
 
   // Reset pending changes when config changes from server
   useEffect(() => {
@@ -57,6 +60,7 @@ export function DebugPanelContent({
     setPendingCategories({});
     setCategoriesToRemove(new Set());
     setPendingClearBeforeRun(null);
+    setPendingTraceClearBeforeRun(null);
   }, [config]);
 
   // Compute effective values (pending or saved)
@@ -74,11 +78,15 @@ export function DebugPanelContent({
   const effectiveClearBeforeRun =
     pendingClearBeforeRun ?? (config?.fileClearBeforeRun || false);
 
+  const effectiveTraceClearBeforeRun =
+    pendingTraceClearBeforeRun ?? (config?.traceClearBeforeRun || false);
+
   const hasChanges =
     pendingGlobalLevel !== null ||
     Object.keys(pendingCategories).length > 0 ||
     categoriesToRemove.size > 0 ||
-    pendingClearBeforeRun !== null;
+    pendingClearBeforeRun !== null ||
+    pendingTraceClearBeforeRun !== null;
 
   const handleToggle = useCallback((name: string) => {
     setExpanded((prev) => {
@@ -154,6 +162,10 @@ export function DebugPanelContent({
         update.fileClearBeforeRun = pendingClearBeforeRun;
       }
 
+      if (pendingTraceClearBeforeRun !== null) {
+        update.traceClearBeforeRun = pendingTraceClearBeforeRun;
+      }
+
       const finalCategories: Record<string, string> = {
         ...(config?.categories || {}),
       };
@@ -181,6 +193,7 @@ export function DebugPanelContent({
       setPendingCategories({});
       setCategoriesToRemove(new Set());
       setPendingClearBeforeRun(null);
+      setPendingTraceClearBeforeRun(null);
     } finally {
       setIsResetting(false);
     }
@@ -268,7 +281,7 @@ export function DebugPanelContent({
             />
           </div>
 
-          {/* Clear Before Run Toggle */}
+          {/* Clear Logs Before Run Toggle */}
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-2">
               <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
@@ -284,6 +297,27 @@ export function DebugPanelContent({
               onClick={() => setPendingClearBeforeRun(!effectiveClearBeforeRun)}
             >
               {effectiveClearBeforeRun ? "On" : "Off"}
+            </Button>
+          </div>
+
+          {/* Clear Traces Before Run Toggle */}
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">
+                Clear traces before run
+              </span>
+            </div>
+            <Button
+              variant={effectiveTraceClearBeforeRun ? "default" : "outline"}
+              size="sm"
+              className="h-6 px-2 text-xs"
+              disabled={isLoading || isSaving}
+              onClick={() =>
+                setPendingTraceClearBeforeRun(!effectiveTraceClearBeforeRun)
+              }
+            >
+              {effectiveTraceClearBeforeRun ? "On" : "Off"}
             </Button>
           </div>
 

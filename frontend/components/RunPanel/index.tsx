@@ -9,6 +9,8 @@ import {
   AlertCircle,
   Loader2,
   GripHorizontal,
+  FileText,
+  Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -19,6 +21,7 @@ import UserInputPanel from "./UserInputPanel";
 import DebugPanel from "./DebugPanel";
 import { useRunEvents } from "./useRunEvents";
 import { useStatusPolling } from "./useStatusPolling";
+import { useLoggingConfig } from "@/hooks/useLoggingConfig";
 import type { DisplayEvent, RunPanelProps } from "./types";
 
 const MIN_HEIGHT = 120;
@@ -50,6 +53,18 @@ export default function RunPanel({
   const [userInputValue, setUserInputValue] = useState("");
   const [isSubmittingInput, setIsSubmittingInput] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { isDevMode } = useLoggingConfig();
+
+  // Open debug page in new tab
+  const openDebugPage = useCallback(
+    (tab: "logs" | "traces") => {
+      const url = projectPath
+        ? `/debug?project=${encodeURIComponent(projectPath)}&tab=${tab}`
+        : `/debug?tab=${tab}`;
+      window.open(url, "_blank");
+    },
+    [projectPath],
+  );
 
   // Resize handling
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -206,6 +221,28 @@ export default function RunPanel({
           <span className="text-xs text-gray-500 capitalize">{status}</span>
         </div>
         <div className="flex items-center gap-1">
+          {isDevMode && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => openDebugPage("logs")}
+                className="text-gray-400 hover:text-gray-200 h-6 w-6 p-0"
+                title="Open Log Explorer"
+              >
+                <FileText className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => openDebugPage("traces")}
+                className="text-gray-400 hover:text-gray-200 h-6 w-6 p-0"
+                title="Open Trace Explorer"
+              >
+                <Activity className="h-3 w-3" />
+              </Button>
+            </>
+          )}
           <DebugPanel projectPath={projectPath} />
           {status === "running" && (
             <Button
