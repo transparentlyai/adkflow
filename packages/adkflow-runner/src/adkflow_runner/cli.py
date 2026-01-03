@@ -29,77 +29,113 @@ except ImportError:
     Prompt = None  # type: ignore[assignment]
 
 
+# Constants for display
+MAX_OUTPUT_DISPLAY_LENGTH = 2000
+OUTPUT_TRUNCATION_SUFFIX = "\n... (truncated)"
+PANEL_WIDTH = 50
+
+
+def _truncate_output(text: str, max_length: int = MAX_OUTPUT_DISPLAY_LENGTH) -> str:
+    """Truncate text if it exceeds max length."""
+    if len(text) > max_length:
+        return text[:max_length] + OUTPUT_TRUNCATION_SUFFIX
+    return text
+
+
 class CLIUserInputProvider:
     """Interactive CLI handler for user input requests.
 
     Displays previous output and prompts for user input in the terminal.
+    Supports timeout for input requests.
     """
 
     def __init__(self, quiet: bool = False):
         self.quiet = quiet
 
+    def _display_previous_output(self, output: str) -> None:
+        """Display previous step output."""
+        output_display = _truncate_output(output)
+
+        if HAS_RICH and console and Panel:
+            console.print()
+            console.print(
+                Panel(
+                    output_display,
+                    title="[cyan]Output from previous step[/cyan]",
+                    border_style="cyan",
+                )
+            )
+        else:
+            print("\n" + "=" * PANEL_WIDTH)
+            print("Previous output:")
+            print(output_display)
+            print("=" * PANEL_WIDTH)
+
+    def _display_prompt_info(self, request: "UserInputRequest") -> None:
+        """Display prompt information."""
+        if HAS_RICH and console:
+            console.print()
+            console.print(
+                f"[bold yellow]?[/bold yellow] [bold]{request.node_name}[/bold]"
+            )
+            console.print(
+                f"  [dim]Variable: {{{request.variable_name}}} | "
+                f"Timeout: {request.timeout_seconds}s[/dim]"
+            )
+        else:
+            print(f"\n? {request.node_name}")
+            print(
+                f"  Variable: {{{request.variable_name}}} | "
+                f"Timeout: {request.timeout_seconds}s"
+            )
+
+    def _get_input_sync(self) -> str:
+        """Get user input synchronously."""
+        if HAS_RICH and Prompt:
+            return Prompt.ask("[bold]Your input[/bold]")
+        else:
+            return input("Your input: ")
+
     async def request_input(self, request: "UserInputRequest") -> str | None:
-        """Request user input interactively.
+        """Request user input interactively with timeout support.
 
         Args:
             request: The input request context
 
         Returns:
-            User input string
+            User input string, or None if timed out
 
         Raises:
-            TimeoutError: If timeout occurs (not implemented in CLI - blocks)
+            TimeoutError: If timeout_seconds is exceeded
             asyncio.CancelledError: If the request was cancelled
         """
         # Display previous output if available
         if request.previous_output and not self.quiet:
-            if HAS_RICH and console and Panel:
-                # Truncate very long outputs
-                output_display = request.previous_output
-                if len(output_display) > 2000:
-                    output_display = output_display[:2000] + "\n... (truncated)"
-
-                console.print()
-                console.print(
-                    Panel(
-                        output_display,
-                        title="[cyan]Output from previous step[/cyan]",
-                        border_style="cyan",
-                    )
-                )
-            else:
-                print("\n" + "=" * 50)
-                print("Previous output:")
-                output_display = request.previous_output
-                if len(output_display) > 2000:
-                    output_display = output_display[:2000] + "\n... (truncated)"
-                print(output_display)
-                print("=" * 50)
+            self._display_previous_output(request.previous_output)
 
         # Display prompt info
         if not self.quiet:
-            if HAS_RICH and console:
-                console.print()
-                console.print(
-                    f"[bold yellow]?[/bold yellow] [bold]{request.node_name}[/bold]"
-                )
-                console.print(
-                    f"  [dim]Variable: {{{request.variable_name}}} | "
-                    f"Timeout: {request.timeout_seconds}s[/dim]"
-                )
-            else:
-                print(f"\n? {request.node_name}")
-                print(
-                    f"  Variable: {{{request.variable_name}}} | "
-                    f"Timeout: {request.timeout_seconds}s"
-                )
+            self._display_prompt_info(request)
 
-        # Read user input
+        # Read user input with timeout
         try:
-            if HAS_RICH and Prompt:
-                response = Prompt.ask("[bold]Your input[/bold]")
+            # Run blocking input in executor with timeout
+            loop = asyncio.get_event_loop()
+            input_task = loop.run_in_executor(None, self._get_input_sync)
+
+            # Apply timeout if specified
+            if request.timeout_seconds and request.timeout_seconds > 0:
+                try:
+                    response = await asyncio.wait_for(
+                        input_task, timeout=request.timeout_seconds
+                    )
+                except asyncio.TimeoutError:
+                    print_msg("\nInput timed out", "yellow")
+                    raise TimeoutError(
+                        f"User input timed out after {request.timeout_seconds}s"
+                    )
             else:
-                response = input("Your input: ")
+                response = await input_task
 
             return response.strip()
 
@@ -179,8 +215,9 @@ def cli():
 )
 @click.option(
     "--timeout",
+    type=click.IntRange(min=1),
     default=300,
-    help="Execution timeout in seconds (default: 300)",
+    help="Execution timeout in seconds (default: 300, must be positive)",
 )
 @click.option(
     "--no-validate",
@@ -216,8 +253,23 @@ def run_command(
         adkflow-runner run . --input '{"prompt": "Hello!"}'
         adkflow-runner run . --input-file input.json
         adkflow-runner run . --tab main --verbose
-        adkflow-runner run . --callback-url http://localhost:3000/api/events
+        adkflow-runner run . --callback-url http://localhost:6006/api/events
     """
+    # Validate conflicting flags
+    if quiet and verbose:
+        print_msg(
+            "Warning: --quiet and --verbose are conflicting; --quiet takes precedence",
+            "yellow",
+        )
+        verbose = False  # quiet overrides verbose
+
+    if quiet and interactive:
+        print_msg(
+            "Note: --quiet disables interactive mode (no user prompts)",
+            "dim",
+        )
+        interactive = False  # quiet disables interactive
+
     # Load .env from workflow project directory
     workflow_env = Path(project_path).resolve() / ".env"
     if workflow_env.exists():
@@ -225,11 +277,32 @@ def run_command(
         if not quiet:
             print_msg(f"Loaded environment from {workflow_env}", "dim")
 
+    # Validate mutually exclusive input options
+    if input_file and input_str:
+        print_msg(
+            "Error: --input and --input-file are mutually exclusive. Use only one.",
+            "red",
+        )
+        raise click.Abort()
+
     # Parse input
     input_data: dict = {}
     if input_file:
-        with open(input_file) as f:
-            input_data = json.load(f)
+        try:
+            with open(input_file) as f:
+                input_data = json.load(f)
+        except FileNotFoundError:
+            print_msg(f"Input file not found: {input_file}", "red")
+            raise click.Abort()
+        except PermissionError:
+            print_msg(f"Permission denied reading: {input_file}", "red")
+            raise click.Abort()
+        except json.JSONDecodeError as e:
+            print_msg(f"Invalid JSON in {input_file}: {e}", "red")
+            raise click.Abort()
+        except Exception as e:
+            print_msg(f"Error reading {input_file}: {e}", "red")
+            raise click.Abort()
     elif input_str:
         try:
             input_data = json.loads(input_str)

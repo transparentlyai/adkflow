@@ -7,6 +7,7 @@ import threading
 import time
 
 import click
+import requests
 from adkflow_runner.cli import run_command, validate_command
 
 from cli.utils import (
@@ -20,8 +21,72 @@ from cli.utils import (
 from cli.servers import start_backend_server, start_frontend_server
 
 
-DEFAULT_BACKEND_PORT = 8000
-DEFAULT_FRONTEND_PORT = 3000
+# Server configuration constants
+DEFAULT_BACKEND_PORT = 6000
+DEFAULT_FRONTEND_PORT = 6006
+
+# Health check configuration
+HEALTH_CHECK_MAX_ATTEMPTS = 30  # Max attempts (30 * 0.5s = 15s timeout)
+HEALTH_CHECK_INTERVAL = 0.5  # Seconds between attempts
+PROCESS_TERMINATION_TIMEOUT = 5  # Seconds to wait for graceful shutdown
+
+
+def wait_for_server_health(
+    url: str,
+    proc: subprocess.Popen,
+    max_attempts: int = HEALTH_CHECK_MAX_ATTEMPTS,
+    interval: float = HEALTH_CHECK_INTERVAL,
+) -> bool:
+    """Wait for server to become healthy by polling health endpoint.
+
+    Args:
+        url: Health check URL (e.g., http://localhost:6000/health)
+        proc: The server process to monitor
+        max_attempts: Maximum number of health check attempts
+        interval: Seconds between attempts
+
+    Returns:
+        True if server is healthy, False if it failed to start
+    """
+    for attempt in range(max_attempts):
+        # Check if process crashed
+        if proc.poll() is not None:
+            return False
+
+        try:
+            response = requests.get(url, timeout=1)
+            if response.status_code == 200:
+                return True
+        except requests.RequestException:
+            pass  # Server not ready yet
+
+        time.sleep(interval)
+
+    return False
+
+
+def wait_for_process_running(
+    proc: subprocess.Popen,
+    max_attempts: int = HEALTH_CHECK_MAX_ATTEMPTS,
+    interval: float = HEALTH_CHECK_INTERVAL,
+) -> bool:
+    """Wait for process to stabilize (for frontend without health endpoint).
+
+    Args:
+        proc: The server process to monitor
+        max_attempts: Maximum number of attempts
+        interval: Seconds between attempts
+
+    Returns:
+        True if process is still running, False if it crashed
+    """
+    for _ in range(max_attempts):
+        if proc.poll() is not None:
+            return False
+        time.sleep(interval)
+        if proc.poll() is None:
+            return True
+    return proc.poll() is None
 
 
 @click.group()
@@ -85,22 +150,23 @@ def dev(backend_port: int, frontend_port: int):
     try:
         print_msg("Starting backend server...", "blue")
         backend_proc = start_backend_server(project_root, backend_port, dev_mode=True)
-        time.sleep(3)
 
-        if backend_proc.poll() is not None:
+        # Wait for backend to be healthy
+        health_url = f"http://localhost:{backend_port}/health"
+        if not wait_for_server_health(health_url, backend_proc):
             print_msg("Backend failed to start", "red")
             if backend_proc.stdout:
-                print_msg(backend_proc.stdout.read().decode())
+                print_msg(backend_proc.stdout.read().decode(errors="replace"))
             raise click.Abort()
 
         print_msg("Starting frontend server...", "blue")
         frontend_proc = start_frontend_server(project_root, frontend_port, backend_port)
-        time.sleep(3)
 
-        if frontend_proc.poll() is not None:
+        # Wait for frontend process to stabilize
+        if not wait_for_process_running(frontend_proc, max_attempts=20):
             print_msg("Frontend failed to start", "red")
             if frontend_proc.stdout:
-                print_msg(frontend_proc.stdout.read().decode())
+                print_msg(frontend_proc.stdout.read().decode(errors="replace"))
             cleanup()
             raise click.Abort()
 
@@ -208,12 +274,13 @@ def start(backend_port: int, frontend_port: int, build: bool):
     try:
         print_msg("Starting backend server...", "blue")
         backend_proc = start_backend_server(project_root, backend_port)
-        time.sleep(3)
 
-        if backend_proc.poll() is not None:
+        # Wait for backend to be healthy
+        health_url = f"http://localhost:{backend_port}/health"
+        if not wait_for_server_health(health_url, backend_proc):
             print_msg("Backend failed to start", "red")
             if backend_proc.stdout:
-                print_msg(backend_proc.stdout.read().decode())
+                print_msg(backend_proc.stdout.read().decode(errors="replace"))
             raise click.Abort()
 
         frontend_dir = project_root / "frontend"
@@ -229,12 +296,12 @@ def start(backend_port: int, frontend_port: int, build: bool):
         frontend_proc = start_frontend_server(
             project_root, frontend_port, backend_port, dev_mode=False
         )
-        time.sleep(3)
 
-        if frontend_proc.poll() is not None:
+        # Wait for frontend process to stabilize
+        if not wait_for_process_running(frontend_proc, max_attempts=20):
             print_msg("Frontend failed to start", "red")
             if frontend_proc.stdout:
-                print_msg(frontend_proc.stdout.read().decode())
+                print_msg(frontend_proc.stdout.read().decode(errors="replace"))
             cleanup()
             raise click.Abort()
 
