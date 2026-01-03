@@ -2,8 +2,10 @@ import type { TraceSpan } from "@evilmartians/agent-prism-types";
 import type { ReactNode } from "react";
 
 import { getDurationMs, formatDuration } from "@evilmartians/agent-prism-data";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Cpu, FunctionSquare } from "lucide-react";
 import { useState } from "react";
+
+import { Badge } from "../Badge";
 
 import type { AvatarProps } from "../Avatar";
 
@@ -11,7 +13,9 @@ import { Avatar } from "../Avatar";
 import { IconButton } from "../IconButton";
 import { PriceBadge } from "../PriceBadge";
 import { SpanBadge } from "../SpanBadge";
+import { SpanCategoryAvatar } from "../SpanCategoryAvatar";
 import { SpanStatus } from "../SpanStatus";
+import { getModelName, getToolName } from "../spanAttributeUtils";
 import { TimestampBadge } from "../TimestampBadge";
 import { TokensBadge } from "../TokensBadge";
 
@@ -41,6 +45,8 @@ export const DetailsViewHeader = ({
 }: DetailsViewHeaderProps) => {
   const [hasCopied, setHasCopied] = useState(false);
   const durationMs = getDurationMs(data);
+  const modelName = getModelName(data);
+  const toolName = getToolName(data);
 
   const handleCopy = () => {
     if (copyButton?.onCopy) {
@@ -52,7 +58,11 @@ export const DetailsViewHeader = ({
 
   return (
     <div className={className || "flex flex-wrap items-center gap-2"}>
-      {avatar && <Avatar size="4" {...avatar} />}
+      {avatar ? (
+        <Avatar size="4" {...avatar} />
+      ) : (
+        <SpanCategoryAvatar category={data.type} size="5" />
+      )}
 
       <span className="text-agentprism-foreground tracking-wide">
         {data.title}
@@ -79,6 +89,24 @@ export const DetailsViewHeader = ({
       )}
 
       <SpanBadge category={data.type} />
+
+      {modelName && (
+        <Badge
+          iconStart={<Cpu className="size-2.5" />}
+          label={modelName}
+          className="bg-agentprism-badge-llm text-agentprism-badge-llm-foreground"
+          unstyled
+        />
+      )}
+
+      {toolName && (
+        <Badge
+          iconStart={<FunctionSquare className="size-2.5" />}
+          label={toolName}
+          className="bg-agentprism-badge-tool text-agentprism-badge-tool-foreground"
+          unstyled
+        />
+      )}
 
       {typeof data.tokensCount === "number" && (
         <TokensBadge tokensCount={data.tokensCount} />

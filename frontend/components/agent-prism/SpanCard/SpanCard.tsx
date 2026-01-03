@@ -14,6 +14,7 @@ import type { SpanCardConnectorType } from "./SpanCardConnector";
 
 import { Avatar } from "../Avatar";
 import { BrandLogo } from "../BrandLogo";
+import { SpanCategoryAvatar } from "../SpanCategoryAvatar";
 import { SpanStatus } from "../SpanStatus";
 import { SpanCardBadges } from "./SpanCardBadges";
 import { SpanCardConnector } from "./SpanCardConnector";
@@ -411,7 +412,11 @@ export const SpanCard: FC<SpanCardProps> = ({
                 minWidth: 140,
               }}
             >
-              {avatar && <Avatar size="4" {...avatar} />}
+              {avatar ? (
+                <Avatar size="4" {...avatar} />
+              ) : (
+                <SpanCategoryAvatar category={data.type} size="4" />
+              )}
 
               <h3
                 className="text-agentprism-foreground max-w-32 truncate text-sm leading-[14px]"
