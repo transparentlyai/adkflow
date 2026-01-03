@@ -13,7 +13,7 @@ from backend.src.api.extension_routes import router as extension_router
 
 # Check if running in dev mode
 DEV_MODE = os.getenv("ADKFLOW_DEV_MODE", "0") == "1"
-BACKEND_PORT = int(os.getenv("BACKEND_PORT", "8000"))
+BACKEND_PORT = int(os.getenv("BACKEND_PORT", "6000"))
 
 
 def log_startup(message: str, level: str = "INFO") -> None:
@@ -148,8 +148,8 @@ def check_port_available(port: int) -> bool:
 if __name__ == "__main__":
     import uvicorn
 
-    # Get backend port from environment (default: 8000)
-    backend_port = int(os.getenv("BACKEND_PORT", "8000"))
+    # Get backend port from environment (default: 6000)
+    backend_port = int(os.getenv("BACKEND_PORT", "6000"))
 
     # Check if port is available
     if not check_port_available(backend_port):
