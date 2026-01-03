@@ -98,10 +98,19 @@ Logging configuration is stored in `manifest.json` under the `logging` key:
       "api": "DEBUG",
       "compiler": "WARNING",
       "runner.agent.config": "DEBUG"
-    }
+    },
+    "file_clear_before_run": true,
+    "trace_clear_before_run": true
   }
 }
 ```
+
+| Option | Description |
+|--------|-------------|
+| `level` | Global log level |
+| `categories` | Per-category log levels |
+| `file_clear_before_run` | Clear log file at start of each run |
+| `trace_clear_before_run` | Clear trace file at start of each run |
 
 The logging settings are managed via the Debug Panel UI when running in dev mode.
 
@@ -268,6 +277,38 @@ curl http://localhost:8000/api/debug/logging/categories
 ```bash
 curl -X POST http://localhost:8000/api/debug/logging/reset
 ```
+
+## Debug Panel UI
+
+When running in dev mode (`./adkflow dev`), the Debug Panel provides a visual interface for configuring logging:
+
+### Accessing the Debug Panel
+
+1. Run a workflow to open the Run Panel
+2. Click the **⚙** (gear) icon in the Run Panel header
+3. The Debug Panel slides out with logging controls
+
+### Available Controls
+
+| Control | Description |
+|---------|-------------|
+| **Default Level** | Set global log verbosity |
+| **Clear logs before run** | Toggle to clear log files on each run |
+| **Clear traces before run** | Toggle to clear trace files on each run |
+| **Quick Presets** | One-click presets (Production, Debug All, Silent, etc.) |
+| **Categories** | Expandable tree of log categories with individual level controls |
+
+### Quick Presets
+
+| Preset | Effect |
+|--------|--------|
+| **Production** | WARNING level, minimal logging |
+| **Debug All** | DEBUG level for all categories |
+| **Silent** | OFF level, no logging |
+| **API Focus** | DEBUG for api.* categories |
+| **Agent Focus** | DEBUG for runner.agent.* categories |
+
+Changes are saved to `manifest.json` and persist across sessions.
 
 ## Frontend Integration
 

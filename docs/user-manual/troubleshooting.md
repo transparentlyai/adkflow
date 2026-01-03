@@ -253,9 +253,41 @@ Get your key at [Google AI Studio](https://aistudio.google.com/).
 | Safari | Occasional scroll issues | Use Chrome |
 | Firefox | Minor styling differences | Generally works |
 
+## Debugging Tools (Dev Mode)
+
+When running with `./adkflow dev`, powerful debugging tools are available:
+
+### Debug Panel
+
+1. Run a workflow to open the Run Panel
+2. Click the **⚙** (gear) icon
+3. Configure logging levels and options
+
+### Log Explorer
+
+1. Click the **📄** icon in the Run Panel header
+2. Opens in a new tab at `/debug?tab=logs`
+3. View structured logs with filtering and search
+
+### Trace Explorer
+
+1. Click the **📊** icon in the Run Panel header
+2. Opens in a new tab at `/debug?tab=traces`
+3. Visualize agent execution as a span tree
+4. See timing, model names, and tool names
+
+### Clear Before Run
+
+Enable "Clear logs before run" or "Clear traces before run" in the Debug Panel to start each run with clean files.
+
 ## Getting Help
 
 ### Check Logs
+
+**Using Log Explorer (recommended)**:
+1. Run with `./adkflow dev`
+2. Click the **📄** icon in the Run Panel
+3. Filter and search logs in the UI
 
 **Backend logs**:
 ```bash
@@ -271,6 +303,7 @@ cd backend && python -m backend.src.main
 **API logs**:
 - Backend terminal shows API calls
 - Check http://localhost:8000/docs for API explorer
+- Use Log Explorer with "api" category filter
 
 ### Report Issues
 

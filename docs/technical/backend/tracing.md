@@ -44,6 +44,7 @@ Traces are written to the executed project's directory:
 |----------|-------------|---------|
 | `ADKFLOW_TRACING_ENABLED` | Enable/disable tracing | `true` |
 | `ADKFLOW_TRACE_FILE` | Trace file name | `traces.jsonl` |
+| `ADKFLOW_TRACE_CLEAR_BEFORE_RUN` | Clear traces on each run | `false` |
 
 ```bash
 # Disable tracing
@@ -51,24 +52,26 @@ export ADKFLOW_TRACING_ENABLED=false
 
 # Custom trace file name
 export ADKFLOW_TRACE_FILE=my-traces.jsonl
+
+# Clear traces before each workflow run
+export ADKFLOW_TRACE_CLEAR_BEFORE_RUN=true
 ```
 
 ### Config File
 
-Tracing configuration can be set in `manifest.json` under `logging.tracing`:
+Tracing configuration can be set in `manifest.json` under the `logging` key:
 
 ```json
 {
   "name": "my-project",
   "logging": {
     "level": "INFO",
-    "tracing": {
-      "enabled": true,
-      "file": "traces.jsonl"
-    }
+    "trace_clear_before_run": true
   }
 }
 ```
+
+The `trace_clear_before_run` option clears the trace file at the start of each workflow run, keeping only the most recent execution's traces.
 
 ### Configuration Priority
 
@@ -111,13 +114,37 @@ Each span in `traces.jsonl` contains:
 
 ## Debug UI
 
+### Debug Panel
+
+In dev mode (`./adkflow dev`), the Debug Panel provides a UI toggle:
+
+- **Clear traces before run**: Enable to automatically clear traces when starting a new workflow run
+
+This setting is persisted to `manifest.json` and applies to future runs.
+
 ### Trace Explorer
+
+Access the Trace Explorer at `http://localhost:3000/debug?tab=traces` or click the **📊** icon in the Run Panel.
 
 The Trace Explorer provides:
 
-- **Trace list**: Browse all traces with timing and status
-- **Span tree**: Hierarchical view of spans within a trace
-- **Span details**: View attributes, duration, and status
+- **Trace list**: Browse all traces with timing and status (collapsible sidebar)
+- **Span tree**: Hierarchical view of spans within a trace (resizable panel)
+- **Span details**: View attributes, duration, model names, and tool names
+- **Timeline bars**: Visual representation of span timing relative to the trace
+
+### Span Information
+
+Each span displays:
+
+| Element | Description |
+|---------|-------------|
+| **Icon** | Colored icon indicating span type (LLM, Agent, Tool, etc.) |
+| **Name** | Formatted span name (e.g., "Invoke Agent: my_agent") |
+| **Model badge** | Model name for LLM calls (e.g., "gemini-2.0-flash") |
+| **Tool badge** | Tool name for tool executions |
+| **Timeline bar** | Visual timing relative to trace duration |
+| **Duration** | Execution time in human-readable format |
 
 ### Trace-Log Correlation
 

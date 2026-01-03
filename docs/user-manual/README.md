@@ -26,6 +26,16 @@ Complete guide to using ADKFlow for building AI agent workflows.
 - [Running Workflows](./running-workflows.md) - Executing workflows and viewing output
 - [Validation](./validation.md) - Validating workflows and viewing topology
 
+## Debugging (Dev Mode)
+
+When running with `./adkflow dev`, additional debugging tools are available:
+
+- **Debug Panel** - Configure logging levels and options (⚙ icon in Run Panel)
+- **Log Explorer** - View structured logs with filtering (📄 icon in Run Panel)
+- **Trace Explorer** - Visualize agent execution as span trees (📊 icon in Run Panel)
+
+See [Running Workflows - Debugging](./running-workflows.md#debugging-dev-mode) for details.
+
 ## Reference
 
 - [Keyboard Shortcuts](./keyboard-shortcuts.md) - All keyboard shortcuts

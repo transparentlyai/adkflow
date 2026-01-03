@@ -140,6 +140,18 @@ Appears when executing a workflow:
 - **Status** - Running, completed, or error state
 - **Cancel button** - Stop execution
 
+### Dev Mode Controls
+
+When running with `./adkflow dev`, additional controls appear in the Run Panel header:
+
+| Control | Description |
+|---------|-------------|
+| **Log Explorer** (📄) | Opens log viewer in new tab |
+| **Trace Explorer** (📊) | Opens trace viewer in new tab |
+| **Debug Panel** (⚙) | Configure logging levels and options |
+
+See [Running Workflows](./running-workflows.md#debugging-dev-mode) for details.
+
 ## Dialogs
 
 Modal windows for various actions:

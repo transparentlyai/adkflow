@@ -44,6 +44,8 @@ backend/
 | **File Operations** | File management | [file-operations.md](./file-operations.md) |
 | **Execution Engine** | Workflow execution | [execution-engine.md](./execution-engine.md) |
 | **Extension System** | Custom nodes | [extension-system.md](./extension-system.md) |
+| **Logging System** | Debug logging | [logging.md](./logging.md) |
+| **Tracing System** | OpenTelemetry tracing | [tracing.md](./tracing.md) |
 
 ## Application Entry
 
@@ -205,4 +207,6 @@ For production deployment:
 
 - [API Reference](./api-reference.md) - All endpoints
 - [Execution Engine](./execution-engine.md) - Workflow execution
+- [Logging System](./logging.md) - Debug logging
+- [Tracing System](./tracing.md) - OpenTelemetry tracing
 - [Architecture](../architecture.md) - System overview

@@ -45,19 +45,24 @@ export GOOGLE_CLOUD_LOCATION="us-central1"
 
 ## Starting ADKFlow
 
-### Development Mode
+### Development Mode (Recommended)
 
 ```bash
 ./adkflow dev
 ```
 
-This starts both frontend and backend with hot-reload enabled.
+This starts both frontend and backend with:
+- **Hot-reload** - Changes apply without restart
+- **Debug tools** - Log Explorer, Trace Explorer, Debug Panel
+- **Verbose logging** - Detailed output for troubleshooting
 
 ### Production Mode
 
 ```bash
 ./adkflow start
 ```
+
+Optimized for performance, debug tools are disabled.
 
 Open http://localhost:3000 in your browser.
 

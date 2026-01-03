@@ -27,7 +27,7 @@ When execution starts, the Run Panel appears at the bottom:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Run Panel                                        [Cancel] [×]│
+│ Run (id)  running           [📄] [📊] [⚙] [Cancel] [×]      │
 ├─────────────────────────────────────────────────────────────┤
 │ ▶ Starting workflow...                                      │
 │ ▶ Executing: analyze_agent                                  │
@@ -36,6 +36,16 @@ When execution starts, the Run Panel appears at the bottom:
 │ ✓ Workflow completed                                        │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### Header Controls (Dev Mode)
+
+When running with `./adkflow dev`, additional debug controls appear:
+
+| Icon | Action |
+|------|--------|
+| **📄** | Open Log Explorer in new tab |
+| **📊** | Open Trace Explorer in new tab |
+| **⚙** | Open Debug Panel (logging settings) |
 
 ### Event Stream
 
@@ -162,6 +172,55 @@ When an error occurs:
 2. Check the Run Panel for error details
 3. Validate the workflow before running
 4. Simplify and test incrementally
+
+## Debugging (Dev Mode)
+
+When running with `./adkflow dev`, powerful debugging tools are available.
+
+### Debug Panel
+
+Click the **⚙** (gear) icon in the Run Panel to open the Debug Panel:
+
+- **Default Level**: Set global log verbosity (DEBUG, INFO, WARNING, ERROR, OFF)
+- **Clear logs before run**: Automatically clear log files when starting a new run
+- **Clear traces before run**: Automatically clear trace files when starting a new run
+- **Quick Presets**: One-click presets for common debugging scenarios
+- **Categories**: Fine-grained control over individual log categories
+
+### Log Explorer
+
+Click the **📄** icon to open the Log Explorer in a new tab:
+
+- View structured logs from workflow execution
+- Filter by log level (DEBUG, INFO, WARNING, ERROR)
+- Search log content
+- See API requests, responses, and tool calls
+
+### Trace Explorer
+
+Click the **📊** icon to open the Trace Explorer in a new tab:
+
+- Visualize agent execution as a span tree
+- See timing and duration for each operation
+- View span details including model names and tool names
+- Correlate traces with logs for debugging
+
+### Configuration
+
+Debug settings are persisted to `manifest.json` and apply to future runs:
+
+```json
+{
+  "logging": {
+    "level": "DEBUG",
+    "categories": { "api": "DEBUG" },
+    "file_clear_before_run": true,
+    "trace_clear_before_run": true
+  }
+}
+```
+
+See [Logging System](../technical/backend/logging.md) and [Tracing System](../technical/backend/tracing.md) for full documentation.
 
 ## Run History
 

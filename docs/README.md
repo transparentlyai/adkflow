@@ -64,6 +64,8 @@ FastAPI backend implementation.
 - [File Operations](./technical/backend/file-operations.md) - File management
 - [Execution Engine](./technical/backend/execution-engine.md) - Workflow execution
 - [Extension System](./technical/backend/extension-system.md) - Custom node loading
+- [Logging System](./technical/backend/logging.md) - Debug logging configuration
+- [Tracing System](./technical/backend/tracing.md) - OpenTelemetry tracing
 
 #### [Extensions](./technical/extensions/README.md)
 Creating custom nodes with the FlowUnit API.
