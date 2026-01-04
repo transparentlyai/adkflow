@@ -5,8 +5,6 @@ Tests the core extension infrastructure.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -159,8 +157,8 @@ class TestFieldDefinition:
                 {"value": "claude", "label": "Claude"},
             ],
         )
-        assert len(field.options) == 2
-        assert field.options[0]["value"] == "gpt-4"
+        assert len(field.options) == 2  # type: ignore[arg-type]
+        assert field.options[0]["value"] == "gpt-4"  # type: ignore[index]
 
     def test_conditional_field(self):
         """Field with conditional visibility."""
@@ -193,10 +191,14 @@ class TestUISchema:
                 PortDefinition(id="in", label="In", source_type="*", data_type="str")
             ],
             outputs=[
-                PortDefinition(id="out", label="Out", source_type="custom", data_type="str")
+                PortDefinition(
+                    id="out", label="Out", source_type="custom", data_type="str"
+                )
             ],
             fields=[
-                FieldDefinition(id="prefix", label="Prefix", widget=WidgetType.TEXT_INPUT)
+                FieldDefinition(
+                    id="prefix", label="Prefix", widget=WidgetType.TEXT_INPUT
+                )
             ],
             color="#ff0000",
             icon="zap",
@@ -232,7 +234,7 @@ class TestHandleLayout:
             ],
         )
         assert layout.input_position == "top"
-        assert len(layout.additional_handles) == 1
+        assert len(layout.additional_handles) == 1  # type: ignore[arg-type]
 
 
 class TestAdditionalHandle:
@@ -257,6 +259,7 @@ class TestExecutionContext:
 
     def test_context_creation(self, tmp_path):
         """Create execution context."""
+
         async def mock_emit(event: Any) -> None:
             pass
 
@@ -276,6 +279,7 @@ class TestExecutionContext:
 
     def test_state_operations(self, tmp_path):
         """Test state get/set operations."""
+
         async def mock_emit(event: Any) -> None:
             pass
 
@@ -309,9 +313,17 @@ class ConcreteFlowUnit(FlowUnit):
     @classmethod
     def setup_interface(cls) -> UISchema:
         return UISchema(
-            inputs=[PortDefinition(id="in", label="Input", source_type="*", data_type="str")],
-            outputs=[PortDefinition(id="out", label="Output", source_type="test", data_type="str")],
-            fields=[FieldDefinition(id="msg", label="Message", widget=WidgetType.TEXT_INPUT)],
+            inputs=[
+                PortDefinition(id="in", label="Input", source_type="*", data_type="str")
+            ],
+            outputs=[
+                PortDefinition(
+                    id="out", label="Output", source_type="test", data_type="str"
+                )
+            ],
+            fields=[
+                FieldDefinition(id="msg", label="Message", widget=WidgetType.TEXT_INPUT)
+            ],
         )
 
     async def run_process(
@@ -351,6 +363,7 @@ class TestFlowUnitSubclass:
     @pytest.mark.asyncio
     async def test_run_process(self, tmp_path):
         """Test run_process execution."""
+
         async def mock_emit(event: Any) -> None:
             pass
 

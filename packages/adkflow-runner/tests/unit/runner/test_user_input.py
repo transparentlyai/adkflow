@@ -1,6 +1,7 @@
 """Tests for user input handling."""
 
 import asyncio
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -122,14 +123,14 @@ class TestUserInputProvider:
         """RunConfig can have user input provider."""
         provider = MagicMock()
         config = RunConfig(
-            project_path="/test",
+            project_path=Path("/test"),
             user_input_provider=provider,
         )
         assert config.user_input_provider == provider
 
     def test_run_config_default_no_provider(self):
         """RunConfig defaults to no provider."""
-        config = RunConfig(project_path="/test")
+        config = RunConfig(project_path=Path("/test"))
         assert config.user_input_provider is None
 
 
@@ -147,3 +148,294 @@ class TestUserInputEvents:
     def test_user_input_timeout_event(self):
         """USER_INPUT_TIMEOUT event type exists."""
         assert hasattr(EventType, "USER_INPUT_TIMEOUT")
+
+
+class TestHandleUserInput:
+    """Tests for handle_user_input function."""
+
+    @pytest.fixture
+    def mock_user_input(self):
+        """Create a mock UserInputIR."""
+        ui = MagicMock()
+        ui.id = "input_1"
+        ui.name = "Test Input"
+        ui.variable_name = "user_query"
+        ui.is_trigger = False
+        ui.timeout_seconds = 30.0
+        ui.timeout_behavior = "pass_through"
+        ui.predefined_text = ""
+        return ui
+
+    @pytest.fixture
+    def mock_config(self):
+        """Create a mock RunConfig with provider."""
+        provider = AsyncMock()
+        provider.request_input = AsyncMock(return_value="user response")
+        return RunConfig(project_path=Path("/test"), user_input_provider=provider)
+
+    @pytest.fixture
+    def mock_config_no_provider(self):
+        """Create a mock RunConfig without provider."""
+        return RunConfig(project_path=Path("/test"), user_input_provider=None)
+
+    @pytest.mark.asyncio
+    async def test_handle_with_provider_returns_response(
+        self, mock_user_input, mock_config
+    ):
+        """Handle user input with provider returns user response."""
+        from adkflow_runner.runner.user_input import handle_user_input
+
+        events = []
+
+        async def emit(event):
+            events.append(event)
+
+        result = await handle_user_input(
+            mock_user_input,
+            "previous output",
+            mock_config,
+            emit,
+        )
+
+        assert result == "user response"
+        mock_config.user_input_provider.request_input.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_handle_emits_required_event(self, mock_user_input, mock_config):
+        """Handle user input emits USER_INPUT_REQUIRED event."""
+        from adkflow_runner.runner.user_input import handle_user_input
+
+        events = []
+
+        async def emit(event):
+            events.append(event)
+
+        await handle_user_input(mock_user_input, None, mock_config, emit)
+
+        assert len(events) >= 1
+        assert events[0].type == EventType.USER_INPUT_REQUIRED
+
+    @pytest.mark.asyncio
+    async def test_handle_emits_received_event(self, mock_user_input, mock_config):
+        """Handle user input emits USER_INPUT_RECEIVED event on success."""
+        from adkflow_runner.runner.user_input import handle_user_input
+
+        events = []
+
+        async def emit(event):
+            events.append(event)
+
+        await handle_user_input(mock_user_input, None, mock_config, emit)
+
+        event_types = [e.type for e in events]
+        assert EventType.USER_INPUT_RECEIVED in event_types
+
+    @pytest.mark.asyncio
+    async def test_handle_timeout_pass_through(self, mock_user_input, mock_config):
+        """Handle timeout with pass_through behavior returns previous output."""
+        from adkflow_runner.runner.user_input import handle_user_input
+
+        mock_config.user_input_provider.request_input = AsyncMock(
+            side_effect=TimeoutError
+        )
+        mock_user_input.timeout_behavior = "pass_through"
+
+        events = []
+
+        async def emit(event):
+            events.append(event)
+
+        result = await handle_user_input(
+            mock_user_input,
+            "previous output",
+            mock_config,
+            emit,
+        )
+
+        assert result == "previous output"
+
+    @pytest.mark.asyncio
+    async def test_handle_timeout_predefined_text(self, mock_user_input, mock_config):
+        """Handle timeout with predefined_text returns predefined text."""
+        from adkflow_runner.runner.user_input import handle_user_input
+
+        mock_config.user_input_provider.request_input = AsyncMock(
+            side_effect=TimeoutError
+        )
+        mock_user_input.timeout_behavior = "predefined_text"
+        mock_user_input.predefined_text = "default value"
+
+        events = []
+
+        async def emit(event):
+            events.append(event)
+
+        result = await handle_user_input(
+            mock_user_input,
+            "previous output",
+            mock_config,
+            emit,
+        )
+
+        assert result == "default value"
+
+    @pytest.mark.asyncio
+    async def test_handle_timeout_error(self, mock_user_input, mock_config):
+        """Handle timeout with error behavior raises RuntimeError."""
+        from adkflow_runner.runner.user_input import handle_user_input
+
+        mock_config.user_input_provider.request_input = AsyncMock(
+            side_effect=TimeoutError
+        )
+        mock_user_input.timeout_behavior = "error"
+
+        events = []
+
+        async def emit(event):
+            events.append(event)
+
+        with pytest.raises(RuntimeError, match="User input timeout"):
+            await handle_user_input(
+                mock_user_input,
+                "previous output",
+                mock_config,
+                emit,
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_emits_timeout_event(self, mock_user_input, mock_config):
+        """Handle timeout emits USER_INPUT_TIMEOUT event."""
+        from adkflow_runner.runner.user_input import handle_user_input
+
+        mock_config.user_input_provider.request_input = AsyncMock(
+            side_effect=TimeoutError
+        )
+        mock_user_input.timeout_behavior = "pass_through"
+
+        events = []
+
+        async def emit(event):
+            events.append(event)
+
+        await handle_user_input(mock_user_input, None, mock_config, emit)
+
+        event_types = [e.type for e in events]
+        assert EventType.USER_INPUT_TIMEOUT in event_types
+
+    @pytest.mark.asyncio
+    async def test_handle_no_provider_pass_through(
+        self, mock_user_input, mock_config_no_provider
+    ):
+        """Without provider, pass_through returns previous output."""
+        from adkflow_runner.runner.user_input import handle_user_input
+
+        mock_user_input.timeout_behavior = "pass_through"
+
+        events = []
+
+        async def emit(event):
+            events.append(event)
+
+        result = await handle_user_input(
+            mock_user_input,
+            "previous output",
+            mock_config_no_provider,
+            emit,
+        )
+
+        assert result == "previous output"
+
+    @pytest.mark.asyncio
+    async def test_handle_no_provider_predefined_text(
+        self, mock_user_input, mock_config_no_provider
+    ):
+        """Without provider, predefined_text returns predefined text."""
+        from adkflow_runner.runner.user_input import handle_user_input
+
+        mock_user_input.timeout_behavior = "predefined_text"
+        mock_user_input.predefined_text = "default"
+
+        events = []
+
+        async def emit(event):
+            events.append(event)
+
+        result = await handle_user_input(
+            mock_user_input,
+            None,
+            mock_config_no_provider,
+            emit,
+        )
+
+        assert result == "default"
+
+    @pytest.mark.asyncio
+    async def test_handle_no_provider_trigger_error(
+        self, mock_user_input, mock_config_no_provider
+    ):
+        """Without provider, trigger input with error behavior raises."""
+        from adkflow_runner.runner.user_input import handle_user_input
+
+        mock_user_input.is_trigger = True
+        mock_user_input.timeout_behavior = "error"
+
+        events = []
+
+        async def emit(event):
+            events.append(event)
+
+        with pytest.raises(RuntimeError, match="No user input provider"):
+            await handle_user_input(
+                mock_user_input,
+                None,
+                mock_config_no_provider,
+                emit,
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_no_provider_non_trigger_passes_through(
+        self, mock_user_input, mock_config_no_provider
+    ):
+        """Without provider, non-trigger with error behavior passes through."""
+        from adkflow_runner.runner.user_input import handle_user_input
+
+        mock_user_input.is_trigger = False
+        mock_user_input.timeout_behavior = "error"
+
+        events = []
+
+        async def emit(event):
+            events.append(event)
+
+        result = await handle_user_input(
+            mock_user_input,
+            "previous",
+            mock_config_no_provider,
+            emit,
+        )
+
+        assert result == "previous"
+
+    @pytest.mark.asyncio
+    async def test_handle_cancelled_error_propagates(
+        self, mock_user_input, mock_config
+    ):
+        """CancelledError propagates without catching."""
+        from adkflow_runner.runner.user_input import handle_user_input
+
+        mock_config.user_input_provider.request_input = AsyncMock(
+            side_effect=asyncio.CancelledError
+        )
+
+        events = []
+
+        async def emit(event):
+            events.append(event)
+
+        with pytest.raises(asyncio.CancelledError):
+            await handle_user_input(
+                mock_user_input,
+                None,
+                mock_config,
+                emit,
+            )

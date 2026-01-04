@@ -1,7 +1,5 @@
 """Tests for node configuration access utilities."""
 
-import pytest
-
 from adkflow_runner.compiler.node_config import get_node_config, get_config_field
 
 

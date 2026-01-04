@@ -6,8 +6,8 @@ Tests OpenTelemetry trace file reading endpoints (development mode only).
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import pytest
 from httpx import AsyncClient
@@ -26,7 +26,9 @@ from backend.src.api.routes.trace_explorer_routes import (
 )
 
 
-def create_trace_file(tmp_path: Path, spans: list[dict], file_name: str = "traces.jsonl") -> Path:
+def create_trace_file(
+    tmp_path: Path, spans: list[dict], file_name: str = "traces.jsonl"
+) -> Path:
     """Create a trace file with the given spans."""
     logs_dir = tmp_path / "logs"
     logs_dir.mkdir(exist_ok=True)
@@ -46,10 +48,10 @@ def make_span(
     end_time: str | None = "2024-01-01T10:00:01Z",
     duration_ms: float | None = 1000.0,
     status: str = "OK",
-    attributes: dict | None = None,
-) -> dict:
+    attributes: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Create a span dictionary for testing."""
-    span = {
+    span: dict[str, Any] = {
         "trace_id": trace_id,
         "span_id": span_id,
         "name": name,
@@ -130,8 +132,16 @@ class TestBuildSpanTree:
         """Build tree with multiple children."""
         spans = [
             make_span(span_id="parent"),
-            make_span(span_id="child1", parent_span_id="parent", start_time="2024-01-01T10:00:01Z"),
-            make_span(span_id="child2", parent_span_id="parent", start_time="2024-01-01T10:00:02Z"),
+            make_span(
+                span_id="child1",
+                parent_span_id="parent",
+                start_time="2024-01-01T10:00:01Z",
+            ),
+            make_span(
+                span_id="child2",
+                parent_span_id="parent",
+                start_time="2024-01-01T10:00:02Z",
+            ),
         ]
         tree = _build_span_tree(spans)
 
@@ -203,9 +213,7 @@ class TestReadAllSpans:
         logs_dir = tmp_path / "logs"
         logs_dir.mkdir()
         trace_file = logs_dir / "traces.jsonl"
-        trace_file.write_text(
-            '{"span_id": "s1"}\n\n\n{"span_id": "s2"}\n'
-        )
+        trace_file.write_text('{"span_id": "s1"}\n\n\n{"span_id": "s2"}\n')
 
         result = _read_all_spans(trace_file)
         assert len(result) == 2
@@ -215,9 +223,7 @@ class TestReadAllSpans:
         logs_dir = tmp_path / "logs"
         logs_dir.mkdir()
         trace_file = logs_dir / "traces.jsonl"
-        trace_file.write_text(
-            '{"span_id": "s1"}\nnot valid json\n{"span_id": "s2"}\n'
-        )
+        trace_file.write_text('{"span_id": "s1"}\nnot valid json\n{"span_id": "s2"}\n')
 
         result = _read_all_spans(trace_file)
         assert len(result) == 2
@@ -287,7 +293,7 @@ class TestTraceSpanModel:
 
     def test_span_defaults(self):
         """TraceSpan has sensible defaults."""
-        span = TraceSpan(
+        span = TraceSpan(  # type: ignore[call-arg]
             trace_id="abc",
             span_id="123",
             name="test",
@@ -322,7 +328,7 @@ class TestTraceInfoModel:
 
     def test_info_defaults(self):
         """TraceInfo has sensible defaults."""
-        info = TraceInfo(
+        info = TraceInfo(  # type: ignore[call-arg]
             trace_id="abc",
             span_count=1,
             root_span_name="root",
@@ -352,7 +358,9 @@ class TestListTraces:
         assert data["has_more"] is False
 
     @pytest.mark.asyncio
-    async def test_list_traces_with_spans(self, dev_client: AsyncClient, tmp_path: Path):
+    async def test_list_traces_with_spans(
+        self, dev_client: AsyncClient, tmp_path: Path
+    ):
         """List traces from file."""
         spans = [
             make_span(trace_id="t1", span_id="s1"),
@@ -372,7 +380,9 @@ class TestListTraces:
         assert len(data["traces"]) == 2
 
     @pytest.mark.asyncio
-    async def test_list_traces_pagination(self, dev_client: AsyncClient, tmp_path: Path):
+    async def test_list_traces_pagination(
+        self, dev_client: AsyncClient, tmp_path: Path
+    ):
         """Pagination works correctly."""
         # Create 5 traces
         spans = [make_span(trace_id=f"t{i}") for i in range(5)]
@@ -390,7 +400,9 @@ class TestListTraces:
         assert data["has_more"] is True
 
     @pytest.mark.asyncio
-    async def test_list_traces_custom_file_name(self, dev_client: AsyncClient, tmp_path: Path):
+    async def test_list_traces_custom_file_name(
+        self, dev_client: AsyncClient, tmp_path: Path
+    ):
         """Use custom trace file name."""
         spans = [make_span(trace_id="t1")]
         create_trace_file(tmp_path, spans, file_name="custom.jsonl")
@@ -406,7 +418,9 @@ class TestListTraces:
         assert data["file_name"] == "custom.jsonl"
 
     @pytest.mark.asyncio
-    async def test_list_traces_shows_error_status(self, dev_client: AsyncClient, tmp_path: Path):
+    async def test_list_traces_shows_error_status(
+        self, dev_client: AsyncClient, tmp_path: Path
+    ):
         """Trace with error span shows error status."""
         spans = [
             make_span(trace_id="t1", span_id="s1", status="OK"),
@@ -426,7 +440,9 @@ class TestListTraces:
         assert trace["status"] == "ERROR"
 
     @pytest.mark.asyncio
-    async def test_list_traces_sorted_by_time(self, dev_client: AsyncClient, tmp_path: Path):
+    async def test_list_traces_sorted_by_time(
+        self, dev_client: AsyncClient, tmp_path: Path
+    ):
         """Traces sorted by start_time descending (newest first)."""
         spans = [
             make_span(trace_id="older", start_time="2024-01-01T10:00:00Z"),
@@ -450,7 +466,9 @@ class TestGetTrace:
     """Tests for GET /api/debug/traces/{trace_id} endpoint."""
 
     @pytest.mark.asyncio
-    async def test_get_trace_not_found_file(self, dev_client: AsyncClient, tmp_path: Path):
+    async def test_get_trace_not_found_file(
+        self, dev_client: AsyncClient, tmp_path: Path
+    ):
         """Return 404 when trace file doesn't exist."""
         response = await dev_client.get(
             "/api/debug/traces/abc123",
@@ -461,7 +479,9 @@ class TestGetTrace:
         assert "not found" in response.json()["detail"].lower()
 
     @pytest.mark.asyncio
-    async def test_get_trace_not_found_id(self, dev_client: AsyncClient, tmp_path: Path):
+    async def test_get_trace_not_found_id(
+        self, dev_client: AsyncClient, tmp_path: Path
+    ):
         """Return 404 when trace ID doesn't exist."""
         spans = [make_span(trace_id="other")]
         create_trace_file(tmp_path, spans)
@@ -479,7 +499,9 @@ class TestGetTrace:
         """Get trace with full span tree."""
         spans = [
             make_span(trace_id="t1", span_id="root", name="root_span"),
-            make_span(trace_id="t1", span_id="child", parent_span_id="root", name="child_span"),
+            make_span(
+                trace_id="t1", span_id="child", parent_span_id="root", name="child_span"
+            ),
         ]
         create_trace_file(tmp_path, spans)
 
@@ -498,7 +520,9 @@ class TestGetTrace:
         assert len(data["flat_spans"]) == 2
 
     @pytest.mark.asyncio
-    async def test_get_trace_calculates_duration(self, dev_client: AsyncClient, tmp_path: Path):
+    async def test_get_trace_calculates_duration(
+        self, dev_client: AsyncClient, tmp_path: Path
+    ):
         """Calculate trace duration from span times."""
         spans = [
             make_span(

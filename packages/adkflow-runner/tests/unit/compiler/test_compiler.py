@@ -1,12 +1,11 @@
 """Tests for the main Compiler class and compile_project function."""
 
 import json
-from pathlib import Path
 
 import pytest
 
 from adkflow_runner.compiler.compiler import Compiler, compile_project
-from adkflow_runner.config import ExecutionConfig, get_default_config
+from adkflow_runner.config import ExecutionConfig
 from adkflow_runner.ir import WorkflowIR
 
 

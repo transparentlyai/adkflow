@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 import pytest
 from httpx import AsyncClient
@@ -346,7 +345,9 @@ class TestUpdateLoggingConfig:
         assert data["success"] is True
 
     @pytest.mark.asyncio
-    async def test_update_console_settings(self, dev_client: AsyncClient, tmp_path: Path):
+    async def test_update_console_settings(
+        self, dev_client: AsyncClient, tmp_path: Path
+    ):
         """Update console settings."""
         create_manifest(tmp_path)
 
@@ -376,7 +377,9 @@ class TestUpdateLoggingConfig:
         assert data["success"] is True
 
     @pytest.mark.asyncio
-    async def test_update_saves_to_manifest(self, dev_client: AsyncClient, tmp_path: Path):
+    async def test_update_saves_to_manifest(
+        self, dev_client: AsyncClient, tmp_path: Path
+    ):
         """Update saves config to manifest.json."""
         create_manifest(tmp_path)
 

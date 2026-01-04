@@ -6,17 +6,16 @@ Tests validation rules for graphs and IR before execution.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 
-from adkflow_runner.compiler.graph import GraphBuilder, GraphEdge, GraphNode, WorkflowGraph
-from adkflow_runner.compiler.loader import LoadedProject, LoadedTab, ProjectLoader
+from adkflow_runner.compiler.graph import GraphBuilder, WorkflowGraph
+from adkflow_runner.compiler.loader import ProjectLoader
 from adkflow_runner.compiler.parser import FlowParser
 from adkflow_runner.compiler.validator import WorkflowValidator
 from adkflow_runner.config import EdgeSemantics
 from adkflow_runner.errors import ValidationError
-from adkflow_runner.ir import AgentIR, PromptIR, ToolIR, WorkflowIR
+from adkflow_runner.ir import AgentIR, ToolIR, WorkflowIR
 
 
 class TestValidateGraph:
@@ -45,8 +44,21 @@ class TestValidateGraph:
             "version": "3.0",
             "tabs": [{"id": "tab1", "name": "Main"}],
             "nodes": [
-                {"id": "start", "type": "start", "position": {"x": 0, "y": 0}, "data": {"tabId": "tab1"}},
-                {"id": "a1", "type": "agent", "position": {"x": 100, "y": 0}, "data": {"tabId": "tab1", "config": {"name": "Agent1", "description": "Test agent"}}},
+                {
+                    "id": "start",
+                    "type": "start",
+                    "position": {"x": 0, "y": 0},
+                    "data": {"tabId": "tab1"},
+                },
+                {
+                    "id": "a1",
+                    "type": "agent",
+                    "position": {"x": 100, "y": 0},
+                    "data": {
+                        "tabId": "tab1",
+                        "config": {"name": "Agent1", "description": "Test agent"},
+                    },
+                },
             ],
             "edges": [
                 {"id": "e1", "source": "start", "target": "a1"},
@@ -73,9 +85,27 @@ class TestValidateGraph:
             "version": "3.0",
             "tabs": [{"id": "tab1", "name": "Main"}],
             "nodes": [
-                {"id": "start1", "type": "start", "position": {"x": 0, "y": 0}, "data": {"tabId": "tab1"}},
-                {"id": "start2", "type": "start", "position": {"x": 0, "y": 100}, "data": {"tabId": "tab1"}},
-                {"id": "a1", "type": "agent", "position": {"x": 100, "y": 0}, "data": {"tabId": "tab1", "config": {"name": "Agent1", "description": "Test"}}},
+                {
+                    "id": "start1",
+                    "type": "start",
+                    "position": {"x": 0, "y": 0},
+                    "data": {"tabId": "tab1"},
+                },
+                {
+                    "id": "start2",
+                    "type": "start",
+                    "position": {"x": 0, "y": 100},
+                    "data": {"tabId": "tab1"},
+                },
+                {
+                    "id": "a1",
+                    "type": "agent",
+                    "position": {"x": 100, "y": 0},
+                    "data": {
+                        "tabId": "tab1",
+                        "config": {"name": "Agent1", "description": "Test"},
+                    },
+                },
             ],
             "edges": [
                 {"id": "e1", "source": "start1", "target": "a1"},
@@ -103,7 +133,12 @@ class TestValidateGraph:
             "version": "3.0",
             "tabs": [{"id": "tab1", "name": "Main"}],
             "nodes": [
-                {"id": "start", "type": "start", "position": {"x": 0, "y": 0}, "data": {"tabId": "tab1"}},
+                {
+                    "id": "start",
+                    "type": "start",
+                    "position": {"x": 0, "y": 0},
+                    "data": {"tabId": "tab1"},
+                },
             ],
             "edges": [],
         }
@@ -126,7 +161,9 @@ class TestValidateGraph:
 class TestCycleDetection:
     """Tests for cycle detection in workflows."""
 
-    def test_detect_simple_cycle(self, make_graph_node, make_graph_edge, minimal_project):
+    def test_detect_simple_cycle(
+        self, make_graph_node, make_graph_edge, minimal_project
+    ):
         """Detect simple A -> B -> A cycle."""
         loader = ProjectLoader()
         project = loader.load(minimal_project)
@@ -149,7 +186,9 @@ class TestCycleDetection:
         assert not result.valid
         assert any("cycle" in str(e).lower() for e in result.errors)
 
-    def test_no_cycle_in_valid_dag(self, make_graph_node, make_graph_edge, minimal_project):
+    def test_no_cycle_in_valid_dag(
+        self, make_graph_node, make_graph_edge, minimal_project
+    ):
         """Valid DAG (no cycle) passes."""
         loader = ProjectLoader()
         project = loader.load(minimal_project)
@@ -188,9 +227,33 @@ class TestMissingReferences:
             "version": "3.0",
             "tabs": [{"id": "tab1", "name": "Main"}],
             "nodes": [
-                {"id": "start", "type": "start", "position": {"x": 0, "y": 0}, "data": {"tabId": "tab1"}},
-                {"id": "p1", "type": "prompt", "position": {"x": 0, "y": 100}, "data": {"tabId": "tab1", "config": {"name": "Missing", "file_path": "nonexistent.prompt.md"}}},
-                {"id": "a1", "type": "agent", "position": {"x": 100, "y": 0}, "data": {"tabId": "tab1", "config": {"name": "Agent1", "description": "Test"}}},
+                {
+                    "id": "start",
+                    "type": "start",
+                    "position": {"x": 0, "y": 0},
+                    "data": {"tabId": "tab1"},
+                },
+                {
+                    "id": "p1",
+                    "type": "prompt",
+                    "position": {"x": 0, "y": 100},
+                    "data": {
+                        "tabId": "tab1",
+                        "config": {
+                            "name": "Missing",
+                            "file_path": "nonexistent.prompt.md",
+                        },
+                    },
+                },
+                {
+                    "id": "a1",
+                    "type": "agent",
+                    "position": {"x": 100, "y": 0},
+                    "data": {
+                        "tabId": "tab1",
+                        "config": {"name": "Agent1", "description": "Test"},
+                    },
+                },
             ],
             "edges": [
                 {"id": "e1", "source": "start", "target": "a1"},
@@ -215,9 +278,33 @@ class TestMissingReferences:
             "version": "3.0",
             "tabs": [{"id": "tab1", "name": "Main"}],
             "nodes": [
-                {"id": "start", "type": "start", "position": {"x": 0, "y": 0}, "data": {"tabId": "tab1"}},
-                {"id": "t1", "type": "tool", "position": {"x": 0, "y": 100}, "data": {"tabId": "tab1", "config": {"name": "Missing", "file_path": "nonexistent_tool.py"}}},
-                {"id": "a1", "type": "agent", "position": {"x": 100, "y": 0}, "data": {"tabId": "tab1", "config": {"name": "Agent1", "description": "Test"}}},
+                {
+                    "id": "start",
+                    "type": "start",
+                    "position": {"x": 0, "y": 0},
+                    "data": {"tabId": "tab1"},
+                },
+                {
+                    "id": "t1",
+                    "type": "tool",
+                    "position": {"x": 0, "y": 100},
+                    "data": {
+                        "tabId": "tab1",
+                        "config": {
+                            "name": "Missing",
+                            "file_path": "nonexistent_tool.py",
+                        },
+                    },
+                },
+                {
+                    "id": "a1",
+                    "type": "agent",
+                    "position": {"x": 100, "y": 0},
+                    "data": {
+                        "tabId": "tab1",
+                        "config": {"name": "Agent1", "description": "Test"},
+                    },
+                },
             ],
             "edges": [
                 {"id": "e1", "source": "start", "target": "a1"},
@@ -244,7 +331,9 @@ class TestDisconnectedNodes:
 
         start = make_graph_node("start", "start", "Start")
         isolated = make_graph_node("isolated", "agent", "Isolated")
-        isolated.data = {"config": {"name": "Isolated", "description": "Isolated agent"}}
+        isolated.data = {
+            "config": {"name": "Isolated", "description": "Isolated agent"}
+        }
 
         graph = WorkflowGraph(
             nodes={"start": start, "isolated": isolated},
@@ -255,9 +344,14 @@ class TestDisconnectedNodes:
 
         validator = WorkflowValidator()
         result = validator.validate_graph(graph, project)
-        assert any("no connections" in str(w).lower() or "isolated" in str(w).lower() for w in result.warnings)
+        assert any(
+            "no connections" in str(w).lower() or "isolated" in str(w).lower()
+            for w in result.warnings
+        )
 
-    def test_orphaned_prompt_warning(self, make_graph_node, make_graph_edge, minimal_project):
+    def test_orphaned_prompt_warning(
+        self, make_graph_node, make_graph_edge, minimal_project
+    ):
         """Warn about prompt not connected to agent."""
         loader = ProjectLoader()
         project = loader.load(minimal_project)
@@ -280,7 +374,9 @@ class TestDisconnectedNodes:
 class TestDuplicateNames:
     """Tests for duplicate name detection."""
 
-    def test_duplicate_agent_names(self, make_graph_node, make_graph_edge, minimal_project):
+    def test_duplicate_agent_names(
+        self, make_graph_node, make_graph_edge, minimal_project
+    ):
         """Report error for duplicate agent names."""
         loader = ProjectLoader()
         project = loader.load(minimal_project)
@@ -309,14 +405,22 @@ class TestDuplicateNames:
 class TestAgentConfigurations:
     """Tests for agent configuration validation."""
 
-    def test_llm_without_instruction_warning(self, make_graph_node, make_graph_edge, minimal_project):
+    def test_llm_without_instruction_warning(
+        self, make_graph_node, make_graph_edge, minimal_project
+    ):
         """Warn when LLM agent has no prompt or context."""
         loader = ProjectLoader()
         project = loader.load(minimal_project)
 
         start = make_graph_node("start", "start", "Start")
         agent = make_graph_node("a1", "agent", "NoPrompt")
-        agent.data = {"config": {"name": "NoPrompt", "type": "llm", "description": "LLM without prompt"}}
+        agent.data = {
+            "config": {
+                "name": "NoPrompt",
+                "type": "llm",
+                "description": "LLM without prompt",
+            }
+        }
 
         edge = make_graph_edge(start, agent, EdgeSemantics.SEQUENTIAL)
 
@@ -329,7 +433,10 @@ class TestAgentConfigurations:
 
         validator = WorkflowValidator()
         result = validator.validate_graph(graph, project)
-        assert any("prompt" in str(w).lower() or "context" in str(w).lower() for w in result.warnings)
+        assert any(
+            "prompt" in str(w).lower() or "context" in str(w).lower()
+            for w in result.warnings
+        )
 
     def test_loop_agent_invalid_iterations(self, make_graph_node, minimal_project):
         """Error for loop agent with invalid max_iterations."""
@@ -338,7 +445,14 @@ class TestAgentConfigurations:
 
         start = make_graph_node("start", "start", "Start")
         loop = make_graph_node("loop1", "agent", "BadLoop")
-        loop.data = {"config": {"name": "BadLoop", "type": "loop", "max_iterations": 0, "description": "Bad loop"}}
+        loop.data = {
+            "config": {
+                "name": "BadLoop",
+                "type": "loop",
+                "max_iterations": 0,
+                "description": "Bad loop",
+            }
+        }
 
         graph = WorkflowGraph(
             nodes={"start": start, "loop1": loop},
@@ -356,7 +470,9 @@ class TestAgentConfigurations:
 class TestMissingDescriptions:
     """Tests for missing agent description detection."""
 
-    def test_agent_missing_description(self, make_graph_node, make_graph_edge, minimal_project):
+    def test_agent_missing_description(
+        self, make_graph_node, make_graph_edge, minimal_project
+    ):
         """Error when agent has no description."""
         loader = ProjectLoader()
         project = loader.load(minimal_project)
@@ -452,7 +568,10 @@ class TestValidateIR:
         validator = WorkflowValidator()
         result = validator.validate_ir(workflow)
         assert not result.valid
-        assert any("code" in str(e).lower() and "file_path" in str(e).lower() for e in result.errors)
+        assert any(
+            "code" in str(e).lower() and "file_path" in str(e).lower()
+            for e in result.errors
+        )
 
 
 class TestValidationResult:

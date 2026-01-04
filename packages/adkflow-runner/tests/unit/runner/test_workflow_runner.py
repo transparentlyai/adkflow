@@ -5,9 +5,7 @@ Tests the main WorkflowRunner class with mocked ADK components.
 
 from __future__ import annotations
 
-import asyncio
 import json
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -18,7 +16,6 @@ from adkflow_runner.runner.types import (
     RunEvent,
     RunResult,
     RunStatus,
-    RunnerCallbacks,
 )
 from adkflow_runner.runner.workflow_runner import WorkflowRunner
 
@@ -36,12 +33,17 @@ class MockCallbacks:
 @pytest.fixture
 def mock_adk():
     """Mock all ADK dependencies."""
-    with patch("adkflow_runner.runner.workflow_runner.Runner") as mock_runner_cls, \
-         patch("adkflow_runner.runner.workflow_runner.InMemorySessionService") as mock_session, \
-         patch("adkflow_runner.runner.workflow_runner.configure_logging") as mock_logging, \
-         patch("adkflow_runner.runner.workflow_runner.Logger") as mock_logger, \
-         patch("adkflow_runner.runner.workflow_runner.setup_tracing") as mock_tracing:
-
+    with (
+        patch("adkflow_runner.runner.workflow_runner.Runner") as mock_runner_cls,
+        patch(
+            "adkflow_runner.runner.workflow_runner.InMemorySessionService"
+        ) as mock_session,
+        patch(
+            "adkflow_runner.runner.workflow_runner.configure_logging"
+        ) as mock_logging,
+        patch("adkflow_runner.runner.workflow_runner.Logger") as mock_logger,
+        patch("adkflow_runner.runner.workflow_runner.setup_tracing") as mock_tracing,
+    ):
         # Setup runner mock
         mock_runner = MagicMock()
         mock_runner.run_async = AsyncMock()
@@ -65,8 +67,21 @@ def simple_project(tmp_path):
         "version": "3.0",
         "tabs": [{"id": "tab1", "name": "Main"}],
         "nodes": [
-            {"id": "start", "type": "start", "position": {"x": 0, "y": 0}, "data": {"tabId": "tab1"}},
-            {"id": "a1", "type": "agent", "position": {"x": 100, "y": 0}, "data": {"tabId": "tab1", "config": {"name": "Agent1", "description": "Test agent"}}},
+            {
+                "id": "start",
+                "type": "start",
+                "position": {"x": 0, "y": 0},
+                "data": {"tabId": "tab1"},
+            },
+            {
+                "id": "a1",
+                "type": "agent",
+                "position": {"x": 100, "y": 0},
+                "data": {
+                    "tabId": "tab1",
+                    "config": {"name": "Agent1", "description": "Test agent"},
+                },
+            },
         ],
         "edges": [
             {"id": "e1", "source": "start", "target": "a1"},

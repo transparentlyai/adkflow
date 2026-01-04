@@ -1,7 +1,6 @@
 """Tests for GraphExecutor and execution graph structures."""
 
 import pytest
-from pathlib import Path
 
 from adkflow_runner.runner.graph_executor import (
     ExecutionNode,
@@ -216,6 +215,7 @@ class TestGraphExecutor:
     def mock_emit(self):
         """Create mock emit function."""
         from unittest.mock import AsyncMock
+
         return AsyncMock()
 
     def test_executor_creation(self, mock_emit, tmp_path):
@@ -279,7 +279,9 @@ class TestGraphExecutor:
         node1 = ExecutionNode(id="a1", node_type="agent", ir=agent1)
         node2 = ExecutionNode(id="a2", node_type="agent", ir=agent2)
 
-        edge = ExecutionEdge(source_id="a1", source_port="output", target_id="a2", target_port="input")
+        edge = ExecutionEdge(
+            source_id="a1", source_port="output", target_id="a2", target_port="input"
+        )
         graph = ExecutionGraph(nodes={"a1": node1, "a2": node2}, edges=[edge])
 
         executor = GraphExecutor(emit=mock_emit)
@@ -302,10 +304,16 @@ class TestGraphExecutor:
         node3 = ExecutionNode(id="a3", node_type="agent", ir=agent3)
 
         edges = [
-            ExecutionEdge(source_id="a1", source_port="out", target_id="a2", target_port="in"),
-            ExecutionEdge(source_id="a2", source_port="out", target_id="a3", target_port="in"),
+            ExecutionEdge(
+                source_id="a1", source_port="out", target_id="a2", target_port="in"
+            ),
+            ExecutionEdge(
+                source_id="a2", source_port="out", target_id="a3", target_port="in"
+            ),
         ]
-        graph = ExecutionGraph(nodes={"a1": node1, "a2": node2, "a3": node3}, edges=edges)
+        graph = ExecutionGraph(
+            nodes={"a1": node1, "a2": node2, "a3": node3}, edges=edges
+        )
 
         executor = GraphExecutor(emit=mock_emit)
         required = executor._trace_dependencies(graph, {"a3"})
@@ -322,7 +330,9 @@ class TestGraphExecutor:
         node1 = ExecutionNode(id="a1", node_type="agent", ir=agent1)
         node2 = ExecutionNode(id="a2", node_type="agent", ir=agent2)
 
-        edge = ExecutionEdge(source_id="a1", source_port="out", target_id="a2", target_port="in")
+        edge = ExecutionEdge(
+            source_id="a1", source_port="out", target_id="a2", target_port="in"
+        )
         graph = ExecutionGraph(nodes={"a1": node1, "a2": node2}, edges=[edge])
 
         executor = GraphExecutor(emit=mock_emit)
@@ -346,10 +356,16 @@ class TestGraphExecutor:
         node3 = ExecutionNode(id="a3", node_type="agent", ir=agent3)
 
         edges = [
-            ExecutionEdge(source_id="a1", source_port="out", target_id="a3", target_port="in1"),
-            ExecutionEdge(source_id="a2", source_port="out", target_id="a3", target_port="in2"),
+            ExecutionEdge(
+                source_id="a1", source_port="out", target_id="a3", target_port="in1"
+            ),
+            ExecutionEdge(
+                source_id="a2", source_port="out", target_id="a3", target_port="in2"
+            ),
         ]
-        graph = ExecutionGraph(nodes={"a1": node1, "a2": node2, "a3": node3}, edges=edges)
+        graph = ExecutionGraph(
+            nodes={"a1": node1, "a2": node2, "a3": node3}, edges=edges
+        )
 
         executor = GraphExecutor(emit=mock_emit)
         layers = executor._topological_layers({"a1", "a2", "a3"}, graph)
@@ -386,7 +402,10 @@ class TestGraphExecutor:
         node = ExecutionNode(id="custom_2", node_type="custom", ir=custom_ir)
 
         edge = ExecutionEdge(
-            source_id="custom_1", source_port="output", target_id="custom_2", target_port="input_port"
+            source_id="custom_1",
+            source_port="output",
+            target_id="custom_2",
+            target_port="input_port",
         )
         graph = ExecutionGraph(nodes={"custom_2": node}, edges=[edge])
 
@@ -432,9 +451,7 @@ class TestGraphExecutor:
         executor = GraphExecutor(emit=mock_emit)
 
         with pytest.raises(NotImplementedError):
-            await executor._execute_agent(
-                node, {}, {}, tmp_path, "session", "run"
-            )
+            await executor._execute_agent(node, {}, {}, tmp_path, "session", "run")
 
     @pytest.mark.asyncio
     async def test_emit_event(self, mock_emit):

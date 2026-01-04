@@ -16,7 +16,6 @@ from pathlib import Path
 import pytest
 
 from adkflow_runner.compiler.loader import (
-    LoadedProject,
     LoadedPrompt,
     LoadedTab,
     LoadedTool,

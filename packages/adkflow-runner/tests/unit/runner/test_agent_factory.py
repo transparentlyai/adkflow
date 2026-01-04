@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from adkflow_runner.ir import AgentIR, ToolIR, PromptIR, WorkflowIR
+from adkflow_runner.ir import AgentIR, WorkflowIR
 from adkflow_runner.runner.agent_factory import AgentFactory
 
 
@@ -170,7 +170,7 @@ class TestAgentFactoryErrors:
         agent_ir = AgentIR(
             id="agent_1",
             name="TestAgent",
-            type="unknown_type",
+            type="unknown_type",  # type: ignore[arg-type]
             model="gemini-2.0-flash",
         )
 

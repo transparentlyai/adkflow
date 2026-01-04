@@ -1,7 +1,5 @@
 """Tests for execution engine functions."""
 
-import time
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -12,7 +10,7 @@ from adkflow_runner.runner.execution_engine import (
     write_output_files,
     process_adk_event,
 )
-from adkflow_runner.runner.types import EventType, RunConfig, RunEvent
+from adkflow_runner.runner.types import EventType, RunConfig
 from adkflow_runner.ir import WorkflowIR, AgentIR, OutputFileIR
 
 
@@ -80,8 +78,14 @@ class TestExecuteCustomNodesGraph:
     async def test_returns_empty_when_no_custom_nodes(self, tmp_path):
         """Returns empty dict when workflow has no custom nodes."""
         ir = WorkflowIR(
-            root_agent=AgentIR(id="a1", name="Agent", type="llm", model="gemini-2.0-flash"),
-            all_agents={"a1": AgentIR(id="a1", name="Agent", type="llm", model="gemini-2.0-flash")},
+            root_agent=AgentIR(
+                id="a1", name="Agent", type="llm", model="gemini-2.0-flash"
+            ),
+            all_agents={
+                "a1": AgentIR(
+                    id="a1", name="Agent", type="llm", model="gemini-2.0-flash"
+                )
+            },
             custom_nodes=[],  # No custom nodes
         )
 
@@ -114,22 +118,35 @@ class TestExecuteCustomNodesGraph:
         )
 
         ir = WorkflowIR(
-            root_agent=AgentIR(id="a1", name="Agent", type="llm", model="gemini-2.0-flash"),
-            all_agents={"a1": AgentIR(id="a1", name="Agent", type="llm", model="gemini-2.0-flash")},
+            root_agent=AgentIR(
+                id="a1", name="Agent", type="llm", model="gemini-2.0-flash"
+            ),
+            all_agents={
+                "a1": AgentIR(
+                    id="a1", name="Agent", type="llm", model="gemini-2.0-flash"
+                )
+            },
             custom_nodes=[custom_node],
         )
 
         config = RunConfig(project_path=tmp_path)
         emit = AsyncMock()
 
-        with patch("adkflow_runner.runner.execution_engine.GraphBuilder") as mock_builder, \
-             patch("adkflow_runner.runner.execution_engine.GraphExecutor") as mock_executor_cls:
-
+        with (
+            patch(
+                "adkflow_runner.runner.execution_engine.GraphBuilder"
+            ) as mock_builder,
+            patch(
+                "adkflow_runner.runner.execution_engine.GraphExecutor"
+            ) as mock_executor_cls,
+        ):
             mock_graph = MagicMock()
             mock_builder.return_value.build.return_value = mock_graph
 
             mock_executor = MagicMock()
-            mock_executor.execute = AsyncMock(return_value={"custom_1": {"output": "result"}})
+            mock_executor.execute = AsyncMock(
+                return_value={"custom_1": {"output": "result"}}
+            )
             mock_executor_cls.return_value = mock_executor
 
             result = await execute_custom_nodes_graph(
@@ -153,7 +170,9 @@ class TestWriteOutputFiles:
         """Writes output to configured file path."""
         output_file = OutputFileIR(name="output", file_path="output.txt", agent_id="a1")
         ir = WorkflowIR(
-            root_agent=AgentIR(id="a1", name="Agent", type="llm", model="gemini-2.0-flash"),
+            root_agent=AgentIR(
+                id="a1", name="Agent", type="llm", model="gemini-2.0-flash"
+            ),
             all_agents={},
             output_files=[output_file],
         )
@@ -172,7 +191,9 @@ class TestWriteOutputFiles:
             name="nested_output", file_path="nested/dir/output.txt", agent_id="a1"
         )
         ir = WorkflowIR(
-            root_agent=AgentIR(id="a1", name="Agent", type="llm", model="gemini-2.0-flash"),
+            root_agent=AgentIR(
+                id="a1", name="Agent", type="llm", model="gemini-2.0-flash"
+            ),
             all_agents={},
             output_files=[output_file],
         )
@@ -189,7 +210,9 @@ class TestWriteOutputFiles:
         """Emits AGENT_OUTPUT event after writing."""
         output_file = OutputFileIR(name="output", file_path="output.txt", agent_id="a1")
         ir = WorkflowIR(
-            root_agent=AgentIR(id="a1", name="Agent", type="llm", model="gemini-2.0-flash"),
+            root_agent=AgentIR(
+                id="a1", name="Agent", type="llm", model="gemini-2.0-flash"
+            ),
             all_agents={},
             output_files=[output_file],
         )
@@ -210,7 +233,9 @@ class TestWriteOutputFiles:
             name="bad_output", file_path="/nonexistent/path/output.txt", agent_id="a1"
         )
         ir = WorkflowIR(
-            root_agent=AgentIR(id="a1", name="Agent", type="llm", model="gemini-2.0-flash"),
+            root_agent=AgentIR(
+                id="a1", name="Agent", type="llm", model="gemini-2.0-flash"
+            ),
             all_agents={},
             output_files=[output_file],
         )
@@ -227,7 +252,9 @@ class TestWriteOutputFiles:
     async def test_no_output_files(self, tmp_path):
         """Does nothing when no output files configured."""
         ir = WorkflowIR(
-            root_agent=AgentIR(id="a1", name="Agent", type="llm", model="gemini-2.0-flash"),
+            root_agent=AgentIR(
+                id="a1", name="Agent", type="llm", model="gemini-2.0-flash"
+            ),
             all_agents={},
             output_files=[],
         )

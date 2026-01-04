@@ -6,7 +6,6 @@ Tests RunStatus, EventType, RunEvent, RunResult, and RunConfig.
 from __future__ import annotations
 
 import time
-from pathlib import Path
 
 import pytest
 

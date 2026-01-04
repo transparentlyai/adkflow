@@ -1,7 +1,5 @@
 """Tests for schema generation from FlowUnit classes."""
 
-import pytest
-
 from adkflow_runner.extensions.flow_unit import (
     FlowUnit,
     UISchema,
@@ -9,7 +7,6 @@ from adkflow_runner.extensions.flow_unit import (
     FieldDefinition,
     WidgetType,
     CollapsedDisplay,
-    HandleLayout,
 )
 from adkflow_runner.extensions.schema_generator import generate_schema
 from adkflow_runner.extensions.types import ExtensionScope

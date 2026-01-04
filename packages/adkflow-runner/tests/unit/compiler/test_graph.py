@@ -14,7 +14,6 @@ from adkflow_runner.compiler.graph import (
     TeleporterPair,
     WorkflowGraph,
 )
-from adkflow_runner.compiler.parser import ParsedEdge, ParsedNode
 from adkflow_runner.config import EdgeSemantics
 from adkflow_runner.errors import CycleDetectedError
 
@@ -103,8 +102,12 @@ class TestGraphNode:
             parsed_node=parsed,
         )
         node.incoming = [
-            GraphEdge(source_id="p1", target_id="a1", semantics=EdgeSemantics.INSTRUCTION),
-            GraphEdge(source_id="a0", target_id="a1", semantics=EdgeSemantics.SEQUENTIAL),
+            GraphEdge(
+                source_id="p1", target_id="a1", semantics=EdgeSemantics.INSTRUCTION
+            ),
+            GraphEdge(
+                source_id="a0", target_id="a1", semantics=EdgeSemantics.SEQUENTIAL
+            ),
             GraphEdge(source_id="t1", target_id="a1", semantics=EdgeSemantics.TOOL),
         ]
 
@@ -242,7 +245,9 @@ class TestWorkflowGraph:
         assert order.index("a") < order.index("b")
         assert order.index("b") < order.index("c")
 
-    def test_graph_topological_sort_cycle_detection(self, make_graph_node, make_graph_edge):
+    def test_graph_topological_sort_cycle_detection(
+        self, make_graph_node, make_graph_edge
+    ):
         """Topological sort detects cycles."""
         a = make_graph_node("a", "agent", "A")
         b = make_graph_node("b", "agent", "B")
@@ -311,11 +316,27 @@ class TestGraphBuilder:
             "version": "3.0",
             "tabs": [{"id": "tab1", "name": "Main"}],
             "nodes": [
-                {"id": "a1", "type": "agent", "position": {"x": 0, "y": 0}, "data": {"tabId": "tab1", "config": {"name": "Agent1"}}},
-                {"id": "a2", "type": "agent", "position": {"x": 200, "y": 0}, "data": {"tabId": "tab1", "config": {"name": "Agent2"}}},
+                {
+                    "id": "a1",
+                    "type": "agent",
+                    "position": {"x": 0, "y": 0},
+                    "data": {"tabId": "tab1", "config": {"name": "Agent1"}},
+                },
+                {
+                    "id": "a2",
+                    "type": "agent",
+                    "position": {"x": 200, "y": 0},
+                    "data": {"tabId": "tab1", "config": {"name": "Agent2"}},
+                },
             ],
             "edges": [
-                {"id": "e1", "source": "a1", "target": "a2", "sourceHandle": "output", "targetHandle": "agent-input"},
+                {
+                    "id": "e1",
+                    "source": "a1",
+                    "target": "a2",
+                    "sourceHandle": "output",
+                    "targetHandle": "agent-input",
+                },
             ],
         }
         (tmp_path / "manifest.json").write_text(json.dumps(manifest))

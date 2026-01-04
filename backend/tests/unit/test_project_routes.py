@@ -8,7 +8,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 from httpx import AsyncClient
 
 
@@ -93,7 +92,10 @@ class TestLoadProject:
 
         # May return 400 or 500 depending on error handling
         assert response.status_code in (400, 500)
-        assert "Invalid JSON" in response.json()["detail"] or "Failed to load" in response.json()["detail"]
+        assert (
+            "Invalid JSON" in response.json()["detail"]
+            or "Failed to load" in response.json()["detail"]
+        )
 
 
 class TestSaveProject:
@@ -121,9 +123,7 @@ class TestSaveProject:
         assert data["success"] is True
         assert (new_project / "flow.json").exists()
 
-    async def test_save_project_writes_flow(
-        self, client: AsyncClient, tmp_path: Path
-    ):
+    async def test_save_project_writes_flow(self, client: AsyncClient, tmp_path: Path):
         """Saving writes flow data to flow.json."""
         flow_data = {
             "nodes": [
@@ -155,11 +155,19 @@ class TestSaveProject:
     ):
         """Saving overwrites existing flow.json."""
         # Create initial file with old data
-        old_data = {"nodes": [{"id": "old", "type": "start", "position": {"x": 0, "y": 0}, "data": {}}], "edges": [], "viewport": {"x": 0, "y": 0, "zoom": 1}}
+        old_data = {
+            "nodes": [
+                {"id": "old", "type": "start", "position": {"x": 0, "y": 0}, "data": {}}
+            ],
+            "edges": [],
+            "viewport": {"x": 0, "y": 0, "zoom": 1},
+        }
         (tmp_path / "flow.json").write_text(json.dumps(old_data))
 
         flow_data = {
-            "nodes": [{"id": "new", "type": "agent", "position": {"x": 0, "y": 0}, "data": {}}],
+            "nodes": [
+                {"id": "new", "type": "agent", "position": {"x": 0, "y": 0}, "data": {}}
+            ],
             "edges": [],
             "viewport": {"x": 0, "y": 0, "zoom": 1},
         }

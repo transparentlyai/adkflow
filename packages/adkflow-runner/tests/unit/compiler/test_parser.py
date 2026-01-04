@@ -5,10 +5,8 @@ Tests parsing of ReactFlow JSON into typed Python objects.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-import pytest
 
 from adkflow_runner.compiler.loader import LoadedProject, LoadedTab
 from adkflow_runner.compiler.parser import (
@@ -267,8 +265,12 @@ class TestParsedFlow:
         """Get children of a group node."""
         nodes = [
             ParsedNode(id="group", type="group", position=(0, 0), data={}),
-            ParsedNode(id="c1", type="agent", position=(10, 10), data={}, parent_id="group"),
-            ParsedNode(id="c2", type="agent", position=(20, 20), data={}, parent_id="group"),
+            ParsedNode(
+                id="c1", type="agent", position=(10, 10), data={}, parent_id="group"
+            ),
+            ParsedNode(
+                id="c2", type="agent", position=(20, 20), data={}, parent_id="group"
+            ),
             ParsedNode(id="other", type="agent", position=(200, 0), data={}),
         ]
         flow = ParsedFlow(
@@ -478,7 +480,14 @@ class TestFlowParser:
             name="Tab 1",
             order=0,
             flow_data={
-                "nodes": [{"id": "n1", "type": "agent", "position": {"x": 0, "y": 0}, "data": {}}],
+                "nodes": [
+                    {
+                        "id": "n1",
+                        "type": "agent",
+                        "position": {"x": 0, "y": 0},
+                        "data": {},
+                    }
+                ],
                 "edges": [],
             },
         )
@@ -487,7 +496,14 @@ class TestFlowParser:
             name="Tab 2",
             order=1,
             flow_data={
-                "nodes": [{"id": "n2", "type": "agent", "position": {"x": 0, "y": 0}, "data": {}}],
+                "nodes": [
+                    {
+                        "id": "n2",
+                        "type": "agent",
+                        "position": {"x": 0, "y": 0},
+                        "data": {},
+                    }
+                ],
                 "edges": [],
             },
         )

@@ -5,11 +5,12 @@ Tests the workflow execution endpoints.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from collections.abc import AsyncGenerator
+
 from httpx import ASGITransport, AsyncClient
 
 
@@ -17,11 +18,12 @@ from httpx import ASGITransport, AsyncClient
 async def app():
     """Create FastAPI app for testing."""
     from backend.src.main import app
+
     return app
 
 
 @pytest.fixture
-async def client(app) -> AsyncClient:
+async def client(app) -> AsyncGenerator[AsyncClient, None]:
     """Create async HTTP client."""
     async with AsyncClient(
         transport=ASGITransport(app=app),
@@ -154,7 +156,9 @@ class TestCancelRun:
         assert data["success"] is True
 
     @patch("backend.src.api.execution_routes.run_manager")
-    async def test_cancel_already_completed(self, mock_run_manager, client: AsyncClient):
+    async def test_cancel_already_completed(
+        self, mock_run_manager, client: AsyncClient
+    ):
         """Cancel fails when run already completed."""
         mock_run_manager.get_run.return_value = MagicMock()
         mock_run_manager.cancel_run = AsyncMock(return_value=False)
@@ -236,7 +240,9 @@ class TestSubmitUserInput:
     """Tests for POST /api/execution/run/{run_id}/input endpoint."""
 
     @patch("backend.src.api.execution_routes.run_manager")
-    async def test_submit_input_run_not_found(self, mock_run_manager, client: AsyncClient):
+    async def test_submit_input_run_not_found(
+        self, mock_run_manager, client: AsyncClient
+    ):
         """Return 404 when run doesn't exist."""
         mock_run_manager.get_run.return_value = None
 

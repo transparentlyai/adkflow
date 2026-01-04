@@ -13,19 +13,25 @@ export const handlers = [
     });
   }),
 
-  http.get("http://localhost:6000/api/execution/run/:runId/status", ({ params }) => {
-    return HttpResponse.json({
-      run_id: params.runId,
-      status: "running",
-    });
-  }),
+  http.get(
+    "http://localhost:6000/api/execution/run/:runId/status",
+    ({ params }) => {
+      return HttpResponse.json({
+        run_id: params.runId,
+        status: "running",
+      });
+    },
+  ),
 
-  http.post("http://localhost:6000/api/execution/run/:runId/cancel", ({ params }) => {
-    return HttpResponse.json({
-      run_id: params.runId,
-      status: "cancelled",
-    });
-  }),
+  http.post(
+    "http://localhost:6000/api/execution/run/:runId/cancel",
+    ({ params }) => {
+      return HttpResponse.json({
+        run_id: params.runId,
+        status: "cancelled",
+      });
+    },
+  ),
 
   http.post("http://localhost:6000/api/execution/validate", () => {
     return HttpResponse.json({
@@ -110,7 +116,10 @@ export const handlers = [
  * Usage in tests:
  *   server.use(createSSEHandler("/api/execution/run/test-123/events", mockEvents));
  */
-export function createSSEHandler(url: string, events: Array<{ type: string; data: unknown }>) {
+export function createSSEHandler(
+  url: string,
+  events: Array<{ type: string; data: unknown }>,
+) {
   return http.get(url, () => {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
@@ -140,7 +149,7 @@ export function createErrorHandler(
   method: "get" | "post" | "put" | "delete",
   url: string,
   status: number,
-  message: string
+  message: string,
 ) {
   const httpMethod = http[method];
   return httpMethod(url, () => {

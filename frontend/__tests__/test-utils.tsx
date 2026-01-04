@@ -20,7 +20,7 @@ function AllProviders({ children }: { children: ReactNode }) {
  */
 function customRender(
   ui: ReactElement,
-  options?: Omit<RenderOptions, "wrapper">
+  options?: Omit<RenderOptions, "wrapper">,
 ): RenderResult {
   return render(ui, { wrapper: AllProviders, ...options });
 }
@@ -28,7 +28,10 @@ function customRender(
 /**
  * Render with user event setup for interaction testing.
  */
-function renderWithUser(ui: ReactElement, options?: Omit<RenderOptions, "wrapper">) {
+function renderWithUser(
+  ui: ReactElement,
+  options?: Omit<RenderOptions, "wrapper">,
+) {
   return {
     user: userEvent.setup(),
     ...customRender(ui, options),
@@ -44,7 +47,7 @@ export { customRender as render, renderWithUser };
 export async function waitForCondition(
   condition: () => boolean,
   timeout = 5000,
-  interval = 100
+  interval = 100,
 ): Promise<void> {
   const start = Date.now();
   while (!condition()) {
@@ -58,12 +61,14 @@ export async function waitForCondition(
 /**
  * Create a mock React Flow node for testing.
  */
-export function createMockNode(overrides: Partial<{
-  id: string;
-  type: string;
-  position: { x: number; y: number };
-  data: Record<string, unknown>;
-}> = {}) {
+export function createMockNode(
+  overrides: Partial<{
+    id: string;
+    type: string;
+    position: { x: number; y: number };
+    data: Record<string, unknown>;
+  }> = {},
+) {
   return {
     id: overrides.id ?? "node-1",
     type: overrides.type ?? "agent",
@@ -75,13 +80,15 @@ export function createMockNode(overrides: Partial<{
 /**
  * Create a mock React Flow edge for testing.
  */
-export function createMockEdge(overrides: Partial<{
-  id: string;
-  source: string;
-  target: string;
-  sourceHandle: string;
-  targetHandle: string;
-}> = {}) {
+export function createMockEdge(
+  overrides: Partial<{
+    id: string;
+    source: string;
+    target: string;
+    sourceHandle: string;
+    targetHandle: string;
+  }> = {},
+) {
   return {
     id: overrides.id ?? "edge-1",
     source: overrides.source ?? "node-1",
@@ -94,14 +101,16 @@ export function createMockEdge(overrides: Partial<{
 /**
  * Create a mock project manifest for testing.
  */
-export function createMockManifest(overrides: Partial<{
-  name: string;
-  version: string;
-  tabs: Array<{ id: string; name: string; isDefault: boolean }>;
-  nodes: unknown[];
-  edges: unknown[];
-  settings: Record<string, unknown>;
-}> = {}) {
+export function createMockManifest(
+  overrides: Partial<{
+    name: string;
+    version: string;
+    tabs: Array<{ id: string; name: string; isDefault: boolean }>;
+    nodes: unknown[];
+    edges: unknown[];
+    settings: Record<string, unknown>;
+  }> = {},
+) {
   return {
     name: overrides.name ?? "test-project",
     version: overrides.version ?? "3.0",

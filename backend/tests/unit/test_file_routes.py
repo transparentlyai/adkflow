@@ -7,16 +7,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 from httpx import AsyncClient
 
 
 class TestCreatePrompt:
     """Tests for POST /api/project/prompt/create endpoint."""
 
-    async def test_create_prompt_success(
-        self, client: AsyncClient, tmp_project: Path
-    ):
+    async def test_create_prompt_success(self, client: AsyncClient, tmp_project: Path):
         """Create a new prompt file."""
         response = await client.post(
             "/api/project/prompt/create",
@@ -76,9 +73,7 @@ class TestCreatePrompt:
 class TestCreateContext:
     """Tests for POST /api/project/context/create endpoint."""
 
-    async def test_create_context_success(
-        self, client: AsyncClient, tmp_project: Path
-    ):
+    async def test_create_context_success(self, client: AsyncClient, tmp_project: Path):
         """Create a new context file."""
         response = await client.post(
             "/api/project/context/create",
@@ -108,9 +103,7 @@ class TestCreateContext:
 class TestCreateTool:
     """Tests for POST /api/project/tool/create endpoint."""
 
-    async def test_create_tool_success(
-        self, client: AsyncClient, tmp_project: Path
-    ):
+    async def test_create_tool_success(self, client: AsyncClient, tmp_project: Path):
         """Create a new tool file."""
         response = await client.post(
             "/api/project/tool/create",
@@ -155,9 +148,7 @@ class TestCreateTool:
 class TestReadPrompt:
     """Tests for POST /api/project/prompt/read endpoint."""
 
-    async def test_read_prompt_success(
-        self, client: AsyncClient, tmp_project: Path
-    ):
+    async def test_read_prompt_success(self, client: AsyncClient, tmp_project: Path):
         """Read prompt file content."""
         prompt_content = "# My Prompt\n\nThis is my prompt content."
         (tmp_project / "prompts" / "test.prompt.md").write_text(prompt_content)
@@ -175,9 +166,7 @@ class TestReadPrompt:
         assert data["success"] is True
         assert data["content"] == prompt_content
 
-    async def test_read_prompt_not_found(
-        self, client: AsyncClient, tmp_project: Path
-    ):
+    async def test_read_prompt_not_found(self, client: AsyncClient, tmp_project: Path):
         """Return 404 when prompt file not found."""
         response = await client.post(
             "/api/project/prompt/read",
@@ -211,9 +200,7 @@ class TestReadPrompt:
 class TestSavePrompt:
     """Tests for POST /api/project/prompt/save endpoint."""
 
-    async def test_save_prompt_success(
-        self, client: AsyncClient, tmp_project: Path
-    ):
+    async def test_save_prompt_success(self, client: AsyncClient, tmp_project: Path):
         """Save content to prompt file."""
         response = await client.post(
             "/api/project/prompt/save",
@@ -231,9 +218,7 @@ class TestSavePrompt:
         saved = (tmp_project / "prompts" / "new.prompt.md").read_text()
         assert saved == "# New Prompt\n\nContent here."
 
-    async def test_save_prompt_overwrites(
-        self, client: AsyncClient, tmp_project: Path
-    ):
+    async def test_save_prompt_overwrites(self, client: AsyncClient, tmp_project: Path):
         """Save overwrites existing content."""
         prompt_file = tmp_project / "prompts" / "existing.prompt.md"
         prompt_file.write_text("Old content")
@@ -270,9 +255,7 @@ class TestSavePrompt:
 class TestReadFileChunk:
     """Tests for POST /api/project/file/chunk endpoint."""
 
-    async def test_read_chunk_normal_mode(
-        self, client: AsyncClient, tmp_project: Path
-    ):
+    async def test_read_chunk_normal_mode(self, client: AsyncClient, tmp_project: Path):
         """Read file chunk from start."""
         # Create a file with multiple lines
         content = "\n".join([f"Line {i}" for i in range(100)])
@@ -341,9 +324,7 @@ class TestReadFileChunk:
 
         assert response.status_code == 404
 
-    async def test_read_chunk_empty_file(
-        self, client: AsyncClient, tmp_project: Path
-    ):
+    async def test_read_chunk_empty_file(self, client: AsyncClient, tmp_project: Path):
         """Handle empty file gracefully."""
         (tmp_project / "empty.txt").touch()
 

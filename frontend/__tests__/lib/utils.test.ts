@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { cn, sanitizeAgentName, isMacOS, getModifierKey, formatShortcut } from "@/lib/utils";
+import {
+  cn,
+  sanitizeAgentName,
+  isMacOS,
+  getModifierKey,
+  formatShortcut,
+} from "@/lib/utils";
 
 describe("cn (className merge utility)", () => {
   it("should merge class names", () => {

@@ -182,4 +182,19 @@ describe("searchIndex", () => {
     expect(results.length).toBeGreaterThanOrEqual(1);
     expect(results[0].nodeName).toBe("SystemPrompt");
   });
+
+  it("should sort alphabetically when scores are equal", () => {
+    // Create entries with similar match scores
+    const testEntries: SearchableEntry[] = [
+      { nodeId: "3", nodeName: "ZetaPrompt", nodeType: "prompt" },
+      { nodeId: "1", nodeName: "AlphaPrompt", nodeType: "prompt" },
+      { nodeId: "2", nodeName: "BetaPrompt", nodeType: "prompt" },
+    ];
+    const results = searchIndex(testEntries, "prompt");
+
+    // Should be sorted alphabetically since they all contain "prompt" equally
+    expect(results[0].nodeName).toBe("AlphaPrompt");
+    expect(results[1].nodeName).toBe("BetaPrompt");
+    expect(results[2].nodeName).toBe("ZetaPrompt");
+  });
 });

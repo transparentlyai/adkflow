@@ -51,3 +51,20 @@ pythonVersion = "3.13"
 include = ["cli", "backend/src", "packages/adkflow-runner/src"]
 extraPaths = ["packages/adkflow-runner/src"]
 typeCheckingMode = "standard"
+
+[tool.coverage.run]
+source = ["packages/adkflow-runner/src", "backend/src", "cli"]
+omit = [
+    "*/visualization/*",
+    "*/__main__.py",
+    "cli/tests/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "@abstractmethod",
+    "raise NotImplementedError",
+]

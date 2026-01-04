@@ -68,3 +68,16 @@ tmp
 
 # Local extension development
 adkflow_extensions/
+
+# ralph
+@AGENT.md
+PROMPT.md
+@fix_plan.md
+specs
+.call_count
+.circuit_breaker_history
+.circuit_breaker_state
+.exit_signals
+.last_reset
+progress.json
+status.json
