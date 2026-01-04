@@ -5,10 +5,64 @@ Provides functions to serialize agent configs for logging and debugging.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from google.adk.agents import Agent, LoopAgent, ParallelAgent, SequentialAgent
 from google.adk.planners import BuiltInPlanner
+
+# Keys to skip when flattening (callback booleans are always true in our setup)
+_SKIP_KEYS = {
+    "before_agent_callback",
+    "after_agent_callback",
+    "before_model_callback",
+    "after_model_callback",
+    "before_tool_callback",
+    "after_tool_callback",
+}
+
+
+def flatten_agent_config(config: dict[str, Any], prefix: str = "adk") -> dict[str, Any]:
+    """Flatten nested config dict into dot-notation span attributes.
+
+    Args:
+        config: Nested config dictionary from serialize_agent_config()
+        prefix: Prefix for all attribute keys (default: "adk")
+
+    Returns:
+        Flat dict with dot-notation keys suitable for OTel span attributes.
+
+    Example:
+        Input: {"model": "gemini", "generate_content_config": {"temperature": 0.7}}
+        Output: {"adk.model": "gemini", "adk.generate_content_config.temperature": 0.7}
+    """
+    result: dict[str, Any] = {}
+
+    def _flatten(obj: Any, key: str) -> None:
+        # Extract the leaf key name (after last dot) for skip check
+        leaf_key = key.split(".")[-1] if "." in key else key.replace(f"{prefix}.", "")
+
+        if leaf_key in _SKIP_KEYS:
+            return
+
+        if obj is None:
+            # OTel doesn't allow None values, skip
+            return
+
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                _flatten(v, f"{key}.{k}")
+        elif isinstance(obj, (list, tuple)):
+            # Convert lists to JSON strings (OTel requires primitive types)
+            result[key] = json.dumps(obj)
+        else:
+            # Primitive value (str, int, float, bool)
+            result[key] = obj
+
+    for k, v in config.items():
+        _flatten(v, f"{prefix}.{k}")
+
+    return result
 
 
 def serialize_agent_config(agent: Agent) -> dict[str, Any]:
