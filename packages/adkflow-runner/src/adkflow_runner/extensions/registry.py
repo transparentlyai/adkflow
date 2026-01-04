@@ -4,6 +4,7 @@ import importlib.util
 import sys
 import threading
 from pathlib import Path
+from collections.abc import Sequence
 from typing import Any
 
 from adkflow_runner.extensions.flow_unit import FlowUnit
@@ -577,3 +578,50 @@ class ExtensionRegistry:
                     self._file_mtimes.pop(key, None)
 
             self._project_path = None
+
+    def register_builtin_units(
+        self, unit_classes: Sequence[type[FlowUnit]]
+    ) -> int:
+        """Register builtin FlowUnit classes directly.
+
+        Builtin units are registered with BUILTIN scope (treated like global)
+        and don't have a source file path.
+
+        Args:
+            unit_classes: List of FlowUnit subclasses to register
+
+        Returns:
+            Number of units successfully registered
+        """
+        count = 0
+        with self._lock:
+            for unit_cls in unit_classes:
+                if not (
+                    hasattr(unit_cls, "UNIT_ID")
+                    and hasattr(unit_cls, "UI_LABEL")
+                    and hasattr(unit_cls, "MENU_LOCATION")
+                ):
+                    print(
+                        f"[ExtensionRegistry] Skipping {unit_cls.__name__}: missing required attributes"
+                    )
+                    continue
+
+                unit_id = unit_cls.UNIT_ID
+                self._units[unit_id] = unit_cls
+                self._scopes[unit_id] = ExtensionScope.GLOBAL  # Treat as global
+
+                # Generate JSON schema for frontend
+                try:
+                    ui_schema = unit_cls.setup_interface()
+                    self._schemas[unit_id] = generate_schema(
+                        unit_cls, ui_schema, Path("<builtin>"), ExtensionScope.GLOBAL
+                    )
+                    count += 1
+                except Exception as e:
+                    print(
+                        f"[ExtensionRegistry] Failed to generate schema for {unit_id}: {e}"
+                    )
+                    self._units.pop(unit_id, None)
+                    self._scopes.pop(unit_id, None)
+
+        return count

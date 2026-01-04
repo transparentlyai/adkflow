@@ -20,6 +20,7 @@ __all__ = [
     "init_registry",
     "init_global_extensions",
     "init_project_extensions",
+    "init_builtin_units",
     "clear_project_extensions",
 ]
 
@@ -120,3 +121,21 @@ def clear_project_extensions() -> None:
     registry = get_registry()
     registry.clear_project()
     print("[ExtensionRegistry] Cleared project extensions")
+
+
+def init_builtin_units() -> int:
+    """Register builtin FlowUnit nodes with the extension registry.
+
+    Builtin units are core nodes that are always available, not loaded
+    from extension directories. They are registered with GLOBAL scope
+    and can be overridden by project-level extensions.
+
+    Returns:
+        Number of builtin units registered
+    """
+    from adkflow_runner.builtin_units import BUILTIN_UNITS
+
+    registry = get_registry()
+    count = registry.register_builtin_units(BUILTIN_UNITS)
+    print(f"[ExtensionRegistry] Registered {count} builtin unit(s)")
+    return count

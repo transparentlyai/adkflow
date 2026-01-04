@@ -17,6 +17,22 @@ import type {
   CustomNodeData,
 } from "@/components/nodes/CustomNode/types";
 
+// Import dynamic input types directly (workaround for re-export issue)
+import type {
+  DynamicInputConfig,
+  DynamicInputType,
+  NodeAggregationMode,
+  DirectoryAggregationMode,
+  NamingPatternType,
+} from "@/components/nodes/CustomNode/types/dynamicInputs";
+
+import {
+  DEFAULT_DYNAMIC_INPUT,
+  generateDynamicInputId,
+  createDynamicInput,
+  NAMING_PATTERN_VARIABLES,
+} from "@/components/nodes/CustomNode/types/dynamicInputs";
+
 // Re-export types for backwards compatibility
 export type {
   PortDefinition,
@@ -29,6 +45,23 @@ export type {
   CustomNodeSchema,
   CustomNodeData,
 } from "@/components/nodes/CustomNode/types";
+
+// Re-export dynamic input types
+export type {
+  DynamicInputConfig,
+  DynamicInputType,
+  NodeAggregationMode,
+  DirectoryAggregationMode,
+  NamingPatternType,
+} from "@/components/nodes/CustomNode/types/dynamicInputs";
+
+// Re-export utilities for dynamic inputs
+export {
+  DEFAULT_DYNAMIC_INPUT,
+  generateDynamicInputId,
+  createDynamicInput,
+  NAMING_PATTERN_VARIABLES,
+} from "@/components/nodes/CustomNode/types/dynamicInputs";
 
 // Import refactored hooks and components
 import {
@@ -60,10 +93,20 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
   const { theme } = useTheme();
   const [isExpanded, setIsExpanded] = useState(dataIsExpanded ?? false);
 
+  // Extract dynamic inputs from config (for nodes that support dynamic inputs)
+  const dynamicInputs = useMemo(() => {
+    if (!schema.ui.dynamic_inputs) return undefined;
+    return (config.dynamicInputs as DynamicInputConfig[] | undefined) || [];
+  }, [schema.ui.dynamic_inputs, config.dynamicInputs]);
+
   // Use refactored hooks
   const { tabs, activeTab, setActiveTab } = useCustomNodeTabs(schema);
-  const handleTypes = useCustomNodeHandleTypes(schema);
-  const connectedInputs = useConnectedInputs(id, schema.ui.inputs);
+  const handleTypes = useCustomNodeHandleTypes(schema, dynamicInputs);
+  const connectedInputs = useConnectedInputs(
+    id,
+    schema.ui.inputs,
+    dynamicInputs,
+  );
 
   // Sync fields when model changes (Agent nodes only)
   useModelFieldSync(id, config, schema, schema.unit_id);

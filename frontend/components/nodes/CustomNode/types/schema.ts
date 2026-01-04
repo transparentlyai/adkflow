@@ -173,5 +173,22 @@ export interface CustomNodeSchema {
     min_width?: number;
     /** Minimum height when resizing (pixels). Defaults to 150. */
     min_height?: number;
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Dynamic Inputs
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * Whether this node supports dynamic inputs.
+     * When true, users can add/remove inputs at runtime per node instance.
+     * Dynamic input configuration is stored in node.data.config.dynamicInputs.
+     */
+    dynamic_inputs?: boolean;
+    /**
+     * Template for dynamic input port handles.
+     * Defines base properties shared by all dynamic inputs of type 'node'.
+     * Only 'node' type dynamic inputs create actual handles.
+     */
+    dynamic_input_template?: Partial<PortDefinition>;
   };
 }

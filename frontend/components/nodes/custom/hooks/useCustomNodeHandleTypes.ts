@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import type { CustomNodeSchema } from "@/components/nodes/CustomNode";
+import type {
+  CustomNodeSchema,
+  DynamicInputConfig,
+} from "@/components/nodes/CustomNode";
 
 export interface HandleTypeInfo {
   outputSource?: string;
@@ -17,9 +20,11 @@ export type HandleTypes = Record<string, HandleTypeInfo>;
  * Creates type information for each input/output handle for connection validation.
  * Also creates a combined "input" entry with all accepted sources/types.
  * Supports additional_handles from handle_layout for link-top/link-bottom handles.
+ * Supports dynamic inputs of type 'node' which create runtime handles.
  */
 export function useCustomNodeHandleTypes(
   schema: CustomNodeSchema,
+  dynamicInputs?: DynamicInputConfig[],
 ): HandleTypes {
   return useMemo(() => {
     const types: HandleTypes = {};
@@ -39,6 +44,25 @@ export function useCustomNodeHandleTypes(
         acceptedTypes: input.accepted_types || [input.data_type],
       };
     });
+
+    // Add dynamic inputs of type 'node' (these create actual handles)
+    if (schema.ui.dynamic_inputs && dynamicInputs) {
+      const template = schema.ui.dynamic_input_template;
+      dynamicInputs
+        .filter((di) => di.inputType === "node")
+        .forEach((di) => {
+          const acceptedSources = template?.accepted_sources || ["*"];
+          const acceptedTypes = template?.accepted_types || ["str"];
+
+          acceptedSources.forEach((s) => allAcceptedSources.add(s));
+          acceptedTypes.forEach((t) => allAcceptedTypes.add(t));
+
+          types[di.id] = {
+            acceptedSources,
+            acceptedTypes,
+          };
+        });
+    }
 
     // Combined entry for collapsed view's main input handle
     types["input"] = {
@@ -86,5 +110,5 @@ export function useCustomNodeHandleTypes(
     });
 
     return types;
-  }, [schema]);
+  }, [schema, dynamicInputs]);
 }

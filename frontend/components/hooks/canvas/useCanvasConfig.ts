@@ -17,6 +17,7 @@ const staticNodeTypes = {
   agent: CustomNode,
   prompt: CustomNode,
   context: CustomNode,
+  context_aggregator: CustomNode,
   inputProbe: CustomNode,
   outputProbe: CustomNode,
   logProbe: CustomNode,

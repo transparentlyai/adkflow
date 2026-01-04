@@ -22,6 +22,7 @@ from adkflow_runner.extensions.discovery import (
     init_registry,
     init_global_extensions,
     init_project_extensions,
+    init_builtin_units,
     clear_project_extensions,
 )
 
@@ -49,5 +50,6 @@ __all__ = [
     "init_registry",
     "init_global_extensions",
     "init_project_extensions",
+    "init_builtin_units",
     "clear_project_extensions",
 ]

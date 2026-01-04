@@ -24,6 +24,7 @@ export { logProbeNodeSchema } from "./logProbeNodeSchema";
 // Content nodes
 export { promptNodeSchema } from "./promptNodeSchema";
 export { contextNodeSchema } from "./contextNodeSchema";
+export { contextAggregatorNodeSchema } from "./contextAggregatorNodeSchema";
 export { userInputNodeSchema } from "./userInputNodeSchema";
 export { outputFileNodeSchema } from "./outputFileNodeSchema";
 
@@ -48,6 +49,7 @@ import { outputProbeNodeSchema } from "./outputProbeNodeSchema";
 import { logProbeNodeSchema } from "./logProbeNodeSchema";
 import { promptNodeSchema } from "./promptNodeSchema";
 import { contextNodeSchema } from "./contextNodeSchema";
+import { contextAggregatorNodeSchema } from "./contextAggregatorNodeSchema";
 import { userInputNodeSchema } from "./userInputNodeSchema";
 import { outputFileNodeSchema } from "./outputFileNodeSchema";
 import { startNodeSchema } from "./startNodeSchema";
@@ -71,6 +73,7 @@ export const builtinNodeSchemas = [
   // Content nodes
   promptNodeSchema,
   contextNodeSchema,
+  contextAggregatorNodeSchema,
   userInputNodeSchema,
   outputFileNodeSchema,
   // Flow control nodes

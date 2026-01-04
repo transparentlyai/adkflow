@@ -9,6 +9,8 @@ export interface FilePickerOptions {
   filterLabel?: string;
   /** Allow creating new files (save mode) */
   allowCreate?: boolean;
+  /** Select a directory instead of a file */
+  selectDirectory?: boolean;
 }
 
 interface ProjectContextValue {

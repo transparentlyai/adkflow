@@ -30,6 +30,7 @@ import {
   Play,
   Square,
   Puzzle,
+  Layers,
 } from "lucide-react";
 import { formatShortcut } from "@/lib/utils";
 import { type CustomNodeSchema } from "@/components/nodes/CustomNode";
@@ -52,6 +53,7 @@ export type NodeTypeOption =
   | "agent"
   | "prompt"
   | "context"
+  | "context_aggregator"
   | "inputProbe"
   | "outputProbe"
   | "logProbe"
@@ -110,6 +112,11 @@ const menuGroups: MenuGroup[] = [
         type: "context",
         label: "Context",
         icon: <Database className="h-4 w-4" />,
+      },
+      {
+        type: "context_aggregator",
+        label: "Context Aggregator",
+        icon: <Layers className="h-4 w-4" />,
       },
       {
         type: "outputFile",

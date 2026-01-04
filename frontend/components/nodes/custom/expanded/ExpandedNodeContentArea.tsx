@@ -13,11 +13,14 @@ import {
   hasCodeEditorWidget,
   getCodeEditorField,
 } from "@/components/nodes/custom/expandedNodeUtils";
+import { DynamicInputEditor } from "@/components/nodes/custom/expanded/DynamicInputEditor";
 import type {
   CustomNodeSchema,
   CustomNodeData,
   PortDefinition,
   FieldDefinition,
+  DynamicInputConfig,
+  NodeAggregationMode,
 } from "@/components/nodes/CustomNode";
 import type { HandleTypes } from "@/components/nodes/custom/hooks/useCustomNodeHandleTypes";
 
@@ -220,14 +223,53 @@ export function ExpandedNodeContentArea({
         );
       })}
 
-      {elements.inputs.length === 0 && elements.fields.length === 0 && (
-        <p
-          className="text-xs text-center py-1"
-          style={{ color: theme.colors.nodes.common.text.muted }}
+      {/* Dynamic inputs editor (for nodes that support dynamic inputs) */}
+      {schema.ui.dynamic_inputs && (
+        <div
+          className={sectionIndex > 0 ? "mt-2 pt-2 border-t" : ""}
+          style={
+            sectionIndex > 0
+              ? { borderColor: theme.colors.nodes.common.container.border }
+              : undefined
+          }
         >
-          No configuration options
-        </p>
+          <DynamicInputEditor
+            inputs={
+              (config.dynamicInputs as DynamicInputConfig[] | undefined) || []
+            }
+            aggregationMode={
+              (config.aggregationMode as NodeAggregationMode | undefined) ||
+              "pass"
+            }
+            separator={(config.separator as string | undefined) || "\n\n"}
+            outputVariableName={
+              (config.outputVariableName as string | undefined) || "context"
+            }
+            connectedInputs={connectedInputs}
+            onInputsChange={(inputs) => onConfigChange("dynamicInputs", inputs)}
+            onAggregationModeChange={(mode) =>
+              onConfigChange("aggregationMode", mode)
+            }
+            onSeparatorChange={(sep) => onConfigChange("separator", sep)}
+            onOutputVariableNameChange={(name) =>
+              onConfigChange("outputVariableName", name)
+            }
+            isNodeLocked={nodeData.isNodeLocked}
+            headerColor={headerColor}
+          />
+        </div>
       )}
+
+      {elements.inputs.length === 0 &&
+        elements.fields.length === 0 &&
+        !schema.ui.dynamic_inputs && (
+          <p
+            className="text-xs text-center py-1"
+            style={{ color: theme.colors.nodes.common.text.muted }}
+          >
+            No configuration options
+          </p>
+        )}
 
       {/* Output ports - always visible (except those rendered as edge handles) */}
       {schema.ui.outputs.filter(
