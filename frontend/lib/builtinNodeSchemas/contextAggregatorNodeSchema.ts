@@ -37,12 +37,9 @@ export const contextAggregatorNodeSchema: CustomNodeSchema = {
     icon: "database",
     expandable: true,
     default_width: 320,
-    default_height: 400,
+    default_height: 300,
     layout: "standard",
     theme_key: "context",
-    resizable: true,
-    min_width: 280,
-    min_height: 300,
     collapsed_display: {
       format: "{name}",
       show_connections: true,
