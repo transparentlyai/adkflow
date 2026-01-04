@@ -26,7 +26,7 @@ export const contextAggregatorNodeSchema: CustomNodeSchema = {
       {
         id: "output",
         label: "Variables",
-        source_type: "context_aggregator",
+        source_type: "context",
         data_type: "dict",
         required: true,
         multiple: false,
