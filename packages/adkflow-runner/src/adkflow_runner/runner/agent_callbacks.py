@@ -8,7 +8,15 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
+from google.adk.agents import Agent, LoopAgent, ParallelAgent, SequentialAgent
+from opentelemetry import trace
+
 from adkflow_runner.logging import get_logger
+from adkflow_runner.runner.agent_serialization import (
+    flatten_agent_config,
+    serialize_agent_config,
+    serialize_workflow_agent_config,
+)
 
 if TYPE_CHECKING:
     from adkflow_runner.runner.workflow_runner import RunEvent
@@ -59,6 +67,23 @@ def create_agent_callbacks(
             pass
 
     def before_agent_callback(callback_context: Any) -> None:
+        # Add agent config attributes to current span
+        span = trace.get_current_span()
+        if span.is_recording():
+            agent = callback_context._invocation_context.agent
+
+            # Serialize based on agent type
+            if isinstance(agent, (SequentialAgent, ParallelAgent, LoopAgent)):
+                config = serialize_workflow_agent_config(agent)
+            elif isinstance(agent, Agent):
+                config = serialize_agent_config(agent)
+            else:
+                config = {}
+
+            # Flatten and set attributes
+            for key, value in flatten_agent_config(config).items():
+                span.set_attribute(key, value)
+
         if emit:
             _emit_event(
                 RunEvent(
