@@ -296,11 +296,20 @@ export function HomeDialogs({
         initialPath={filePickerState.initialPath}
         onSelect={onFilePickerSelect}
         onCancel={onFilePickerCancel}
-        title="Select File"
-        description="Choose a file to associate with this node"
+        title={
+          filePickerState.options?.selectDirectory
+            ? "Select Directory"
+            : "Select File"
+        }
+        description={
+          filePickerState.options?.selectDirectory
+            ? "Choose a directory"
+            : "Choose a file to associate with this node"
+        }
         defaultExtensions={filePickerState.options?.extensions}
         filterLabel={filePickerState.options?.filterLabel}
         allowCreate={filePickerState.options?.allowCreate}
+        selectDirectory={filePickerState.options?.selectDirectory}
       />
 
       {/* Run Panel */}

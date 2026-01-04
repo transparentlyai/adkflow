@@ -31,6 +31,7 @@ export default function FilePicker({
   defaultExtensions,
   filterLabel,
   allowCreate,
+  selectDirectory = false,
 }: FilePickerProps) {
   const { theme } = useTheme();
   const [currentPath, setCurrentPath] = useState("");
@@ -59,12 +60,16 @@ export default function FilePicker({
   // Combined filter: custom filter AND extension filter
   const combinedFilter = useCallback(
     (entry: DirectoryEntry): boolean => {
+      // In directory mode, only show directories
+      if (selectDirectory) {
+        return entry.is_directory;
+      }
       if (entry.is_directory) return true;
       const passesExtensionFilter = extensionFilter(entry);
       const passesCustomFilter = fileFilter ? fileFilter(entry) : true;
       return passesExtensionFilter && passesCustomFilter;
     },
-    [extensionFilter, fileFilter],
+    [extensionFilter, fileFilter, selectDirectory],
   );
 
   useEffect(() => {
@@ -166,7 +171,10 @@ export default function FilePicker({
   const handleSelect = () => {
     let finalPath: string | null = null;
 
-    if (allowCreate && newFileName.trim()) {
+    if (selectDirectory) {
+      // In directory mode, select the current directory
+      finalPath = currentPath;
+    } else if (allowCreate && newFileName.trim()) {
       finalPath = `${currentPath}/${newFileName.trim()}`;
     } else if (selectedFile) {
       finalPath = selectedFile;
@@ -195,7 +203,8 @@ export default function FilePicker({
     }
   };
 
-  const canSelect = selectedFile || (allowCreate && newFileName.trim());
+  const canSelect =
+    selectDirectory || selectedFile || (allowCreate && newFileName.trim());
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onCancel()}>
@@ -252,7 +261,7 @@ export default function FilePicker({
           />
         )}
 
-        {selectedFile && !newFileName.trim() && (
+        {(selectDirectory || (selectedFile && !newFileName.trim())) && (
           <div
             className="px-6 py-2 border-t"
             style={{
@@ -262,13 +271,13 @@ export default function FilePicker({
           >
             <div className="text-sm">
               <span style={{ color: theme.colors.nodes.common.text.secondary }}>
-                Selected:{" "}
+                {selectDirectory ? "Directory: " : "Selected: "}
               </span>
               <span
                 className="font-mono"
                 style={{ color: theme.colors.ui.primary }}
               >
-                {getRelativePath(selectedFile)}
+                {getRelativePath(selectDirectory ? currentPath : selectedFile!)}
               </span>
             </div>
           </div>
@@ -283,6 +292,7 @@ export default function FilePicker({
           canSelect={!!canSelect}
           allowCreate={allowCreate}
           newFileName={newFileName}
+          selectDirectory={selectDirectory}
           onShowAllFilesChange={setShowAllFiles}
           onCancel={onCancel}
           onSelect={handleSelect}

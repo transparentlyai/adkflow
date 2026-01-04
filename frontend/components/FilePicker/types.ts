@@ -16,6 +16,8 @@ export interface FilePickerProps {
   filterLabel?: string;
   /** Allow creating new files (save mode) */
   allowCreate?: boolean;
+  /** Select directories instead of files */
+  selectDirectory?: boolean;
 }
 
 export interface FilePickerNavigationBarProps {
@@ -56,6 +58,7 @@ export interface FilePickerFooterProps {
   canSelect: boolean;
   allowCreate?: boolean;
   newFileName: string;
+  selectDirectory?: boolean;
   onShowAllFilesChange: (show: boolean) => void;
   onCancel: () => void;
   onSelect: () => void;

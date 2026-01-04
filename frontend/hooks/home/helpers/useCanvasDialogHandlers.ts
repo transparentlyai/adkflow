@@ -82,12 +82,17 @@ export function useCanvasDialogHandlers({
   const handleFilePickerSelect = useCallback(
     async (newPath: string) => {
       if (filePickerState.callback && currentProjectPath) {
-        try {
-          await readPrompt(currentProjectPath, newPath);
+        // Skip file read check for directory selection
+        if (filePickerState.options?.selectDirectory) {
           filePickerState.callback(newPath);
-        } catch (error) {
-          console.error("Failed to read file:", error);
-          filePickerState.callback(newPath);
+        } else {
+          try {
+            await readPrompt(currentProjectPath, newPath);
+            filePickerState.callback(newPath);
+          } catch (error) {
+            console.error("Failed to read file:", error);
+            filePickerState.callback(newPath);
+          }
         }
       }
       setFilePickerState({ isOpen: false, callback: null });

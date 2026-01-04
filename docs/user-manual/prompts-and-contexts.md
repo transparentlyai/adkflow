@@ -110,6 +110,100 @@ Variables are replaced at runtime with:
 - Use headers for organization
 - Keep prompts focused on one task
 
+## Context Aggregator
+
+### What is the Context Aggregator?
+
+The Context Aggregator node collects content from multiple sources and outputs named variables for agent template substitution. It's useful when you need to:
+
+- Load multiple files into a single prompt
+- Read all files from a directory
+- Fetch content from URLs
+- Combine outputs from other nodes
+
+### Input Types
+
+| Type | Description | Configuration |
+|------|-------------|---------------|
+| **File** | Single file content | File path (relative to project or absolute) |
+| **Directory** | Multiple files matching a pattern | Directory path, glob pattern, aggregation mode |
+| **URL** | Remote content | Full URL (http/https) |
+| **Node** | Connected node output | Variable from upstream node |
+
+### Adding Inputs
+
+1. Expand the Context Aggregator node
+2. Click **Add Input**
+3. Select the input type
+4. Configure the input settings
+5. Set the variable name
+
+Each input has a connection handle on the left, allowing other nodes to provide values dynamically.
+
+### Aggregation Modes
+
+#### Pass Mode (Default)
+
+Each input creates its own variable:
+
+```
+Input 1 (file: readme.md, var: readme) → {readme}
+Input 2 (file: config.json, var: config) → {config}
+Output: {readme: "...", config: "..."}
+```
+
+#### Concatenate Mode
+
+All inputs are joined into a single variable:
+
+```
+Input 1 (file: part1.md)
+Input 2 (file: part2.md)
+Output Variable: "context"
+Separator: "\n\n"
+Output: {context: "part1 content\n\npart2 content"}
+```
+
+### Directory Options
+
+When reading directories:
+
+| Option | Description |
+|--------|-------------|
+| **Glob Pattern** | File pattern (e.g., `*.md`, `**/*.py`) |
+| **Aggregation** | Concatenate (single var) or Pass (multiple vars) |
+| **Naming Pattern** | How to name variables in Pass mode |
+| **Separator** | Text between files in Concatenate mode |
+
+Naming patterns for Pass mode:
+- `{base}_{file_name}` - Uses the filename stem
+- `{base}_{number}` - Uses sequential numbers
+- Custom pattern with `{file_name}`, `{file_ext}`, `{number}`, `{base}`
+
+### Example: Multi-File Context
+
+To provide multiple documentation files to an agent:
+
+1. Add a Context Aggregator node
+2. Add a Directory input:
+   - Path: `docs/`
+   - Glob: `**/*.md`
+   - Aggregation: Concatenate
+   - Variable: `documentation`
+3. Connect output to your Agent's context input
+4. Use `{documentation}` in your prompt
+
+### Example: Dynamic + Static Content
+
+Combine upstream node output with static files:
+
+1. Add a Context Aggregator node
+2. Add inputs:
+   - **Node** input: receives data from upstream node (var: `user_data`)
+   - **File** input: `templates/system.md` (var: `system_prompt`)
+3. Set Aggregation: Pass
+4. Connect to Agent - both `{user_data}` and `{system_prompt}` are available
+
 ## Contexts
 
 ### What are Contexts?

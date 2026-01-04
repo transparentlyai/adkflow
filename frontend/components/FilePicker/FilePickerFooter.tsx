@@ -9,6 +9,7 @@ export function FilePickerFooter({
   canSelect,
   allowCreate,
   newFileName,
+  selectDirectory,
   onShowAllFilesChange,
   onCancel,
   onSelect,
@@ -29,28 +30,32 @@ export function FilePickerFooter({
           className="text-xs"
           style={{ color: theme.colors.nodes.common.text.muted }}
         >
-          {fileCount} files, {folderCount} folders
+          {selectDirectory
+            ? `${folderCount} folders`
+            : `${fileCount} files, ${folderCount} folders`}
         </div>
-        {defaultExtensions && defaultExtensions.length > 0 && (
-          <label
-            className="flex items-center gap-2 text-xs cursor-pointer"
-            style={{ color: theme.colors.nodes.common.text.secondary }}
-          >
-            <input
-              type="checkbox"
-              checked={showAllFiles}
-              onChange={(e) => onShowAllFilesChange(e.target.checked)}
-              className="rounded text-blue-600 focus:ring-blue-500"
-              style={{ borderColor: theme.colors.ui.border }}
-            />
-            <span>Show all files</span>
-            {!showAllFiles && filterLabel && (
-              <span style={{ color: theme.colors.nodes.common.text.muted }}>
-                ({filterLabel})
-              </span>
-            )}
-          </label>
-        )}
+        {!selectDirectory &&
+          defaultExtensions &&
+          defaultExtensions.length > 0 && (
+            <label
+              className="flex items-center gap-2 text-xs cursor-pointer"
+              style={{ color: theme.colors.nodes.common.text.secondary }}
+            >
+              <input
+                type="checkbox"
+                checked={showAllFiles}
+                onChange={(e) => onShowAllFilesChange(e.target.checked)}
+                className="rounded text-blue-600 focus:ring-blue-500"
+                style={{ borderColor: theme.colors.ui.border }}
+              />
+              <span>Show all files</span>
+              {!showAllFiles && filterLabel && (
+                <span style={{ color: theme.colors.nodes.common.text.muted }}>
+                  ({filterLabel})
+                </span>
+              )}
+            </label>
+          )}
       </div>
       <div className="flex gap-3">
         <button
@@ -65,7 +70,11 @@ export function FilePickerFooter({
           disabled={!canSelect}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
         >
-          {allowCreate && newFileName.trim() ? "Create" : "Select"}
+          {selectDirectory
+            ? "Select Directory"
+            : allowCreate && newFileName.trim()
+              ? "Create"
+              : "Select"}
         </button>
       </div>
     </div>

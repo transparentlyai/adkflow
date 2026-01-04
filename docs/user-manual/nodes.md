@@ -23,6 +23,7 @@ Provide text content to agents.
 |------|---------|
 | **Prompt** | Markdown template with variable substitution |
 | **Context** | Static context or configuration data |
+| **Context Aggregator** | Collect content from files, directories, URLs, and nodes into variables |
 
 ### Tool Nodes
 

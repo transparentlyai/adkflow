@@ -36,6 +36,7 @@ All built-in nodes are now **schema-driven** using CustomNodeSchema definitions 
 | `Agent` | `builtinNodeSchemas/agentNodeSchema.ts` | LLM agent (model-driven fields) |
 | `Prompt` | `builtinNodeSchemas/promptNodeSchema.ts` | Text templates |
 | `Context` | `builtinNodeSchemas/contextNodeSchema.ts` | Static content |
+| `ContextAggregator` | `builtinNodeSchemas/contextAggregatorNodeSchema.ts` | Multi-source content aggregation |
 | `Tool` | `builtinNodeSchemas/toolNodeSchema.ts` | Agent tools |
 | `AgentTool` | `builtinNodeSchemas/agentToolNodeSchema.ts` | Tool wrapper for agents |
 | `Process` | `builtinNodeSchemas/processNodeSchema.ts` | Custom Python processing |
