@@ -92,7 +92,7 @@ export function DynamicInputEditor({
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" style={{ overflow: "visible" }}>
       {/* Node-level aggregation settings */}
       <div
         className="p-2 rounded border space-y-1.5"
@@ -197,17 +197,17 @@ export function DynamicInputEditor({
           No inputs configured. Click &quot;Add Input&quot; to add one.
         </div>
       ) : (
-        <div className="space-y-1">
+        <div
+          className="space-y-1"
+          style={{ paddingLeft: 8, overflow: "visible" }}
+        >
           {inputs.map((input, index) => (
             <DynamicInputRow
               key={input.id}
               input={input}
               onUpdate={(updated) => handleUpdateInput(index, updated)}
               onDelete={() => handleDeleteInput(index)}
-              isConnected={
-                input.inputType === "node" &&
-                connectedInputs[input.id]?.length > 0
-              }
+              isConnected={connectedInputs[input.id]?.length > 0}
               connectedSourceName={connectedInputs[input.id]?.[0]}
               isNodeLocked={isNodeLocked}
               headerColor={headerColor}

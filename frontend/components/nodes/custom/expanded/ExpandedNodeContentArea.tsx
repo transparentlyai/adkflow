@@ -201,7 +201,7 @@ export function ExpandedNodeContentArea({
   let sectionIndex = 0;
 
   return (
-    <div className="p-2 nodrag nowheel">
+    <div className="p-2 nodrag nowheel" style={{ overflow: "visible" }}>
       {/* Inputs grouped by section - compact spacing */}
       {Array.from(inputSections.entries()).map(([section, inputs]) => {
         const maxLabelWidth = getMaxInputLabelWidth(inputs);
@@ -227,11 +227,12 @@ export function ExpandedNodeContentArea({
       {schema.ui.dynamic_inputs && (
         <div
           className={sectionIndex > 0 ? "mt-2 pt-2 border-t" : ""}
-          style={
-            sectionIndex > 0
+          style={{
+            overflow: "visible",
+            ...(sectionIndex > 0
               ? { borderColor: theme.colors.nodes.common.container.border }
-              : undefined
-          }
+              : {}),
+          }}
         >
           <DynamicInputEditor
             inputs={

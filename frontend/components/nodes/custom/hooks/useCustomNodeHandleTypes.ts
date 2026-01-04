@@ -45,23 +45,23 @@ export function useCustomNodeHandleTypes(
       };
     });
 
-    // Add dynamic inputs of type 'node' (these create actual handles)
+    // Add dynamic inputs (all types create handles)
     if (schema.ui.dynamic_inputs && dynamicInputs) {
-      const template = schema.ui.dynamic_input_template;
-      dynamicInputs
-        .filter((di) => di.inputType === "node")
-        .forEach((di) => {
-          const acceptedSources = template?.accepted_sources || ["*"];
-          const acceptedTypes = template?.accepted_types || ["str"];
+      dynamicInputs.forEach((di) => {
+        // Determine accepted types based on input type
+        // file, directory, url accept str (paths/urls)
+        // node accepts dict (variables from other nodes)
+        const acceptedSources = ["*"];
+        const acceptedTypes = di.inputType === "node" ? ["dict"] : ["str"];
 
-          acceptedSources.forEach((s) => allAcceptedSources.add(s));
-          acceptedTypes.forEach((t) => allAcceptedTypes.add(t));
+        acceptedSources.forEach((s) => allAcceptedSources.add(s));
+        acceptedTypes.forEach((t) => allAcceptedTypes.add(t));
 
-          types[di.id] = {
-            acceptedSources,
-            acceptedTypes,
-          };
-        });
+        types[di.id] = {
+          acceptedSources,
+          acceptedTypes,
+        };
+      });
     }
 
     // Combined entry for collapsed view's main input handle

@@ -124,6 +124,7 @@ const CustomNodeExpanded = memo(
             borderColor: theme.colors.nodes.common.container.border,
             borderWidth: 1,
             borderStyle: "solid",
+            overflow: "visible",
             ...(nodeData.duplicateNameError
               ? getDuplicateNameStyle(nodeData.duplicateNameError, theme.colors)
               : isDirty

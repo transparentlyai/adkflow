@@ -136,26 +136,36 @@ export function DynamicInputRow({
 
   return (
     <div
-      className="relative border rounded-md overflow-hidden"
+      className="relative border rounded-md"
       style={{
-        borderColor: theme.colors.nodes.common.container.border,
-        backgroundColor: theme.colors.nodes.common.container.background,
+        borderColor: isExpanded
+          ? headerColor
+          : theme.colors.nodes.common.container.border,
+        backgroundColor: isExpanded
+          ? theme.colors.nodes.common.footer.background
+          : theme.colors.nodes.common.container.background,
+        overflow: "visible",
       }}
     >
-      {/* Node input handle - always visible for node type */}
-      {input.inputType === "node" && (
-        <Handle
-          type="target"
-          position={Position.Left}
-          id={input.id}
-          className="!w-2 !h-2 !-left-[5px] !top-[14px]"
-          style={{
-            backgroundColor: isConnected ? headerColor : "transparent",
-            borderColor: headerColor,
-            borderWidth: 2,
-          }}
-        />
-      )}
+      {/* Input handle - visible for all input types */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id={input.id}
+        style={{
+          position: "absolute",
+          left: -5,
+          top: 14,
+          transform: "translateY(-50%)",
+          transition: "box-shadow 0.15s ease",
+          width: 10,
+          height: 10,
+          border: `2px solid ${theme.colors.handles.border}`,
+          backgroundColor: isConnected
+            ? headerColor
+            : theme.colors.handles.input,
+        }}
+      />
 
       {/* Collapsed header - always visible, clickable to expand */}
       <div

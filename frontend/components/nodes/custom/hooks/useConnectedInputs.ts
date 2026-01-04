@@ -56,12 +56,9 @@ export function useConnectedInputs(
           }
         }
 
-        // Track dynamic inputs of type 'node'
+        // Track dynamic inputs (all types can have connections)
         if (dynamicInputs) {
-          const nodeInputs = dynamicInputs.filter(
-            (di) => di.inputType === "node",
-          );
-          for (const di of nodeInputs) {
+          for (const di of dynamicInputs) {
             const sources: string[] = [];
             for (const edge of state.edges) {
               if (edge.target === nodeId && edge.targetHandle === di.id) {
