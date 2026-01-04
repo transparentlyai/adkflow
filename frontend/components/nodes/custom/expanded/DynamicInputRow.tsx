@@ -32,6 +32,7 @@ interface DynamicInputRowProps {
   headerColor: string;
   isExpanded?: boolean;
   onToggleExpand?: () => void;
+  includeMetadata?: boolean;
 }
 
 const INPUT_TYPE_ICONS: Record<DynamicInputType, React.ReactNode> = {
@@ -40,13 +41,6 @@ const INPUT_TYPE_ICONS: Record<DynamicInputType, React.ReactNode> = {
   url: <Globe className="w-3 h-3" />,
   node: <Cable className="w-3 h-3" />,
 };
-
-const INPUT_TYPE_OPTIONS: { value: DynamicInputType; label: string }[] = [
-  { value: "file", label: "File" },
-  { value: "directory", label: "Directory" },
-  { value: "url", label: "URL" },
-  { value: "node", label: "Node Input" },
-];
 
 const DIR_AGGREGATION_OPTIONS: {
   value: DirectoryAggregationMode;
@@ -72,6 +66,7 @@ export function DynamicInputRow({
   headerColor,
   isExpanded = false,
   onToggleExpand,
+  includeMetadata = false,
 }: DynamicInputRowProps) {
   const { theme } = useTheme();
   const { onRequestFilePicker } = useProject();
@@ -243,30 +238,6 @@ export function DynamicInputRow({
             />
           </div>
 
-          <div className="flex items-center gap-1">
-            <label
-              className="text-[10px] flex-shrink-0 w-16"
-              style={labelStyle}
-            >
-              Type
-            </label>
-            <select
-              value={input.inputType}
-              onChange={(e) =>
-                updateField("inputType", e.target.value as DynamicInputType)
-              }
-              disabled={isNodeLocked}
-              className="flex-1 px-1.5 py-0.5 rounded text-[11px] border bg-transparent"
-              style={inputStyle}
-            >
-              {INPUT_TYPE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
           {/* Variable name row */}
           <div className="flex items-center gap-1">
             <label
@@ -403,11 +374,15 @@ export function DynamicInputRow({
                   </label>
                   <input
                     type="text"
-                    value={input.directorySeparator || "\\n\\n"}
+                    value={input.directorySeparator || "\\n\\n---"}
                     onChange={(e) =>
                       updateField("directorySeparator", e.target.value)
                     }
-                    placeholder="\n\n"
+                    placeholder={
+                      includeMetadata
+                        ? "\\n--- {source_name} ---\\n"
+                        : "\\n\\n---"
+                    }
                     disabled={isNodeLocked}
                     className="flex-1 min-w-0 px-1.5 py-0.5 rounded text-[11px] border font-mono"
                     style={inputStyle}

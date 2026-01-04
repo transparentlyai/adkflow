@@ -69,6 +69,20 @@ export function ExpandedNodeContentArea({
     [schema.ui.handle_layout?.additional_handles],
   );
 
+  // Fields handled by DynamicInputEditor (excluded from normal rendering)
+  const dynamicInputEditorFields = useMemo(
+    () =>
+      schema.ui.dynamic_inputs
+        ? new Set([
+            "aggregationMode",
+            "outputVariableName",
+            "separator",
+            "includeMetadata",
+          ])
+        : new Set<string>(),
+    [schema.ui.dynamic_inputs],
+  );
+
   // Get elements for a specific tab
   const getElementsForTab = useCallback(
     (tab: string | null) => {
@@ -77,11 +91,14 @@ export function ExpandedNodeContentArea({
 
       return {
         inputs: schema.ui.inputs.filter(tabFilter),
-        fields: schema.ui.fields.filter(isFieldVisible).filter(tabFilter),
+        fields: schema.ui.fields
+          .filter(isFieldVisible)
+          .filter(tabFilter)
+          .filter((f) => !dynamicInputEditorFields.has(f.id)),
         outputs: schema.ui.outputs.filter(tabFilter),
       };
     },
-    [schema, isFieldVisible],
+    [schema, isFieldVisible, dynamicInputEditorFields],
   );
 
   // Render config field with optional label width for alignment
@@ -246,7 +263,11 @@ export function ExpandedNodeContentArea({
             outputVariableName={
               (config.outputVariableName as string | undefined) || "context"
             }
+            includeMetadata={
+              (config.includeMetadata as boolean | undefined) || false
+            }
             connectedInputs={connectedInputs}
+            schemaFields={schema.ui.fields}
             onInputsChange={(inputs) => onConfigChange("dynamicInputs", inputs)}
             onAggregationModeChange={(mode) =>
               onConfigChange("aggregationMode", mode)
@@ -254,6 +275,9 @@ export function ExpandedNodeContentArea({
             onSeparatorChange={(sep) => onConfigChange("separator", sep)}
             onOutputVariableNameChange={(name) =>
               onConfigChange("outputVariableName", name)
+            }
+            onIncludeMetadataChange={(include) =>
+              onConfigChange("includeMetadata", include)
             }
             isNodeLocked={nodeData.isNodeLocked}
             headerColor={headerColor}

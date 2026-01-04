@@ -32,7 +32,47 @@ export const contextAggregatorNodeSchema: CustomNodeSchema = {
         multiple: false,
       },
     ],
-    fields: [], // Node-level settings handled by DynamicInputEditor
+    fields: [
+      {
+        id: "aggregationMode",
+        label: "Aggregation",
+        widget: "select",
+        default: "pass",
+        help_text:
+          "How to combine inputs: Pass creates separate variables, Concatenate joins all into one",
+        options: [
+          { value: "pass", label: "Pass (each input → own variable)" },
+          {
+            value: "concatenate",
+            label: "Concatenate (all → single variable)",
+          },
+        ],
+      },
+      {
+        id: "outputVariableName",
+        label: "Output Variable",
+        widget: "text_input",
+        default: "context",
+        help_text:
+          "Name of the output variable containing all concatenated content",
+        show_if: { aggregationMode: "concatenate" },
+      },
+      {
+        id: "separator",
+        label: "Separator",
+        widget: "text_input",
+        default: "\\n\\n---",
+        help_text: "Text inserted between each input. Use \\n for newlines",
+        show_if: { aggregationMode: "concatenate" },
+      },
+      {
+        id: "includeMetadata",
+        label: "Metadata",
+        widget: "checkbox",
+        default: false,
+        help_text: "Add source metadata (path, name, timestamps) to content",
+      },
+    ],
     color: "#10b981", // Emerald/green - matches context theme
     icon: "database",
     expandable: true,
