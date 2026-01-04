@@ -125,7 +125,10 @@ ADKFlow includes comprehensive logging for debugging workflows. Logs are written
 ### Quick Enable
 
 ```bash
-# Enable debug logging
+# Enable verbose CLI output
+./adkflow -v dev
+
+# Or enable debug logging via environment
 export ADKFLOW_LOG_LEVEL=DEBUG
 
 # Or enable specific categories
@@ -134,6 +137,8 @@ export ADKFLOW_LOG_CATEGORIES=api.*,runner.agent=DEBUG
 # Run your workflow
 adkflow run /path/to/project
 ```
+
+The `-v` / `--verbose` flag enables debug output for CLI operations (server startup, health checks, process management).
 
 ### Log Categories
 
@@ -144,6 +149,7 @@ adkflow run /path/to/project
 | `runner.agent.config` | Agent configuration before execution |
 | `runner.tool` | Tool calls and results |
 | `compiler.*` | Workflow compilation |
+| `cli.*` | CLI operations (servers, processes) |
 
 ### Configuration File
 

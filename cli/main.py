@@ -6,12 +6,17 @@ import threading
 
 import click
 from adkflow_runner.cli import run_command, validate_command
+from adkflow_runner.logging import Logger, configure_logging
 
 from cli.utils import (
     print_msg,
     print_panel,
     get_project_root,
     load_env,
+    set_cli_verbose,
+    debug_msg,
+    install_exception_hook,
+    log_exceptions,
     HAS_RICH,
     console,
 )
@@ -36,9 +41,34 @@ DEFAULT_FRONTEND_PORT = 6006
 
 @click.group()
 @click.version_option(version="0.1.0")
-def cli():
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    default=False,
+    help="Enable verbose/debug output for CLI operations",
+)
+@click.pass_context
+def cli(ctx: click.Context, verbose: bool):
     """ADKFlow - Visual workflow builder for Google ADK agents."""
     load_env()
+
+    # Initialize logging system
+    configure_logging()
+    Logger.initialize()
+
+    # Install global exception hook (safety net for unhandled exceptions)
+    install_exception_hook()
+
+    # Store verbose flag in context for subcommands
+    ctx.ensure_object(dict)
+    ctx.obj["verbose"] = verbose
+
+    # Enable CLI debug logging if verbose
+    set_cli_verbose(verbose)
+
+    if verbose:
+        debug_msg("Verbose mode enabled")
 
 
 @cli.command()
@@ -56,9 +86,17 @@ def cli():
     envvar="FRONTEND_PORT",
     help=f"Frontend port (default: {DEFAULT_FRONTEND_PORT}, or FRONTEND_PORT env var)",
 )
-def dev(backend_port: int, frontend_port: int):
+@click.pass_context
+@log_exceptions()
+def dev(ctx: click.Context, backend_port: int, frontend_port: int):
     """Start both backend and frontend development servers."""
     project_root = get_project_root()
+    debug_msg(
+        "Starting dev command",
+        backend_port=backend_port,
+        frontend_port=frontend_port,
+        project_root=str(project_root),
+    )
 
     if not (project_root / "backend").exists():
         print_msg("Error: backend directory not found", "red")
@@ -161,6 +199,7 @@ def dev(backend_port: int, frontend_port: int):
     default=True,
     help="Build frontend before starting (default: True)",
 )
+@log_exceptions()
 def start(backend_port: int, frontend_port: int, build: bool):
     """Start both backend and frontend in production mode."""
     project_root = get_project_root()
@@ -242,6 +281,7 @@ def start(backend_port: int, frontend_port: int, build: bool):
     envvar="BACKEND_PORT",
     help=f"Backend port (default: {DEFAULT_BACKEND_PORT}, or BACKEND_PORT env var)",
 )
+@log_exceptions()
 def backend(port: int):
     """Start only the backend server."""
     project_root = get_project_root()
@@ -295,6 +335,7 @@ def backend(port: int):
     envvar="BACKEND_PORT",
     help=f"Backend port to connect to (default: {DEFAULT_BACKEND_PORT}, or BACKEND_PORT env var)",
 )
+@log_exceptions()
 def frontend(port: int, backend_port: int):
     """Start only the frontend server."""
     project_root = get_project_root()
@@ -334,6 +375,7 @@ def frontend(port: int, backend_port: int):
 
 
 @cli.command()
+@log_exceptions()
 def stop():
     """Stop any running ADKFlow servers."""
     print_msg("Stopping ADKFlow servers...", "yellow")
@@ -362,6 +404,7 @@ def stop():
 
 
 @cli.command()
+@log_exceptions()
 def setup():
     """Set up the ADKFlow development environment."""
     project_root = get_project_root()
