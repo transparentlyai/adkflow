@@ -138,6 +138,10 @@ class AgentIR:
     http_options: HttpOptionsConfig = field(default_factory=HttpOptionsConfig)
     callbacks: CallbackConfig = field(default_factory=CallbackConfig)
 
+    # Context variables for template substitution
+    context_vars: dict[str, str] = field(default_factory=dict)
+    context_var_sources: list[str] = field(default_factory=list)  # Source node IDs
+
     # Metadata
     description: str | None = None
     source_node_id: str | None = None  # Original ReactFlow node ID

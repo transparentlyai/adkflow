@@ -90,6 +90,9 @@ class WorkflowValidator:
         # Check for missing agent descriptions
         self._check_missing_descriptions(graph, result)
 
+        # Check for potential context variable conflicts
+        self._check_context_var_conflicts(graph, result)
+
         # Log validation results
         if result.valid:
             _log.info(
@@ -459,6 +462,34 @@ class WorkflowValidator:
                         f"Agent '{node.name}' is missing a description",
                         location=self._make_location(node),
                     )
+                )
+
+    def _check_context_var_conflicts(
+        self,
+        graph: WorkflowGraph,
+        result: ValidationResult,
+    ) -> None:
+        """Check for potential context variable conflicts.
+
+        When multiple context sources are connected to an agent, there's a risk
+        of variable name conflicts. Full key validation happens at runtime,
+        but we warn here if multiple sources are detected.
+        """
+        for node in graph.get_agent_nodes():
+            # Count context_vars edges
+            context_sources: list[GraphNode] = []
+            for edge in node.incoming:
+                if edge.semantics == EdgeSemantics.CONTEXT_VARS:
+                    source = graph.get_node(edge.source_id)
+                    if source:
+                        context_sources.append(source)
+
+            if len(context_sources) > 1:
+                source_names = [s.name for s in context_sources]
+                result.add_warning(
+                    f"Agent '{node.name}' has {len(context_sources)} context sources: "
+                    f"{', '.join(source_names)}. Ensure variable names don't conflict.",
+                    location=self._make_location(node),
                 )
 
     def _validate_agent_ir(self, agent: AgentIR, result: ValidationResult) -> None:

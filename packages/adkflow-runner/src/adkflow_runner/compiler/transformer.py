@@ -172,6 +172,9 @@ class IRTransformer:
         # Resolve tools from connected tool nodes
         tools = self._resolve_tools(node, graph, project)
 
+        # Resolve context variable sources (values resolved at runtime)
+        context_var_sources = self._resolve_context_var_sources(node, graph)
+
         # Extract planner config (flat keys: planner_type, or nested: planner.type)
         planner_data = agent_data.get("planner", {})
         planner = PlannerConfig(
@@ -272,6 +275,7 @@ class IRTransformer:
             code_executor=code_executor,
             http_options=http_options,
             callbacks=callbacks,
+            context_var_sources=context_var_sources,
             description=agent_data.get("description"),
             source_node_id=node.id,
         )
@@ -401,6 +405,39 @@ class IRTransformer:
                 )
 
         return tools
+
+    def _resolve_context_var_sources(
+        self,
+        node: GraphNode,
+        graph: WorkflowGraph,
+    ) -> list[str]:
+        """Resolve source node IDs that provide context variables.
+
+        These are nodes connected via CONTEXT_VARS edges (e.g., Context Aggregator).
+        The actual variable values are resolved at runtime from execution outputs.
+
+        Args:
+            node: The agent node to resolve sources for
+            graph: The workflow graph
+
+        Returns:
+            List of source node IDs that provide context variables
+        """
+        sources: list[str] = []
+
+        for edge in node.incoming:
+            if edge.semantics == EdgeSemantics.CONTEXT_VARS:
+                source_node = graph.get_node(edge.source_id)
+                if source_node:
+                    sources.append(source_node.id)
+                    _log.debug(
+                        "Found context var source",
+                        agent_id=node.id,
+                        source_id=source_node.id,
+                        source_type=source_node.type,
+                    )
+
+        return sources
 
     def _build_agent_hierarchy(
         self,

@@ -95,6 +95,20 @@ export const agentNodeSchema: CustomNodeSchema = {
         section: "Inputs",
         tab: "General",
       },
+      {
+        id: "context-input",
+        label: "Context",
+        source_type: "*",
+        data_type: "dict",
+        accepted_sources: ["*"],
+        accepted_types: ["dict"],
+        required: false,
+        multiple: true,
+        connection_only: true,
+        icon: "database",
+        section: "Inputs",
+        tab: "General",
+      },
       // Link handle (top) for agent chaining - input from other agents
       {
         id: "link-top",
@@ -187,6 +201,12 @@ export const agentNodeSchema: CustomNodeSchema = {
           type: "target",
           position: "left",
           label: "Tools",
+        },
+        {
+          id: "context-input",
+          type: "target",
+          position: "left",
+          label: "Context Variables",
         },
       ],
     },

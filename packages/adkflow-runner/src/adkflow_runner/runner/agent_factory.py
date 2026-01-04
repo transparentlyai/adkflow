@@ -5,6 +5,7 @@ Creates the appropriate ADK agent types based on IR definitions.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -113,6 +114,14 @@ class AgentFactory:
             model=agent_ir.model,
             tool_count=len(agent_ir.tools),
             subagent_count=len(agent_ir.subagents),
+            context_var_count=len(agent_ir.context_vars),
+        )
+
+        # Apply context variable substitution to instruction
+        instruction = self._substitute_variables(
+            agent_ir.instruction or "",
+            agent_ir.context_vars,
+            agent_ir.name,
         )
 
         # Load tools
@@ -182,7 +191,7 @@ class AgentFactory:
             name=name,
             description=agent_ir.description or "",
             model=agent_ir.model,
-            instruction=agent_ir.instruction or "",
+            instruction=instruction,
             tools=tools if tools else [],
             output_key=agent_ir.output_key,
             include_contents=agent_ir.include_contents,
@@ -201,7 +210,7 @@ class AgentFactory:
                 name=name,
                 description=agent_ir.description or "",
                 model=agent_ir.model,
-                instruction=agent_ir.instruction or "",
+                instruction=instruction,
                 tools=tools if tools else [],
                 sub_agents=sub_agents,
                 output_key=agent_ir.output_key,
@@ -354,6 +363,58 @@ class AgentFactory:
                     )
 
         return tools
+
+    def _substitute_variables(
+        self,
+        text: str,
+        context_vars: dict[str, str],
+        agent_name: str,
+    ) -> str:
+        """Substitute {variable_name} placeholders with context variable values.
+
+        Args:
+            text: Text containing {variable_name} placeholders
+            context_vars: Dict mapping variable names to values
+            agent_name: Agent name for error messages
+
+        Returns:
+            Text with placeholders replaced by variable values
+
+        Raises:
+            ExecutionError: If a placeholder references a missing variable
+        """
+        if not text:
+            return text
+
+        if not context_vars:
+            # No variables to substitute, but check for placeholders
+            placeholders = re.findall(r"\{(\w+)\}", text)
+            if placeholders:
+                raise ExecutionError(
+                    f"Agent '{agent_name}' has placeholders but no context variables. "
+                    f"Missing: {', '.join(placeholders)}. "
+                    "Connect a Context Aggregator to provide variables."
+                )
+            return text
+
+        # Find all placeholders in text
+        placeholders = re.findall(r"\{(\w+)\}", text)
+
+        # Check for missing variables
+        missing = [p for p in placeholders if p not in context_vars]
+        if missing:
+            available = ", ".join(context_vars.keys()) if context_vars else "none"
+            raise ExecutionError(
+                f"Agent '{agent_name}' references missing context variables: "
+                f"{', '.join(missing)}. Available variables: {available}."
+            )
+
+        # Substitute all variables
+        result = text
+        for key, value in context_vars.items():
+            result = result.replace(f"{{{key}}}", value)
+
+        return result
 
     def clear_cache(self) -> None:
         """Clear the agent cache."""

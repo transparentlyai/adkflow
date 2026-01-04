@@ -43,6 +43,7 @@ from adkflow_runner.runner.execution_engine import (
     execute_downstream_agents,
     write_output_files,
     process_adk_event,
+    merge_context_vars,
 )
 
 # Get workflow logger
@@ -273,6 +274,40 @@ class WorkflowRunner:
                 enable_cache=self._enable_cache,
                 cache_dir=self._cache_dir,
             )
+
+        # Resolve context variables for agents from custom node outputs
+        if custom_node_outputs:
+            for agent_ir in ir.all_agents.values():
+                if agent_ir.context_var_sources:
+                    # Collect outputs from all context var sources
+                    source_dicts: list[dict[str, Any]] = []
+                    source_names: list[str] = []
+                    for source_id in agent_ir.context_var_sources:
+                        if source_id in custom_node_outputs:
+                            # Get the "output" port which contains the variables dict
+                            node_output = custom_node_outputs[source_id]
+                            if "output" in node_output:
+                                output_value = node_output["output"]
+                                if isinstance(output_value, dict):
+                                    source_dicts.append(output_value)
+                                    # Get source name for error messages
+                                    source_node = next(
+                                        (
+                                            n
+                                            for n in ir.custom_nodes
+                                            if n.id == source_id
+                                        ),
+                                        None,
+                                    )
+                                    source_names.append(
+                                        source_node.name if source_node else source_id
+                                    )
+
+                    # Merge and validate context vars
+                    if source_dicts:
+                        agent_ir.context_vars = merge_context_vars(
+                            source_dicts, source_names
+                        )
 
         factory = AgentFactory(config.project_path)
         root_agent = factory.create_from_workflow(ir, emit=emit)

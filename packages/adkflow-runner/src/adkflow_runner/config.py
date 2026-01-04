@@ -15,6 +15,7 @@ class EdgeSemantics(Enum):
     INSTRUCTION = "instruction"  # Source provides instruction to target agent
     TOOL = "tool"  # Source provides tool to target agent
     CONTEXT = "context"  # Source provides context to target agent
+    CONTEXT_VARS = "context_vars"  # Source provides context variables dict
 
     # Agent relationships
     SEQUENTIAL = "sequential"  # Source runs before target
@@ -59,6 +60,14 @@ DEFAULT_EDGE_RULES: list[EdgeRule] = [
         source_type="context",
         target_type="agent",
         semantics=EdgeSemantics.CONTEXT,
+        priority=10,
+    ),
+    # Context Aggregator → Agent: context variables dict
+    EdgeRule(
+        source_type="context_aggregator",
+        target_type="agent",
+        target_handle="context-input",
+        semantics=EdgeSemantics.CONTEXT_VARS,
         priority=10,
     ),
     # Tool → Agent: tool

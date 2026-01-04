@@ -1,5 +1,6 @@
 """Execution engine for running workflows."""
 
+import json
 import time
 import uuid
 from pathlib import Path
@@ -8,6 +9,7 @@ from typing import Any
 from google.adk.runners import Runner
 from google.genai import types
 
+from adkflow_runner.errors import ExecutionError
 from adkflow_runner.ir import WorkflowIR
 from adkflow_runner.runner.types import (
     RunConfig,
@@ -16,6 +18,72 @@ from adkflow_runner.runner.types import (
 )
 from adkflow_runner.runner.graph_builder import GraphBuilder
 from adkflow_runner.runner.graph_executor import GraphExecutor
+
+
+def normalize_context_value(key: str, value: Any, source_name: str) -> str:
+    """Convert a context variable value to string.
+
+    - Strings: pass through as-is
+    - Serializable values (dict, list, int, bool, float, None): convert to JSON string
+    - Non-serializable: raise ExecutionError
+
+    Args:
+        key: Variable name
+        value: Variable value
+        source_name: Name of the source for error messages
+
+    Returns:
+        String representation of the value
+
+    Raises:
+        ExecutionError: If value is not serializable
+    """
+    if isinstance(value, str):
+        return value
+
+    # Try to serialize to JSON
+    try:
+        return json.dumps(value, ensure_ascii=False)
+    except (TypeError, ValueError) as e:
+        raise ExecutionError(
+            f"Context variable '{key}' from '{source_name}' is not serializable: "
+            f"{type(value).__name__}. Error: {e}"
+        )
+
+
+def merge_context_vars(
+    sources: list[dict[str, Any]],
+    source_names: list[str],
+) -> dict[str, str]:
+    """Merge context variable dicts, normalizing values and checking for conflicts.
+
+    Args:
+        sources: List of context variable dicts from source nodes
+        source_names: Names of the source nodes (same order as sources)
+
+    Returns:
+        Merged dict with all variables (values normalized to strings)
+
+    Raises:
+        ExecutionError: If duplicate keys are found across sources
+    """
+    merged: dict[str, str] = {}
+    key_sources: dict[str, str] = {}  # Track which source each key came from
+
+    for source_dict, source_name in zip(sources, source_names):
+        for key, value in source_dict.items():
+            # Check for key conflicts
+            if key in merged:
+                raise ExecutionError(
+                    f"Context variable conflict: '{key}' defined in both "
+                    f"'{key_sources[key]}' and '{source_name}'"
+                )
+
+            # Normalize value to string
+            merged[key] = normalize_context_value(key, value, source_name)
+            key_sources[key] = source_name
+
+    return merged
 
 
 def format_error(error_msg: str, project_path: Path) -> str:
