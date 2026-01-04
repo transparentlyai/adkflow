@@ -200,6 +200,23 @@ interface Handle {
 }
 ```
 
+### Agent Node Handles
+
+The Agent node has special input handles:
+
+| Handle ID | Type | Purpose |
+|-----------|------|---------|
+| `prompt-input` | target | Receives instruction from Prompt nodes |
+| `context-input` | target | Receives variables dict from Context Aggregator |
+| `tool-input` | target | Receives tool functions |
+| `flow-input` | target | Sequential execution flow |
+| `output` | source | Agent output text |
+
+The `context-input` handle:
+- Accepts `*:dict` connections (any source, dict data type)
+- Supports multiple connections (merged at runtime)
+- Variables available for `{placeholder}` substitution in instruction
+
 ### Handle Positioning
 
 **Standard nodes**:

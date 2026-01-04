@@ -15,6 +15,19 @@ Execute AI model inference.
 | **ParallelAgent** | Run child agents in parallel |
 | **LoopAgent** | Run child agents in a loop |
 
+#### Agent Inputs
+
+Agent nodes have several input ports:
+
+| Input | Connects From | Purpose |
+|-------|---------------|---------|
+| **Prompt** | Prompt node | Agent instruction template |
+| **Context** | Context Aggregator | Variables for `{placeholder}` substitution |
+| **Tools** | Tool nodes | Functions the agent can call |
+| **Flow** | Other agents | Sequential execution flow |
+
+See [Prompts and Contexts](./prompts-and-contexts.md) for details on template variables.
+
 ### Content Nodes
 
 Provide text content to agents.

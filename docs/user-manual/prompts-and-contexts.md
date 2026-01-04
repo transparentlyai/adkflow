@@ -204,6 +204,57 @@ Combine upstream node output with static files:
 3. Set Aggregation: Pass
 4. Connect to Agent - both `{user_data}` and `{system_prompt}` are available
 
+### Using Context Variables in Agents
+
+When you connect a Context Aggregator to an Agent's **context input**, the variables become available for template substitution in the agent's instruction field.
+
+#### Template Syntax
+
+Use `{variable_name}` placeholders in your agent's instruction:
+
+```
+You are an expert code reviewer.
+
+## Codebase Context
+
+{readme}
+
+## Configuration
+
+{config}
+
+## Task
+
+Review the code according to the project guidelines above.
+```
+
+#### How It Works
+
+1. Context Aggregator outputs a dictionary: `{readme: "...", config: "..."}`
+2. Connect the output to the Agent's **Context** input (left side)
+3. At runtime, `{readme}` and `{config}` are replaced with actual content
+
+#### Error Handling
+
+| Situation | Behavior |
+|-----------|----------|
+| Placeholder without variable | Error: "Agent 'X' references missing context variables" |
+| Variable without placeholder | Silently ignored (no substitution needed) |
+| Multiple context sources | Merged; error if same variable name in both |
+
+#### Connecting Context Aggregator to Agent
+
+```
+┌─────────────────────┐         ┌─────────────────────┐
+│  Context Aggregator │         │       Agent         │
+│                     │         │                     │
+│  readme: "..."    ──┼────────▶│ Context ──┐         │
+│  config: "..."      │         │           │         │
+└─────────────────────┘         │ Instruction:        │
+                                │ "Use {readme}..."   │
+                                └─────────────────────┘
+```
+
 ## Contexts
 
 ### What are Contexts?

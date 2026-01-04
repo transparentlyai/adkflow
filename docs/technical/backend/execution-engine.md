@@ -170,6 +170,76 @@ type RunEvent = (
 )
 ```
 
+## Context Variable Resolution
+
+When agents have context inputs connected (from Context Aggregator nodes), variables are resolved at runtime.
+
+### Resolution Flow
+
+```
+Custom Nodes Execute (graph order)
+    ↓
+Context Aggregator outputs dict
+    ↓
+WorkflowRunner collects outputs
+    ↓
+merge_context_vars() validates & merges
+    ↓
+AgentFactory._substitute_variables()
+    ↓
+Agent instruction with values
+```
+
+### Value Normalization
+
+Context values are normalized to strings:
+
+```python
+def normalize_context_value(key: str, value: Any, source_name: str) -> str:
+    if isinstance(value, str):
+        return value
+    try:
+        return json.dumps(value, ensure_ascii=False)
+    except (TypeError, ValueError) as e:
+        raise ExecutionError(f"Variable '{key}' not serializable")
+```
+
+### Conflict Detection
+
+Multiple context sources are merged with duplicate key detection:
+
+```python
+def merge_context_vars(sources: list[dict], source_names: list[str]) -> dict[str, str]:
+    merged = {}
+    key_sources = {}
+    for source_dict, source_name in zip(sources, source_names):
+        for key, value in source_dict.items():
+            if key in merged:
+                raise ExecutionError(
+                    f"Conflict: '{key}' defined in both '{key_sources[key]}' and '{source_name}'"
+                )
+            merged[key] = normalize_context_value(key, value, source_name)
+            key_sources[key] = source_name
+    return merged
+```
+
+### Template Substitution
+
+Agent instructions use `{variable_name}` placeholders:
+
+```python
+def _substitute_variables(text: str, context_vars: dict[str, str]) -> str:
+    placeholders = re.findall(r'\{(\w+)\}', text)
+    missing = [p for p in placeholders if p not in context_vars]
+    if missing:
+        raise ExecutionError(f"Missing context variables: {missing}")
+    for key, value in context_vars.items():
+        text = text.replace(f"{{{key}}}", value)
+    return text
+```
+
+**Location**: `adkflow_runner/runner/agent_factory.py`
+
 ## User Input Handling
 
 When an agent requests user input:
