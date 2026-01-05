@@ -141,6 +141,9 @@ class AgentIR:
     # Context variables for template substitution
     context_vars: dict[str, str] = field(default_factory=dict)
     context_var_sources: list[str] = field(default_factory=list)  # Source node IDs
+    upstream_output_keys: list[str] = field(
+        default_factory=list
+    )  # output_keys from upstream SEQUENTIAL agents
 
     # Metadata
     description: str | None = None

@@ -11,8 +11,9 @@ import pytest
 
 from adkflow_runner.compiler.graph import GraphBuilder
 from adkflow_runner.compiler.loader import ProjectLoader
+from adkflow_runner.compiler.node_transforms import sanitize_variable_name
 from adkflow_runner.compiler.parser import FlowParser
-from adkflow_runner.compiler.transformer import IRTransformer, _sanitize_variable_name
+from adkflow_runner.compiler.transformer import IRTransformer
 from adkflow_runner.errors import CompilationError
 
 
@@ -21,32 +22,32 @@ class TestSanitizeVariableName:
 
     def test_simple_name(self):
         """Convert simple name."""
-        result = _sanitize_variable_name("test")
+        result = sanitize_variable_name("test")
         assert result == "test_input"
 
     def test_name_with_spaces(self):
         """Convert name with spaces to underscores."""
-        result = _sanitize_variable_name("my test name")
+        result = sanitize_variable_name("my test name")
         assert result == "my_test_name_input"
 
     def test_name_with_hyphens(self):
         """Convert hyphens to underscores."""
-        result = _sanitize_variable_name("my-test")
+        result = sanitize_variable_name("my-test")
         assert result == "my_test_input"
 
     def test_name_with_special_chars(self):
         """Remove special characters."""
-        result = _sanitize_variable_name("test@name#123")
+        result = sanitize_variable_name("test@name#123")
         assert result == "testname123_input"
 
     def test_name_starting_with_number(self):
         """Prefix with underscore if starts with number."""
-        result = _sanitize_variable_name("123test")
+        result = sanitize_variable_name("123test")
         assert result == "_123test_input"
 
     def test_empty_name(self):
         """Default to 'user' for empty name."""
-        result = _sanitize_variable_name("")
+        result = sanitize_variable_name("")
         assert result == "user_input"
 
 

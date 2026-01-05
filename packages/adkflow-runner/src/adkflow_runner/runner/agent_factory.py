@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from google.adk.agents import Agent, LoopAgent, ParallelAgent, SequentialAgent
 from google.adk.agents.base_agent import BaseAgent
@@ -28,9 +28,6 @@ from adkflow_runner.runner.agent_utils import (
     sanitize_agent_name,
 )
 from adkflow_runner.runner.tool_loader import ToolLoader
-
-if TYPE_CHECKING:
-    pass
 
 # Loggers for different categories
 _agent_config_log = get_logger("runner.agent.config")
@@ -118,10 +115,12 @@ class AgentFactory:
         )
 
         # Apply context variable substitution to instruction
+        # (upstream_output_keys are left for ADK to substitute at runtime)
         instruction = self._substitute_variables(
             agent_ir.instruction or "",
             agent_ir.context_vars,
             agent_ir.name,
+            upstream_output_keys=agent_ir.upstream_output_keys,
         )
 
         # Load tools
@@ -369,47 +368,57 @@ class AgentFactory:
         text: str,
         context_vars: dict[str, str],
         agent_name: str,
+        upstream_output_keys: list[str] | None = None,
     ) -> str:
         """Substitute {variable_name} placeholders with context variable values.
+
+        Placeholders that match upstream_output_keys are left unchanged for ADK
+        to substitute at runtime via state.
 
         Args:
             text: Text containing {variable_name} placeholders
             context_vars: Dict mapping variable names to values
             agent_name: Agent name for error messages
+            upstream_output_keys: output_keys from upstream sequential agents
+                (these are substituted by ADK at runtime, not here)
 
         Returns:
             Text with placeholders replaced by variable values
+            (upstream_output_keys placeholders are preserved)
 
         Raises:
             ExecutionError: If a placeholder references a missing variable
+                (excluding upstream_output_keys which ADK handles)
         """
         if not text:
             return text
 
-        if not context_vars:
-            # No variables to substitute, but check for placeholders
-            placeholders = re.findall(r"\{(\w+)\}", text)
-            if placeholders:
-                raise ExecutionError(
-                    f"Agent '{agent_name}' has placeholders but no context variables. "
-                    f"Missing: {', '.join(placeholders)}. "
-                    "Connect a Context Aggregator to provide variables."
-                )
-            return text
+        upstream_keys = set(upstream_output_keys or [])
 
         # Find all placeholders in text
         placeholders = re.findall(r"\{(\w+)\}", text)
 
-        # Check for missing variables
-        missing = [p for p in placeholders if p not in context_vars]
+        if not placeholders:
+            return text
+
+        # Check for missing variables (excluding upstream_output_keys - ADK handles those)
+        missing = [
+            p for p in placeholders if p not in context_vars and p not in upstream_keys
+        ]
+
         if missing:
-            available = ", ".join(context_vars.keys()) if context_vars else "none"
+            if context_vars:
+                available = ", ".join(context_vars.keys())
+            elif upstream_keys:
+                available = f"upstream: {', '.join(upstream_keys)}"
+            else:
+                available = "none"
             raise ExecutionError(
                 f"Agent '{agent_name}' references missing context variables: "
                 f"{', '.join(missing)}. Available variables: {available}."
             )
 
-        # Substitute all variables
+        # Substitute only context_vars (not upstream_output_keys - ADK handles those)
         result = text
         for key, value in context_vars.items():
             result = result.replace(f"{{{key}}}", value)

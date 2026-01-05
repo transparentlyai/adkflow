@@ -17,6 +17,7 @@ from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
 from adkflow_runner.compiler import Compiler
+from adkflow_runner.errors import ExecutionError
 from adkflow_runner.ir import WorkflowIR
 from adkflow_runner.logging import (
     Logger,
@@ -305,9 +306,24 @@ class WorkflowRunner:
 
                     # Merge and validate context vars
                     if source_dicts:
-                        agent_ir.context_vars = merge_context_vars(
-                            source_dicts, source_names
-                        )
+                        merged_vars = merge_context_vars(source_dicts, source_names)
+
+                        # Check for conflicts with upstream_output_keys
+                        upstream_keys = set(agent_ir.upstream_output_keys)
+                        conflicts = upstream_keys & set(merged_vars.keys())
+                        if conflicts:
+                            raise ExecutionError(
+                                f"Context variable conflict in agent '{agent_ir.name}': "
+                                f"'{', '.join(conflicts)}' defined in both context "
+                                f"aggregator and upstream agent output_key. "
+                                f"Use unique variable names."
+                            )
+
+                        # Merge with existing context_vars instead of overwriting
+                        agent_ir.context_vars = {
+                            **agent_ir.context_vars,
+                            **merged_vars,
+                        }
 
         factory = AgentFactory(config.project_path)
         root_agent = factory.create_from_workflow(ir, emit=emit)
