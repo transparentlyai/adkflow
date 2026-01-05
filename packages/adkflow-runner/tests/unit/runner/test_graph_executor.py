@@ -466,3 +466,541 @@ class TestGraphExecutor:
         assert call_args["type"] == "test_event"
         assert call_args["key"] == "value"
         assert "timestamp" in call_args
+
+    @pytest.mark.asyncio
+    async def test_emit_event_sync_function(self):
+        """Emit event with synchronous emit function."""
+        from unittest.mock import MagicMock
+        from adkflow_runner.runner.graph_executor import GraphExecutor
+
+        sync_emit = MagicMock()
+        executor = GraphExecutor(emit=sync_emit)
+        await executor._emit_event("test_event", {"key": "value"})
+
+        sync_emit.assert_called_once()
+        call_args = sync_emit.call_args[0][0]
+        assert call_args["type"] == "test_event"
+
+    @pytest.mark.asyncio
+    async def test_create_node_emit(self, mock_emit):
+        """Create node-scoped emit function."""
+        from adkflow_runner.runner.graph_executor import GraphExecutor
+
+        executor = GraphExecutor(emit=mock_emit)
+        node_emit = executor._create_node_emit("node_1", "Test Node")
+
+        await node_emit({"event": "test_data"})
+
+        mock_emit.assert_called_once()
+        call_args = mock_emit.call_args[0][0]
+        assert call_args["node_id"] == "node_1"
+        assert call_args["node_name"] == "Test Node"
+        assert call_args["event"] == "test_data"
+
+    @pytest.mark.asyncio
+    async def test_create_node_emit_non_dict(self, mock_emit):
+        """Create node emit with non-dict event."""
+        from adkflow_runner.runner.graph_executor import GraphExecutor
+
+        executor = GraphExecutor(emit=mock_emit)
+        node_emit = executor._create_node_emit("node_1", "Test Node")
+
+        # Non-dict events should be passed through as-is
+        await node_emit("string_event")
+        mock_emit.assert_called_once_with("string_event")
+
+    def test_topological_layers_cycle_detection(self, mock_emit):
+        """Detect cycles in graph and raise ValueError."""
+        from adkflow_runner.runner.graph_executor import GraphExecutor
+
+        # Create a cycle: a1 -> a2 -> a1
+        agent1 = AgentIR(id="a1", name="A1", type="llm", model="gemini-2.0-flash")
+        agent2 = AgentIR(id="a2", name="A2", type="llm", model="gemini-2.0-flash")
+
+        node1 = ExecutionNode(id="a1", node_type="agent", ir=agent1)
+        node2 = ExecutionNode(id="a2", node_type="agent", ir=agent2)
+
+        edges = [
+            ExecutionEdge(
+                source_id="a1", source_port="out", target_id="a2", target_port="in"
+            ),
+            ExecutionEdge(
+                source_id="a2", source_port="out", target_id="a1", target_port="in"
+            ),
+        ]
+        graph = ExecutionGraph(nodes={"a1": node1, "a2": node2}, edges=edges)
+
+        executor = GraphExecutor(emit=mock_emit)
+        with pytest.raises(ValueError, match="Cycle detected"):
+            executor._topological_layers({"a1", "a2"}, graph)
+
+
+class TestExecutionCacheHashable:
+    """Additional tests for _make_hashable method."""
+
+    def test_make_hashable_set(self):
+        """Convert set to hashable tuple."""
+        cache = ExecutionCache()
+        result = cache._make_hashable({1, 2, 3})
+        assert isinstance(result, tuple)
+        # Sets are converted to sorted tuples of strings
+        assert result == ("1", "2", "3")
+
+    def test_make_hashable_complex_nested(self):
+        """Convert complex nested structures with sets and lists."""
+        cache = ExecutionCache()
+        data = {
+            "sets": {1, 2},
+            "lists": [3, 4],
+            "nested": {"inner": {5, 6}},
+        }
+        result = cache._make_hashable(data)
+        assert isinstance(result, tuple)
+
+
+class TestGraphExecutorExecution:
+    """Tests for the execute() method and full graph execution."""
+
+    @pytest.fixture
+    def mock_emit(self):
+        """Create mock emit function."""
+        from unittest.mock import AsyncMock
+
+        return AsyncMock()
+
+    @pytest.fixture
+    def mock_flow_unit(self):
+        """Create a mock FlowUnit class."""
+
+        class MockFlowUnit:
+            @staticmethod
+            def is_changed(config, inputs):
+                return "v1"
+
+            @staticmethod
+            def check_lazy_status(config, inputs):
+                return []
+
+            def __init__(self):
+                pass
+
+            async def on_before_execute(self, context):
+                pass
+
+            async def run_process(self, inputs, config, context):
+                return {"output": "test_result"}
+
+            async def on_after_execute(self, context, outputs):
+                pass
+
+        return MockFlowUnit
+
+    @pytest.mark.asyncio
+    async def test_execute_empty_graph(self, mock_emit, tmp_path):
+        """Execute empty graph returns empty results."""
+        from adkflow_runner.runner.graph_executor import GraphExecutor
+
+        graph = ExecutionGraph()
+        executor = GraphExecutor(emit=mock_emit)
+
+        results = await executor.execute(graph, {}, tmp_path)
+        assert results == {}
+
+    @pytest.mark.asyncio
+    async def test_execute_no_output_nodes(self, mock_emit, tmp_path):
+        """Execute graph with no output nodes returns empty results."""
+        from adkflow_runner.runner.graph_executor import GraphExecutor
+        from adkflow_runner.ir import CustomNodeIR
+
+        # Create custom nodes that are not marked as output and have outgoing edges
+        custom_ir1 = CustomNodeIR(
+            id="custom_1",
+            unit_id="test.unit",
+            name="Node 1",
+            source_node_id="custom_1_src",
+            config={},
+            input_connections={},
+            output_connections={},
+            output_node=False,  # Not an output node
+        )
+        custom_ir2 = CustomNodeIR(
+            id="custom_2",
+            unit_id="test.unit",
+            name="Node 2",
+            source_node_id="custom_2_src",
+            config={},
+            input_connections={},
+            output_connections={},
+            output_node=False,  # Not an output node
+        )
+
+        node1 = ExecutionNode(id="custom_1", node_type="custom", ir=custom_ir1)
+        node2 = ExecutionNode(id="custom_2", node_type="custom", ir=custom_ir2)
+
+        # Give them outgoing edges
+        edge = ExecutionEdge(
+            source_id="custom_1",
+            source_port="out",
+            target_id="custom_2",
+            target_port="in",
+        )
+        graph = ExecutionGraph(
+            nodes={"custom_1": node1, "custom_2": node2}, edges=[edge]
+        )
+
+        executor = GraphExecutor(emit=mock_emit)
+
+        # Should return empty results when no output nodes
+        results = await executor.execute(graph, {}, tmp_path)
+        assert results == {}
+
+    @pytest.mark.asyncio
+    async def test_execute_custom_node_success(
+        self, mock_emit, mock_flow_unit, tmp_path
+    ):
+        """Execute custom node successfully."""
+        from unittest.mock import patch
+        from adkflow_runner.runner.graph_executor import GraphExecutor
+        from adkflow_runner.ir import CustomNodeIR
+
+        custom_ir = CustomNodeIR(
+            id="custom_1",
+            unit_id="test.unit",
+            name="Test Node",
+            source_node_id="custom_1_src",
+            config={"value": 42},
+            input_connections={},
+            output_connections={},
+            output_node=True,
+        )
+        node = ExecutionNode(id="custom_1", node_type="custom", ir=custom_ir)
+        graph = ExecutionGraph(nodes={"custom_1": node}, edges=[])
+
+        executor = GraphExecutor(emit=mock_emit)
+
+        with patch.object(executor.registry, "get_unit", return_value=mock_flow_unit):
+            results = await executor.execute(
+                graph, {}, tmp_path, session_id="sess1", run_id="run1"
+            )
+
+        assert "custom_1" in results
+        assert results["custom_1"]["output"] == "test_result"
+
+    @pytest.mark.asyncio
+    async def test_execute_custom_node_with_caching(
+        self, mock_emit, mock_flow_unit, tmp_path
+    ):
+        """Execute custom node with caching enabled."""
+        from unittest.mock import patch
+        from adkflow_runner.runner.graph_executor import GraphExecutor
+        from adkflow_runner.ir import CustomNodeIR
+
+        custom_ir = CustomNodeIR(
+            id="custom_1",
+            unit_id="test.unit",
+            name="Test Node",
+            source_node_id="custom_1_src",
+            config={"value": 42},
+            input_connections={},
+            output_connections={},
+            output_node=True,
+        )
+        node = ExecutionNode(id="custom_1", node_type="custom", ir=custom_ir)
+        graph = ExecutionGraph(nodes={"custom_1": node}, edges=[])
+
+        executor = GraphExecutor(emit=mock_emit, enable_cache=True)
+
+        with patch.object(executor.registry, "get_unit", return_value=mock_flow_unit):
+            # First execution
+            results1 = await executor.execute(
+                graph, {}, tmp_path, session_id="sess1", run_id="run1"
+            )
+
+            # Second execution - should use cache
+            results2 = await executor.execute(
+                graph, {}, tmp_path, session_id="sess1", run_id="run1"
+            )
+
+        assert results1 == results2
+
+    @pytest.mark.asyncio
+    async def test_execute_custom_node_cache_disabled(
+        self, mock_emit, mock_flow_unit, tmp_path
+    ):
+        """Execute custom node with caching disabled."""
+        from unittest.mock import patch
+        from adkflow_runner.runner.graph_executor import GraphExecutor
+        from adkflow_runner.ir import CustomNodeIR
+
+        custom_ir = CustomNodeIR(
+            id="custom_1",
+            unit_id="test.unit",
+            name="Test Node",
+            source_node_id="custom_1_src",
+            config={"value": 42},
+            input_connections={},
+            output_connections={},
+            output_node=True,
+        )
+        node = ExecutionNode(id="custom_1", node_type="custom", ir=custom_ir)
+        graph = ExecutionGraph(nodes={"custom_1": node}, edges=[])
+
+        executor = GraphExecutor(emit=mock_emit, enable_cache=False)
+
+        with patch.object(executor.registry, "get_unit", return_value=mock_flow_unit):
+            results = await executor.execute(
+                graph, {}, tmp_path, session_id="sess1", run_id="run1"
+            )
+
+        assert "custom_1" in results
+
+    @pytest.mark.asyncio
+    async def test_execute_custom_node_always_execute(
+        self, mock_emit, mock_flow_unit, tmp_path
+    ):
+        """Execute custom node with always_execute flag."""
+        from unittest.mock import patch
+        from adkflow_runner.runner.graph_executor import GraphExecutor
+        from adkflow_runner.ir import CustomNodeIR
+
+        custom_ir = CustomNodeIR(
+            id="custom_1",
+            unit_id="test.unit",
+            name="Test Node",
+            source_node_id="custom_1_src",
+            config={"value": 42},
+            input_connections={},
+            output_connections={},
+            output_node=True,
+            always_execute=True,
+        )
+        node = ExecutionNode(id="custom_1", node_type="custom", ir=custom_ir)
+        graph = ExecutionGraph(nodes={"custom_1": node}, edges=[])
+
+        executor = GraphExecutor(emit=mock_emit, enable_cache=True)
+
+        with patch.object(executor.registry, "get_unit", return_value=mock_flow_unit):
+            results = await executor.execute(
+                graph, {}, tmp_path, session_id="sess1", run_id="run1"
+            )
+
+        assert "custom_1" in results
+
+    @pytest.mark.asyncio
+    async def test_execute_custom_node_with_lazy_inputs(self, mock_emit, tmp_path):
+        """Execute custom node with lazy inputs."""
+        from unittest.mock import patch
+        from adkflow_runner.runner.graph_executor import GraphExecutor
+        from adkflow_runner.ir import CustomNodeIR
+
+        class MockFlowUnitLazy:
+            @staticmethod
+            def is_changed(config, inputs):
+                return "v1"
+
+            @staticmethod
+            def check_lazy_status(config, inputs):
+                return ["lazy_input"]
+
+            def __init__(self):
+                pass
+
+            async def on_before_execute(self, context):
+                pass
+
+            async def run_process(self, inputs, config, context):
+                return {"output": "lazy_result"}
+
+            async def on_after_execute(self, context, outputs):
+                pass
+
+        custom_ir = CustomNodeIR(
+            id="custom_1",
+            unit_id="test.unit",
+            name="Test Node",
+            source_node_id="custom_1_src",
+            config={},
+            input_connections={},
+            output_connections={},
+            output_node=True,
+            lazy_inputs=["lazy_input"],
+        )
+        node = ExecutionNode(id="custom_1", node_type="custom", ir=custom_ir)
+        graph = ExecutionGraph(nodes={"custom_1": node}, edges=[])
+
+        executor = GraphExecutor(emit=mock_emit)
+
+        with patch.object(executor.registry, "get_unit", return_value=MockFlowUnitLazy):
+            results = await executor.execute(
+                graph, {}, tmp_path, session_id="sess1", run_id="run1"
+            )
+
+        assert "custom_1" in results
+
+    @pytest.mark.asyncio
+    async def test_execute_custom_node_not_found(self, mock_emit, tmp_path):
+        """Execute custom node that doesn't exist in registry."""
+        from unittest.mock import patch
+        from adkflow_runner.runner.graph_executor import GraphExecutor
+        from adkflow_runner.ir import CustomNodeIR
+
+        custom_ir = CustomNodeIR(
+            id="custom_1",
+            unit_id="nonexistent.unit",
+            name="Test Node",
+            source_node_id="custom_1_src",
+            config={},
+            input_connections={},
+            output_connections={},
+            output_node=True,
+        )
+        node = ExecutionNode(id="custom_1", node_type="custom", ir=custom_ir)
+        graph = ExecutionGraph(nodes={"custom_1": node}, edges=[])
+
+        executor = GraphExecutor(emit=mock_emit)
+
+        with patch.object(executor.registry, "get_unit", return_value=None):
+            with pytest.raises(ValueError, match="FlowUnit not found"):
+                await executor.execute(
+                    graph, {}, tmp_path, session_id="sess1", run_id="run1"
+                )
+
+    @pytest.mark.asyncio
+    async def test_execute_custom_node_error(self, mock_emit, tmp_path):
+        """Execute custom node that raises an error."""
+        from unittest.mock import patch
+        from adkflow_runner.runner.graph_executor import GraphExecutor
+        from adkflow_runner.ir import CustomNodeIR
+
+        class FailingFlowUnit:
+            @staticmethod
+            def is_changed(config, inputs):
+                return "v1"
+
+            @staticmethod
+            def check_lazy_status(config, inputs):
+                return []
+
+            def __init__(self):
+                pass
+
+            async def on_before_execute(self, context):
+                pass
+
+            async def run_process(self, inputs, config, context):
+                raise RuntimeError("Execution failed")
+
+            async def on_after_execute(self, context, outputs):
+                pass
+
+        custom_ir = CustomNodeIR(
+            id="custom_1",
+            unit_id="test.unit",
+            name="Failing Node",
+            source_node_id="custom_1_src",
+            config={},
+            input_connections={},
+            output_connections={},
+            output_node=True,
+        )
+        node = ExecutionNode(id="custom_1", node_type="custom", ir=custom_ir)
+        graph = ExecutionGraph(nodes={"custom_1": node}, edges=[])
+
+        executor = GraphExecutor(emit=mock_emit)
+
+        with patch.object(executor.registry, "get_unit", return_value=FailingFlowUnit):
+            with pytest.raises(RuntimeError, match="Execution failed"):
+                await executor.execute(
+                    graph, {}, tmp_path, session_id="sess1", run_id="run1"
+                )
+
+    @pytest.mark.asyncio
+    async def test_execute_multiple_layers_parallel(
+        self, mock_emit, mock_flow_unit, tmp_path
+    ):
+        """Execute graph with multiple layers in parallel."""
+        from unittest.mock import patch
+        from adkflow_runner.runner.graph_executor import GraphExecutor
+        from adkflow_runner.ir import CustomNodeIR
+
+        # Create two nodes that can run in parallel
+        custom_ir1 = CustomNodeIR(
+            id="custom_1",
+            unit_id="test.unit",
+            name="Node 1",
+            source_node_id="custom_1_src",
+            config={},
+            input_connections={},
+            output_connections={},
+        )
+        custom_ir2 = CustomNodeIR(
+            id="custom_2",
+            unit_id="test.unit",
+            name="Node 2",
+            source_node_id="custom_2_src",
+            config={},
+            input_connections={},
+            output_connections={},
+        )
+        # And a third node that depends on both
+        custom_ir3 = CustomNodeIR(
+            id="custom_3",
+            unit_id="test.unit",
+            name="Node 3",
+            source_node_id="custom_3_src",
+            config={},
+            input_connections={"in1": ["custom_1"], "in2": ["custom_2"]},
+            output_connections={},
+            output_node=True,
+        )
+
+        node1 = ExecutionNode(id="custom_1", node_type="custom", ir=custom_ir1)
+        node2 = ExecutionNode(id="custom_2", node_type="custom", ir=custom_ir2)
+        node3 = ExecutionNode(id="custom_3", node_type="custom", ir=custom_ir3)
+
+        edges = [
+            ExecutionEdge(
+                source_id="custom_1",
+                source_port="output",
+                target_id="custom_3",
+                target_port="in1",
+            ),
+            ExecutionEdge(
+                source_id="custom_2",
+                source_port="output",
+                target_id="custom_3",
+                target_port="in2",
+            ),
+        ]
+
+        graph = ExecutionGraph(
+            nodes={"custom_1": node1, "custom_2": node2, "custom_3": node3},
+            edges=edges,
+        )
+
+        executor = GraphExecutor(emit=mock_emit)
+
+        with patch.object(executor.registry, "get_unit", return_value=mock_flow_unit):
+            results = await executor.execute(
+                graph, {}, tmp_path, session_id="sess1", run_id="run1"
+            )
+
+        # All three nodes should have executed
+        assert "custom_1" in results
+        assert "custom_2" in results
+        assert "custom_3" in results
+
+    @pytest.mark.asyncio
+    async def test_execute_custom_node_type_check(self, mock_emit, tmp_path):
+        """_execute_custom_node validates IR type."""
+        from adkflow_runner.runner.graph_executor import GraphExecutor
+
+        # Create execution node with AgentIR but mark as custom type (type mismatch)
+        agent_ir = AgentIR(id="a1", name="Agent", type="llm", model="gemini-2.0-flash")
+        node = ExecutionNode(id="a1", node_type="custom", ir=agent_ir)  # Wrong IR type!
+
+        executor = GraphExecutor(emit=mock_emit)
+
+        # This should raise TypeError when _execute_custom_node checks IR type
+        with pytest.raises(TypeError, match="Expected CustomNodeIR"):
+            await executor._execute_custom_node(node, {}, {}, tmp_path, "s1", "r1")

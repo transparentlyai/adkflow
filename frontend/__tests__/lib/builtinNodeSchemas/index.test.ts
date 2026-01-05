@@ -72,7 +72,7 @@ describe("builtinNodeSchemas", () => {
 
   describe("builtinNodeSchemas collection", () => {
     it("should contain all node schemas", () => {
-      expect(builtinNodeSchemas.length).toBe(16);
+      expect(builtinNodeSchemas.length).toBe(17);
     });
 
     it("should have unique unit_ids", () => {

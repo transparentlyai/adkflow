@@ -492,3 +492,153 @@ class TestTeleporterTransformation:
 
         assert "transfer" in ir.teleporters
         assert ir.teleporters["transfer"].name == "transfer"
+
+
+class TestUpstreamOutputKeys:
+    """Tests for upstream_output_keys resolution."""
+
+    def test_sequential_agent_has_upstream_output_key(self, tmp_path):
+        """Agent connected via SEQUENTIAL edge gets upstream's output_key."""
+        manifest = {
+            "name": "test",
+            "version": "3.0",
+            "tabs": [{"id": "tab1", "name": "Main"}],
+            "nodes": [
+                {
+                    "id": "start",
+                    "type": "start",
+                    "position": {"x": 0, "y": 0},
+                    "data": {"tabId": "tab1"},
+                },
+                {
+                    "id": "a1",
+                    "type": "agent",
+                    "position": {"x": 100, "y": 0},
+                    "data": {
+                        "tabId": "tab1",
+                        "config": {
+                            "name": "WriterAgent",
+                            "description": "Writes a poem",
+                            "output_key": "poem",
+                        },
+                    },
+                },
+                {
+                    "id": "a2",
+                    "type": "agent",
+                    "position": {"x": 200, "y": 0},
+                    "data": {
+                        "tabId": "tab1",
+                        "config": {
+                            "name": "ReviewerAgent",
+                            "description": "Reviews the poem",
+                        },
+                    },
+                },
+            ],
+            "edges": [
+                {
+                    "id": "e1",
+                    "source": "start",
+                    "target": "a1",
+                    "sourceHandle": "start",
+                    "targetHandle": "input",
+                },
+                {
+                    "id": "e2",
+                    "source": "a1",
+                    "target": "a2",
+                    "sourceHandle": "output",
+                    "targetHandle": "agent-input",
+                },
+            ],
+        }
+        (tmp_path / "manifest.json").write_text(json.dumps(manifest))
+
+        loader = ProjectLoader()
+        parser = FlowParser()
+        builder = GraphBuilder()
+        transformer = IRTransformer()
+
+        project = loader.load(tmp_path)
+        parsed = parser.parse_project(project)
+        graph = builder.build(parsed)
+        ir = transformer.transform(graph, project)
+
+        # The second agent should have the first agent's output_key
+        agent2 = ir.all_agents.get("a2")
+        assert agent2 is not None
+        assert "poem" in agent2.upstream_output_keys
+
+    def test_no_upstream_output_key_when_missing(self, tmp_path):
+        """Agent has empty upstream_output_keys when upstream has no output_key."""
+        manifest = {
+            "name": "test",
+            "version": "3.0",
+            "tabs": [{"id": "tab1", "name": "Main"}],
+            "nodes": [
+                {
+                    "id": "start",
+                    "type": "start",
+                    "position": {"x": 0, "y": 0},
+                    "data": {"tabId": "tab1"},
+                },
+                {
+                    "id": "a1",
+                    "type": "agent",
+                    "position": {"x": 100, "y": 0},
+                    "data": {
+                        "tabId": "tab1",
+                        "config": {
+                            "name": "WriterAgent",
+                            "description": "Writes something",
+                            # No output_key specified
+                        },
+                    },
+                },
+                {
+                    "id": "a2",
+                    "type": "agent",
+                    "position": {"x": 200, "y": 0},
+                    "data": {
+                        "tabId": "tab1",
+                        "config": {
+                            "name": "ReviewerAgent",
+                            "description": "Reviews output",
+                        },
+                    },
+                },
+            ],
+            "edges": [
+                {
+                    "id": "e1",
+                    "source": "start",
+                    "target": "a1",
+                    "sourceHandle": "start",
+                    "targetHandle": "input",
+                },
+                {
+                    "id": "e2",
+                    "source": "a1",
+                    "target": "a2",
+                    "sourceHandle": "output",
+                    "targetHandle": "agent-input",
+                },
+            ],
+        }
+        (tmp_path / "manifest.json").write_text(json.dumps(manifest))
+
+        loader = ProjectLoader()
+        parser = FlowParser()
+        builder = GraphBuilder()
+        transformer = IRTransformer()
+
+        project = loader.load(tmp_path)
+        parsed = parser.parse_project(project)
+        graph = builder.build(parsed)
+        ir = transformer.transform(graph, project)
+
+        # The second agent should have empty upstream_output_keys
+        agent2 = ir.all_agents.get("a2")
+        assert agent2 is not None
+        assert agent2.upstream_output_keys == []

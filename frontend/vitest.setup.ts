@@ -57,11 +57,25 @@ vi.mock("@xyflow/react", () => ({
   }) => React.createElement("button", { onClick, title, className }, children),
   MiniMap: () => null,
   Panel: ({ children }: { children?: React.ReactNode }) => children,
-  Handle: ({ id, type, position }: { id?: string; type?: string; position?: string }) => null,
+  Handle: ({
+    id,
+    type,
+    position,
+  }: {
+    id?: string;
+    type?: string;
+    position?: string;
+  }) => null,
   Position: { Top: "top", Bottom: "bottom", Left: "left", Right: "right" },
   MarkerType: { Arrow: "arrow", ArrowClosed: "arrowclosed" },
   ConnectionMode: { Strict: "strict", Loose: "loose" },
-  ConnectionLineType: { Bezier: "bezier", Step: "step", SmoothStep: "smoothstep", Straight: "straight" },
+  ConnectionLineType: {
+    Bezier: "bezier",
+    Step: "step",
+    SmoothStep: "smoothstep",
+    Straight: "straight",
+  },
+  SelectionMode: { Partial: "partial", Full: "full" },
   getConnectedEdges: vi.fn(() => []),
   getIncomers: vi.fn(() => []),
   getOutgoers: vi.fn(() => []),

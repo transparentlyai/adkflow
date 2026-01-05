@@ -176,3 +176,70 @@ class TestAgentFactoryErrors:
 
         with pytest.raises(ExecutionError):
             factory.create(agent_ir)
+
+
+class TestSubstituteVariables:
+    """Tests for _substitute_variables method."""
+
+    def test_substitute_context_vars(self):
+        """Context variables are substituted in text."""
+        factory = AgentFactory()
+        text = "Hello {name}, your age is {age}."
+        context_vars = {"name": "Alice", "age": "30"}
+
+        result = factory._substitute_variables(text, context_vars, "TestAgent")
+        assert result == "Hello Alice, your age is 30."
+
+    def test_skip_upstream_output_keys(self):
+        """Upstream output_keys are not substituted - left for ADK."""
+        factory = AgentFactory()
+        text = "Previous output: {poem}. Context: {topic}."
+        context_vars = {"topic": "nature"}
+        upstream_output_keys = ["poem"]
+
+        result = factory._substitute_variables(
+            text, context_vars, "TestAgent", upstream_output_keys
+        )
+        # {poem} should be preserved for ADK, {topic} should be substituted
+        assert result == "Previous output: {poem}. Context: nature."
+
+    def test_error_on_missing_vars(self):
+        """Error when variable is missing from both context_vars and upstream_output_keys."""
+        from adkflow_runner.errors import ExecutionError
+
+        factory = AgentFactory()
+        text = "Hello {name}, your {missing} is here."
+        context_vars = {"name": "Alice"}
+        upstream_output_keys = ["poem"]
+
+        with pytest.raises(ExecutionError) as exc_info:
+            factory._substitute_variables(
+                text, context_vars, "TestAgent", upstream_output_keys
+            )
+        assert "missing" in str(exc_info.value)
+
+    def test_no_error_for_upstream_only_placeholders(self):
+        """No error when all placeholders are upstream_output_keys."""
+        factory = AgentFactory()
+        text = "Poem: {poem}. Story: {story}."
+        context_vars: dict[str, str] = {}
+        upstream_output_keys = ["poem", "story"]
+
+        result = factory._substitute_variables(
+            text, context_vars, "TestAgent", upstream_output_keys
+        )
+        # Both placeholders should be preserved
+        assert result == text
+
+    def test_empty_text_returns_empty(self):
+        """Empty text returns empty string."""
+        factory = AgentFactory()
+        result = factory._substitute_variables("", {"var": "value"}, "TestAgent")
+        assert result == ""
+
+    def test_no_placeholders_returns_text(self):
+        """Text without placeholders is returned as-is."""
+        factory = AgentFactory()
+        text = "No placeholders here."
+        result = factory._substitute_variables(text, {"var": "value"}, "TestAgent")
+        assert result == text
