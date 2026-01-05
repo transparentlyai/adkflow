@@ -1,0 +1,96 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, test-benches]
+  pull_request:
+    branches: [main, test-benches]
+
+jobs:
+  python-tests:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --group test
+
+      - name: Run type checking
+        run: uv run pyright
+
+      - name: Run linting
+        run: uv run ruff check
+
+      - name: Run tests with coverage
+        run: |
+          uv run pytest \
+            --cov=packages/adkflow-runner/src \
+            --cov=backend/src \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-fail-under=50
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Check formatting
+        run: uv run ruff format --check
+
+      - name: Check imports
+        run: uv run ruff check --select I

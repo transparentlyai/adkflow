@@ -130,38 +130,23 @@ export default function({ data }) {
 
 ## Testing
 
-### Backend
+Run tests before submitting PRs:
 
 ```bash
-cd backend
-pytest
-pytest --cov=src  # With coverage
+# Python tests (from project root)
+uv run pytest
+
+# Frontend tests
+cd frontend && npm test
 ```
 
-### Frontend
+For comprehensive testing documentation including:
+- Writing new tests
+- Mocking patterns
+- Test structure and conventions
+- Coverage goals
 
-```bash
-cd frontend
-npm test
-npm run test:coverage
-```
-
-### Extension Testing
-
-```python
-import pytest
-from my_extension.nodes import MyNode
-
-@pytest.mark.asyncio
-async def test_my_node():
-    node = MyNode()
-    result = await node.run_process(
-        inputs={"text": "hello"},
-        config={},
-        context=MockContext(),
-    )
-    assert result["output"] == "HELLO"
-```
+See the [Testing Guide](./technical/testing.md).
 
 ## Linting
 

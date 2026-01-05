@@ -78,6 +78,13 @@ export function hydrateNodeWithSchema(
   const schema = getSchemaForNodeType(node.type || "", customNodeSchemas);
 
   if (!schema) {
+    // Handle group nodes specially - they don't have schemas but need dragHandle
+    if (node.type === "group") {
+      return {
+        ...node,
+        dragHandle: ".group-drag-handle",
+      };
+    }
     // Unknown node type - return as-is but ensure it has minimal structure
     console.warn(`Unknown node type: ${node.type}, skipping hydration`);
     return node;
@@ -110,11 +117,6 @@ export function hydrateNodeWithSchema(
     ...node,
     data: hydratedData as unknown as Record<string, unknown>,
   };
-
-  // Ensure group nodes have dragHandle set
-  if (node.type === "group") {
-    hydratedNode.dragHandle = ".group-drag-handle";
-  }
 
   return hydratedNode;
 }

@@ -54,6 +54,10 @@ Command-line interface.
 - [CLI Overview](./cli/README.md) - CLI architecture
 - [Commands Reference](./cli/commands.md) - All CLI commands
 
+## Testing
+
+- [Testing Guide](./testing.md) - Running, writing, and maintaining tests
+
 ---
 
 ## Tech Stack
