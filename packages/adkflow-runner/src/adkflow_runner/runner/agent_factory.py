@@ -176,11 +176,11 @@ class AgentFactory:
             logging_callback = callbacks.get("before_model_callback")
             strip_callback = create_strip_contents_callback()
 
-            def chained_before_model(ctx: Any, req: Any) -> None:
+            def chained_before_model(callback_context: Any, llm_request: Any) -> None:
                 # First log, then strip
                 if logging_callback:
-                    logging_callback(ctx, req)
-                strip_callback(ctx, req)
+                    logging_callback(callback_context, llm_request)
+                strip_callback(callback_context, llm_request)
                 return None
 
             callbacks["before_model_callback"] = chained_before_model
