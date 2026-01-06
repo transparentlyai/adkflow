@@ -151,6 +151,10 @@ class ContextAggregatorUnit(FlowUnit):
                     var_name,
                     context.project_path,
                     include_metadata,
+                    recursive=di.get("recursive", False),
+                    exclude_patterns=di.get("excludePatterns"),
+                    max_files=di.get("maxFiles", 100),
+                    max_file_size=di.get("maxFileSize", 1048576),
                 )
                 if aggregation_mode == "pass":
                     for v_name, (content, metadata) in contents.items():
@@ -211,6 +215,92 @@ class ContextAggregatorUnit(FlowUnit):
 
         return {"output": variables}
 
+    def _matches_exclude_pattern(
+        self, file_path: Path, base_dir: Path, patterns: list[str]
+    ) -> bool:
+        """Check if a file path matches any exclusion pattern.
+
+        Args:
+            file_path: Absolute path to the file
+            base_dir: Base directory for relative path computation
+            patterns: List of patterns to check (e.g., ".git", "node_modules")
+
+        Returns:
+            True if the file should be excluded
+        """
+        try:
+            rel_path = file_path.relative_to(base_dir)
+        except ValueError:
+            return False
+
+        rel_parts = rel_path.parts
+        for pattern in patterns:
+            # Check if pattern matches any component of the path
+            if pattern in rel_parts:
+                return True
+            # Also support glob-like patterns (e.g., "*.pyc")
+            if any(Path(part).match(pattern) for part in rel_parts):
+                return True
+        return False
+
+    def _check_limits(
+        self, files: list[Path], max_files: int, max_file_size: int
+    ) -> tuple[list[Path], str | None]:
+        """Check and enforce file/size limits.
+
+        Args:
+            files: List of file paths to check
+            max_files: Maximum number of files allowed
+            max_file_size: Maximum size per file in bytes
+
+        Returns:
+            Tuple of (filtered_files, warning_message or None)
+        """
+        warning = None
+        skipped_large = 0
+
+        # Filter out files that exceed the per-file size limit
+        size_filtered_files = []
+        for f in files:
+            try:
+                file_size = f.stat().st_size
+                if file_size > max_file_size:
+                    skipped_large += 1
+                else:
+                    size_filtered_files.append(f)
+            except OSError:
+                continue
+
+        if skipped_large > 0:
+            warning = f"[Warning: Skipped {skipped_large} file(s) exceeding {max_file_size // 1024}KB]"
+
+        # Apply file count limit
+        if len(size_filtered_files) > max_files:
+            count_warning = f"[Warning: Found {len(size_filtered_files)} files, limited to {max_files}]"
+            if warning:
+                warning = f"{warning} {count_warning}"
+            else:
+                warning = count_warning
+            size_filtered_files = size_filtered_files[:max_files]
+
+        return size_filtered_files, warning
+
+    def _sanitize_relative_path(self, rel_path: str) -> str:
+        """Sanitize relative path for use in variable names.
+
+        Replaces / and \\ with _ to create valid variable names.
+        Removes the file extension from the final segment.
+
+        Args:
+            rel_path: Relative path string
+
+        Returns:
+            Sanitized path string
+        """
+        path = Path(rel_path)
+        sanitized = str(path.with_suffix("")).replace("/", "_").replace("\\", "_")
+        return sanitized
+
     async def _read_file(
         self, file_path: str, project_path: Path, include_metadata: bool = False
     ) -> tuple[str, dict[str, str] | None]:
@@ -258,6 +348,10 @@ class ContextAggregatorUnit(FlowUnit):
         base_var_name: str,
         project_path: Path,
         include_metadata: bool = False,
+        recursive: bool = False,
+        exclude_patterns: list[str] | None = None,
+        max_files: int = 100,
+        max_file_size: int = 1048576,
     ) -> dict[str, tuple[str, dict[str, str] | None]]:
         """Read files from a directory with glob pattern.
 
@@ -271,6 +365,10 @@ class ContextAggregatorUnit(FlowUnit):
             base_var_name: Base variable name
             project_path: Path to project root
             include_metadata: Whether to include file metadata
+            recursive: Whether to scan subdirectories
+            exclude_patterns: Patterns to exclude (e.g., ".git", "node_modules")
+            max_files: Maximum number of files to include
+            max_file_size: Maximum size per file in bytes
 
         Returns:
             Dict mapping variable names to (content, metadata) tuples
@@ -287,23 +385,50 @@ class ContextAggregatorUnit(FlowUnit):
                     base_var_name: (f"[Directory not found: {directory_path}]", None)
                 }
 
-        pattern = str(full_dir / glob_pattern)
+        # Handle recursive mode - prepend **/ if not already recursive
+        effective_pattern = glob_pattern
+        if recursive and not glob_pattern.startswith("**/"):
+            effective_pattern = f"**/{glob_pattern}"
+
+        pattern = str(full_dir / effective_pattern)
         files = sorted(glob_module.glob(pattern, recursive=True))
 
         # Filter out directories, keep only files
-        files = [f for f in files if Path(f).is_file()]
+        files = [Path(f) for f in files if Path(f).is_file()]
+
+        # Apply exclusion patterns
+        if exclude_patterns:
+            files = [
+                f
+                for f in files
+                if not self._matches_exclude_pattern(f, full_dir, exclude_patterns)
+            ]
 
         if not files:
             return {base_var_name: (f"[No files matched: {glob_pattern}]", None)}
+
+        # Apply limits
+        files, limit_warning = self._check_limits(files, max_files, max_file_size)
 
         total_files = len(files)
 
         if aggregation == "concatenate":
             # Concatenate mode - collect all contents with per-file metadata
             contents_with_meta: list[tuple[str, dict[str, str] | None]] = []
-            for i, f in enumerate(files):
-                file_path = Path(f)
+
+            if limit_warning:
+                contents_with_meta.append((limit_warning, None))
+
+            for i, file_path in enumerate(files):
+                # Compute relative path from base directory for metadata
+                try:
+                    rel_to_dir = file_path.relative_to(full_dir)
+                except ValueError:
+                    rel_to_dir = Path(file_path.name)
+
                 relative_path = str(file_path.relative_to(project_path))
+                sanitized_rel_path = self._sanitize_relative_path(str(rel_to_dir))
+
                 try:
                     content = file_path.read_text(encoding="utf-8")
                     metadata = None
@@ -311,6 +436,7 @@ class ContextAggregatorUnit(FlowUnit):
                         metadata = self._get_file_metadata(file_path, relative_path)
                         metadata["file_index"] = str(i)
                         metadata["total_files"] = str(total_files)
+                        metadata["relative_path"] = sanitized_rel_path
                     contents_with_meta.append((content, metadata))
                 except Exception:
                     pass
@@ -338,9 +464,20 @@ class ContextAggregatorUnit(FlowUnit):
         else:
             # Pass mode - each file gets its own variable
             result: dict[str, tuple[str, dict[str, str] | None]] = {}
-            for i, f in enumerate(files):
-                file_path = Path(f)
+
+            if limit_warning:
+                result[f"{base_var_name}_warning"] = (limit_warning, None)
+
+            for i, file_path in enumerate(files):
+                # Compute relative path from base directory
+                try:
+                    rel_to_dir = file_path.relative_to(full_dir)
+                except ValueError:
+                    rel_to_dir = Path(file_path.name)
+
                 relative_path = str(file_path.relative_to(project_path))
+                sanitized_rel_path = self._sanitize_relative_path(str(rel_to_dir))
+
                 try:
                     content = file_path.read_text(encoding="utf-8")
                     metadata = None
@@ -348,6 +485,7 @@ class ContextAggregatorUnit(FlowUnit):
                         metadata = self._get_file_metadata(file_path, relative_path)
                         metadata["file_index"] = str(i)
                         metadata["total_files"] = str(total_files)
+                        metadata["relative_path"] = sanitized_rel_path
                 except Exception as e:
                     content = f"[Error: {e}]"
                     metadata = None
@@ -358,12 +496,13 @@ class ContextAggregatorUnit(FlowUnit):
                 elif naming_pattern == "number":
                     var_name = f"{base_var_name}_{i}"
                 else:
-                    # Custom pattern
+                    # Custom pattern - now includes relative_path
                     var_name = custom_pattern.format(
                         file_name=file_path.stem,
                         file_ext=file_path.suffix.lstrip("."),
                         number=i,
                         base=base_var_name,
+                        relative_path=sanitized_rel_path,
                     )
 
                 result[var_name] = (content, metadata)

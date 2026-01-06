@@ -338,6 +338,106 @@ export function DynamicInputRow({
                   style={inputStyle}
                 />
               </div>
+              {/* Recursive toggle */}
+              <div className="flex items-center gap-1">
+                <label
+                  className="text-[10px] flex-shrink-0 w-16"
+                  style={labelStyle}
+                >
+                  Recursive
+                </label>
+                <input
+                  type="checkbox"
+                  checked={input.recursive || false}
+                  onChange={(e) => updateField("recursive", e.target.checked)}
+                  disabled={isNodeLocked}
+                  className="w-3.5 h-3.5"
+                />
+                <span
+                  className="text-[9px]"
+                  style={{ color: theme.colors.nodes.common.text.muted }}
+                >
+                  Scan subdirectories
+                </span>
+              </div>
+              {/* Exclude patterns - shown when recursive */}
+              {input.recursive && (
+                <div className="flex items-center gap-1">
+                  <label
+                    className="text-[10px] flex-shrink-0 w-16"
+                    style={labelStyle}
+                  >
+                    Exclude
+                  </label>
+                  <input
+                    type="text"
+                    value={(input.excludePatterns || []).join(", ")}
+                    onChange={(e) =>
+                      updateField(
+                        "excludePatterns",
+                        e.target.value
+                          .split(",")
+                          .map((p) => p.trim())
+                          .filter(Boolean),
+                      )
+                    }
+                    placeholder=".git, node_modules, __pycache__"
+                    disabled={isNodeLocked}
+                    className="flex-1 min-w-0 px-1.5 py-0.5 rounded text-[11px] border font-mono"
+                    style={inputStyle}
+                  />
+                </div>
+              )}
+              {/* Limits row */}
+              <div className="flex items-center gap-1">
+                <label
+                  className="text-[10px] flex-shrink-0 w-16"
+                  style={labelStyle}
+                >
+                  Limits
+                </label>
+                <div className="flex-1 flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    value={input.maxFiles ?? 100}
+                    onChange={(e) =>
+                      updateField("maxFiles", parseInt(e.target.value) || 100)
+                    }
+                    disabled={isNodeLocked}
+                    className="w-14 px-1 py-0.5 rounded text-[10px] border text-center"
+                    style={inputStyle}
+                    min={1}
+                    max={1000}
+                  />
+                  <span
+                    className="text-[9px]"
+                    style={{ color: theme.colors.nodes.common.text.muted }}
+                  >
+                    files,
+                  </span>
+                  <input
+                    type="number"
+                    value={Math.round((input.maxFileSize ?? 1048576) / 1024)}
+                    onChange={(e) =>
+                      updateField(
+                        "maxFileSize",
+                        (parseInt(e.target.value) || 1024) * 1024,
+                      )
+                    }
+                    disabled={isNodeLocked}
+                    className="w-14 px-1 py-0.5 rounded text-[10px] border text-center"
+                    style={inputStyle}
+                    min={1}
+                    max={10240}
+                  />
+                  <span
+                    className="text-[9px]"
+                    style={{ color: theme.colors.nodes.common.text.muted }}
+                  >
+                    KB each
+                  </span>
+                </div>
+              </div>
               <div className="flex items-center gap-1">
                 <label
                   className="text-[10px] flex-shrink-0 w-16"

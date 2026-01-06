@@ -995,3 +995,388 @@ class TestRunProcess:
         # Should use id as variable name
         assert "f1" in result["output"]
         assert result["output"]["f1"] == "Test"
+
+
+class TestRecursiveDirectory:
+    """Tests for recursive directory scanning with exclusions and limits."""
+
+    @pytest.fixture
+    def unit(self):
+        """Create ContextAggregatorUnit instance."""
+        return ContextAggregatorUnit()
+
+    @pytest.fixture
+    def nested_dir(self, tmp_path: Path):
+        """Create nested directory structure for testing."""
+        # Root files
+        (tmp_path / "root.txt").write_text("Root file")
+
+        # Subdirectory with files
+        subdir = tmp_path / "subdir"
+        subdir.mkdir()
+        (subdir / "sub1.txt").write_text("Sub 1")
+        (subdir / "sub2.txt").write_text("Sub 2")
+
+        # Nested subdirectory
+        nested = subdir / "nested"
+        nested.mkdir()
+        (nested / "deep.txt").write_text("Deep file")
+
+        # Excluded directories
+        git_dir = tmp_path / ".git"
+        git_dir.mkdir()
+        (git_dir / "config").write_text("git config")
+
+        node_modules = tmp_path / "node_modules"
+        node_modules.mkdir()
+        (node_modules / "package.json").write_text("{}")
+
+        return tmp_path
+
+    @pytest.mark.asyncio
+    async def test_recursive_finds_nested_files(self, unit, nested_dir: Path):
+        """Recursive mode finds files in subdirectories."""
+        result = await unit._read_directory(
+            directory_path=str(nested_dir),
+            glob_pattern="*.txt",
+            aggregation="pass",
+            naming_pattern="file_name",
+            custom_pattern="",
+            separator="\n",
+            base_var_name="doc",
+            project_path=nested_dir.parent,
+            include_metadata=False,
+            recursive=True,
+        )
+
+        # Should find all .txt files including nested ones
+        keys = list(result.keys())
+        assert len(keys) >= 4  # root.txt, sub1.txt, sub2.txt, deep.txt
+        assert any("deep" in key for key in keys)
+        assert any("sub1" in key for key in keys)
+
+    @pytest.mark.asyncio
+    async def test_non_recursive_only_top_level(self, unit, nested_dir: Path):
+        """Non-recursive mode only finds top-level files."""
+        result = await unit._read_directory(
+            directory_path=str(nested_dir),
+            glob_pattern="*.txt",
+            aggregation="pass",
+            naming_pattern="file_name",
+            custom_pattern="",
+            separator="\n",
+            base_var_name="doc",
+            project_path=nested_dir.parent,
+            include_metadata=False,
+            recursive=False,
+        )
+
+        # Should only find root.txt
+        assert len(result) == 1
+        assert "doc_root" in result
+
+    @pytest.mark.asyncio
+    async def test_exclude_patterns(self, unit, nested_dir: Path):
+        """Exclude patterns filter out matching directories."""
+        result = await unit._read_directory(
+            directory_path=str(nested_dir),
+            glob_pattern="*",
+            aggregation="pass",
+            naming_pattern="file_name",
+            custom_pattern="",
+            separator="\n",
+            base_var_name="doc",
+            project_path=nested_dir.parent,
+            include_metadata=False,
+            recursive=True,
+            exclude_patterns=[".git", "node_modules"],
+        )
+
+        # Should not include files from .git or node_modules
+        keys = list(result.keys())
+        assert not any(".git" in str(key) or "node_modules" in str(key) for key in keys)
+        assert not any("config" in key or "package" in key for key in keys)
+
+    @pytest.mark.asyncio
+    async def test_max_files_limit(self, unit, tmp_path: Path):
+        """Max files limit restricts number of files processed."""
+        # Create many files
+        for i in range(20):
+            (tmp_path / f"file{i:02d}.txt").write_text(f"Content {i}")
+
+        result = await unit._read_directory(
+            directory_path=str(tmp_path),
+            glob_pattern="*.txt",
+            aggregation="pass",
+            naming_pattern="number",
+            custom_pattern="",
+            separator="\n",
+            base_var_name="doc",
+            project_path=tmp_path.parent,
+            include_metadata=False,
+            max_files=5,
+        )
+
+        # Should have 5 files + warning
+        file_keys = [k for k in result.keys() if not k.endswith("_warning")]
+        assert len(file_keys) == 5
+        # Should have warning
+        assert "doc_warning" in result
+        assert "limited to 5" in result["doc_warning"][0]
+
+    @pytest.mark.asyncio
+    async def test_max_file_size_limit(self, unit, tmp_path: Path):
+        """Max file size limit skips files exceeding the limit."""
+        # Create files of different sizes
+        (tmp_path / "small1.txt").write_text("x" * 100)  # 100 bytes
+        (tmp_path / "small2.txt").write_text("x" * 100)  # 100 bytes
+        (tmp_path / "large1.txt").write_text("x" * 500)  # 500 bytes - too big
+        (tmp_path / "large2.txt").write_text("x" * 600)  # 600 bytes - too big
+
+        result = await unit._read_directory(
+            directory_path=str(tmp_path),
+            glob_pattern="*.txt",
+            aggregation="pass",
+            naming_pattern="file_name",
+            custom_pattern="",
+            separator="\n",
+            base_var_name="doc",
+            project_path=tmp_path.parent,
+            include_metadata=False,
+            max_file_size=200,  # Only allow files <= 200 bytes
+        )
+
+        file_keys = [k for k in result.keys() if not k.endswith("_warning")]
+        # Should only have the 2 small files
+        assert len(file_keys) == 2
+        assert "doc_small1" in result
+        assert "doc_small2" in result
+        # Should have warning about skipped files
+        assert "doc_warning" in result
+        assert "Skipped 2 file(s)" in result["doc_warning"][0]
+
+    @pytest.mark.asyncio
+    async def test_relative_path_in_custom_pattern(self, unit, tmp_path: Path):
+        """Custom pattern with {relative_path} works correctly."""
+        subdir = tmp_path / "sub"
+        subdir.mkdir()
+        (subdir / "file.txt").write_text("Content")
+
+        result = await unit._read_directory(
+            directory_path=str(tmp_path),
+            glob_pattern="*.txt",
+            aggregation="pass",
+            naming_pattern="custom",
+            custom_pattern="{base}_{relative_path}",
+            separator="\n",
+            base_var_name="doc",
+            project_path=tmp_path.parent,
+            include_metadata=False,
+            recursive=True,
+        )
+
+        # Should have sanitized relative path (sub_file instead of sub/file)
+        keys = list(result.keys())
+        assert any("sub_file" in key for key in keys)
+
+    @pytest.mark.asyncio
+    async def test_relative_path_in_metadata(self, unit, tmp_path: Path):
+        """Relative path is included in metadata when enabled."""
+        subdir = tmp_path / "sub"
+        subdir.mkdir()
+        (subdir / "file.txt").write_text("Content")
+
+        result = await unit._read_directory(
+            directory_path=str(tmp_path),
+            glob_pattern="*.txt",
+            aggregation="pass",
+            naming_pattern="file_name",
+            custom_pattern="",
+            separator="\n",
+            base_var_name="doc",
+            project_path=tmp_path.parent,
+            include_metadata=True,
+            recursive=True,
+        )
+
+        # Find the sub/file.txt entry
+        sub_file_entry = None
+        for key, (content, metadata) in result.items():
+            if metadata and "sub" in metadata.get("relative_path", ""):
+                sub_file_entry = (key, content, metadata)
+                break
+
+        assert sub_file_entry is not None
+        _, _, metadata = sub_file_entry
+        assert "relative_path" in metadata
+        assert "sub_file" == metadata["relative_path"]
+
+    def test_sanitize_relative_path(self, unit):
+        """Relative path is properly sanitized."""
+        result = unit._sanitize_relative_path("subdir/nested/file.txt")
+        assert "/" not in result
+        assert result == "subdir_nested_file"
+
+    def test_sanitize_relative_path_backslash(self, unit):
+        """Windows-style paths are also sanitized."""
+        result = unit._sanitize_relative_path("subdir\\nested\\file.txt")
+        assert "\\" not in result
+        assert result == "subdir_nested_file"
+
+    def test_matches_exclude_pattern_directory(self, unit, tmp_path: Path):
+        """Exclude pattern matches directory names."""
+        git_dir = tmp_path / ".git"
+        git_dir.mkdir()
+        git_file = git_dir / "config"
+        git_file.touch()
+
+        assert unit._matches_exclude_pattern(git_file, tmp_path, [".git"])
+        assert not unit._matches_exclude_pattern(git_file, tmp_path, ["node_modules"])
+
+    def test_matches_exclude_pattern_glob(self, unit, tmp_path: Path):
+        """Exclude pattern supports glob-style matching."""
+        pyc_file = tmp_path / "module.pyc"
+        pyc_file.touch()
+
+        assert unit._matches_exclude_pattern(pyc_file, tmp_path, ["*.pyc"])
+
+    def test_check_limits_file_count(self, unit, tmp_path: Path):
+        """Check limits enforces max file count."""
+        files = [tmp_path / f"file{i}.txt" for i in range(10)]
+        for f in files:
+            f.write_text("x")
+
+        limited, warning = unit._check_limits(files, max_files=3, max_file_size=1000000)
+
+        assert len(limited) == 3
+        assert warning is not None
+        assert "limited to 3" in warning
+
+    def test_check_limits_per_file_size(self, unit, tmp_path: Path):
+        """Check limits enforces max per-file size."""
+        files = []
+        # Create 3 small files and 2 large files
+        for i in range(3):
+            f = tmp_path / f"small{i}.txt"
+            f.write_text("x" * 50)  # 50 bytes each
+            files.append(f)
+        for i in range(2):
+            f = tmp_path / f"large{i}.txt"
+            f.write_text("x" * 200)  # 200 bytes each
+            files.append(f)
+
+        limited, warning = unit._check_limits(files, max_files=100, max_file_size=100)
+
+        # Should only have the 3 small files
+        assert len(limited) == 3
+        assert warning is not None
+        assert "Skipped 2 file(s)" in warning
+
+    @pytest.mark.asyncio
+    async def test_recursive_with_existing_glob_pattern(self, unit, nested_dir: Path):
+        """Recursive mode doesn't double-prepend when pattern already has **."""
+        result = await unit._read_directory(
+            directory_path=str(nested_dir),
+            glob_pattern="**/*.txt",
+            aggregation="pass",
+            naming_pattern="file_name",
+            custom_pattern="",
+            separator="\n",
+            base_var_name="doc",
+            project_path=nested_dir.parent,
+            include_metadata=False,
+            recursive=True,  # Should not double-prepend **/
+        )
+
+        # Should still work correctly
+        keys = list(result.keys())
+        assert len(keys) >= 4
+
+    @pytest.mark.asyncio
+    async def test_concatenate_mode_with_limit_warning(self, unit, tmp_path: Path):
+        """Concatenate mode includes limit warning in output."""
+        for i in range(10):
+            (tmp_path / f"file{i}.txt").write_text(f"Content {i}")
+
+        result = await unit._read_directory(
+            directory_path=str(tmp_path),
+            glob_pattern="*.txt",
+            aggregation="concatenate",
+            naming_pattern="file_name",
+            custom_pattern="",
+            separator="\n---\n",
+            base_var_name="combined",
+            project_path=tmp_path.parent,
+            include_metadata=False,
+            max_files=3,
+        )
+
+        content, _ = result["combined"]
+        assert "[Warning:" in content
+
+
+class TestRecursiveDirectoryIntegration:
+    """Integration tests for recursive directory in run_process."""
+
+    @pytest.fixture
+    def unit(self):
+        return ContextAggregatorUnit()
+
+    @pytest.fixture
+    def execution_context(self, tmp_path: Path):
+        return ExecutionContext(
+            session_id="test",
+            run_id="test",
+            node_id="test",
+            node_name="Test",
+            state={},
+            emit=MagicMock(),
+            project_path=tmp_path,
+        )
+
+    @pytest.mark.asyncio
+    async def test_full_recursive_config(self, unit, execution_context, tmp_path: Path):
+        """Full integration test with all recursive options."""
+        # Setup
+        docs_dir = tmp_path / "docs"
+        subdir = docs_dir / "sub"
+        subdir.mkdir(parents=True)
+        (docs_dir / "readme.md").write_text("# Readme")
+        (subdir / "guide.md").write_text("# Guide")
+
+        # .git should be excluded
+        git = docs_dir / ".git"
+        git.mkdir()
+        (git / "HEAD").write_text("ref: refs/heads/main")
+
+        config = {
+            "dynamicInputs": [
+                {
+                    "id": "docs",
+                    "inputType": "directory",
+                    "directoryPath": "docs",
+                    "globPattern": "*.md",
+                    "directoryAggregation": "pass",
+                    "namingPattern": "custom",
+                    "customPattern": "doc_{relative_path}",
+                    "variableName": "doc",
+                    "recursive": True,
+                    "excludePatterns": [".git"],
+                    "maxFiles": 50,
+                    "maxFileSize": 1048576,
+                }
+            ],
+            "aggregationMode": "pass",
+        }
+
+        result = await unit.run_process({}, config, execution_context)
+
+        output = result["output"]
+        keys = list(output.keys())
+        # Should have both md files
+        assert len(keys) == 2
+        # Should have sanitized paths (no slashes)
+        assert any("readme" in k.lower() for k in keys)
+        assert any("sub_guide" in k.lower() for k in keys)
+        # Should not have .git files
+        assert not any("HEAD" in str(v) for v in output.values())

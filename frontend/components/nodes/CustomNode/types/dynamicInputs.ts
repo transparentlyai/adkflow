@@ -61,6 +61,14 @@ export interface DynamicInputConfig {
   customPattern?: string;
   /** For 'directory' type with 'concatenate': separator between files */
   directorySeparator?: string;
+  /** For 'directory' type: enable recursive scanning of subdirectories */
+  recursive?: boolean;
+  /** For 'directory' type with recursive: patterns to exclude (e.g., ".git", "node_modules") */
+  excludePatterns?: string[];
+  /** For 'directory' type: maximum number of files to include */
+  maxFiles?: number;
+  /** For 'directory' type: maximum size per file in bytes */
+  maxFileSize?: number;
 
   // URL type configuration
   /** For 'url' type: URL to fetch */
@@ -81,6 +89,17 @@ export const DEFAULT_DYNAMIC_INPUT: Omit<DynamicInputConfig, "id"> = {
   directoryAggregation: "concatenate",
   namingPattern: "file_name",
   directorySeparator: "\n\n",
+  recursive: false,
+  excludePatterns: [
+    ".git",
+    "node_modules",
+    "__pycache__",
+    ".venv",
+    "venv",
+    ".mypy_cache",
+  ],
+  maxFiles: 100,
+  maxFileSize: 1048576,
 };
 
 /**
@@ -111,4 +130,8 @@ export const NAMING_PATTERN_VARIABLES = [
   { name: "{file_ext}", description: "File extension" },
   { name: "{number}", description: "Zero-based index" },
   { name: "{base}", description: "Base variable name" },
+  {
+    name: "{relative_path}",
+    description: "Path relative to directory (sanitized)",
+  },
 ] as const;
