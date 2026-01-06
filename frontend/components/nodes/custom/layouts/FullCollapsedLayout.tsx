@@ -44,6 +44,7 @@ const FullCollapsedLayout = memo(
     onNameChange,
     onNameSave,
     onNameKeyDown,
+    onContextMenu,
   }: CustomNodeCollapsedProps) => {
     const { theme } = useTheme();
     const themeColors = getThemeColors(theme, schema.ui.theme_key);
@@ -202,10 +203,13 @@ const FullCollapsedLayout = memo(
               />
             ))}
 
-          {/* Link handles on top/bottom (from additional_handles) */}
-          {/* Filter out left-positioned handles (they're already rendered as hidden handles) */}
+          {/* Link handles on top/bottom/right, and left-positioned sources (from additional_handles) */}
           {additionalHandles
-            .filter((handle) => handle.position !== "left")
+            .filter((handle) => {
+              // Show handles that are NOT left-positioned
+              // OR are left-positioned but are sources (outputs)
+              return handle.position !== "left" || handle.type === "source";
+            })
             .map((handle) => {
               const matchingInput = schema.ui.inputs.find(
                 (i) => i.id === handle.id,
@@ -253,6 +257,7 @@ const FullCollapsedLayout = memo(
               backgroundColor: bgColor,
               color: themeColors?.text || "#ffffff",
             }}
+            onContextMenu={onContextMenu}
           >
             {nodeData.isNodeLocked && (
               <Lock className="w-3 h-3 flex-shrink-0 opacity-80" />

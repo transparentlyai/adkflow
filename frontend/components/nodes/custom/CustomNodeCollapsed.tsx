@@ -38,6 +38,8 @@ export interface CustomNodeCollapsedProps {
   onNameChange: (value: string) => void;
   onNameSave: () => void;
   onNameKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  // Context menu
+  onContextMenu?: (e: React.MouseEvent) => void;
 }
 
 /**

@@ -1,7 +1,15 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { Lock, Unlock, Unlink, Copy, Scissors, Clipboard } from "lucide-react";
+import {
+  Lock,
+  Unlock,
+  Unlink,
+  Copy,
+  Scissors,
+  Clipboard,
+  Trash2,
+} from "lucide-react";
 import { formatShortcut } from "@/lib/utils";
 
 interface NodeContextMenuProps {
@@ -14,6 +22,7 @@ interface NodeContextMenuProps {
   onCopy?: () => void;
   onCut?: () => void;
   onPaste?: () => void;
+  onDelete?: () => void;
   hasClipboard?: boolean;
   isCanvasLocked?: boolean;
 }
@@ -28,6 +37,7 @@ export default function NodeContextMenu({
   onCopy,
   onCut,
   onPaste,
+  onDelete,
   hasClipboard,
   isCanvasLocked,
 }: NodeContextMenuProps) {
@@ -112,7 +122,28 @@ export default function NodeContextMenu({
             </span>
           </button>
         )}
-        {(onCopy || onCut || onPaste) && (
+        {onDelete && (
+          <button
+            onClick={() => {
+              if (!isCanvasLocked && !isLocked) {
+                onDelete();
+                onClose();
+              }
+            }}
+            className={
+              isCanvasLocked || isLocked ? disabledClass : menuItemClass
+            }
+          >
+            <span className="mr-2 text-muted-foreground">
+              <Trash2 className="h-4 w-4" />
+            </span>
+            Delete
+            <span className="ml-auto text-xs text-muted-foreground">
+              {formatShortcut("⌫")}
+            </span>
+          </button>
+        )}
+        {(onCopy || onCut || onPaste || onDelete) && (
           <div className="my-1 h-px bg-border" />
         )}
         <button
