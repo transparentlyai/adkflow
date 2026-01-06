@@ -34,6 +34,7 @@ vi.mock("@xyflow/react", () => ({
   useStoreApi: vi.fn(() => ({
     getState: vi.fn(() => ({
       nodeInternals: new Map(),
+      nodes: [],
       edges: [],
     })),
     setState: vi.fn(),
@@ -66,6 +67,20 @@ vi.mock("@xyflow/react", () => ({
     type?: string;
     position?: string;
   }) => null,
+  NodeResizer: ({
+    isVisible,
+    onResizeEnd,
+  }: {
+    isVisible?: boolean;
+    onResizeEnd?: () => void;
+    minWidth?: number;
+    minHeight?: number;
+    lineStyle?: object;
+    handleStyle?: object;
+  }) =>
+    isVisible
+      ? React.createElement("div", { "data-testid": "node-resizer" })
+      : null,
   Position: { Top: "top", Bottom: "bottom", Left: "left", Right: "right" },
   MarkerType: { Arrow: "arrow", ArrowClosed: "arrowclosed" },
   ConnectionMode: { Strict: "strict", Loose: "loose" },
