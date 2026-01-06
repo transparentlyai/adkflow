@@ -642,3 +642,131 @@ class TestUpstreamOutputKeys:
         agent2 = ir.all_agents.get("a2")
         assert agent2 is not None
         assert agent2.upstream_output_keys == []
+
+    def test_upstream_output_keys_strips_braces(self, tmp_path):
+        """Curly braces in output_key are stripped when resolving upstream keys."""
+        manifest = {
+            "name": "test",
+            "version": "3.0",
+            "tabs": [{"id": "tab1", "name": "Main"}],
+            "nodes": [
+                {
+                    "id": "start",
+                    "type": "start",
+                    "position": {"x": 0, "y": 0},
+                    "data": {"tabId": "tab1"},
+                },
+                {
+                    "id": "a1",
+                    "type": "agent",
+                    "position": {"x": 100, "y": 0},
+                    "data": {
+                        "tabId": "tab1",
+                        "config": {
+                            "name": "WriterAgent",
+                            "description": "Writes a poem",
+                            "output_key": "{poem}",  # User entered with braces
+                        },
+                    },
+                },
+                {
+                    "id": "a2",
+                    "type": "agent",
+                    "position": {"x": 200, "y": 0},
+                    "data": {
+                        "tabId": "tab1",
+                        "config": {
+                            "name": "ReviewerAgent",
+                            "description": "Reviews the poem",
+                        },
+                    },
+                },
+            ],
+            "edges": [
+                {
+                    "id": "e1",
+                    "source": "start",
+                    "target": "a1",
+                    "sourceHandle": "start",
+                    "targetHandle": "input",
+                },
+                {
+                    "id": "e2",
+                    "source": "a1",
+                    "target": "a2",
+                    "sourceHandle": "output",
+                    "targetHandle": "agent-input",
+                },
+            ],
+        }
+        (tmp_path / "manifest.json").write_text(json.dumps(manifest))
+
+        loader = ProjectLoader()
+        parser = FlowParser()
+        builder = GraphBuilder()
+        transformer = IRTransformer()
+
+        project = loader.load(tmp_path)
+        parsed = parser.parse_project(project)
+        graph = builder.build(parsed)
+        ir = transformer.transform(graph, project)
+
+        # The second agent should have "poem" without braces
+        agent2 = ir.all_agents.get("a2")
+        assert agent2 is not None
+        assert "poem" in agent2.upstream_output_keys
+        assert "{poem}" not in agent2.upstream_output_keys
+
+    def test_agent_output_key_strips_braces(self, tmp_path):
+        """Curly braces in output_key are stripped from the agent's own output_key."""
+        manifest = {
+            "name": "test",
+            "version": "3.0",
+            "tabs": [{"id": "tab1", "name": "Main"}],
+            "nodes": [
+                {
+                    "id": "start",
+                    "type": "start",
+                    "position": {"x": 0, "y": 0},
+                    "data": {"tabId": "tab1"},
+                },
+                {
+                    "id": "a1",
+                    "type": "agent",
+                    "position": {"x": 100, "y": 0},
+                    "data": {
+                        "tabId": "tab1",
+                        "config": {
+                            "name": "WriterAgent",
+                            "description": "Writes a poem",
+                            "output_key": "{poem}",  # User entered with braces
+                        },
+                    },
+                },
+            ],
+            "edges": [
+                {
+                    "id": "e1",
+                    "source": "start",
+                    "target": "a1",
+                    "sourceHandle": "start",
+                    "targetHandle": "input",
+                },
+            ],
+        }
+        (tmp_path / "manifest.json").write_text(json.dumps(manifest))
+
+        loader = ProjectLoader()
+        parser = FlowParser()
+        builder = GraphBuilder()
+        transformer = IRTransformer()
+
+        project = loader.load(tmp_path)
+        parsed = parser.parse_project(project)
+        graph = builder.build(parsed)
+        ir = transformer.transform(graph, project)
+
+        # The agent's own output_key should have braces stripped
+        agent1 = ir.all_agents.get("a1")
+        assert agent1 is not None
+        assert agent1.output_key == "poem"  # Not "{poem}"

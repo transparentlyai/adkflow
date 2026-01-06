@@ -198,6 +198,8 @@ def resolve_upstream_output_keys(
                 config = get_node_config(source_node.data)
                 output_key = config.get("output_key")
                 if output_key:
+                    # Normalize: strip curly braces if user entered them
+                    output_key = output_key.strip("{}")
                     output_keys.append(output_key)
                     _log.debug(
                         "Found upstream output_key",

@@ -250,7 +250,8 @@ class IRTransformer:
             instruction=instruction,
             temperature=agent_data.get("temperature", self.config.default_temperature),
             tools=tools,
-            output_key=agent_data.get("output_key"),
+            # Normalize: strip curly braces if user entered them
+            output_key=(agent_data.get("output_key") or "").strip("{}") or None,
             output_schema=agent_data.get("output_schema"),
             input_schema=agent_data.get("input_schema"),
             include_contents=resolve_include_contents(agent_data),
