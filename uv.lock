@@ -20,6 +20,7 @@ dependencies = [
     { name = "adkflow-runner" },
     { name = "click" },
     { name = "fastapi" },
+    { name = "gemtoken" },
     { name = "pydantic" },
     { name = "python-dotenv" },
     { name = "rich" },
@@ -47,6 +48,7 @@ requires-dist = [
     { name = "adkflow-runner", editable = "packages/adkflow-runner" },
     { name = "click", specifier = ">=8.1.0" },
     { name = "fastapi", specifier = ">=0.121.3" },
+    { name = "gemtoken", git = "https://github.com/transparentlyai/gemtoken" },
     { name = "pydantic", specifier = ">=2.12.4" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "rich", specifier = ">=14.2.0" },
@@ -457,6 +459,14 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/52/08/8c8508db6c7b9aae8f7175046af41baad690771c9bcde676419965e338c7/fastapi-0.128.0.tar.gz", hash = "sha256:1cc179e1cef10a6be60ffe429f79b829dce99d8de32d7acb7e6c8dfdf7f2645a", size = 365682, upload-time = "2025-12-27T15:21:13.714Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5c/05/5cbb59154b093548acd0f4c7c474a118eda06da25aa75c616b72d8fcd92a/fastapi-0.128.0-py3-none-any.whl", hash = "sha256:aebd93f9716ee3b4f4fcfe13ffb7cf308d99c9f3ab5622d8877441072561582d", size = 103094, upload-time = "2025-12-27T15:21:12.154Z" },
+]
+
+[[package]]
+name = "gemtoken"
+version = "0.1.1"
+source = { git = "https://github.com/transparentlyai/gemtoken#73a9f20ce42fe78114da5f3c0d4390e6d2802c06" }
+dependencies = [
+    { name = "google-genai" },
 ]
 
 [[package]]

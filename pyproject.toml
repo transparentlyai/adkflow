@@ -8,6 +8,7 @@ dependencies = [
     "adkflow-runner",
     "click>=8.1.0",
     "fastapi>=0.121.3",
+    "gemtoken",
     "pydantic>=2.12.4",
     "python-dotenv>=1.0.0",
     "rich>=14.2.0",
@@ -30,6 +31,7 @@ members = ["packages/adkflow-runner"]
 
 [tool.uv.sources]
 adkflow-runner = { workspace = true }
+gemtoken = { git = "https://github.com/transparentlyai/gemtoken" }
 
 [dependency-groups]
 dev = [

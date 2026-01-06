@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, File, Folder, Globe, Cable } from "lucide-react";
+import { ChevronDown, File, Folder, Globe, Cable, Eye } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useProject } from "@/contexts/ProjectContext";
 import { DynamicInputRow } from "./DynamicInputRow";
+import { ContextPreviewPanel } from "./preview";
 import type {
   DynamicInputConfig,
   DynamicInputType,
@@ -69,11 +71,14 @@ export function DynamicInputEditor({
   headerColor,
 }: DynamicInputEditorProps) {
   const { theme } = useTheme();
+  const { projectPath } = useProject();
 
   // Track which input is expanded (accordion - only one at a time)
   const [expandedInputId, setExpandedInputId] = useState<string | null>(null);
   // Track add input dropdown state
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+  // Track preview panel state
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const addMenuRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -316,20 +321,38 @@ export function DynamicInputEditor({
         >
           Inputs ({inputs.length})
         </span>
-        <div className="relative" ref={addMenuRef}>
+        <div className="flex items-center gap-1">
+          {/* Preview button */}
           <button
             type="button"
-            onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
-            disabled={isNodeLocked}
+            onClick={() => setIsPreviewOpen(true)}
+            disabled={isNodeLocked || inputs.length === 0 || !projectPath}
             className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] border hover:bg-accent transition-colors disabled:opacity-50"
             style={{
               borderColor: theme.colors.nodes.common.container.border,
               color: theme.colors.nodes.common.text.primary,
             }}
+            title="Preview aggregation results"
           >
-            Add Input
-            <ChevronDown className="w-3 h-3" />
+            <Eye className="w-3 h-3" />
+            Preview
           </button>
+
+          {/* Add Input dropdown */}
+          <div className="relative" ref={addMenuRef}>
+            <button
+              type="button"
+              onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
+              disabled={isNodeLocked}
+              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] border hover:bg-accent transition-colors disabled:opacity-50"
+              style={{
+                borderColor: theme.colors.nodes.common.container.border,
+                color: theme.colors.nodes.common.text.primary,
+              }}
+            >
+              Add Input
+              <ChevronDown className="w-3 h-3" />
+            </button>
           {isAddMenuOpen && (
             <div
               className="absolute right-0 top-full mt-1 py-1 rounded border shadow-lg z-50 min-w-[120px]"
@@ -352,6 +375,7 @@ export function DynamicInputEditor({
               ))}
             </div>
           )}
+          </div>
         </div>
       </div>
 
@@ -387,6 +411,21 @@ export function DynamicInputEditor({
             />
           ))}
         </div>
+      )}
+
+      {/* Preview Panel */}
+      {projectPath && (
+        <ContextPreviewPanel
+          isOpen={isPreviewOpen}
+          onClose={() => setIsPreviewOpen(false)}
+          inputs={inputs}
+          aggregationMode={aggregationMode}
+          separator={separator}
+          outputVariableName={outputVariableName}
+          includeMetadata={includeMetadata}
+          projectPath={projectPath}
+          connectedInputs={connectedInputs}
+        />
       )}
     </div>
   );

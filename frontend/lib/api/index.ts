@@ -86,3 +86,12 @@ export type {
   RunInfo,
   RunListResponse,
 } from "./logs";
+
+// Context Preview APIs
+export { previewContextAggregation } from "./contextPreview";
+export type {
+  FileInfo,
+  PreviewResult,
+  PreviewResponse,
+  PreviewRequest,
+} from "./contextPreview";

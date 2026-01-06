@@ -135,3 +135,66 @@ export const NAMING_PATTERN_VARIABLES = [
     description: "Path relative to directory (sanitized)",
   },
 ] as const;
+
+// -----------------------------------------------------------------------------
+// Preview Display Configuration
+// -----------------------------------------------------------------------------
+
+/**
+ * Display hint for a property in the preview panel.
+ *
+ * Used by GenericPropertyDisplay to customize how properties are rendered.
+ * This enables schema-driven preview rendering without hardcoding field names.
+ */
+export interface PreviewDisplayHint {
+  /** Override display label (defaults to property key with spaces) */
+  label?: string;
+  /** How to format the value */
+  displayAs?: "text" | "path" | "code" | "list" | "boolean" | "number";
+  /** Whether to hide this property from preview display */
+  hidden?: boolean;
+}
+
+/**
+ * Preview display hints for DynamicInputConfig properties.
+ *
+ * Properties not listed here will be displayed with their key as the label.
+ * This allows new properties to automatically appear in the preview without
+ * code changes, while still providing customization for known properties.
+ *
+ * @example
+ * ```typescript
+ * // Adding hints for a new property:
+ * PREVIEW_DISPLAY_HINTS["myNewProperty"] = {
+ *   label: "My New Property",
+ *   displayAs: "text",
+ * };
+ * ```
+ */
+export const PREVIEW_DISPLAY_HINTS: Record<string, PreviewDisplayHint> = {
+  // Hidden properties (internal IDs)
+  id: { hidden: true },
+  inputType: { hidden: true },
+
+  // Common properties
+  label: { label: "Label" },
+  variableName: { label: "Variable", displayAs: "code" },
+
+  // File properties
+  filePath: { label: "File Path", displayAs: "path" },
+
+  // Directory properties
+  directoryPath: { label: "Directory", displayAs: "path" },
+  globPattern: { label: "Pattern", displayAs: "code" },
+  directoryAggregation: { label: "Aggregation" },
+  namingPattern: { label: "Naming" },
+  customPattern: { label: "Custom Pattern", displayAs: "code" },
+  directorySeparator: { label: "Separator", displayAs: "code" },
+  recursive: { label: "Recursive", displayAs: "boolean" },
+  excludePatterns: { label: "Exclude", displayAs: "list" },
+  maxFiles: { label: "Max Files", displayAs: "number" },
+  maxFileSize: { label: "Max Size", displayAs: "number" },
+
+  // URL properties
+  url: { label: "URL" },
+};

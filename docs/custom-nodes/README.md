@@ -853,6 +853,76 @@ class DatabaseNode(FlowUnit):
 
 ---
 
+## Context Aggregator Preview
+
+The Context Aggregator node includes a preview feature that allows you to inspect aggregation results before running the workflow.
+
+### Using Preview
+
+1. Add inputs to your Context Aggregator node
+2. Click the **Preview** button in the inputs section header
+3. A side panel opens showing the aggregated content for each input
+
+### Preview Behavior by Input Type
+
+| Input Type | Preview Behavior |
+|------------|------------------|
+| **File** | Shows file content with syntax highlighting |
+| **Directory** | Shows matched files count, expandable file list with content |
+| **URL** | Fetches and displays URL content with HTTP status |
+| **Node** | Shows placeholder: `--- {input-name} Value Resolved at Runtime ---` |
+
+### Schema-Driven Display
+
+The preview system is schema-driven for extensibility:
+
+- **Automatic property display**: New properties added to `DynamicInputConfig` automatically appear in preview
+- **PREVIEW_DISPLAY_HINTS**: Customize how properties are displayed in the preview panel
+- **GenericPropertyDisplay**: Fallback widget for unknown properties
+
+```typescript
+// Add custom display hints for new properties
+PREVIEW_DISPLAY_HINTS["myNewProperty"] = {
+  label: "My New Property",
+  displayAs: "code",
+};
+```
+
+### API Endpoint
+
+Preview uses the `/api/context-aggregator/preview` endpoint:
+
+```typescript
+POST /api/context-aggregator/preview
+{
+  "projectPath": "/path/to/project",
+  "dynamicInputs": [...],
+  "aggregationMode": "pass",
+  "separator": "\\n\\n---",
+  "outputVariableName": "context",
+  "includeMetadata": true,
+  "maxContentSize": 10240
+}
+```
+
+**Response:**
+```typescript
+{
+  "results": {
+    "input_id": {
+      "variableName": "my_var",
+      "content": "file content...",
+      "metadata": { "source_path": "..." },
+      "truncated": false,
+      "totalSize": 1234
+    }
+  },
+  "errors": []
+}
+```
+
+---
+
 ## Troubleshooting
 
 ### Node Not Appearing
