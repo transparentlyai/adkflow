@@ -378,7 +378,7 @@ async def process_adk_event(
                     type=EventType.AGENT_OUTPUT,
                     timestamp=time.time(),
                     agent_name=author,
-                    data={"output": text[:2000], "is_final": is_final},
+                    data={"output": text, "is_final": is_final},
                 )
             )
 

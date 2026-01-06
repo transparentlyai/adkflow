@@ -407,8 +407,8 @@ class TestProcessAdkEvent:
         assert call_args.data["output"] == "Hello, world!"
 
     @pytest.mark.asyncio
-    async def test_truncates_long_output(self):
-        """Truncates output longer than 2000 characters."""
+    async def test_handles_long_output(self):
+        """Handles long output without truncation."""
         emit = AsyncMock()
 
         long_text = "x" * 3000
@@ -427,4 +427,5 @@ class TestProcessAdkEvent:
         await process_adk_event(mock_event, emit, None)
 
         call_args = emit.call_args[0][0]
-        assert len(call_args.data["output"]) == 2000
+        assert call_args.data["output"] == long_text
+        assert len(call_args.data["output"]) == 3000
