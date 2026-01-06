@@ -83,6 +83,53 @@ def render_mermaid(ir: WorkflowIR) -> str:
             # Return the last leaf node for outgoing connections
             last_leaf = child_results[-1][1] if child_results else node_id
             return (node_id, last_leaf)
+        elif agent.type == "llm" and agent.subagents:
+            # LLM agent with explicit sub-agents (via plug → sub-agents handles)
+            # Render as subgraph with distinct styling (dashed stroke)
+            # Layout: parent on top, children side-by-side below
+            label = _get_agent_label(agent)
+            lines.append(f'{indent}subgraph {node_id}["{label} + Sub-Agents"]')
+            lines.append(
+                f"{indent}    direction TB"
+            )  # Top-to-bottom: parent above children
+
+            # Render the parent agent itself as a node inside the subgraph
+            parent_node_id = get_node_id()
+            lines.append(f'{indent}    {parent_node_id}["{label}"]')
+            styles.append(
+                f"style {parent_node_id} fill:#4ade80,stroke:#166534,stroke-width:2px"
+            )
+
+            # Create inner subgraph for horizontal layout of children
+            child_results: list[tuple[str, str]] = []
+            if agent.subagents:
+                children_subgraph_id = get_node_id()
+                lines.append(f'{indent}    subgraph {children_subgraph_id}[" "]')
+                lines.append(
+                    f"{indent}        direction LR"
+                )  # Left-to-right: side-by-side
+
+                for subagent in agent.subagents:
+                    result = render_agent(subagent, indent + "        ", depth + 1)
+                    child_results.append(result)
+                    # Add connection from parent to each child (curved by Mermaid layout)
+                    connections.append((parent_node_id, result[0]))
+
+                lines.append(f"{indent}    end")
+                # Make children subgraph container invisible
+                styles.append(
+                    f"style {children_subgraph_id} fill:transparent,stroke:transparent"
+                )
+
+            lines.append(f"{indent}end")
+
+            # Distinct style for LLM+subagents: purple/violet with dashed stroke
+            styles.append(
+                f"style {node_id} fill:#2d1f4e,stroke:#a78bfa,stroke-width:2px,stroke-dasharray:5 5,color:#e0e7ff"
+            )
+
+            # Return the subgraph ID, but parent_node_id as the leaf for connections
+            return (node_id, parent_node_id)
         else:
             # LLM agents become nodes
             label = _get_agent_label(agent)
@@ -186,6 +233,15 @@ def render_ascii(ir: WorkflowIR) -> str:
             for i, subagent in enumerate(agent.subagents):
                 is_last_child = i == len(agent.subagents) - 1
                 render_agent(subagent, child_prefix, is_last_child, depth + 1)
+        elif agent.type == "llm" and agent.subagents:
+            # LLM agent with explicit sub-agents
+            agent_info = _get_agent_info(agent)
+            lines.append(f"{prefix}{connector}{agent_info} [+subagents]")
+
+            # Render sub-agents
+            for i, subagent in enumerate(agent.subagents):
+                is_last_child = i == len(agent.subagents) - 1
+                render_agent(subagent, child_prefix, is_last_child, depth + 1)
         else:
             # LLM agent
             agent_info = _get_agent_info(agent)
@@ -200,6 +256,18 @@ def render_ascii(ir: WorkflowIR) -> str:
     if ir.root_agent.is_composite():
         wrapper_info = _get_wrapper_info(ir.root_agent)
         lines.append(wrapper_info)
+        for i, subagent in enumerate(ir.root_agent.subagents):
+            is_last = (
+                i == len(ir.root_agent.subagents) - 1
+                and not has_user_inputs
+                and not has_output_files
+                and not has_end_node
+            )
+            render_agent(subagent, "", is_last, 0)
+    elif ir.root_agent.type == "llm" and ir.root_agent.subagents:
+        # Root is an LLM agent with explicit sub-agents
+        agent_info = _get_agent_info(ir.root_agent)
+        lines.append(f"{agent_info} [+subagents]")
         for i, subagent in enumerate(ir.root_agent.subagents):
             is_last = (
                 i == len(ir.root_agent.subagents) - 1
