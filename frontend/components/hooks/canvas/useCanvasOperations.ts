@@ -101,18 +101,32 @@ export function useCanvasOperations({
   const focusNode = useCallback(
     (nodeId: string) => {
       if (!rfInstance) return;
-      const node = nodes.find((n) => n.id === nodeId);
+      // Use rfInstance.getNodes() to always get the latest nodes from React Flow's store
+      // This avoids stale closure issues when focusNode is called after restoreFlow
+      const currentNodes = rfInstance.getNodes();
+      const node = currentNodes.find((n) => n.id === nodeId);
       if (!node) return;
 
+      // Calculate absolute position (child nodes have positions relative to parent)
+      let absoluteX = node.position.x;
+      let absoluteY = node.position.y;
+      if (node.parentId) {
+        const parentNode = currentNodes.find((n) => n.id === node.parentId);
+        if (parentNode) {
+          absoluteX += parentNode.position.x;
+          absoluteY += parentNode.position.y;
+        }
+      }
+
       // Center on node
-      const x = node.position.x + (node.measured?.width ?? 100) / 2;
-      const y = node.position.y + (node.measured?.height ?? 50) / 2;
+      const x = absoluteX + (node.measured?.width ?? 100) / 2;
+      const y = absoluteY + (node.measured?.height ?? 50) / 2;
       rfInstance.setCenter(x, y, { zoom: 1, duration: 300 });
 
       // Select the node
       setNodes((nds) => nds.map((n) => ({ ...n, selected: n.id === nodeId })));
     },
-    [rfInstance, nodes, setNodes],
+    [rfInstance, setNodes],
   );
 
   return {
