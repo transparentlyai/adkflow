@@ -221,6 +221,47 @@ UISchema(
 )
 ```
 
+### Unconventional Handle Positions
+
+While inputs typically go on the left and outputs on the right, you can override this
+using `additional_handles` for semantic clarity. This is useful when the visual flow
+direction differs from the data flow direction.
+
+Example: Sub-agent connections where children "plug into" a parent on the right:
+
+```python
+UISchema(
+    handle_layout=HandleLayout(
+        input_position="left",
+        output_position="right",
+        additional_handles=[
+            # Input on RIGHT (children plug into this)
+            AdditionalHandle(
+                id="sub-agents",
+                type="target",      # target = input
+                position="right",   # Unconventional: input on right
+                label="Receive sub-agents",
+            ),
+            # Output on LEFT (this plugs into parents)
+            AdditionalHandle(
+                id="plug",
+                type="source",      # source = output
+                position="left",    # Unconventional: output on left
+                label="Plug into parent agent",
+            ),
+        ],
+    ),
+)
+```
+
+This pattern creates a visual flow where children connect from the left into parents on the right:
+
+```
+[Child A]◄(plug)───┐
+[Child B]◄(plug)───┼──→(sub-agents)►[Parent]
+[Child C]◄(plug)───┘
+```
+
 See [Node Layouts](./node-layouts.md) for details.
 
 ## Complete Example

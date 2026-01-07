@@ -87,6 +87,10 @@ class IRTransformer:
         if not root_agent:
             raise CompilationError("Failed to build agent hierarchy from root agents")
 
+        # Process explicit sub-agent connections (plug → sub-agents handles)
+        # This adds agents connected via SUBAGENT edges to their parent's subagents
+        hierarchy_builder.process_subagent_edges()
+
         # Transform teleporters
         teleporters = {
             pair.name: TeleporterIR(

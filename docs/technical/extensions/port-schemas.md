@@ -98,6 +98,56 @@ PortDefinition(
 )
 ```
 
+## Agent Adoption (`adopt`)
+
+The `adopt` data type enables parent-child agent relationships (sub-agents). This allows agents to be connected as sub-agents to a parent agent, which the parent can then delegate tasks to.
+
+### Plug Output (Child Agent)
+
+The child agent exposes a `plug` output that signals it can be adopted:
+
+```python
+PortDefinition(
+    id="plug",
+    label="Plug",
+    source_type="agent",
+    data_type="adopt",  # Signals this agent can be adopted
+)
+```
+
+### Sub-Agents Input (Parent Agent)
+
+The parent agent has a `sub-agents` input that accepts adoption connections:
+
+```python
+PortDefinition(
+    id="sub-agents",
+    label="Sub-Agents",
+    source_type="agent",
+    data_type="adopt",
+    accepted_sources=["agent"],
+    accepted_types=["adopt"],  # Only accepts adopt connections
+    multiple=True,  # Accept multiple sub-agents
+    connection_only=True,
+)
+```
+
+### Visual Flow
+
+The connection flows from child to parent:
+
+```
+[Child Agent]◄(Plug)────→(Sub-Agents)►[Parent Agent]
+```
+
+Multiple agents can plug into a single parent:
+
+```
+[Agent A]◄(Plug)───┐
+[Agent B]◄(Plug)───┼──→(Sub-Agents)►[Coordinator]
+[Agent C]◄(Plug)───┘
+```
+
 ## Optional Inputs
 
 ```python

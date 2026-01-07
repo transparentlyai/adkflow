@@ -48,12 +48,17 @@ const ExpandedNodeHandles = memo(
             It only appears in collapsed mode (StandardLayout, FullCollapsedLayout).
             Individual input handles are rendered inline by CustomNodeInput. */}
 
-        {/* Additional handles (top/bottom only - not left/right since those are rendered inline) */}
+        {/* Additional handles at node edges
+            - top/bottom: rendered at edge (link handles for chaining)
+            - left/right: NOT rendered here - they are rendered inline by
+              CustomNodeInput (for right-positioned inputs like sub-agents) and
+              CustomNodeOutput (for left-positioned outputs like plug) */}
         {additionalHandles
-          .filter(
-            (handle) =>
-              handle.position !== "left" && handle.position !== "right",
-          )
+          .filter((handle) => {
+            // Only render top/bottom positioned handles at the edge
+            // Left/right positioned handles are rendered inline by CustomNodeInput/CustomNodeOutput
+            return handle.position === "top" || handle.position === "bottom";
+          })
           .map((handle) => {
             const matchingInput = schema.ui.inputs.find(
               (i) => i.id === handle.id,
