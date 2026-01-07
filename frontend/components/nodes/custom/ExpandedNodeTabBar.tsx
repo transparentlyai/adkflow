@@ -24,7 +24,7 @@ const ExpandedNodeTabBar = memo(
   }: ExpandedNodeTabBarProps) => {
     return (
       <div
-        className="flex border-b"
+        className="flex border-b overflow-x-auto scrollbar-none"
         style={{
           borderColor: theme.colors.nodes.common.container.border,
         }}
@@ -33,7 +33,7 @@ const ExpandedNodeTabBar = memo(
           <button
             key={tab}
             onClick={() => onTabChange(tab)}
-            className={`px-2 py-1 text-[10px] font-medium ${activeTab === tab ? "border-b-2" : ""}`}
+            className={`px-2 py-1 text-[10px] font-medium whitespace-nowrap flex-shrink-0 ${activeTab === tab ? "border-b-2" : ""}`}
             style={{
               borderColor: activeTab === tab ? headerColor : "transparent",
               color:

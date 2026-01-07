@@ -565,3 +565,262 @@ class TestCallbacksConfig:
         assert ir.root_agent.callbacks.after_model == "my_after_model"
         assert ir.root_agent.callbacks.before_tool == "my_before_tool"
         assert ir.root_agent.callbacks.after_tool == "my_after_tool"
+
+
+class TestGenerateContentConfig:
+    """Tests for GenerateContentConfig extraction."""
+
+    def test_extract_generate_content_config(self, tmp_path):
+        """Extract generate content configuration from agent."""
+        manifest = {
+            "name": "test",
+            "version": "3.0",
+            "tabs": [{"id": "tab1", "name": "Main"}],
+            "nodes": [
+                {
+                    "id": "start",
+                    "type": "start",
+                    "position": {"x": 0, "y": 0},
+                    "data": {"tabId": "tab1"},
+                },
+                {
+                    "id": "a1",
+                    "type": "agent",
+                    "position": {"x": 100, "y": 0},
+                    "data": {
+                        "tabId": "tab1",
+                        "config": {
+                            "name": "Agent",
+                            "description": "Test",
+                            "max_output_tokens": 2048,
+                            "top_p": 0.9,
+                            "top_k": 40,
+                            "stop_sequences": "STOP\nEND",
+                            "presence_penalty": 0.5,
+                            "frequency_penalty": 0.3,
+                            "seed": 42,
+                            "response_mime_type": "application/json",
+                        },
+                    },
+                },
+            ],
+            "edges": [
+                {"id": "e1", "source": "start", "target": "a1"},
+            ],
+        }
+        (tmp_path / "manifest.json").write_text(json.dumps(manifest))
+
+        loader = ProjectLoader()
+        parser = FlowParser()
+        builder = GraphBuilder()
+        transformer = IRTransformer()
+
+        project = loader.load(tmp_path)
+        parsed = parser.parse_project(project)
+        graph = builder.build(parsed)
+        ir = transformer.transform(graph, project)
+
+        # Check GenerateContentConfig fields
+        assert ir.root_agent.generate_content.max_output_tokens == 2048
+        assert ir.root_agent.generate_content.top_p == 0.9
+        assert ir.root_agent.generate_content.top_k == 40
+        assert ir.root_agent.generate_content.stop_sequences == ["STOP", "END"]
+        assert ir.root_agent.generate_content.presence_penalty == 0.5
+        assert ir.root_agent.generate_content.frequency_penalty == 0.3
+        assert ir.root_agent.generate_content.seed == 42
+        assert ir.root_agent.generate_content.response_mime_type == "application/json"
+
+    def test_stop_sequences_parsing(self, tmp_path):
+        """Stop sequences are parsed from newline-separated string."""
+        manifest = {
+            "name": "test",
+            "version": "3.0",
+            "tabs": [{"id": "tab1", "name": "Main"}],
+            "nodes": [
+                {
+                    "id": "start",
+                    "type": "start",
+                    "position": {"x": 0, "y": 0},
+                    "data": {"tabId": "tab1"},
+                },
+                {
+                    "id": "a1",
+                    "type": "agent",
+                    "position": {"x": 100, "y": 0},
+                    "data": {
+                        "tabId": "tab1",
+                        "config": {
+                            "name": "Agent",
+                            "description": "Test",
+                            "stop_sequences": "STOP\n\nEND\nQUIT\n",
+                        },
+                    },
+                },
+            ],
+            "edges": [
+                {"id": "e1", "source": "start", "target": "a1"},
+            ],
+        }
+        (tmp_path / "manifest.json").write_text(json.dumps(manifest))
+
+        loader = ProjectLoader()
+        parser = FlowParser()
+        builder = GraphBuilder()
+        transformer = IRTransformer()
+
+        project = loader.load(tmp_path)
+        parsed = parser.parse_project(project)
+        graph = builder.build(parsed)
+        ir = transformer.transform(graph, project)
+
+        # Should strip empty lines and whitespace
+        assert ir.root_agent.generate_content.stop_sequences == ["STOP", "END", "QUIT"]
+
+    def test_empty_stop_sequences(self, tmp_path):
+        """Empty stop_sequences should be None."""
+        manifest = {
+            "name": "test",
+            "version": "3.0",
+            "tabs": [{"id": "tab1", "name": "Main"}],
+            "nodes": [
+                {
+                    "id": "start",
+                    "type": "start",
+                    "position": {"x": 0, "y": 0},
+                    "data": {"tabId": "tab1"},
+                },
+                {
+                    "id": "a1",
+                    "type": "agent",
+                    "position": {"x": 100, "y": 0},
+                    "data": {
+                        "tabId": "tab1",
+                        "config": {
+                            "name": "Agent",
+                            "description": "Test",
+                            "stop_sequences": "",
+                        },
+                    },
+                },
+            ],
+            "edges": [
+                {"id": "e1", "source": "start", "target": "a1"},
+            ],
+        }
+        (tmp_path / "manifest.json").write_text(json.dumps(manifest))
+
+        loader = ProjectLoader()
+        parser = FlowParser()
+        builder = GraphBuilder()
+        transformer = IRTransformer()
+
+        project = loader.load(tmp_path)
+        parsed = parser.parse_project(project)
+        graph = builder.build(parsed)
+        ir = transformer.transform(graph, project)
+
+        assert ir.root_agent.generate_content.stop_sequences is None
+
+
+class TestSafetyConfig:
+    """Tests for SafetyConfig extraction."""
+
+    def test_extract_safety_config(self, tmp_path):
+        """Extract safety configuration from agent."""
+        manifest = {
+            "name": "test",
+            "version": "3.0",
+            "tabs": [{"id": "tab1", "name": "Main"}],
+            "nodes": [
+                {
+                    "id": "start",
+                    "type": "start",
+                    "position": {"x": 0, "y": 0},
+                    "data": {"tabId": "tab1"},
+                },
+                {
+                    "id": "a1",
+                    "type": "agent",
+                    "position": {"x": 100, "y": 0},
+                    "data": {
+                        "tabId": "tab1",
+                        "config": {
+                            "name": "Agent",
+                            "description": "Test",
+                            "safety_harassment": "block_low",
+                            "safety_hate_speech": "block_medium",
+                            "safety_sexually_explicit": "block_high",
+                            "safety_dangerous_content": "off",
+                        },
+                    },
+                },
+            ],
+            "edges": [
+                {"id": "e1", "source": "start", "target": "a1"},
+            ],
+        }
+        (tmp_path / "manifest.json").write_text(json.dumps(manifest))
+
+        loader = ProjectLoader()
+        parser = FlowParser()
+        builder = GraphBuilder()
+        transformer = IRTransformer()
+
+        project = loader.load(tmp_path)
+        parsed = parser.parse_project(project)
+        graph = builder.build(parsed)
+        ir = transformer.transform(graph, project)
+
+        # Check SafetyConfig fields
+        assert ir.root_agent.safety.harassment == "block_low"
+        assert ir.root_agent.safety.hate_speech == "block_medium"
+        assert ir.root_agent.safety.sexually_explicit == "block_high"
+        assert ir.root_agent.safety.dangerous_content == "off"
+
+    def test_default_safety_config(self, tmp_path):
+        """Safety config defaults to 'default' for all categories."""
+        manifest = {
+            "name": "test",
+            "version": "3.0",
+            "tabs": [{"id": "tab1", "name": "Main"}],
+            "nodes": [
+                {
+                    "id": "start",
+                    "type": "start",
+                    "position": {"x": 0, "y": 0},
+                    "data": {"tabId": "tab1"},
+                },
+                {
+                    "id": "a1",
+                    "type": "agent",
+                    "position": {"x": 100, "y": 0},
+                    "data": {
+                        "tabId": "tab1",
+                        "config": {
+                            "name": "Agent",
+                            "description": "Test",
+                        },
+                    },
+                },
+            ],
+            "edges": [
+                {"id": "e1", "source": "start", "target": "a1"},
+            ],
+        }
+        (tmp_path / "manifest.json").write_text(json.dumps(manifest))
+
+        loader = ProjectLoader()
+        parser = FlowParser()
+        builder = GraphBuilder()
+        transformer = IRTransformer()
+
+        project = loader.load(tmp_path)
+        parsed = parser.parse_project(project)
+        graph = builder.build(parsed)
+        ir = transformer.transform(graph, project)
+
+        # All should be 'default'
+        assert ir.root_agent.safety.harassment == "default"
+        assert ir.root_agent.safety.hate_speech == "default"
+        assert ir.root_agent.safety.sexually_explicit == "default"
+        assert ir.root_agent.safety.dangerous_content == "default"

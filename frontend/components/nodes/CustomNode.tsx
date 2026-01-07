@@ -5,6 +5,7 @@ import { type NodeProps, useReactFlow, useStore } from "@xyflow/react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
 import NodeContextMenu from "@/components/NodeContextMenu";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 // Import types from dedicated types file
 import type {
@@ -227,13 +228,16 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
   });
 
   // File operations for nodes with code_editor widget
-  const { isSaving, isDirty, handleFileSave, handleChangeFile } =
-    useFileOperations(id, schema, config, isExpanded);
-
-  // Get file path from config (for passing to expanded view)
-  const filePath = useMemo(() => {
-    return (config.file_path as string) || "";
-  }, [config.file_path]);
+  const {
+    isSaving,
+    isDirty,
+    filePath,
+    handleFileSave,
+    handleChangeFile,
+    fileLoadConfirm,
+    handleConfirmLoad,
+    handleCancelLoad,
+  } = useFileOperations(id, schema, config, isExpanded);
 
   // Check if node has code editor field (for conditional props)
   const hasCodeEditor = useMemo(() => {
@@ -465,6 +469,17 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
           onDelete={handleDelete}
           hasClipboard={canvasActions?.hasClipboard}
           isCanvasLocked={canvasActions?.isLocked}
+        />
+      )}
+      {fileLoadConfirm && (
+        <ConfirmDialog
+          isOpen={true}
+          title="Replace existing content?"
+          description="Loading from file will replace the existing content in the editor. This cannot be undone."
+          confirmLabel="Load File"
+          cancelLabel="Keep Existing"
+          onConfirm={handleConfirmLoad}
+          onCancel={handleCancelLoad}
         />
       )}
     </>

@@ -301,7 +301,7 @@ export function createHttpOptionsFields(): FieldDefinition[] {
 }
 
 /**
- * Flow tab fields (shared by all models).
+ * Flow tab fields (transfer controls + schema validation).
  */
 export function createFlowFields(): FieldDefinition[] {
   return [
@@ -325,23 +325,15 @@ export function createFlowFields(): FieldDefinition[] {
       section: "Transfer Controls",
       tab: "Flow",
     },
-  ];
-}
-
-/**
- * Schema tab fields (shared by all models).
- */
-export function createSchemaFields(): FieldDefinition[] {
-  return [
     {
       id: "input_schema",
       label: "Input Schema",
       widget: "text",
       default: "",
       placeholder: "e.g., models.TaskInput",
-      help_text: "Pydantic BaseModel class path",
-      section: "Schema Validation",
-      tab: "Schema",
+      help_text: "Pydantic BaseModel class path for input validation",
+      section: "Schema",
+      tab: "Flow",
     },
     {
       id: "output_schema",
@@ -349,9 +341,9 @@ export function createSchemaFields(): FieldDefinition[] {
       widget: "text",
       default: "",
       placeholder: "e.g., models.TaskOutput",
-      help_text: "Pydantic BaseModel class path",
-      section: "Schema Validation",
-      tab: "Schema",
+      help_text: "Pydantic BaseModel class path for output validation",
+      section: "Schema",
+      tab: "Flow",
     },
   ];
 }
@@ -361,6 +353,26 @@ export function createSchemaFields(): FieldDefinition[] {
  */
 export function createCallbacksFields(): FieldDefinition[] {
   return [
+    {
+      id: "before_agent_callback",
+      label: "Before Agent Callback",
+      widget: "text",
+      default: "",
+      placeholder: "e.g., callbacks/setup.py",
+      help_text: "Callback function to run before agent execution",
+      section: "Agent Callbacks",
+      tab: "Callbacks",
+    },
+    {
+      id: "after_agent_callback",
+      label: "After Agent Callback",
+      widget: "text",
+      default: "",
+      placeholder: "e.g., callbacks/cleanup.py",
+      help_text: "Callback function to run after agent execution",
+      section: "Agent Callbacks",
+      tab: "Callbacks",
+    },
     {
       id: "before_model_callback",
       label: "Before Model Callback",
@@ -400,6 +412,193 @@ export function createCallbacksFields(): FieldDefinition[] {
       help_text: "Callback function to run after tool execution",
       section: "Tool Callbacks",
       tab: "Callbacks",
+    },
+  ];
+}
+
+/**
+ * Safety threshold options for harm categories.
+ */
+const SAFETY_THRESHOLD_OPTIONS = [
+  { value: "default", label: "Default" },
+  { value: "off", label: "Off (no filtering)" },
+  { value: "block_none", label: "Block None" },
+  { value: "block_low", label: "Block Low & Above" },
+  { value: "block_medium", label: "Block Medium & Above" },
+  { value: "block_high", label: "Block High Only" },
+];
+
+/**
+ * Generation tab fields (GenerateContentConfig + Safety settings).
+ */
+export function createGenerationFields(): FieldDefinition[] {
+  return [
+    {
+      id: "max_output_tokens",
+      label: "Max Output Tokens",
+      widget: "number",
+      default: 65535,
+      min_value: 1,
+      max_value: 65535,
+      help_text: "Maximum number of tokens in the response",
+      section: "Output",
+      tab: "Generation",
+    },
+    {
+      id: "top_p",
+      label: "Top P",
+      widget: "slider",
+      default: null,
+      min_value: 0,
+      max_value: 1,
+      step: 0.05,
+      help_text: "Nucleus sampling threshold (leave empty for model default)",
+      section: "Sampling",
+      tab: "Generation",
+    },
+    {
+      id: "top_k",
+      label: "Top K",
+      widget: "slider",
+      default: null,
+      min_value: 1,
+      max_value: 100,
+      step: 1,
+      help_text:
+        "Top-k sampling: limits token selection to top K candidates (1-100)",
+      section: "Sampling",
+      tab: "Generation",
+    },
+    {
+      id: "stop_sequences",
+      label: "Stop Sequences",
+      widget: "textarea",
+      default: "",
+      placeholder: "Enter stop sequences, one per line",
+      help_text:
+        "Sequences that stop generation when encountered (one per line)",
+      section: "Output",
+      tab: "Generation",
+    },
+    {
+      id: "presence_penalty",
+      label: "Presence Penalty",
+      widget: "slider",
+      default: null,
+      min_value: -2,
+      max_value: 2,
+      step: 0.1,
+      help_text: "Penalize tokens based on presence in text so far (-2 to 2)",
+      section: "Penalties",
+      tab: "Generation",
+    },
+    {
+      id: "frequency_penalty",
+      label: "Frequency Penalty",
+      widget: "slider",
+      default: null,
+      min_value: -2,
+      max_value: 2,
+      step: 0.1,
+      help_text: "Penalize tokens based on frequency in text so far (-2 to 2)",
+      section: "Penalties",
+      tab: "Generation",
+    },
+    {
+      id: "seed",
+      label: "Seed",
+      widget: "number",
+      default: null,
+      placeholder: "Random",
+      help_text: "Fixed seed for reproducible outputs (leave empty for random)",
+      section: "Output",
+      tab: "Generation",
+    },
+    {
+      id: "response_mime_type",
+      label: "Response Format",
+      widget: "select",
+      default: "",
+      options: [
+        { value: "", label: "Default" },
+        { value: "text/plain", label: "Plain Text" },
+        { value: "application/json", label: "JSON" },
+      ],
+      help_text:
+        "Expected response format (leave as Default to let model decide)",
+      section: "Output",
+      tab: "Generation",
+    },
+    // Safety settings (content filtering)
+    {
+      id: "safety_harassment",
+      label: "Harassment",
+      widget: "select",
+      default: "default",
+      options: SAFETY_THRESHOLD_OPTIONS,
+      help_text: "Filter content that harasses or bullies individuals",
+      section: "Safety",
+      tab: "Generation",
+    },
+    {
+      id: "safety_hate_speech",
+      label: "Hate Speech",
+      widget: "select",
+      default: "default",
+      options: SAFETY_THRESHOLD_OPTIONS,
+      help_text: "Filter content promoting hate against protected groups",
+      section: "Safety",
+      tab: "Generation",
+    },
+    {
+      id: "safety_sexually_explicit",
+      label: "Sexually Explicit",
+      widget: "select",
+      default: "default",
+      options: SAFETY_THRESHOLD_OPTIONS,
+      help_text: "Filter sexually explicit content",
+      section: "Safety",
+      tab: "Generation",
+    },
+    {
+      id: "safety_dangerous_content",
+      label: "Dangerous Content",
+      widget: "select",
+      default: "default",
+      options: SAFETY_THRESHOLD_OPTIONS,
+      help_text: "Filter content promoting harmful activities",
+      section: "Safety",
+      tab: "Generation",
+    },
+  ];
+}
+
+/**
+ * System Instruction tab fields.
+ */
+export function createSystemInstructionFields(): FieldDefinition[] {
+  return [
+    {
+      id: "system_instruction_file",
+      label: "Load from File",
+      widget: "file_picker",
+      default: "",
+      placeholder: "Select a markdown file...",
+      help_text: "Optional: Load system instruction from a file",
+      tab: "System",
+    },
+    {
+      id: "system_instruction",
+      label: "System Instruction",
+      widget: "code_editor",
+      language: "markdown",
+      default: "",
+      placeholder: "Enter system instruction...",
+      help_text:
+        "High-level guidance that shapes the agent's behavior across all interactions",
+      section: "System Prompt",
+      tab: "System",
+      hide_gutter: true,
     },
   ];
 }

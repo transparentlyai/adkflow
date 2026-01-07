@@ -26,8 +26,10 @@ from adkflow_runner.ir import (
     AgentIR,
     CallbackConfig,
     CodeExecutorConfig,
+    GenerateContentConfig,
     HttpOptionsConfig,
     PlannerConfig,
+    SafetyConfig,
     TeleporterIR,
     WorkflowIR,
 )
@@ -240,11 +242,42 @@ class IRTransformer:
 
         # Extract callbacks
         callbacks = CallbackConfig(
+            before_agent=agent_data.get("before_agent_callback"),
+            after_agent=agent_data.get("after_agent_callback"),
             before_model=agent_data.get("before_model_callback"),
             after_model=agent_data.get("after_model_callback"),
             before_tool=agent_data.get("before_tool_callback"),
             after_tool=agent_data.get("after_tool_callback"),
         )
+
+        # Extract GenerateContentConfig fields
+        stop_sequences_raw = agent_data.get("stop_sequences", "")
+        stop_sequences = (
+            [s.strip() for s in stop_sequences_raw.split("\n") if s.strip()]
+            if stop_sequences_raw
+            else None
+        )
+        generate_content = GenerateContentConfig(
+            max_output_tokens=agent_data.get("max_output_tokens"),
+            top_p=agent_data.get("top_p"),
+            top_k=agent_data.get("top_k"),
+            stop_sequences=stop_sequences,
+            presence_penalty=agent_data.get("presence_penalty"),
+            frequency_penalty=agent_data.get("frequency_penalty"),
+            seed=agent_data.get("seed"),
+            response_mime_type=agent_data.get("response_mime_type"),
+        )
+
+        # Extract SafetyConfig fields
+        safety = SafetyConfig(
+            harassment=agent_data.get("safety_harassment", "default"),
+            hate_speech=agent_data.get("safety_hate_speech", "default"),
+            sexually_explicit=agent_data.get("safety_sexually_explicit", "default"),
+            dangerous_content=agent_data.get("safety_dangerous_content", "default"),
+        )
+
+        # Extract system instruction (resolve from file if specified)
+        system_instruction = self._resolve_system_instruction(agent_data, project)
 
         return AgentIR(
             id=node.id,
@@ -267,15 +300,37 @@ class IRTransformer:
             disallow_transfer_to_peers=agent_data.get(
                 "disallow_transfer_to_peers", False
             ),
+            system_instruction=system_instruction,
+            system_instruction_file=agent_data.get("system_instruction_file"),
             planner=planner,
             code_executor=code_executor,
             http_options=http_options,
             callbacks=callbacks,
+            generate_content=generate_content,
+            safety=safety,
             context_var_sources=context_var_sources,
             upstream_output_keys=upstream_output_keys,
             description=agent_data.get("description"),
             source_node_id=node.id,
         )
+
+    def _resolve_system_instruction(
+        self,
+        agent_data: dict,
+        project: LoadedProject,
+    ) -> str | None:
+        """Resolve system instruction from file or inline content.
+
+        If system_instruction_file is specified, load from that file.
+        Otherwise, use the inline system_instruction content.
+        """
+        file_path = agent_data.get("system_instruction_file")
+        if file_path:
+            # Load from file similar to prompts
+            loaded_prompt = project.get_prompt(file_path)
+            if loaded_prompt:
+                return loaded_prompt.content
+        return agent_data.get("system_instruction") or None
 
     def _build_agent_hierarchy(
         self,

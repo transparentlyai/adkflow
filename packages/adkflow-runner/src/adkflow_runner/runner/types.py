@@ -166,3 +166,8 @@ class RunConfig:
     run_id: str | None = (
         None  # Optional: pass in run_id for consistency with external tracking
     )
+
+    # ADK RunConfig settings (workflow-level execution control)
+    max_llm_calls: int = 500  # Total LLM calls per run. 0 = unlimited
+    context_window_compression: bool = False  # Enable context window compression
+    streaming_mode: str = "none"  # "none" | "sse" | "bidi"

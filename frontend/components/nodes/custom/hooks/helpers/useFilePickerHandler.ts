@@ -13,6 +13,7 @@ export interface FilePickerOptions {
 interface UseFilePickerHandlerParams {
   nodeId: string;
   filePath: string;
+  filePathFieldId: string;
   config: Record<string, unknown>;
   codeEditorField: { id: string; language?: string } | undefined;
 }
@@ -20,6 +21,7 @@ interface UseFilePickerHandlerParams {
 export function useFilePickerHandler({
   nodeId,
   filePath,
+  filePathFieldId,
   config,
   codeEditorField,
 }: UseFilePickerHandlerParams) {
@@ -61,7 +63,7 @@ export function useFilePickerHandler({
                   ...node,
                   data: {
                     ...node.data,
-                    config: { ...config, file_path: newPath },
+                    config: { ...config, [filePathFieldId]: newPath },
                   },
                 }
               : node,
@@ -73,6 +75,7 @@ export function useFilePickerHandler({
   }, [
     onRequestFilePicker,
     filePath,
+    filePathFieldId,
     codeEditorField,
     nodeId,
     config,

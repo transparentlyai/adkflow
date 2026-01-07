@@ -544,3 +544,128 @@ class TestSubstituteVariables:
         assert "missing" in error_msg
         assert "upstream:" in error_msg
         assert "poem" in error_msg
+
+
+class TestBuildSafetySettings:
+    """Tests for _build_safety_settings method."""
+
+    def test_all_default_returns_none(self):
+        """All default safety settings returns None."""
+        factory = AgentFactory()
+        agent_ir = AgentIR(
+            id="agent_1",
+            name="TestAgent",
+            type="llm",
+            model="gemini-2.0-flash",
+        )
+        # Default SafetyConfig has all fields set to "default"
+
+        result = factory._build_safety_settings(agent_ir)
+        assert result is None
+
+    def test_custom_safety_settings(self):
+        """Custom safety settings are converted to SafetySetting list."""
+        from google.genai import types
+
+        factory = AgentFactory()
+        agent_ir = AgentIR(
+            id="agent_1",
+            name="TestAgent",
+            type="llm",
+            model="gemini-2.0-flash",
+        )
+        agent_ir.safety.harassment = "block_low"
+        agent_ir.safety.hate_speech = "block_medium"
+        agent_ir.safety.sexually_explicit = "block_high"
+        agent_ir.safety.dangerous_content = "off"
+
+        result = factory._build_safety_settings(agent_ir)
+
+        assert result is not None
+        assert len(result) == 4
+
+        # Verify each setting is correctly mapped
+        harassment_setting = next(
+            s for s in result if s.category == types.HarmCategory.HARM_CATEGORY_HARASSMENT
+        )
+        assert harassment_setting.threshold == types.HarmBlockThreshold.BLOCK_LOW_AND_ABOVE
+
+        hate_setting = next(
+            s for s in result if s.category == types.HarmCategory.HARM_CATEGORY_HATE_SPEECH
+        )
+        assert hate_setting.threshold == types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE
+
+        explicit_setting = next(
+            s for s in result if s.category == types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT
+        )
+        assert explicit_setting.threshold == types.HarmBlockThreshold.BLOCK_ONLY_HIGH
+
+        dangerous_setting = next(
+            s for s in result if s.category == types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT
+        )
+        assert dangerous_setting.threshold == types.HarmBlockThreshold.OFF
+
+    def test_mixed_default_and_custom(self):
+        """Mixed default and custom settings only includes custom ones."""
+        from google.genai import types
+
+        factory = AgentFactory()
+        agent_ir = AgentIR(
+            id="agent_1",
+            name="TestAgent",
+            type="llm",
+            model="gemini-2.0-flash",
+        )
+        agent_ir.safety.harassment = "block_low"
+        agent_ir.safety.hate_speech = "default"  # Keep default
+        agent_ir.safety.sexually_explicit = "default"  # Keep default
+        agent_ir.safety.dangerous_content = "block_none"
+
+        result = factory._build_safety_settings(agent_ir)
+
+        assert result is not None
+        assert len(result) == 2  # Only harassment and dangerous_content
+
+        categories = [s.category for s in result]
+        assert types.HarmCategory.HARM_CATEGORY_HARASSMENT in categories
+        assert types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT in categories
+        assert types.HarmCategory.HARM_CATEGORY_HATE_SPEECH not in categories
+        assert types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT not in categories
+
+    def test_block_none_threshold(self):
+        """block_none threshold is correctly mapped."""
+        from google.genai import types
+
+        factory = AgentFactory()
+        agent_ir = AgentIR(
+            id="agent_1",
+            name="TestAgent",
+            type="llm",
+            model="gemini-2.0-flash",
+        )
+        agent_ir.safety.harassment = "block_none"
+
+        result = factory._build_safety_settings(agent_ir)
+
+        assert result is not None
+        assert len(result) == 1
+        assert result[0].threshold == types.HarmBlockThreshold.BLOCK_NONE
+
+    def test_off_threshold(self):
+        """off threshold is correctly mapped."""
+        from google.genai import types
+
+        factory = AgentFactory()
+        agent_ir = AgentIR(
+            id="agent_1",
+            name="TestAgent",
+            type="llm",
+            model="gemini-2.0-flash",
+        )
+        agent_ir.safety.hate_speech = "off"
+
+        result = factory._build_safety_settings(agent_ir)
+
+        assert result is not None
+        assert len(result) == 1
+        assert result[0].threshold == types.HarmBlockThreshold.OFF
