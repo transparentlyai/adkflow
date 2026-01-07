@@ -180,4 +180,196 @@ describe("SliderWidget", () => {
       "1",
     );
   });
+
+  describe("nullable fields (default: null)", () => {
+    const nullableField = {
+      ...defaultField,
+      default: null,
+    };
+
+    it("should render checkbox when field.default is null", () => {
+      const { container } = render(
+        <SliderWidget
+          field={nullableField}
+          value={50}
+          onChange={vi.fn()}
+          options={defaultOptions}
+        />,
+      );
+      expect(container.querySelector('input[type="checkbox"]')).toBeInTheDocument();
+    });
+
+    it("should not render checkbox when field.default is not null", () => {
+      const nonNullableField = { ...defaultField, default: 50 };
+      const { container } = render(
+        <SliderWidget
+          field={nonNullableField}
+          value={50}
+          onChange={vi.fn()}
+          options={defaultOptions}
+        />,
+      );
+      expect(container.querySelector('input[type="checkbox"]')).not.toBeInTheDocument();
+    });
+
+    it("should show 'Default' text when value is null", () => {
+      render(
+        <SliderWidget
+          field={nullableField}
+          value={null}
+          onChange={vi.fn()}
+          options={defaultOptions}
+        />,
+      );
+      expect(screen.getByText("Default")).toBeInTheDocument();
+    });
+
+    it("should show 'Default' text when value is undefined", () => {
+      render(
+        <SliderWidget
+          field={nullableField}
+          value={undefined}
+          onChange={vi.fn()}
+          options={defaultOptions}
+        />,
+      );
+      expect(screen.getByText("Default")).toBeInTheDocument();
+    });
+
+    it("should disable slider when value is null", () => {
+      const { container } = render(
+        <SliderWidget
+          field={nullableField}
+          value={null}
+          onChange={vi.fn()}
+          options={defaultOptions}
+        />,
+      );
+      expect(container.querySelector('input[type="range"]')).toBeDisabled();
+    });
+
+    it("should enable slider when value is not null", () => {
+      const { container } = render(
+        <SliderWidget
+          field={nullableField}
+          value={50}
+          onChange={vi.fn()}
+          options={defaultOptions}
+        />,
+      );
+      expect(container.querySelector('input[type="range"]')).not.toBeDisabled();
+    });
+
+    it("should have checkbox unchecked when value is null", () => {
+      const { container } = render(
+        <SliderWidget
+          field={nullableField}
+          value={null}
+          onChange={vi.fn()}
+          options={defaultOptions}
+        />,
+      );
+      const checkbox = container.querySelector('input[type="checkbox"]') as HTMLInputElement;
+      expect(checkbox.checked).toBe(false);
+    });
+
+    it("should have checkbox checked when value is set", () => {
+      const { container } = render(
+        <SliderWidget
+          field={nullableField}
+          value={75}
+          onChange={vi.fn()}
+          options={defaultOptions}
+        />,
+      );
+      const checkbox = container.querySelector('input[type="checkbox"]') as HTMLInputElement;
+      expect(checkbox.checked).toBe(true);
+    });
+
+    it("should call onChange with null when checkbox is unchecked", () => {
+      const onChange = vi.fn();
+      const { container } = render(
+        <SliderWidget
+          field={nullableField}
+          value={50}
+          onChange={onChange}
+          options={defaultOptions}
+        />,
+      );
+      const checkbox = container.querySelector('input[type="checkbox"]')!;
+      fireEvent.click(checkbox);
+      expect(onChange).toHaveBeenCalledWith(null);
+    });
+
+    it("should call onChange with midpoint value when checkbox is checked", () => {
+      const onChange = vi.fn();
+      const { container } = render(
+        <SliderWidget
+          field={nullableField}
+          value={null}
+          onChange={onChange}
+          options={defaultOptions}
+        />,
+      );
+      const checkbox = container.querySelector('input[type="checkbox"]')!;
+      fireEvent.click(checkbox);
+      // Midpoint of 0-100 is 50
+      expect(onChange).toHaveBeenCalledWith(50);
+    });
+
+    it("should snap midpoint to step when checkbox is checked", () => {
+      const onChange = vi.fn();
+      const fieldWithStep = { ...nullableField, min_value: 0, max_value: 100, step: 10 };
+      const { container } = render(
+        <SliderWidget
+          field={fieldWithStep}
+          value={null}
+          onChange={onChange}
+          options={defaultOptions}
+        />,
+      );
+      const checkbox = container.querySelector('input[type="checkbox"]')!;
+      fireEvent.click(checkbox);
+      // Midpoint 50 should snap to 50 (already aligned with step 10)
+      expect(onChange).toHaveBeenCalledWith(50);
+    });
+
+    it("should disable checkbox when disabled option is true", () => {
+      const { container } = render(
+        <SliderWidget
+          field={nullableField}
+          value={50}
+          onChange={vi.fn()}
+          options={{ ...defaultOptions, disabled: true }}
+        />,
+      );
+      expect(container.querySelector('input[type="checkbox"]')).toBeDisabled();
+    });
+
+    it("should show correct title when checkbox is checked", () => {
+      const { container } = render(
+        <SliderWidget
+          field={nullableField}
+          value={50}
+          onChange={vi.fn()}
+          options={defaultOptions}
+        />,
+      );
+      const checkbox = container.querySelector('input[type="checkbox"]')!;
+      expect(checkbox).toHaveAttribute("title", "Uncheck to use model default");
+    });
+
+    it("should show correct title when checkbox is unchecked", () => {
+      const { container } = render(
+        <SliderWidget
+          field={nullableField}
+          value={null}
+          onChange={vi.fn()}
+          options={defaultOptions}
+        />,
+      );
+      const checkbox = container.querySelector('input[type="checkbox"]')!;
+      expect(checkbox).toHaveAttribute("title", "Check to set custom value");
+    });
+  });
 });
