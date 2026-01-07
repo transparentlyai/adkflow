@@ -122,6 +122,22 @@ export const agentNodeSchema: CustomNodeSchema = {
         connection_only: true,
         section: "Flow",
       },
+      // Sub-Agents input - receives agents to be adopted as sub-agents
+      {
+        id: "sub-agents",
+        label: "Sub-Agents",
+        source_type: "agent",
+        data_type: "adopt",
+        accepted_sources: ["agent"],
+        accepted_types: ["adopt"],
+        required: false,
+        multiple: true,
+        connection_only: true,
+        icon: "users",
+        handle_color: "#a78bfa", // Purple - distinct color for adoption
+        section: "Inputs",
+        tab: "General",
+      },
     ],
     outputs: [
       {
@@ -139,6 +155,16 @@ export const agentNodeSchema: CustomNodeSchema = {
         data_type: "link",
         required: false,
         multiple: true,
+      },
+      // Plug output - allows this agent to be adopted as a sub-agent
+      {
+        id: "plug",
+        label: "Plug",
+        source_type: "agent",
+        data_type: "adopt",
+        required: false,
+        multiple: true,
+        handle_color: "#a78bfa", // Purple - matches sub-agents input
       },
     ],
     // Tabs and fields are driven by the model schema
@@ -207,6 +233,20 @@ export const agentNodeSchema: CustomNodeSchema = {
           type: "target",
           position: "left",
           label: "Context Variables",
+        },
+        // Sub-Agents input on RIGHT (unconventional: input receives children)
+        {
+          id: "sub-agents",
+          type: "target",
+          position: "right",
+          label: "Receive sub-agents",
+        },
+        // Plug output on LEFT (unconventional: output plugs into parent)
+        {
+          id: "plug",
+          type: "source",
+          position: "left",
+          label: "Plug into parent agent",
         },
       ],
     },

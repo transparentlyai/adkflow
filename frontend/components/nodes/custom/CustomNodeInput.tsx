@@ -24,6 +24,8 @@ export interface CustomNodeInputProps {
   isNodeLocked?: boolean;
   labelWidth?: number;
   onConfigChange: (fieldId: string, value: unknown) => void;
+  /** Handle position override - default is "left" */
+  handlePosition?: "left" | "right";
 }
 
 /**
@@ -41,6 +43,7 @@ const CustomNodeInput = memo(
     isNodeLocked,
     labelWidth,
     onConfigChange,
+    handlePosition = "left",
   }: CustomNodeInputProps) => {
     const { theme } = useTheme();
     const { connectionState } = useConnection();
@@ -94,9 +97,10 @@ const CustomNodeInput = memo(
 
     // Handle style
     // For multi-line: position at 11px to align with label text center (pt-1 = 4px + ~7px half line-height)
+    const isRightHandle = handlePosition === "right";
     const handleStyle: React.CSSProperties = {
       position: "absolute",
-      left: -5,
+      ...(isRightHandle ? { right: -5 } : { left: -5 }),
       top: isMultiLine ? 11 : "50%",
       transform: "translateY(-50%)",
       transition: "box-shadow 0.15s ease",
@@ -120,6 +124,54 @@ const CustomNodeInput = memo(
     // Compact for connection-only, taller for editable widgets
     const rowHeight = connectionOnly ? "min-h-5" : "min-h-7";
 
+    // For right-positioned handles, render right-aligned like outputs
+    if (isRightHandle) {
+      return (
+        <div
+          className={`relative flex items-center ${rowHeight} gap-2 justify-end pr-3`}
+        >
+          {/* Connected source names (shown before label for right-aligned) */}
+          {isConnected && (
+            <>
+              <span
+                className="text-[11px] truncate font-medium"
+                style={{ color: handleColor }}
+              >
+                {connectedSourceNames?.join(", ")}
+              </span>
+              <ArrowRight
+                className="w-3 h-3 flex-shrink-0"
+                style={{ color: theme.colors.nodes.common.text.muted }}
+              />
+            </>
+          )}
+          {/* Label */}
+          <span
+            className="text-[10px] font-medium"
+            style={{ color: theme.colors.nodes.common.text.secondary }}
+          >
+            {input.label}
+            {input.required && <span className="text-red-500 ml-0.5">*</span>}
+          </span>
+          {/* Handle */}
+          <HandleTooltip
+            label={input.label}
+            sourceType={input.source_type}
+            dataType={input.data_type}
+            type="input"
+          >
+            <Handle
+              type="target"
+              position={Position.Right}
+              id={input.id}
+              style={handleStyle}
+            />
+          </HandleTooltip>
+        </div>
+      );
+    }
+
+    // Default left-positioned layout
     return (
       <div
         className={`relative flex ${isMultiLine ? "items-start" : "items-center"} ${rowHeight} gap-1`}

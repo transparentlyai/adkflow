@@ -361,3 +361,28 @@ class HierarchyBuilder:
         else:
             # Pure parallel: no convergence
             return self._build_pure_parallel(roots)
+
+    def process_subagent_edges(self) -> None:
+        """Process SUBAGENT edges to populate agent.subagents lists.
+
+        This handles explicit sub-agent connections (plug → sub-agents handles)
+        separately from the implicit hierarchy built from SEQUENTIAL edges.
+
+        Should be called after build() to add explicit sub-agent relationships.
+        """
+        # Find all SUBAGENT edges and populate target agent's subagents
+        for node in self.graph.get_agent_nodes():
+            agent_ir = self.all_agents.get(node.id)
+            if not agent_ir:
+                continue
+
+            # Find incoming SUBAGENT edges (where this agent is the target)
+            for edge in self.graph.edges:
+                if (
+                    edge.target_id == node.id
+                    and edge.semantics == EdgeSemantics.SUBAGENT
+                ):
+                    # Get source agent and add to subagents
+                    source_agent = self.all_agents.get(edge.source_id)
+                    if source_agent and source_agent not in agent_ir.subagents:
+                        agent_ir.subagents.append(source_agent)

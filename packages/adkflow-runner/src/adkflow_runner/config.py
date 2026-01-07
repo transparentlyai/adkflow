@@ -109,6 +109,15 @@ DEFAULT_EDGE_RULES: list[EdgeRule] = [
         semantics=EdgeSemantics.PARALLEL,
         priority=10,
     ),
+    # Agent (plug) → Agent (sub-agents): subagent relationship
+    EdgeRule(
+        source_type="agent",
+        target_type="agent",
+        source_handle="plug",
+        target_handle="sub-agents",
+        semantics=EdgeSemantics.SUBAGENT,
+        priority=10,
+    ),
     # Agent → OutputFile: write output to file
     EdgeRule(
         source_type="agent",

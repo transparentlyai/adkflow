@@ -186,21 +186,40 @@ export function ExpandedNodeContentArea({
     </div>
   );
 
-  // Render input port
-  const renderInput = (input: PortDefinition, labelWidth?: number) => (
-    <CustomNodeInput
-      key={input.id}
-      input={input}
-      config={config}
-      isConnected={connectedInputs[input.id]?.length > 0}
-      connectedSourceNames={connectedInputs[input.id]}
-      handleTypeInfo={handleTypes[input.id]}
-      nodeId={id}
-      isNodeLocked={nodeData.isNodeLocked}
-      labelWidth={labelWidth}
-      onConfigChange={onConfigChange}
-    />
+  // Get handle position for an input/output from additional_handles
+  const getHandlePosition = useCallback(
+    (portId: string): "left" | "right" | undefined => {
+      const handle = additionalHandles.find((h) => h.id === portId);
+      if (
+        handle &&
+        (handle.position === "left" || handle.position === "right")
+      ) {
+        return handle.position;
+      }
+      return undefined;
+    },
+    [additionalHandles],
   );
+
+  // Render input port
+  const renderInput = (input: PortDefinition, labelWidth?: number) => {
+    const handlePos = getHandlePosition(input.id);
+    return (
+      <CustomNodeInput
+        key={input.id}
+        input={input}
+        config={config}
+        isConnected={connectedInputs[input.id]?.length > 0}
+        connectedSourceNames={connectedInputs[input.id]}
+        handleTypeInfo={handleTypes[input.id]}
+        nodeId={id}
+        isNodeLocked={nodeData.isNodeLocked}
+        labelWidth={labelWidth}
+        onConfigChange={onConfigChange}
+        handlePosition={handlePos === "right" ? "right" : "left"}
+      />
+    );
+  };
 
   const getMaxInputLabelWidth = (inputs: PortDefinition[]) =>
     Math.max(...inputs.map((i) => i.label.length));
@@ -296,10 +315,14 @@ export function ExpandedNodeContentArea({
           </p>
         )}
 
-      {/* Output ports - always visible (except those rendered as edge handles) */}
-      {schema.ui.outputs.filter(
-        (o) => !additionalHandles.some((h) => h.id === o.id),
-      ).length > 0 && (
+      {/* Output ports - always visible
+          - Exclude outputs rendered as edge handles (top/bottom positions in additional_handles)
+          - Include outputs with left position (like Plug) - they render inline with handle on left */}
+      {schema.ui.outputs.filter((o) => {
+        const handle = additionalHandles.find((h) => h.id === o.id);
+        // Include if not in additional_handles, OR if it's a left-positioned output
+        return !handle || handle.position === "left";
+      }).length > 0 && (
         <div
           className="mt-2 pt-2 border-t"
           style={{
@@ -307,10 +330,20 @@ export function ExpandedNodeContentArea({
           }}
         >
           {schema.ui.outputs
-            .filter((o) => !additionalHandles.some((h) => h.id === o.id))
-            .map((output) => (
-              <CustomNodeOutput key={output.id} output={output} />
-            ))}
+            .filter((o) => {
+              const handle = additionalHandles.find((h) => h.id === o.id);
+              return !handle || handle.position === "left";
+            })
+            .map((output) => {
+              const handlePos = getHandlePosition(output.id);
+              return (
+                <CustomNodeOutput
+                  key={output.id}
+                  output={output}
+                  handlePosition={handlePos === "left" ? "left" : "right"}
+                />
+              );
+            })}
         </div>
       )}
     </div>
