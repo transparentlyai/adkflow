@@ -4,44 +4,35 @@ import { useFileOperations } from "@/components/nodes/custom/hooks/useFileOperat
 import type { CustomNodeSchema } from "@/components/nodes/CustomNode/types";
 
 // Mock the helper hooks
-vi.mock(
-  "@/components/nodes/custom/hooks/helpers/useFileContentLoader",
-  () => ({
-    useFileContentLoader: vi.fn(() => ({
-      codeEditorField: { id: "code", language: "python" },
-      filePickerField: { id: "file", widget: "file_picker" },
-      filePath: "",
-      codeContent: "",
-      fileLoadConfirm: null,
-      handleConfirmLoad: vi.fn(),
-      handleCancelLoad: vi.fn(),
-    })),
-  }),
-);
+vi.mock("@/components/nodes/custom/hooks/helpers/useFileContentLoader", () => ({
+  useFileContentLoader: vi.fn(() => ({
+    codeEditorField: { id: "code", language: "python" },
+    filePickerField: { id: "file", widget: "file_picker" },
+    filePath: "",
+    codeContent: "",
+    fileLoadConfirm: null,
+    handleConfirmLoad: vi.fn(),
+    handleCancelLoad: vi.fn(),
+  })),
+}));
 
-vi.mock(
-  "@/components/nodes/custom/hooks/helpers/useFileSaveHandler",
-  () => ({
-    useFileSaveHandler: vi.fn(() => ({
-      handleFileSave: vi.fn(),
-    })),
-  }),
-);
+vi.mock("@/components/nodes/custom/hooks/helpers/useFileSaveHandler", () => ({
+  useFileSaveHandler: vi.fn(() => ({
+    handleFileSave: vi.fn(),
+  })),
+}));
 
-vi.mock(
-  "@/components/nodes/custom/hooks/helpers/useFilePickerHandler",
-  () => ({
-    useFilePickerHandler: vi.fn(() => ({
-      handleChangeFile: vi.fn(),
-    })),
-  }),
-);
+vi.mock("@/components/nodes/custom/hooks/helpers/useFilePickerHandler", () => ({
+  useFilePickerHandler: vi.fn(() => ({
+    handleChangeFile: vi.fn(),
+  })),
+}));
 
 import { useFileContentLoader } from "@/components/nodes/custom/hooks/helpers/useFileContentLoader";
 import { useFileSaveHandler } from "@/components/nodes/custom/hooks/helpers/useFileSaveHandler";
 
 describe("useFileOperations - state", () => {
-  const baseSchema: CustomNodeSchema = {
+  const baseSchema = {
     id: "test-schema",
     label: "Test Schema",
     ui: {
@@ -50,7 +41,7 @@ describe("useFileOperations - state", () => {
         { id: "file", widget: "file_picker" },
       ],
     },
-  };
+  } as unknown as CustomNodeSchema;
 
   const defaultParams = {
     nodeId: "test-node",

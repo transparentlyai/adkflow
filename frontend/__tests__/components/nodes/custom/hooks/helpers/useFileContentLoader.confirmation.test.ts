@@ -23,7 +23,7 @@ describe("useFileContentLoader - confirmation", () => {
   const mockSetIsContentLoaded = vi.fn();
   const mockSetSavedContent = vi.fn();
 
-  const baseSchema: CustomNodeSchema = {
+  const baseSchema = {
     id: "test-schema",
     label: "Test Schema",
     ui: {
@@ -32,7 +32,7 @@ describe("useFileContentLoader - confirmation", () => {
         { id: "file", widget: "file_picker" },
       ],
     },
-  };
+  } as unknown as CustomNodeSchema;
 
   const defaultParams = {
     nodeId: "test-node",

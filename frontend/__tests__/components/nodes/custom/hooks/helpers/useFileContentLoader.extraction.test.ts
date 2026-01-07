@@ -22,7 +22,7 @@ describe("useFileContentLoader - extraction", () => {
   const mockSetIsContentLoaded = vi.fn();
   const mockSetSavedContent = vi.fn();
 
-  const baseSchema: CustomNodeSchema = {
+  const baseSchema = {
     id: "test-schema",
     label: "Test Schema",
     ui: {
@@ -31,7 +31,7 @@ describe("useFileContentLoader - extraction", () => {
         { id: "file", widget: "file_picker" },
       ],
     },
-  };
+  } as unknown as CustomNodeSchema;
 
   const defaultParams = {
     nodeId: "test-node",
@@ -66,13 +66,13 @@ describe("useFileContentLoader - extraction", () => {
     });
 
     it("should find monaco_editor field in schema", () => {
-      const schema: CustomNodeSchema = {
+      const schema = {
         id: "test",
         label: "Test",
         ui: {
           fields: [{ id: "code", widget: "monaco_editor", language: "python" }],
         },
-      };
+      } as unknown as CustomNodeSchema;
 
       const { result } = renderHook(() =>
         useFileContentLoader({ ...defaultParams, schema }),
@@ -95,11 +95,11 @@ describe("useFileContentLoader - extraction", () => {
     });
 
     it("should handle schema without code_editor field", () => {
-      const schema: CustomNodeSchema = {
+      const schema = {
         id: "test",
         label: "Test",
         ui: { fields: [] },
-      };
+      } as unknown as CustomNodeSchema;
 
       const { result } = renderHook(() =>
         useFileContentLoader({ ...defaultParams, schema }),
@@ -109,13 +109,13 @@ describe("useFileContentLoader - extraction", () => {
     });
 
     it("should handle schema without file_picker field", () => {
-      const schema: CustomNodeSchema = {
+      const schema = {
         id: "test",
         label: "Test",
         ui: {
           fields: [{ id: "code", widget: "code_editor", language: "python" }],
         },
-      };
+      } as unknown as CustomNodeSchema;
 
       const { result } = renderHook(() =>
         useFileContentLoader({ ...defaultParams, schema }),
@@ -137,13 +137,13 @@ describe("useFileContentLoader - extraction", () => {
     });
 
     it("should fall back to legacy file_path field", () => {
-      const schema: CustomNodeSchema = {
+      const schema = {
         id: "test",
         label: "Test",
         ui: {
           fields: [{ id: "code", widget: "code_editor", language: "python" }],
         },
-      };
+      } as unknown as CustomNodeSchema;
       const config = { code: "test code", file_path: "/legacy/path.py" };
 
       const { result } = renderHook(() =>
@@ -186,11 +186,11 @@ describe("useFileContentLoader - extraction", () => {
     });
 
     it("should return empty string when no code_editor field", () => {
-      const schema: CustomNodeSchema = {
+      const schema = {
         id: "test",
         label: "Test",
         ui: { fields: [] },
-      };
+      } as unknown as CustomNodeSchema;
       const config = { code: "test" };
 
       const { result } = renderHook(() =>

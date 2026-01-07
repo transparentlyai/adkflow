@@ -23,7 +23,7 @@ describe("useFileContentLoader - loading", () => {
   const mockSetIsContentLoaded = vi.fn();
   const mockSetSavedContent = vi.fn();
 
-  const baseSchema: CustomNodeSchema = {
+  const baseSchema = {
     id: "test-schema",
     label: "Test Schema",
     ui: {
@@ -32,7 +32,7 @@ describe("useFileContentLoader - loading", () => {
         { id: "file", widget: "file_picker" },
       ],
     },
-  };
+  } as unknown as CustomNodeSchema;
 
   const defaultParams = {
     nodeId: "test-node",
@@ -241,11 +241,11 @@ describe("useFileContentLoader - loading", () => {
 
   describe("nodes without code editor", () => {
     it("should mark as loaded when no code editor field", async () => {
-      const schema: CustomNodeSchema = {
+      const schema = {
         id: "test",
         label: "Test",
         ui: { fields: [] },
-      };
+      } as unknown as CustomNodeSchema;
 
       renderHook(() =>
         useFileContentLoader({
