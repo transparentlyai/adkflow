@@ -29,8 +29,10 @@ vi.mock("@/components/ProjectSwitcher", () => ({
 }));
 
 vi.mock("@/contexts/ProjectContext", () => ({
-  ProjectProvider: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="project-provider">{children}</div>
+  ProjectProvider: ({ children, defaultModel }: { children: React.ReactNode; defaultModel?: string }) => (
+    <div data-testid="project-provider" data-default-model={defaultModel}>
+      {children}
+    </div>
   ),
 }));
 
@@ -134,6 +136,20 @@ describe("HomeLayout", () => {
     it("should show ProjectSwitcher when open", () => {
       render(<HomeLayout {...defaultProps} isProjectSwitcherOpen={true} />);
       expect(screen.getByTestId("project-switcher")).toBeInTheDocument();
+    });
+  });
+
+  describe("defaultModel prop", () => {
+    it("should pass defaultModel to ProjectProvider", () => {
+      render(<HomeLayout {...defaultProps} defaultModel="gemini-2.0-flash" />);
+      const provider = screen.getByTestId("project-provider");
+      expect(provider).toHaveAttribute("data-default-model", "gemini-2.0-flash");
+    });
+
+    it("should handle undefined defaultModel", () => {
+      render(<HomeLayout {...defaultProps} />);
+      const provider = screen.getByTestId("project-provider");
+      expect(provider).not.toHaveAttribute("data-default-model");
     });
   });
 });
