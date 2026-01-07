@@ -18,6 +18,7 @@ from adkflow_runner.runner.types import (
 )
 from adkflow_runner.runner.graph_builder import GraphBuilder
 from adkflow_runner.runner.graph_executor import GraphExecutor
+from adkflow_runner.hooks import HooksIntegration
 
 
 def normalize_context_value(key: str, value: Any, source_name: str) -> str:
@@ -148,6 +149,7 @@ async def execute_custom_nodes_graph(
     run_id: str,
     enable_cache: bool = True,
     cache_dir: Path | None = None,
+    hooks: HooksIntegration | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Execute custom nodes using graph-based execution with topological sort.
 
@@ -203,6 +205,7 @@ async def execute_custom_nodes_graph(
         emit=graph_emit,
         cache_dir=actual_cache_dir,
         enable_cache=enable_cache,
+        hooks=hooks,
     )
 
     # Generate session_id

@@ -1,10 +1,12 @@
 """Callback factories for ADK agents.
 
 Creates callbacks for real-time event emission and API logging.
+Integrates extension hooks for flow control.
 """
 
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
@@ -17,6 +19,37 @@ from adkflow_runner.runner.agent_serialization import (
     serialize_agent_config,
     serialize_workflow_agent_config,
 )
+from adkflow_runner.hooks import HookAction, HooksIntegration
+
+
+T = Any  # Type var for coroutine result
+
+
+def _run_async_hook_sync(
+    coro: Any,  # Coroutine - typed as Any to avoid variance issues
+    timeout: float = 30.0,
+) -> Any:
+    """Run an async hook coroutine from a sync context.
+
+    This is needed for model callbacks which are sync in ADK but need
+    to call async hooks.
+
+    Args:
+        coro: Async coroutine to run
+        timeout: Maximum wait time in seconds
+
+    Returns:
+        Result of the coroutine
+    """
+    try:
+        loop = asyncio.get_running_loop()
+        # We're in an async context - use thread-safe scheduling
+        future = asyncio.run_coroutine_threadsafe(coro, loop)
+        return future.result(timeout=timeout)
+    except RuntimeError:
+        # No running loop - we can use asyncio.run()
+        return asyncio.run(coro)
+
 
 if TYPE_CHECKING:
     from adkflow_runner.runner.workflow_runner import RunEvent
@@ -33,6 +66,8 @@ _api_response_log = get_logger("api.response")
 def create_agent_callbacks(
     emit: EmitFn | None,
     agent_name: str,
+    hooks: HooksIntegration | None = None,
+    agent_id: str | None = None,
 ) -> dict[str, Any]:
     """Create ADK callbacks that emit RunEvents for real-time updates.
 
@@ -41,16 +76,17 @@ def create_agent_callbacks(
     their timing is less critical.
 
     Also integrates logging for API requests/responses and tool execution.
+    Extension hooks are invoked to allow flow control.
 
     Args:
         emit: Async function to emit RunEvent (or None for no-op)
         agent_name: Name of the agent for event attribution
+        hooks: Optional HooksIntegration for extension hooks
+        agent_id: Agent ID for hook context
 
     Returns:
         Dict of callback functions to pass to Agent constructor
     """
-    import asyncio
-
     from adkflow_runner.runner.workflow_runner import EventType, RunEvent
 
     async def _do_emit(event: "RunEvent") -> None:
@@ -108,7 +144,10 @@ def create_agent_callbacks(
         return None
 
     def before_model_callback(callback_context: Any, llm_request: Any) -> None:
-        """Log LLM API request before sending to Gemini."""
+        """Log LLM API request before sending to Gemini.
+
+        Also invokes before_llm_request hooks for extension control.
+        """
         # Extract content from request
         contents = getattr(llm_request, "contents", []) or []
         message_count = len(contents)
@@ -137,10 +176,47 @@ def create_agent_callbacks(
             agent=agent_name,
             contents=lambda: [str(c) for c in contents],
         )
+
+        # Invoke before_llm_request hooks
+        if hooks:
+            try:
+                # Build config dict from llm_request attributes
+                config = {
+                    "model": getattr(llm_request, "model", None),
+                    "system_instruction": getattr(
+                        llm_request, "system_instruction", None
+                    ),
+                    "tools": getattr(llm_request, "tools", None),
+                }
+                hook_result, modified_messages, modified_config = _run_async_hook_sync(
+                    hooks.before_llm_request(
+                        messages=list(contents),
+                        config=config,
+                        agent_name=agent_name,
+                    )
+                )
+                if hook_result.action == HookAction.ABORT:
+                    raise RuntimeError(
+                        hook_result.error or "Aborted by before_llm_request hook"
+                    )
+                # Note: SKIP action for LLM hooks doesn't make sense (can't skip the LLM call)
+                # REPLACE action could modify contents in place if ADK supports it
+            except Exception as e:
+                if "Aborted by" in str(e):
+                    raise
+                # Log but don't fail on hook errors
+                _api_request_log.warning(
+                    f"before_llm_request hook error: {e}",
+                    agent=agent_name,
+                )
+
         return None
 
     def after_model_callback(callback_context: Any, llm_response: Any) -> None:
-        """Log LLM API response from Gemini with full metadata."""
+        """Log LLM API response from Gemini with full metadata.
+
+        Also invokes after_llm_response hooks for extension control.
+        """
         content = getattr(llm_response, "content", None)
         text = ""
         if content and hasattr(content, "parts") and content.parts:
@@ -184,12 +260,64 @@ def create_agent_callbacks(
             agent=agent_name,
             content=lambda: str(content) if content else None,
         )
+
+        # Invoke after_llm_response hooks
+        if hooks:
+            try:
+                # Build response dict with key metadata
+                response_data = {
+                    "content": content,
+                    "text": text,
+                    "finish_reason": finish_reason_str,
+                    "model_version": model_version,
+                    "usage": usage_data,
+                }
+                hook_result, _ = _run_async_hook_sync(
+                    hooks.after_llm_response(
+                        response=response_data,
+                        agent_name=agent_name,
+                    )
+                )
+                if hook_result.action == HookAction.ABORT:
+                    raise RuntimeError(
+                        hook_result.error or "Aborted by after_llm_response hook"
+                    )
+                # Note: REPLACE action for after_llm_response is for observation/logging
+                # The response has already been received from the LLM
+            except Exception as e:
+                if "Aborted by" in str(e):
+                    raise
+                # Log but don't fail on hook errors
+                _api_response_log.warning(
+                    f"after_llm_response hook error: {e}",
+                    agent=agent_name,
+                )
+
         return None
 
     async def before_tool_callback(
         *, tool: Any, args: dict[str, Any], tool_context: Any
     ) -> dict[str, Any] | None:
         tool_name = getattr(tool, "name", str(tool))
+
+        # Invoke before_tool_call hooks
+        if hooks:
+            hook_result, modified_args = await hooks.before_tool_call(
+                tool_name=tool_name,
+                arguments=args,
+                agent_name=agent_name,
+            )
+            if hook_result.action == HookAction.ABORT:
+                raise RuntimeError(
+                    hook_result.error
+                    or f"Aborted by before_tool_call hook for {tool_name}"
+                )
+            if hook_result.action == HookAction.SKIP:
+                # Return empty result to skip tool execution
+                return {"skipped": True, "reason": "Skipped by hook"}
+            if hook_result.action == HookAction.REPLACE:
+                args = modified_args
+
         # Format args preview (truncate if too long)
         args_preview = ""
         if args:
@@ -221,16 +349,33 @@ def create_agent_callbacks(
         *, tool: Any, args: dict[str, Any], tool_context: Any, tool_response: Any
     ) -> dict[str, Any] | None:
         tool_name = getattr(tool, "name", str(tool))
+
+        # Invoke after_tool_result hooks
+        modified_response = tool_response
+        if hooks:
+            hook_result, modified_response = await hooks.after_tool_result(
+                tool_name=tool_name,
+                arguments=args,
+                result_data=tool_response,
+                agent_name=agent_name,
+            )
+            if hook_result.action == HookAction.ABORT:
+                raise RuntimeError(
+                    hook_result.error
+                    or f"Aborted by after_tool_result hook for {tool_name}"
+                )
+            # For REPLACE, use modified_response (already set above)
+
         # Format result preview (truncate if too long)
         result_preview = ""
-        if tool_response is not None:
-            result_str = str(tool_response)
+        if modified_response is not None:
+            result_str = str(modified_response)
             result_preview = (
                 result_str[:200] + "..." if len(result_str) > 200 else result_str
             )
 
         # Determine success
-        is_error = isinstance(tool_response, dict) and "error" in tool_response
+        is_error = isinstance(modified_response, dict) and "error" in modified_response
 
         # Log tool result
         _tool_log.info(
@@ -241,7 +386,10 @@ def create_agent_callbacks(
             result_preview=result_preview,
         )
         _tool_log.debug(
-            "Tool result full", agent=agent_name, tool=tool_name, result=tool_response
+            "Tool result full",
+            agent=agent_name,
+            tool=tool_name,
+            result=modified_response,
         )
 
         # Await emit to ensure event is sent after tool completes
@@ -254,6 +402,10 @@ def create_agent_callbacks(
                     data={"tool_name": tool_name, "result": result_preview},
                 )
             )
+
+        # Return modified response if it was changed by hook
+        if hooks and modified_response is not tool_response:
+            return modified_response  # type: ignore
         return None
 
     return {

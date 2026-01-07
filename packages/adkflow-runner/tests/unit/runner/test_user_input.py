@@ -439,3 +439,156 @@ class TestHandleUserInput:
                 mock_config,
                 emit,
             )
+
+
+class TestUserInputHooks:
+    """Tests for hook integration in user input handling."""
+
+    @pytest.fixture
+    def mock_user_input(self):
+        """Create a mock UserInputIR."""
+        ui = MagicMock()
+        ui.id = "input_1"
+        ui.name = "Test Input"
+        ui.variable_name = "user_query"
+        ui.is_trigger = False
+        ui.timeout_seconds = 30.0
+        ui.timeout_behavior = "pass_through"
+        ui.predefined_text = ""
+        return ui
+
+    @pytest.fixture
+    def mock_config_with_provider(self):
+        """Create a mock RunConfig with provider."""
+        provider = AsyncMock()
+        provider.request_input = AsyncMock(return_value="user response")
+        return RunConfig(project_path=Path("/test"), user_input_provider=provider)
+
+    @pytest.mark.asyncio
+    async def test_before_user_input_hook_skip(
+        self, mock_user_input, mock_config_with_provider
+    ):
+        """before_user_input with SKIP action returns prompt without waiting."""
+        from adkflow_runner.runner.user_input import handle_user_input
+        from adkflow_runner.hooks import HookAction, HookResult, HooksIntegration
+
+        hooks = MagicMock(spec=HooksIntegration)
+
+        async def skip_hook(*args, **kwargs):
+            return (HookResult(action=HookAction.SKIP), "skipped prompt")
+
+        hooks.before_user_input = skip_hook
+
+        events = []
+
+        async def emit(event):
+            events.append(event)
+
+        result = await handle_user_input(
+            mock_user_input,
+            "previous output",
+            mock_config_with_provider,
+            emit,
+            hooks=hooks,
+        )
+
+        # Should return the modified prompt without waiting for user
+        assert result == "skipped prompt"
+        # Provider should not be called
+        mock_config_with_provider.user_input_provider.request_input.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_before_user_input_hook_abort(
+        self, mock_user_input, mock_config_with_provider
+    ):
+        """before_user_input with ABORT action raises error."""
+        from adkflow_runner.runner.user_input import handle_user_input
+        from adkflow_runner.hooks import HookAction, HookResult, HooksIntegration
+
+        hooks = MagicMock(spec=HooksIntegration)
+
+        async def abort_hook(*args, **kwargs):
+            return (HookResult(action=HookAction.ABORT, error="Input blocked"), "")
+
+        hooks.before_user_input = abort_hook
+
+        events = []
+
+        async def emit(event):
+            events.append(event)
+
+        with pytest.raises(RuntimeError, match="Input blocked"):
+            await handle_user_input(
+                mock_user_input,
+                None,
+                mock_config_with_provider,
+                emit,
+                hooks=hooks,
+            )
+
+    @pytest.mark.asyncio
+    async def test_after_user_input_hook_replace(
+        self, mock_user_input, mock_config_with_provider
+    ):
+        """after_user_input with REPLACE action modifies response."""
+        from adkflow_runner.runner.user_input import handle_user_input
+        from adkflow_runner.hooks import HookAction, HookResult, HooksIntegration
+
+        hooks = MagicMock(spec=HooksIntegration)
+
+        async def continue_hook(*args, **kwargs):
+            return (HookResult(action=HookAction.CONTINUE), kwargs["prompt"])
+
+        async def replace_hook(*args, **kwargs):
+            return (HookResult(action=HookAction.REPLACE), "modified response")
+
+        hooks.before_user_input = continue_hook
+        hooks.after_user_input = replace_hook
+
+        events = []
+
+        async def emit(event):
+            events.append(event)
+
+        result = await handle_user_input(
+            mock_user_input,
+            None,
+            mock_config_with_provider,
+            emit,
+            hooks=hooks,
+        )
+
+        assert result == "modified response"
+
+    @pytest.mark.asyncio
+    async def test_after_user_input_hook_abort(
+        self, mock_user_input, mock_config_with_provider
+    ):
+        """after_user_input with ABORT action raises error."""
+        from adkflow_runner.runner.user_input import handle_user_input
+        from adkflow_runner.hooks import HookAction, HookResult, HooksIntegration
+
+        hooks = MagicMock(spec=HooksIntegration)
+
+        async def continue_hook(*args, **kwargs):
+            return (HookResult(action=HookAction.CONTINUE), kwargs["prompt"])
+
+        async def abort_hook(*args, **kwargs):
+            return (HookResult(action=HookAction.ABORT, error="Response rejected"), "")
+
+        hooks.before_user_input = continue_hook
+        hooks.after_user_input = abort_hook
+
+        events = []
+
+        async def emit(event):
+            events.append(event)
+
+        with pytest.raises(RuntimeError, match="Response rejected"):
+            await handle_user_input(
+                mock_user_input,
+                None,
+                mock_config_with_provider,
+                emit,
+                hooks=hooks,
+            )

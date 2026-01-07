@@ -16,6 +16,7 @@ from google.adk.planners import BuiltInPlanner
 from google.genai import types
 
 from adkflow_runner.errors import ExecutionError
+from adkflow_runner.hooks import HooksIntegration
 from adkflow_runner.ir import AgentIR, WorkflowIR
 from adkflow_runner.logging import get_logger
 from adkflow_runner.runner.agent_callbacks import EmitFn, create_agent_callbacks
@@ -41,9 +42,11 @@ class AgentFactory:
         self,
         project_path: Path | None = None,
         emit: EmitFn | None = None,
+        hooks: HooksIntegration | None = None,
     ):
         self.project_path = project_path
         self.emit = emit
+        self.hooks = hooks
         self.tool_loader = ToolLoader(project_path)
         self._agent_cache: dict[str, BaseAgent] = {}
 
@@ -51,18 +54,21 @@ class AgentFactory:
         self,
         ir: WorkflowIR,
         emit: EmitFn | None = None,
+        hooks: HooksIntegration | None = None,
     ) -> BaseAgent:
         """Create the complete agent tree from workflow IR.
 
         Args:
             ir: Complete workflow IR
             emit: Optional emit function for real-time event callbacks
+            hooks: Optional hooks integration for extension hooks
 
         Returns:
             Root agent ready for execution
         """
         self.project_path = Path(ir.project_path) if ir.project_path else None
         self.emit = emit
+        self.hooks = hooks
         self.tool_loader = ToolLoader(self.project_path)
 
         return self.create(ir.root_agent)
@@ -168,7 +174,10 @@ class AgentFactory:
         )
 
         # Create callbacks for real-time updates and logging (use original name)
-        callbacks = create_agent_callbacks(self.emit, agent_ir.name)
+        # Pass hooks for before_tool_call and after_tool_result integration
+        callbacks = create_agent_callbacks(
+            self.emit, agent_ir.name, hooks=self.hooks, agent_id=agent_ir.id
+        )
 
         # Handle strip_contents callback - chain with logging callback
         # See: https://github.com/google/adk-python/issues/2207
