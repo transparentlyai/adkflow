@@ -28,6 +28,7 @@ describe("useCanvasOperations", () => {
     fitView: vi.fn(),
     setViewport: vi.fn(),
     setCenter: vi.fn(),
+    getNodes: vi.fn(() => []),
   };
 
   const createNode = (id: string, x = 0, y = 0): Node => ({
@@ -422,9 +423,12 @@ describe("useCanvasOperations", () => {
     });
 
     it("should do nothing if node not found", () => {
+      const node = createNode("node1", 100, 50);
+      (mockRfInstance.getNodes as any).mockReturnValue([node]);
+
       const { result } = renderHook(() =>
         useCanvasOperations({
-          nodes: [createNode("node1", 100, 50)],
+          nodes: [node],
           setNodes: mockSetNodes,
           setEdges: mockSetEdges,
           rfInstance: mockRfInstance as ReactFlowInstance,
@@ -441,6 +445,7 @@ describe("useCanvasOperations", () => {
 
     it("should center on node and select it", () => {
       const node = createNode("node1", 100, 50);
+      (mockRfInstance.getNodes as any).mockReturnValue([node]);
       mockSetNodes.mockImplementation((fn) => {
         if (typeof fn === "function") {
           return fn([node]);
@@ -478,6 +483,7 @@ describe("useCanvasOperations", () => {
         data: { name: "node1" },
       };
 
+      (mockRfInstance.getNodes as any).mockReturnValue([nodeWithoutMeasured]);
       mockSetNodes.mockImplementation((fn) => {
         if (typeof fn === "function") {
           return fn([nodeWithoutMeasured]);
@@ -511,6 +517,7 @@ describe("useCanvasOperations", () => {
         { ...createNode("node2", 200, 100), selected: true },
       ];
 
+      (mockRfInstance.getNodes as any).mockReturnValue(nodes);
       mockSetNodes.mockImplementation((fn) => {
         if (typeof fn === "function") {
           const result = fn(nodes);
@@ -534,6 +541,111 @@ describe("useCanvasOperations", () => {
       });
 
       expect(mockSetNodes).toHaveBeenCalled();
+    });
+
+    it("should use rfInstance.getNodes() to get fresh nodes avoiding stale closures", () => {
+      const initialNode = createNode("node1", 100, 50);
+      const updatedNode = createNode("node1", 200, 100);
+
+      // Initially return the initial node
+      (mockRfInstance.getNodes as any).mockReturnValue([initialNode]);
+
+      const { result } = renderHook(() =>
+        useCanvasOperations({
+          nodes: [initialNode],
+          setNodes: mockSetNodes,
+          setEdges: mockSetEdges,
+          rfInstance: mockRfInstance as ReactFlowInstance,
+          resetPositions: mockResetPositions,
+        }),
+      );
+
+      // Simulate nodes being updated (e.g., after restoreFlow)
+      // Update the mock to return the updated node
+      (mockRfInstance.getNodes as any).mockReturnValue([updatedNode]);
+
+      act(() => {
+        result.current.focusNode("node1");
+      });
+
+      // Should use the updated position from rfInstance.getNodes(), not stale closure
+      // Updated node is at 200, 100 with width 100, height 50
+      expect(mockRfInstance.setCenter).toHaveBeenCalledWith(250, 125, {
+        zoom: 1,
+        duration: 300,
+      });
+      expect(mockRfInstance.getNodes).toHaveBeenCalled();
+    });
+
+    it("should calculate absolute position for child nodes by adding parent position", () => {
+      const parentNode = createNode("parent", 100, 50);
+      const childNode = {
+        ...createNode("child", 20, 10),
+        parentId: "parent",
+      };
+
+      (mockRfInstance.getNodes as any).mockReturnValue([parentNode, childNode]);
+      mockSetNodes.mockImplementation((fn) => {
+        if (typeof fn === "function") {
+          return fn([parentNode, childNode]);
+        }
+      });
+
+      const { result } = renderHook(() =>
+        useCanvasOperations({
+          nodes: [parentNode, childNode],
+          setNodes: mockSetNodes,
+          setEdges: mockSetEdges,
+          rfInstance: mockRfInstance as ReactFlowInstance,
+          resetPositions: mockResetPositions,
+        }),
+      );
+
+      act(() => {
+        result.current.focusNode("child");
+      });
+
+      // Absolute position: child (20, 10) + parent (100, 50) = (120, 60)
+      // Center: (120 + 100/2, 60 + 50/2) = (170, 85)
+      expect(mockRfInstance.setCenter).toHaveBeenCalledWith(170, 85, {
+        zoom: 1,
+        duration: 300,
+      });
+    });
+
+    it("should handle child node without parent found", () => {
+      const childNode = {
+        ...createNode("child", 20, 10),
+        parentId: "nonexistent-parent",
+      };
+
+      (mockRfInstance.getNodes as any).mockReturnValue([childNode]);
+      mockSetNodes.mockImplementation((fn) => {
+        if (typeof fn === "function") {
+          return fn([childNode]);
+        }
+      });
+
+      const { result } = renderHook(() =>
+        useCanvasOperations({
+          nodes: [childNode],
+          setNodes: mockSetNodes,
+          setEdges: mockSetEdges,
+          rfInstance: mockRfInstance as ReactFlowInstance,
+          resetPositions: mockResetPositions,
+        }),
+      );
+
+      act(() => {
+        result.current.focusNode("child");
+      });
+
+      // Should use child's position as-is if parent not found
+      // Center: (20 + 100/2, 10 + 50/2) = (70, 35)
+      expect(mockRfInstance.setCenter).toHaveBeenCalledWith(70, 35, {
+        zoom: 1,
+        duration: 300,
+      });
     });
   });
 });

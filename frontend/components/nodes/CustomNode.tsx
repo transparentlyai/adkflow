@@ -1,8 +1,10 @@
 "use client";
 
 import { memo, useState, useCallback, useMemo, useEffect } from "react";
-import { type NodeProps, useReactFlow } from "@xyflow/react";
+import { type NodeProps, useReactFlow, useStore } from "@xyflow/react";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useCanvasActions } from "@/contexts/CanvasActionsContext";
+import NodeContextMenu from "@/components/NodeContextMenu";
 
 // Import types from dedicated types file
 import type {
@@ -91,7 +93,76 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
   const name = (config.name as string) || schema.label;
   const { setNodes } = useReactFlow();
   const { theme } = useTheme();
+  const canvasActions = useCanvasActions();
   const [isExpanded, setIsExpanded] = useState(dataIsExpanded ?? false);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+
+  // Get parentId from store to check if node is inside a group
+  const parentId = useStore(
+    useCallback(
+      (state) => state.nodes.find((n) => n.id === id)?.parentId,
+      [id],
+    ),
+  );
+
+  // Context menu handlers
+  const handleHeaderContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  }, []);
+
+  const handleToggleNodeLock = useCallback(() => {
+    setNodes((nodes) =>
+      nodes.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, isNodeLocked: !isNodeLocked } }
+          : node,
+      ),
+    );
+  }, [id, isNodeLocked, setNodes]);
+
+  const handleDetach = useCallback(() => {
+    setNodes((nodes) => {
+      const currentNode = nodes.find((n) => n.id === id);
+      const parentNode = nodes.find((n) => n.id === currentNode?.parentId);
+      if (!currentNode || !parentNode) return nodes;
+
+      return nodes.map((node) =>
+        node.id === id
+          ? {
+              ...node,
+              parentId: undefined,
+              position: {
+                x: currentNode.position.x + parentNode.position.x,
+                y: currentNode.position.y + parentNode.position.y,
+              },
+            }
+          : node,
+      );
+    });
+  }, [id, setNodes]);
+
+  const handleCopy = useCallback(() => {
+    setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
+    setTimeout(() => canvasActions?.copySelectedNodes(), 0);
+  }, [id, setNodes, canvasActions]);
+
+  const handleCut = useCallback(() => {
+    setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
+    setTimeout(() => canvasActions?.cutSelectedNodes(), 0);
+  }, [id, setNodes, canvasActions]);
+
+  const handlePaste = useCallback(() => {
+    canvasActions?.pasteNodes();
+  }, [canvasActions]);
+
+  const handleDelete = useCallback(() => {
+    setNodes((nodes) => nodes.filter((n) => n.id !== id));
+  }, [id, setNodes]);
 
   // Extract dynamic inputs from config (for nodes that support dynamic inputs)
   const dynamicInputs = useMemo(() => {
@@ -295,7 +366,51 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
   // Collapsed view (or non-expandable nodes like pills, circles, etc.)
   if (!isExpanded || !schema.ui.expandable) {
     return (
-      <CustomNodeCollapsed
+      <>
+        <CustomNodeCollapsed
+          id={id}
+          nodeData={nodeData}
+          schema={schema}
+          name={name}
+          config={config}
+          handlePositions={handlePositions}
+          handleTypes={handleTypes}
+          headerColor={headerColor}
+          selected={selected}
+          onToggleExpand={toggleExpand}
+          isEditing={isEditing}
+          editedName={editedName}
+          inputRef={inputRef}
+          onNameClick={handleNameClick}
+          onNameChange={handleNameChange}
+          onNameSave={handleNameSave}
+          onNameKeyDown={handleNameKeyDown}
+          onContextMenu={handleHeaderContextMenu}
+        />
+        {contextMenu && (
+          <NodeContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            isLocked={!!isNodeLocked}
+            onToggleLock={handleToggleNodeLock}
+            onClose={() => setContextMenu(null)}
+            onDetach={parentId ? handleDetach : undefined}
+            onCopy={handleCopy}
+            onCut={handleCut}
+            onPaste={handlePaste}
+            onDelete={handleDelete}
+            hasClipboard={canvasActions?.hasClipboard}
+            isCanvasLocked={canvasActions?.isLocked}
+          />
+        )}
+      </>
+    );
+  }
+
+  // Expanded view
+  return (
+    <>
+      <CustomNodeExpanded
         id={id}
         nodeData={nodeData}
         schema={schema}
@@ -303,9 +418,15 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
         config={config}
         handlePositions={handlePositions}
         handleTypes={handleTypes}
+        connectedInputs={connectedInputs}
         headerColor={headerColor}
-        selected={selected}
+        tabs={tabs}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        width={width}
         onToggleExpand={toggleExpand}
+        onConfigChange={handleConfigChange}
+        isFieldVisible={isFieldVisible}
         isEditing={isEditing}
         editedName={editedName}
         inputRef={inputRef}
@@ -313,50 +434,40 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
         onNameChange={handleNameChange}
         onNameSave={handleNameSave}
         onNameKeyDown={handleNameKeyDown}
+        // File operation props for nodes with code_editor
+        filePath={filePath}
+        onSave={hasCodeEditor ? handleFileSave : undefined}
+        onChangeFile={hasCodeEditor ? handleChangeFile : undefined}
+        isSaving={isSaving}
+        isDirty={isDirty}
+        // Execution state (filter out "idle" as it means no visual state)
+        executionState={
+          nodeData.executionState !== "idle"
+            ? nodeData.executionState
+            : undefined
+        }
+        selected={selected}
+        // Resize handler for resizable nodes
+        onResize={schema.ui.resizable ? handleResize : undefined}
+        onContextMenu={handleHeaderContextMenu}
       />
-    );
-  }
-
-  // Expanded view
-  return (
-    <CustomNodeExpanded
-      id={id}
-      nodeData={nodeData}
-      schema={schema}
-      name={name}
-      config={config}
-      handlePositions={handlePositions}
-      handleTypes={handleTypes}
-      connectedInputs={connectedInputs}
-      headerColor={headerColor}
-      tabs={tabs}
-      activeTab={activeTab}
-      setActiveTab={setActiveTab}
-      width={width}
-      onToggleExpand={toggleExpand}
-      onConfigChange={handleConfigChange}
-      isFieldVisible={isFieldVisible}
-      isEditing={isEditing}
-      editedName={editedName}
-      inputRef={inputRef}
-      onNameClick={handleNameClick}
-      onNameChange={handleNameChange}
-      onNameSave={handleNameSave}
-      onNameKeyDown={handleNameKeyDown}
-      // File operation props for nodes with code_editor
-      filePath={filePath}
-      onSave={hasCodeEditor ? handleFileSave : undefined}
-      onChangeFile={hasCodeEditor ? handleChangeFile : undefined}
-      isSaving={isSaving}
-      isDirty={isDirty}
-      // Execution state (filter out "idle" as it means no visual state)
-      executionState={
-        nodeData.executionState !== "idle" ? nodeData.executionState : undefined
-      }
-      selected={selected}
-      // Resize handler for resizable nodes
-      onResize={schema.ui.resizable ? handleResize : undefined}
-    />
+      {contextMenu && (
+        <NodeContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          isLocked={!!isNodeLocked}
+          onToggleLock={handleToggleNodeLock}
+          onClose={() => setContextMenu(null)}
+          onDetach={parentId ? handleDetach : undefined}
+          onCopy={handleCopy}
+          onCut={handleCut}
+          onPaste={handlePaste}
+          onDelete={handleDelete}
+          hasClipboard={canvasActions?.hasClipboard}
+          isCanvasLocked={canvasActions?.isLocked}
+        />
+      )}
+    </>
   );
 });
 

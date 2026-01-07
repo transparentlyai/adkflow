@@ -27,6 +27,8 @@ export interface CustomNodeHeaderProps {
   duplicateNameError?: string;
   // Description tooltip (shown on hover in collapsed mode)
   description?: string;
+  // Context menu handler
+  onContextMenu?: (e: React.MouseEvent) => void;
 }
 
 /**
@@ -51,6 +53,7 @@ const CustomNodeHeader = memo(
     validationWarnings,
     duplicateNameError,
     description,
+    onContextMenu,
   }: CustomNodeHeaderProps) => {
     const { theme } = useTheme();
     const ChevronIcon = isExpanded ? ChevronUp : ChevronDown;
@@ -67,6 +70,7 @@ const CustomNodeHeader = memo(
         className={`px-${isExpanded ? "2" : "3"} py-${isExpanded ? "1.5" : "2"} rounded-t-lg flex items-center justify-between ${isExpanded ? "cursor-pointer" : ""} gap-2`}
         style={{ backgroundColor: headerColor }}
         onDoubleClick={onToggleExpand}
+        onContextMenu={onContextMenu}
         title={tooltipText}
       >
         <div className="flex items-center gap-1.5 min-w-0 flex-1">

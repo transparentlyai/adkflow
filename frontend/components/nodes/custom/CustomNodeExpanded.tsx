@@ -58,6 +58,8 @@ export interface CustomNodeExpandedProps {
   executionState?: "running" | "completed" | "error";
   selected?: boolean;
   onResize?: (deltaWidth: number, deltaHeight: number) => void;
+  // Context menu
+  onContextMenu?: (e: React.MouseEvent) => void;
 }
 
 /**
@@ -97,6 +99,7 @@ const CustomNodeExpanded = memo(
     executionState,
     selected = false,
     onResize,
+    onContextMenu,
   }: CustomNodeExpandedProps) => {
     const { theme } = useTheme();
 
@@ -154,6 +157,7 @@ const CustomNodeExpanded = memo(
             validationErrors={nodeData.validationErrors}
             validationWarnings={nodeData.validationWarnings}
             duplicateNameError={nodeData.duplicateNameError}
+            onContextMenu={onContextMenu}
           />
 
           {tabs && tabs.length > 0 && (

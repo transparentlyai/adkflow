@@ -38,6 +38,7 @@ const StandardLayout = memo(
     onNameChange,
     onNameSave,
     onNameKeyDown,
+    onContextMenu,
   }: CustomNodeCollapsedProps) => {
     const { theme } = useTheme();
     const themeColors = getThemeColors(theme, schema.ui.theme_key);
@@ -117,6 +118,7 @@ const StandardLayout = memo(
               validationWarnings={nodeData.validationWarnings}
               duplicateNameError={nodeData.duplicateNameError}
               description={config.description as string | undefined}
+              onContextMenu={onContextMenu}
             />
 
             {/* Body with summary */}
@@ -195,9 +197,13 @@ const StandardLayout = memo(
               />
             ))}
 
-          {/* Additional handles (top/bottom) - filter out left-positioned ones */}
+          {/* Additional handles (top/bottom/right, and left-positioned sources) */}
           {additionalHandles
-            .filter((handle) => handle.position !== "left")
+            .filter((handle) => {
+              // Show handles that are NOT left-positioned
+              // OR are left-positioned but are sources (outputs)
+              return handle.position !== "left" || handle.type === "source";
+            })
             .map((handle) => {
               // Find matching input/output to get handle_color
               const matchingInput = schema.ui.inputs.find(
