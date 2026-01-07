@@ -11,6 +11,7 @@ import type {
   RunStatus,
   NodeExecutionState,
   TopologyResponse,
+  ProjectSettings,
 } from "@/lib/types";
 import type { FilePickerState, NodeCreationDialogState } from "@/hooks/home";
 
@@ -106,7 +107,7 @@ interface HomeDialogsProps {
   // Project settings dialog
   isProjectSettingsOpen: boolean;
   onProjectSettingsOpenChange: (open: boolean) => void;
-  onProjectSettingsSaved?: () => void;
+  onProjectSettingsSaved?: (settings: ProjectSettings) => void;
 }
 
 export function HomeDialogs({

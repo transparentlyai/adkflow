@@ -1,10 +1,12 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import HomeScreen from "@/components/HomeScreen";
 import { ClipboardProvider } from "@/contexts/ClipboardContext";
 import { TabsProvider } from "@/contexts/TabsContext";
 import { TeleporterProvider } from "@/contexts/TeleporterContext";
 import { HomeHeader, HomeDialogs, HomeLayout } from "@/components/home";
+import { loadProjectSettings } from "@/lib/api";
 import {
   useHomeState,
   useProjectManagement,
@@ -251,6 +253,37 @@ function HomeContent() {
     saveTabFlow,
   });
 
+  // Project settings: default model for new agent nodes
+  const [defaultModel, setDefaultModel] = useState<string | undefined>(
+    undefined,
+  );
+
+  // Load default model from project settings
+  useEffect(() => {
+    if (!currentProjectPath) {
+      setDefaultModel(undefined);
+      return;
+    }
+
+    let cancelled = false;
+
+    loadProjectSettings(currentProjectPath)
+      .then((response) => {
+        if (!cancelled) {
+          setDefaultModel(response.settings.defaultModel || undefined);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDefaultModel(undefined);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentProjectPath, settingsRefreshKey]);
+
   // Show HomeScreen for first-time users
   if (showHomeScreen && !currentProjectPath) {
     return (
@@ -304,6 +337,7 @@ function HomeContent() {
         activeTabId={activeTabId}
         isCanvasLocked={isCanvasLocked}
         isRunning={isRunning}
+        defaultModel={defaultModel}
         onTabClick={tabHandlers.handleTabClick}
         onTabDelete={tabHandlers.handleTabDelete}
         onTabRename={tabHandlers.handleTabRename}
@@ -400,7 +434,10 @@ function HomeContent() {
         onStatusChange={setLastRunStatus}
         isProjectSettingsOpen={isProjectSettingsOpen}
         onProjectSettingsOpenChange={setIsProjectSettingsOpen}
-        onProjectSettingsSaved={() => setSettingsRefreshKey((k) => k + 1)}
+        onProjectSettingsSaved={(settings) => {
+          setSettingsRefreshKey((k) => k + 1);
+          setDefaultModel(settings.defaultModel || undefined);
+        }}
       />
     </div>
   );

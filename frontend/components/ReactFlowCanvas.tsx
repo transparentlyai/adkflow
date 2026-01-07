@@ -13,6 +13,7 @@ import "@xyflow/react/dist/style.css";
 
 import { CanvasActionsProvider } from "@/contexts/CanvasActionsContext";
 import { ConnectionProvider } from "@/contexts/ConnectionContext";
+import { useProject } from "@/contexts/ProjectContext";
 
 import type { CustomNodeSchema } from "@/components/nodes/CustomNode";
 import { builtinNodeSchemas } from "@/lib/builtinNodeHelpers";
@@ -125,6 +126,9 @@ const ReactFlowCanvasInner = forwardRef<
     },
     ref,
   ) => {
+    // Get project context for default model
+    const { defaultModel } = useProject();
+
     // Core canvas state
     const state = useCanvasState();
     const {
@@ -337,6 +341,7 @@ const ReactFlowCanvasInner = forwardRef<
       onRequestToolCreation,
       onRequestProcessCreation,
       onRequestOutputFileCreation,
+      defaultModel,
     });
 
     // Canvas operations

@@ -5,7 +5,7 @@ import { ProjectProvider, useProject } from "@/contexts/ProjectContext";
 
 // Test component that uses the context
 function TestConsumer() {
-  const { projectPath, isLocked, onSaveFile, onRequestFilePicker } =
+  const { projectPath, isLocked, onSaveFile, onRequestFilePicker, defaultModel } =
     useProject();
   return (
     <div>
@@ -13,6 +13,7 @@ function TestConsumer() {
       <span data-testid="locked">{isLocked ? "locked" : "unlocked"}</span>
       <span data-testid="hasSave">{onSaveFile ? "yes" : "no"}</span>
       <span data-testid="hasPicker">{onRequestFilePicker ? "yes" : "no"}</span>
+      <span data-testid="defaultModel">{defaultModel ?? "none"}</span>
     </div>
   );
 }
@@ -95,6 +96,31 @@ describe("ProjectContext", () => {
       expect(screen.getByTestId("locked")).toHaveTextContent("unlocked");
       expect(screen.getByTestId("hasSave")).toHaveTextContent("no");
       expect(screen.getByTestId("hasPicker")).toHaveTextContent("no");
+      expect(screen.getByTestId("defaultModel")).toHaveTextContent("none");
+    });
+  });
+
+  describe("defaultModel", () => {
+    it("should provide defaultModel when specified", () => {
+      render(
+        <ProjectProvider projectPath="/project" defaultModel="gemini-2.0-flash">
+          <TestConsumer />
+        </ProjectProvider>,
+      );
+
+      expect(screen.getByTestId("defaultModel")).toHaveTextContent(
+        "gemini-2.0-flash",
+      );
+    });
+
+    it("should default to undefined when not specified", () => {
+      render(
+        <ProjectProvider projectPath="/project">
+          <TestConsumer />
+        </ProjectProvider>,
+      );
+
+      expect(screen.getByTestId("defaultModel")).toHaveTextContent("none");
     });
   });
 });

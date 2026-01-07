@@ -33,6 +33,7 @@ interface UseContextMenuSelectParams {
   onRequestToolCreation?: (position: { x: number; y: number }) => void;
   onRequestProcessCreation?: (position: { x: number; y: number }) => void;
   onRequestOutputFileCreation?: (position: { x: number; y: number }) => void;
+  defaultModel?: string;
 }
 
 export function useContextMenuSelect({
@@ -51,6 +52,7 @@ export function useContextMenuSelect({
   onRequestToolCreation,
   onRequestProcessCreation,
   onRequestOutputFileCreation,
+  defaultModel,
 }: UseContextMenuSelectParams) {
   // Helper to add node with optional parent
   const addNodeWithParent = useCallback(
@@ -187,9 +189,20 @@ export function useContextMenuSelect({
           break;
 
         // All other built-in nodes
-        default:
-          addBuiltinSchemaNode(nodeType, position, undefined, parentGroupId);
+        default: {
+          // Apply project's default model to agent nodes
+          const configOverrides =
+            nodeType === "agent" && defaultModel
+              ? { model: defaultModel }
+              : undefined;
+          addBuiltinSchemaNode(
+            nodeType,
+            position,
+            configOverrides,
+            parentGroupId,
+          );
           break;
+        }
       }
 
       setContextMenu(null);
@@ -208,6 +221,7 @@ export function useContextMenuSelect({
       onRequestToolCreation,
       onRequestProcessCreation,
       onRequestOutputFileCreation,
+      defaultModel,
     ],
   );
 

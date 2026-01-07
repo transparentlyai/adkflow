@@ -31,8 +31,8 @@ interface ProjectSettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectPath: string | null;
-  /** Called when settings are successfully saved */
-  onSaved?: () => void;
+  /** Called when settings are successfully saved, with the saved settings */
+  onSaved?: (settings: ProjectSettings) => void;
 }
 
 const PROJECT_MODELS = getProjectSettingsModels();
@@ -110,7 +110,7 @@ export default function ProjectSettingsDialog({
       };
 
       await saveProjectSettings(projectPath, settings, env);
-      onSaved?.();
+      onSaved?.(settings);
       onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save settings");

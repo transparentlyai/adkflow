@@ -41,6 +41,8 @@ interface UseContextMenuParams {
   onRequestToolCreation?: (position: { x: number; y: number }) => void;
   onRequestProcessCreation?: (position: { x: number; y: number }) => void;
   onRequestOutputFileCreation?: (position: { x: number; y: number }) => void;
+  // Project settings
+  defaultModel?: string;
 }
 
 export function useContextMenu({
@@ -62,6 +64,7 @@ export function useContextMenu({
   onRequestToolCreation,
   onRequestProcessCreation,
   onRequestOutputFileCreation,
+  defaultModel,
 }: UseContextMenuParams) {
   // Context menu event handlers
   const {
@@ -107,6 +110,7 @@ export function useContextMenu({
       onRequestToolCreation,
       onRequestProcessCreation,
       onRequestOutputFileCreation,
+      defaultModel,
     });
 
   return {

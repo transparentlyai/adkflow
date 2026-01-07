@@ -19,6 +19,7 @@ interface HomeLayoutProps {
   activeTabId: string | null;
   isCanvasLocked: boolean;
   isRunning: boolean;
+  defaultModel?: string;
 
   // Tab handlers
   onTabClick: (tabId: string) => void;
@@ -62,6 +63,7 @@ export function HomeLayout({
   activeTabId,
   isCanvasLocked,
   isRunning,
+  defaultModel,
   onTabClick,
   onTabDelete,
   onTabRename,
@@ -113,6 +115,7 @@ export function HomeLayout({
               onSaveFile={onSaveFile}
               onRequestFilePicker={onRequestFilePicker}
               isLocked={isCanvasLocked}
+              defaultModel={defaultModel}
             >
               <RunWorkflowProvider
                 runWorkflow={onRunWorkflow}

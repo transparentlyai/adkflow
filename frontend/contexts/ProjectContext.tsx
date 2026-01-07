@@ -22,6 +22,7 @@ interface ProjectContextValue {
     options?: FilePickerOptions,
   ) => void;
   isLocked?: boolean;
+  defaultModel?: string;
 }
 
 const ProjectContext = createContext<ProjectContextValue>({
@@ -39,6 +40,7 @@ interface ProjectProviderProps {
     options?: FilePickerOptions,
   ) => void;
   isLocked?: boolean;
+  defaultModel?: string;
 }
 
 export function ProjectProvider({
@@ -47,10 +49,17 @@ export function ProjectProvider({
   onSaveFile,
   onRequestFilePicker,
   isLocked,
+  defaultModel,
 }: ProjectProviderProps) {
   return (
     <ProjectContext.Provider
-      value={{ projectPath, onSaveFile, onRequestFilePicker, isLocked }}
+      value={{
+        projectPath,
+        onSaveFile,
+        onRequestFilePicker,
+        isLocked,
+        defaultModel,
+      }}
     >
       {children}
     </ProjectContext.Provider>
