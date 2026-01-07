@@ -18,7 +18,7 @@ import httpx
 import pytest
 from httpx import AsyncClient
 
-from backend.src.api.routes.context_preview_routes import (
+from backend.src.api.routes.context_preview_service import (
     _count_tokens,
     _format_frontmatter,
     _format_python_dict,
@@ -28,11 +28,11 @@ from backend.src.api.routes.context_preview_routes import (
     _get_url_metadata,
     _matches_exclude_pattern,
     _parse_env_file,
-    _preview_directory,
-    _preview_file,
-    _preview_url,
     _truncate_content,
     _unescape_string,
+    preview_directory,
+    preview_file,
+    preview_url,
 )
 
 
@@ -196,7 +196,7 @@ class TestCountTokens:
     async def test_count_tokens_not_available(self, tmp_path: Path):
         """Return error when gemtoken not installed."""
         with patch(
-            "backend.src.api.routes.context_preview_routes.GEMTOKEN_AVAILABLE",
+            "backend.src.api.routes.context_preview_service.GEMTOKEN_AVAILABLE",
             False,
         ):
             token_count, error = await _count_tokens("test content", tmp_path)
@@ -220,10 +220,10 @@ class TestCountTokens:
         mock_counter.count_tokens_async = AsyncMock(return_value=42)
 
         with patch(
-            "backend.src.api.routes.context_preview_routes.GEMTOKEN_AVAILABLE",
+            "backend.src.api.routes.context_preview_service.GEMTOKEN_AVAILABLE",
             True,
         ), patch(
-            "backend.src.api.routes.context_preview_routes._TokenCounter",
+            "backend.src.api.routes.context_preview_service._TokenCounter",
             return_value=mock_counter,
         ):
             token_count, error = await _count_tokens("test content", tmp_path)
@@ -240,10 +240,10 @@ class TestCountTokens:
         (tmp_path / "manifest.json").write_text(json.dumps(manifest))
 
         with patch(
-            "backend.src.api.routes.context_preview_routes.GEMTOKEN_AVAILABLE",
+            "backend.src.api.routes.context_preview_service.GEMTOKEN_AVAILABLE",
             True,
         ), patch(
-            "backend.src.api.routes.context_preview_routes._TokenCounter",
+            "backend.src.api.routes.context_preview_service._TokenCounter",
             MagicMock(),
         ):
             token_count, error = await _count_tokens("test content", tmp_path)
@@ -270,10 +270,10 @@ class TestCountTokens:
         mock_counter.count_tokens_async = AsyncMock(return_value=100)
 
         with patch(
-            "backend.src.api.routes.context_preview_routes.GEMTOKEN_AVAILABLE",
+            "backend.src.api.routes.context_preview_service.GEMTOKEN_AVAILABLE",
             True,
         ), patch(
-            "backend.src.api.routes.context_preview_routes._TokenCounter",
+            "backend.src.api.routes.context_preview_service._TokenCounter",
             return_value=mock_counter,
         ):
             token_count, error = await _count_tokens("test content", tmp_path)
@@ -293,10 +293,10 @@ class TestCountTokens:
         (tmp_path / "manifest.json").write_text(json.dumps(manifest))
 
         with patch(
-            "backend.src.api.routes.context_preview_routes.GEMTOKEN_AVAILABLE",
+            "backend.src.api.routes.context_preview_service.GEMTOKEN_AVAILABLE",
             True,
         ), patch(
-            "backend.src.api.routes.context_preview_routes._TokenCounter",
+            "backend.src.api.routes.context_preview_service._TokenCounter",
             MagicMock(),
         ):
             token_count, error = await _count_tokens("test content", tmp_path)
@@ -321,10 +321,10 @@ class TestCountTokens:
         )
 
         with patch(
-            "backend.src.api.routes.context_preview_routes.GEMTOKEN_AVAILABLE",
+            "backend.src.api.routes.context_preview_service.GEMTOKEN_AVAILABLE",
             True,
         ), patch(
-            "backend.src.api.routes.context_preview_routes._TokenCounter",
+            "backend.src.api.routes.context_preview_service._TokenCounter",
             return_value=mock_counter,
         ):
             token_count, error = await _count_tokens("test content", tmp_path)
@@ -501,14 +501,14 @@ class TestHelperFunctions:
 
 
 class TestPreviewFile:
-    """Tests for _preview_file function."""
+    """Tests for preview_file function."""
 
-    async def test_preview_file_success(self, tmp_path: Path):
+    async def testpreview_file_success(self, tmp_path: Path):
         """Preview a single file successfully."""
         test_file = tmp_path / "test.txt"
         test_file.write_text("Hello, world!")
 
-        result = await _preview_file(
+        result = await preview_file(
             "test.txt",
             tmp_path,
             include_metadata=False,
@@ -519,12 +519,12 @@ class TestPreviewFile:
         assert result.error is None
         assert result.truncated is False
 
-    async def test_preview_file_with_metadata(self, tmp_path: Path):
+    async def testpreview_file_with_metadata(self, tmp_path: Path):
         """Preview file with metadata included."""
         test_file = tmp_path / "test.txt"
         test_file.write_text("Hello, world!")
 
-        result = await _preview_file(
+        result = await preview_file(
             "test.txt",
             tmp_path,
             include_metadata=True,
@@ -536,9 +536,9 @@ class TestPreviewFile:
         assert result.metadata["source_path"] == "test.txt"
         assert result.metadata["source_name"] == "test"
 
-    async def test_preview_file_not_found(self, tmp_path: Path):
+    async def testpreview_file_not_found(self, tmp_path: Path):
         """Error when file doesn't exist."""
-        result = await _preview_file(
+        result = await preview_file(
             "nonexistent.txt",
             tmp_path,
             include_metadata=False,
@@ -548,9 +548,9 @@ class TestPreviewFile:
         assert result.error is not None
         assert "File not found" in result.error
 
-    async def test_preview_file_empty_path(self, tmp_path: Path):
+    async def testpreview_file_empty_path(self, tmp_path: Path):
         """Error when file path is empty."""
-        result = await _preview_file(
+        result = await preview_file(
             "",
             tmp_path,
             include_metadata=False,
@@ -559,12 +559,12 @@ class TestPreviewFile:
 
         assert result.error == "No file path specified"
 
-    async def test_preview_file_truncated(self, tmp_path: Path):
+    async def testpreview_file_truncated(self, tmp_path: Path):
         """File content is truncated when exceeding max size."""
         test_file = tmp_path / "large.txt"
         test_file.write_text("A" * 1000)
 
-        result = await _preview_file(
+        result = await preview_file(
             "large.txt",
             tmp_path,
             include_metadata=False,
@@ -575,12 +575,12 @@ class TestPreviewFile:
         assert len(result.content.encode("utf-8")) <= 100
         assert result.totalSize == 1000
 
-    async def test_preview_file_absolute_path(self, tmp_path: Path):
+    async def testpreview_file_absolute_path(self, tmp_path: Path):
         """Handle absolute file paths."""
         test_file = tmp_path / "test.txt"
         test_file.write_text("Hello, world!")
 
-        result = await _preview_file(
+        result = await preview_file(
             str(test_file),
             tmp_path,
             include_metadata=False,
@@ -592,14 +592,14 @@ class TestPreviewFile:
 
 
 class TestPreviewDirectory:
-    """Tests for _preview_directory function."""
+    """Tests for preview_directory function."""
 
-    async def test_preview_directory_success(self, tmp_path: Path):
+    async def testpreview_directory_success(self, tmp_path: Path):
         """Preview files in directory."""
         (tmp_path / "file1.txt").write_text("Content 1")
         (tmp_path / "file2.txt").write_text("Content 2")
 
-        result = await _preview_directory(
+        result = await preview_directory(
             ".",
             "*.txt",
             tmp_path,
@@ -612,9 +612,9 @@ class TestPreviewDirectory:
         assert result.files is not None
         assert len(result.files) == 2
 
-    async def test_preview_directory_no_matches(self, tmp_path: Path):
+    async def testpreview_directory_no_matches(self, tmp_path: Path):
         """Error when no files match pattern."""
-        result = await _preview_directory(
+        result = await preview_directory(
             ".",
             "*.txt",
             tmp_path,
@@ -626,9 +626,9 @@ class TestPreviewDirectory:
         assert "No files matched pattern" in result.error
         assert result.totalFiles == 0
 
-    async def test_preview_directory_empty_path(self, tmp_path: Path):
+    async def testpreview_directory_empty_path(self, tmp_path: Path):
         """Error when directory path is empty."""
-        result = await _preview_directory(
+        result = await preview_directory(
             "",
             "*.txt",
             tmp_path,
@@ -638,9 +638,9 @@ class TestPreviewDirectory:
 
         assert result.error == "No directory path specified"
 
-    async def test_preview_directory_not_found(self, tmp_path: Path):
+    async def testpreview_directory_not_found(self, tmp_path: Path):
         """Error when directory doesn't exist."""
-        result = await _preview_directory(
+        result = await preview_directory(
             "nonexistent",
             "*.txt",
             tmp_path,
@@ -651,14 +651,14 @@ class TestPreviewDirectory:
         assert result.error is not None
         assert "Directory not found" in result.error
 
-    async def test_preview_directory_recursive(self, tmp_path: Path):
+    async def testpreview_directory_recursive(self, tmp_path: Path):
         """Preview files recursively in subdirectories."""
         (tmp_path / "file1.txt").write_text("Content 1")
         subdir = tmp_path / "subdir"
         subdir.mkdir()
         (subdir / "file2.txt").write_text("Content 2")
 
-        result = await _preview_directory(
+        result = await preview_directory(
             ".",
             "*.txt",
             tmp_path,
@@ -671,7 +671,7 @@ class TestPreviewDirectory:
         assert result.totalFiles == 2
         assert len(result.files) == 2
 
-    async def test_preview_directory_exclude_patterns(self, tmp_path: Path):
+    async def testpreview_directory_exclude_patterns(self, tmp_path: Path):
         """Exclude files matching exclusion patterns."""
         (tmp_path / "file1.txt").write_text("Content 1")
         (tmp_path / "file2.pyc").write_text("Compiled")
@@ -679,7 +679,7 @@ class TestPreviewDirectory:
         node_modules.mkdir()
         (node_modules / "file3.txt").write_text("Content 3")
 
-        result = await _preview_directory(
+        result = await preview_directory(
             ".",
             "*",
             tmp_path,
@@ -693,12 +693,12 @@ class TestPreviewDirectory:
         assert result.totalFiles == 1  # Only file1.txt
         assert result.files[0].path.endswith("file1.txt")
 
-    async def test_preview_directory_max_files_limit(self, tmp_path: Path):
+    async def testpreview_directory_max_files_limit(self, tmp_path: Path):
         """Limit number of files when exceeding max."""
         for i in range(10):
             (tmp_path / f"file{i}.txt").write_text(f"Content {i}")
 
-        result = await _preview_directory(
+        result = await preview_directory(
             ".",
             "*.txt",
             tmp_path,
@@ -712,12 +712,12 @@ class TestPreviewDirectory:
         assert result.warnings is not None
         assert "showing first 5" in result.warnings[0]
 
-    async def test_preview_directory_max_file_size(self, tmp_path: Path):
+    async def testpreview_directory_max_file_size(self, tmp_path: Path):
         """Skip files exceeding max file size."""
         (tmp_path / "small.txt").write_text("Small")
         (tmp_path / "large.txt").write_text("A" * 10000)
 
-        result = await _preview_directory(
+        result = await preview_directory(
             ".",
             "*.txt",
             tmp_path,
@@ -733,9 +733,9 @@ class TestPreviewDirectory:
 
 
 class TestPreviewUrl:
-    """Tests for _preview_url function."""
+    """Tests for preview_url function."""
 
-    async def test_preview_url_success(self):
+    async def testpreview_url_success(self):
         """Preview content from URL successfully."""
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.text = "URL content"
@@ -747,7 +747,7 @@ class TestPreviewUrl:
                 return_value=mock_response
             )
 
-            result = await _preview_url(
+            result = await preview_url(
                 "https://example.com",
                 include_metadata=False,
                 max_size=10000,
@@ -756,7 +756,7 @@ class TestPreviewUrl:
             assert result.content == "URL content"
             assert result.error is None
 
-    async def test_preview_url_with_metadata(self):
+    async def testpreview_url_with_metadata(self):
         """Preview URL with metadata included."""
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.text = "URL content"
@@ -771,7 +771,7 @@ class TestPreviewUrl:
                 return_value=mock_response
             )
 
-            result = await _preview_url(
+            result = await preview_url(
                 "https://example.com/test.html",
                 include_metadata=True,
                 max_size=10000,
@@ -782,9 +782,9 @@ class TestPreviewUrl:
             assert result.metadata["content_type"] == "text/html"
             assert result.metadata["status_code"] == "200"
 
-    async def test_preview_url_empty_url(self):
+    async def testpreview_url_empty_url(self):
         """Error when URL is empty."""
-        result = await _preview_url(
+        result = await preview_url(
             "",
             include_metadata=False,
             max_size=10000,
@@ -792,14 +792,14 @@ class TestPreviewUrl:
 
         assert result.error == "No URL specified"
 
-    async def test_preview_url_timeout(self):
+    async def testpreview_url_timeout(self):
         """Handle timeout errors."""
         with patch("httpx.AsyncClient") as mock_client:
             mock_client.return_value.__aenter__.return_value.get = AsyncMock(
                 side_effect=httpx.TimeoutException("Timeout")
             )
 
-            result = await _preview_url(
+            result = await preview_url(
                 "https://example.com",
                 include_metadata=False,
                 max_size=10000,
@@ -808,7 +808,7 @@ class TestPreviewUrl:
             assert result.error is not None
             assert "Timeout" in result.error
 
-    async def test_preview_url_http_error(self):
+    async def testpreview_url_http_error(self):
         """Handle HTTP status errors."""
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 404
@@ -820,7 +820,7 @@ class TestPreviewUrl:
                 )
             )
 
-            result = await _preview_url(
+            result = await preview_url(
                 "https://example.com/notfound",
                 include_metadata=False,
                 max_size=10000,
@@ -829,14 +829,14 @@ class TestPreviewUrl:
             assert result.error is not None
             assert "HTTP 404" in result.error
 
-    async def test_preview_url_general_error(self):
+    async def testpreview_url_general_error(self):
         """Handle general exceptions."""
         with patch("httpx.AsyncClient") as mock_client:
             mock_client.return_value.__aenter__.return_value.get = AsyncMock(
                 side_effect=Exception("Network error")
             )
 
-            result = await _preview_url(
+            result = await preview_url(
                 "https://example.com",
                 include_metadata=False,
                 max_size=10000,
@@ -849,7 +849,7 @@ class TestPreviewUrl:
 class TestContextPreviewEndpoint:
     """Tests for POST /api/context-aggregator/preview endpoint."""
 
-    async def test_preview_file_input(self, client: AsyncClient, tmp_path: Path):
+    async def testpreview_file_input(self, client: AsyncClient, tmp_path: Path):
         """Preview single file input."""
         test_file = tmp_path / "test.txt"
         test_file.write_text("Hello, world!")
@@ -877,7 +877,7 @@ class TestContextPreviewEndpoint:
         assert data["results"]["input1"]["content"] == "Hello, world!"
         assert data["results"]["input1"]["variableName"] == "file_content"
 
-    async def test_preview_directory_input(self, client: AsyncClient, tmp_path: Path):
+    async def testpreview_directory_input(self, client: AsyncClient, tmp_path: Path):
         """Preview directory input."""
         (tmp_path / "file1.txt").write_text("Content 1")
         (tmp_path / "file2.txt").write_text("Content 2")
@@ -905,7 +905,7 @@ class TestContextPreviewEndpoint:
         assert "input1" in data["results"]
         assert data["results"]["input1"]["totalFiles"] == 2
 
-    async def test_preview_url_input(self, client: AsyncClient, tmp_path: Path):
+    async def testpreview_url_input(self, client: AsyncClient, tmp_path: Path):
         """Preview URL input."""
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.text = "URL content"
