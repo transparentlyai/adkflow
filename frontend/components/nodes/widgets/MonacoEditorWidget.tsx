@@ -18,6 +18,7 @@ export interface MonacoEditorWidgetProps {
   height?: string | number;
   isDirty?: boolean;
   isSaving?: boolean;
+  hideGutter?: boolean;
 }
 
 export default function MonacoEditorWidget({
@@ -32,6 +33,7 @@ export default function MonacoEditorWidget({
   height = 200,
   isDirty = false,
   isSaving = false,
+  hideGutter = false,
 }: MonacoEditorWidgetProps) {
   const { theme } = useTheme();
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
@@ -93,11 +95,12 @@ export default function MonacoEditorWidget({
           options={{
             minimap: { enabled: false },
             fontSize: 12,
-            lineNumbers: "on",
+            lineNumbers: hideGutter ? "off" : "on",
             scrollBeyondLastLine: false,
-            folding: false,
-            lineDecorationsWidth: 10,
-            lineNumbersMinChars: 4,
+            folding: hideGutter ? false : false,
+            lineDecorationsWidth: hideGutter ? 0 : 10,
+            lineNumbersMinChars: hideGutter ? 0 : 4,
+            glyphMargin: hideGutter ? false : false,
             renderLineHighlight: "none",
             overviewRulerLanes: 0,
             hideCursorInOverviewRuler: true,

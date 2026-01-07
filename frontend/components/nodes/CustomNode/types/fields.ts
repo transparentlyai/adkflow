@@ -94,4 +94,6 @@ export interface FieldDefinition {
   section?: string;
   /** Language for syntax highlighting in code_editor widget */
   language?: string;
+  /** Hide left gutter (line numbers, etc.) for code_editor widget */
+  hide_gutter?: boolean;
 }

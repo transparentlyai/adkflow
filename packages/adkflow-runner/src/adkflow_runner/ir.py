@@ -52,10 +52,36 @@ class HttpOptionsConfig:
 class CallbackConfig:
     """Callback file paths for agent lifecycle hooks."""
 
+    before_agent: str | None = None
+    after_agent: str | None = None
     before_model: str | None = None
     after_model: str | None = None
     before_tool: str | None = None
     after_tool: str | None = None
+
+
+@dataclass
+class GenerateContentConfig:
+    """GenerateContentConfig parameters for fine-tuning model output."""
+
+    max_output_tokens: int | None = None
+    top_p: float | None = None
+    top_k: int | None = None
+    stop_sequences: list[str] | None = None
+    presence_penalty: float | None = None
+    frequency_penalty: float | None = None
+    seed: int | None = None
+    response_mime_type: str | None = None
+
+
+@dataclass
+class SafetyConfig:
+    """Safety settings for content filtering by harm category."""
+
+    harassment: str = "default"
+    hate_speech: str = "default"
+    sexually_explicit: str = "default"
+    dangerous_content: str = "default"
 
 
 @dataclass
@@ -132,11 +158,19 @@ class AgentIR:
     disallow_transfer_to_parent: bool = False
     disallow_transfer_to_peers: bool = False
 
+    # System instruction
+    system_instruction: str | None = None
+    system_instruction_file: str | None = None
+
     # Configuration
     planner: PlannerConfig = field(default_factory=PlannerConfig)
     code_executor: CodeExecutorConfig = field(default_factory=CodeExecutorConfig)
     http_options: HttpOptionsConfig = field(default_factory=HttpOptionsConfig)
     callbacks: CallbackConfig = field(default_factory=CallbackConfig)
+    generate_content: GenerateContentConfig = field(
+        default_factory=GenerateContentConfig
+    )
+    safety: SafetyConfig = field(default_factory=SafetyConfig)
 
     # Context variables for template substitution
     context_vars: dict[str, str] = field(default_factory=dict)

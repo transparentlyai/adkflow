@@ -1,11 +1,15 @@
 import { useState } from "react";
 import type { CustomNodeSchema } from "@/components/nodes/CustomNode/types";
-import { useFileContentLoader } from "./helpers/useFileContentLoader";
+import {
+  useFileContentLoader,
+  type FileLoadConfirmState,
+} from "./helpers/useFileContentLoader";
 import { useFileSaveHandler } from "./helpers/useFileSaveHandler";
 import { useFilePickerHandler } from "./helpers/useFilePickerHandler";
 
 // Re-export for backward compatibility
 export type { FilePickerOptions } from "./helpers/useFilePickerHandler";
+export type { FileLoadConfirmState } from "./helpers/useFileContentLoader";
 
 /**
  * Return type for useFileOperations hook
@@ -19,10 +23,18 @@ export interface UseFileOperationsResult {
   isContentLoaded: boolean;
   /** Whether the current content differs from saved content */
   isDirty: boolean;
+  /** The current file path (from file picker field) */
+  filePath: string;
   /** Handler to save the file */
   handleFileSave: () => Promise<void>;
   /** Handler to change the file path via picker */
   handleChangeFile: () => void;
+  /** State for file load confirmation dialog */
+  fileLoadConfirm: FileLoadConfirmState | null;
+  /** Handler to confirm file load */
+  handleConfirmLoad: () => void;
+  /** Handler to cancel file load */
+  handleCancelLoad: () => void;
 }
 
 /**
@@ -51,7 +63,15 @@ export function useFileOperations(
   const [isContentLoaded, setIsContentLoaded] = useState(false);
 
   // Use helper hooks
-  const { codeEditorField, filePath, codeContent } = useFileContentLoader({
+  const {
+    codeEditorField,
+    filePickerField,
+    filePath,
+    codeContent,
+    fileLoadConfirm,
+    handleConfirmLoad,
+    handleCancelLoad,
+  } = useFileContentLoader({
     nodeId,
     schema,
     config,
@@ -72,19 +92,24 @@ export function useFileOperations(
   const { handleChangeFile } = useFilePickerHandler({
     nodeId,
     filePath,
+    filePathFieldId: filePickerField?.id || "file_path",
     config,
     codeEditorField,
   });
 
-  // Track dirty state for code editor
-  const isDirty = isContentLoaded && codeContent !== savedContent;
+  // Track dirty state - only when editing a file (not inline content)
+  const isDirty = !!filePath && isContentLoaded && codeContent !== savedContent;
 
   return {
     isSaving,
     savedContent,
     isContentLoaded,
     isDirty,
+    filePath,
     handleFileSave,
     handleChangeFile,
+    fileLoadConfirm,
+    handleConfirmLoad,
+    handleCancelLoad,
   };
 }

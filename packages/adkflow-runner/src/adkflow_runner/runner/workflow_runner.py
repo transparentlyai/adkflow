@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import Any, AsyncIterator
 
 from dotenv import load_dotenv
+from google.adk.agents.invocation_context import LlmCallsLimitExceededError
+from google.adk.agents.run_config import RunConfig as AdkRunConfig, StreamingMode
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
@@ -368,6 +370,9 @@ class WorkflowRunner:
             parts=[types.Part(text=prompt)],
         )
 
+        # Build ADK RunConfig from our settings
+        adk_run_config = self._build_adk_run_config(config)
+
         output_parts: list[str] = []
         last_author: str | None = None
 
@@ -376,6 +381,7 @@ class WorkflowRunner:
                 user_id="runner",
                 session_id=session.id,
                 new_message=content,
+                run_config=adk_run_config,
             ):
                 last_author = await process_adk_event(event, emit, last_author)
 
@@ -385,6 +391,18 @@ class WorkflowRunner:
                         for part in parts:
                             if hasattr(part, "text") and part.text:
                                 output_parts.append(part.text)
+        except LlmCallsLimitExceededError as e:
+            # Handle gracefully - return partial results with warning
+            await emit(
+                RunEvent(
+                    type=EventType.ERROR,
+                    timestamp=time.time(),
+                    data={
+                        "warning": f"LLM call limit reached: {e}. Returning partial results.",
+                        "partial": True,
+                    },
+                )
+            )
         except Exception as e:
             # Re-raise with friendly error message if applicable
             error_msg = str(e)
@@ -430,6 +448,40 @@ class WorkflowRunner:
 
         return output
 
+    def _build_adk_run_config(self, config: RunConfig) -> AdkRunConfig:
+        """Build ADK RunConfig from our RunConfig settings.
+
+        Args:
+            config: Our RunConfig with ADK settings
+
+        Returns:
+            ADK RunConfig for runner.run_async()
+        """
+        # Map streaming mode string to ADK enum
+        streaming_mode_map = {
+            "none": StreamingMode.NONE,
+            "sse": StreamingMode.SSE,
+            "bidi": StreamingMode.BIDI,
+        }
+        streaming_mode = streaming_mode_map.get(
+            config.streaming_mode, StreamingMode.NONE
+        )
+
+        # Build base ADK RunConfig
+        # Note: max_llm_calls=0 means use default (500), positive values set the limit
+        adk_config = AdkRunConfig(
+            max_llm_calls=config.max_llm_calls if config.max_llm_calls > 0 else 500,
+            streaming_mode=streaming_mode,
+        )
+
+        # Enable context window compression if requested
+        if config.context_window_compression:
+            adk_config.context_window_compression = (
+                types.ContextWindowCompressionConfig()
+            )
+
+        return adk_config
+
     async def run_async_generator(
         self,
         config: RunConfig,
@@ -456,6 +508,9 @@ class WorkflowRunner:
             timeout_seconds=config.timeout_seconds,
             validate=config.validate,
             user_input_provider=config.user_input_provider,
+            max_llm_calls=config.max_llm_calls,
+            context_window_compression=config.context_window_compression,
+            streaming_mode=config.streaming_mode,
         )
 
         # Start run in background

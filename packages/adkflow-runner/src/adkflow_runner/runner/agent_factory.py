@@ -157,13 +157,25 @@ class AgentFactory:
                 initial_delay=agent_ir.http_options.retry_delay / 1000,  # ms to seconds
                 exp_base=agent_ir.http_options.retry_backoff_multiplier,
                 attempts=agent_ir.http_options.max_retries,
-                http_status_codes=[429, 500, 502, 503, 504],
+                http_status_codes=[429, 499, 500, 502, 503, 504],  # Added 499
             ),
         )
 
-        # Build generate config with HTTP options
+        # Build safety settings from SafetyConfig
+        safety_settings = self._build_safety_settings(agent_ir)
+
+        # Build generate config with all GenerateContentConfig fields
         generate_config = types.GenerateContentConfig(
             temperature=agent_ir.temperature,
+            max_output_tokens=agent_ir.generate_content.max_output_tokens,
+            top_p=agent_ir.generate_content.top_p,
+            top_k=agent_ir.generate_content.top_k,
+            stop_sequences=agent_ir.generate_content.stop_sequences,
+            presence_penalty=agent_ir.generate_content.presence_penalty,
+            frequency_penalty=agent_ir.generate_content.frequency_penalty,
+            seed=agent_ir.generate_content.seed,
+            response_mime_type=agent_ir.generate_content.response_mime_type,
+            safety_settings=safety_settings,
             http_options=http_options,
         )
 
@@ -191,6 +203,7 @@ class AgentFactory:
             description=agent_ir.description or "",
             model=agent_ir.model,
             instruction=instruction,
+            global_instruction=agent_ir.system_instruction or "",
             tools=tools if tools else [],
             output_key=agent_ir.output_key,
             include_contents=agent_ir.include_contents,
@@ -210,6 +223,7 @@ class AgentFactory:
                 description=agent_ir.description or "",
                 model=agent_ir.model,
                 instruction=instruction,
+                global_instruction=agent_ir.system_instruction or "",
                 tools=tools if tools else [],
                 sub_agents=sub_agents,
                 output_key=agent_ir.output_key,
@@ -424,6 +438,68 @@ class AgentFactory:
             result = result.replace(f"{{{key}}}", value)
 
         return result
+
+    def _build_safety_settings(
+        self, agent_ir: AgentIR
+    ) -> list[types.SafetySetting] | None:
+        """Build safety settings list from SafetyConfig.
+
+        Returns None if all settings are at default (use model defaults).
+        """
+        safety = agent_ir.safety
+
+        # Check if all settings are default
+        if all(
+            v == "default"
+            for v in [
+                safety.harassment,
+                safety.hate_speech,
+                safety.sexually_explicit,
+                safety.dangerous_content,
+            ]
+        ):
+            return None  # Use model defaults
+
+        # Map threshold strings to ADK enum values
+        threshold_map = {
+            "off": types.HarmBlockThreshold.OFF,
+            "block_none": types.HarmBlockThreshold.BLOCK_NONE,
+            "block_low": types.HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+            "block_medium": types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+            "block_high": types.HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        }
+
+        # Map category fields to ADK harm categories
+        category_map = {
+            "harassment": (
+                safety.harassment,
+                types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+            ),
+            "hate_speech": (
+                safety.hate_speech,
+                types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+            ),
+            "sexually_explicit": (
+                safety.sexually_explicit,
+                types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+            ),
+            "dangerous_content": (
+                safety.dangerous_content,
+                types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+            ),
+        }
+
+        settings = []
+        for _name, (threshold_str, category) in category_map.items():
+            if threshold_str != "default" and threshold_str in threshold_map:
+                settings.append(
+                    types.SafetySetting(
+                        category=category,
+                        threshold=threshold_map[threshold_str],
+                    )
+                )
+
+        return settings if settings else None
 
     def clear_cache(self) -> None:
         """Clear the agent cache."""

@@ -15,7 +15,7 @@ import { DEFAULT_MODEL } from "@/lib/constants/models";
  * NOTE: All agents are LLM agents - no type selection needed.
  *
  * Fields are defined in modelSchemas.ts and driven by the selected model.
- * Tabs: ["General", "Execution", "Flow", "Schema", "Callbacks"]
+ * Tabs: ["General", "System", "Execution", "Generation", "Flow", "Callbacks"]
  */
 
 // Get base schema from default model
@@ -173,7 +173,8 @@ export const agentNodeSchema: CustomNodeSchema = {
     color: "#0ea5e9", // Blue color for agent nodes (matches theme.colors.nodes.agent.header)
     icon: "monitor",
     expandable: true,
-    default_width: 280,
+    default_width: 350,
+    min_width: 350,
     default_height: 500,
     // Panel layout for agent nodes with chaining handles
     layout: "panel",

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useReactFlow } from "@xyflow/react";
 import { useProject } from "@/contexts/ProjectContext";
 import { readPrompt } from "@/lib/api";
@@ -14,6 +14,11 @@ interface UseFileContentLoaderParams {
   setSavedContent: (value: string | null) => void;
 }
 
+export interface FileLoadConfirmState {
+  pendingFilePath: string;
+  existingContent: string;
+}
+
 export function useFileContentLoader({
   nodeId,
   schema,
@@ -26,6 +31,14 @@ export function useFileContentLoader({
   const { setNodes } = useReactFlow();
   const { projectPath } = useProject();
 
+  // State for confirmation dialog
+  const [fileLoadConfirm, setFileLoadConfirm] =
+    useState<FileLoadConfirmState | null>(null);
+
+  // Track the file path we've already processed to avoid duplicate confirmations
+  const processedFilePathRef = useRef<string | null>(null);
+  const isLoadingRef = useRef(false);
+
   // Find code_editor field in schema
   const codeEditorField = useMemo(() => {
     return schema.ui.fields.find(
@@ -33,10 +46,18 @@ export function useFileContentLoader({
     );
   }, [schema]);
 
-  // Get file path from config (look for file_path field)
+  // Find file_picker field in schema (for loading file content)
+  const filePickerField = useMemo(() => {
+    return schema.ui.fields.find((f) => f.widget === "file_picker");
+  }, [schema]);
+
+  // Get file path from config (look for file_picker field or legacy file_path)
   const filePath = useMemo(() => {
+    if (filePickerField) {
+      return (config[filePickerField.id] as string) || "";
+    }
     return (config.file_path as string) || "";
-  }, [config.file_path]);
+  }, [config, filePickerField]);
 
   // Get current code content from config
   const codeContent = useMemo(() => {
@@ -44,51 +65,138 @@ export function useFileContentLoader({
     return (config[codeEditorField.id] as string) || "";
   }, [codeEditorField, config]);
 
+  // Load file content (called directly or after confirmation)
+  const loadFileContent = useCallback(
+    async (filePathToLoad: string) => {
+      if (!codeEditorField || !projectPath) return;
+
+      isLoadingRef.current = true;
+      try {
+        const response = await readPrompt(projectPath, filePathToLoad);
+        processedFilePathRef.current = filePathToLoad;
+        setNodes((nodes) =>
+          nodes.map((node) =>
+            node.id === nodeId
+              ? {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    config: {
+                      ...(node.data.config as Record<string, unknown>),
+                      [codeEditorField.id]: response.content,
+                    },
+                  },
+                }
+              : node,
+          ),
+        );
+        setSavedContent(response.content);
+        setIsContentLoaded(true);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes("not found")) {
+          processedFilePathRef.current = filePathToLoad;
+          setSavedContent(codeContent || "");
+          setIsContentLoaded(true);
+        } else {
+          console.error("Failed to load file content:", error);
+          processedFilePathRef.current = filePathToLoad;
+          setSavedContent(codeContent || "");
+          setIsContentLoaded(true);
+        }
+      } finally {
+        isLoadingRef.current = false;
+      }
+    },
+    [
+      codeEditorField,
+      projectPath,
+      nodeId,
+      codeContent,
+      setNodes,
+      setSavedContent,
+      setIsContentLoaded,
+    ],
+  );
+
+  // Handle confirmation to load file
+  const handleConfirmLoad = useCallback(() => {
+    if (!fileLoadConfirm) return;
+    setFileLoadConfirm(null);
+    loadFileContent(fileLoadConfirm.pendingFilePath);
+  }, [fileLoadConfirm, loadFileContent]);
+
+  // Handle cancellation - clear file path and keep existing content
+  const handleCancelLoad = useCallback(() => {
+    if (!fileLoadConfirm) return;
+    const existingContent = fileLoadConfirm.existingContent;
+    setFileLoadConfirm(null);
+    processedFilePathRef.current = "";
+    isLoadingRef.current = false;
+
+    // Clear the file path
+    setNodes((nodes) =>
+      nodes.map((node) =>
+        node.id === nodeId
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                config: {
+                  ...(node.data.config as Record<string, unknown>),
+                  [filePickerField?.id || "file_path"]: "",
+                },
+              },
+            }
+          : node,
+      ),
+    );
+    setSavedContent(existingContent);
+    setIsContentLoaded(true);
+  }, [
+    fileLoadConfirm,
+    filePickerField,
+    nodeId,
+    setNodes,
+    setSavedContent,
+    setIsContentLoaded,
+  ]);
+
   // Load content from file when expanded, or initialize dirty tracking for nodes without file
   useEffect(() => {
     const loadContent = async () => {
-      if (!isExpanded || isContentLoaded) return;
+      if (!isExpanded || isContentLoaded || isLoadingRef.current) return;
+      if (fileLoadConfirm) return; // Wait for confirmation
 
       // Case 1: Node with code editor AND file path - load from file
       if (codeEditorField && filePath && projectPath) {
-        try {
-          const response = await readPrompt(projectPath, filePath);
-          // Update config with loaded content
-          setNodes((nodes) =>
-            nodes.map((node) =>
-              node.id === nodeId
-                ? {
-                    ...node,
-                    data: {
-                      ...node.data,
-                      config: {
-                        ...config,
-                        [codeEditorField.id]: response.content,
-                      },
-                    },
-                  }
-                : node,
-            ),
-          );
-          setSavedContent(response.content);
+        // Skip if we've already processed this exact file path
+        if (processedFilePathRef.current === filePath) {
           setIsContentLoaded(true);
-        } catch (error) {
-          // File not found is expected for new nodes - treat current content as saved
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-          if (errorMessage.includes("not found")) {
-            setSavedContent(codeContent || "");
-            setIsContentLoaded(true);
-          } else {
-            console.error("Failed to load file content:", error);
-            // Still mark as loaded so we don't retry forever
-            setSavedContent(codeContent || "");
-            setIsContentLoaded(true);
-          }
+          return;
         }
+
+        // Check if there's existing content that would be overwritten
+        // Only ask for confirmation if this is a NEW file path selection (not initial load)
+        const existingContent = codeContent.trim();
+        const isNewFileSelection = processedFilePathRef.current !== null;
+
+        if (existingContent && isNewFileSelection) {
+          // Show confirmation dialog instead of loading immediately
+          setFileLoadConfirm({
+            pendingFilePath: filePath,
+            existingContent,
+          });
+          return;
+        }
+
+        // No confirmation needed - load directly
+        await loadFileContent(filePath);
       }
       // Case 2: Node with code editor but NO file path - track dirty against current content
       else if (codeEditorField && !filePath) {
+        processedFilePathRef.current = "";
         setSavedContent(codeContent || "");
         setIsContentLoaded(true);
       }
@@ -105,10 +213,9 @@ export function useFileContentLoader({
     filePath,
     projectPath,
     codeEditorField,
-    nodeId,
-    config,
     codeContent,
-    setNodes,
+    fileLoadConfirm,
+    loadFileContent,
     setSavedContent,
     setIsContentLoaded,
   ]);
@@ -123,7 +230,12 @@ export function useFileContentLoader({
 
   return {
     codeEditorField,
+    filePickerField,
     filePath,
     codeContent,
+    // Confirmation dialog state and handlers
+    fileLoadConfirm,
+    handleConfirmLoad,
+    handleCancelLoad,
   };
 }

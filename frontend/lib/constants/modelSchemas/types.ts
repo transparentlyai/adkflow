@@ -53,9 +53,10 @@ export const UNIVERSAL_FIELD_IDS = [
  */
 export const DEFAULT_TABS = [
   "General",
+  "System",
   "Execution",
+  "Generation",
   "Flow",
-  "Schema",
   "Callbacks",
 ];
 

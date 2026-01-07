@@ -2,7 +2,8 @@
  * ExpandedNodeContentArea - Renders the tab content area with inputs, fields, and outputs
  */
 
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import CustomNodeInput from "@/components/nodes/custom/CustomNodeInput";
 import CustomNodeOutput from "@/components/nodes/custom/CustomNodeOutput";
@@ -63,6 +64,23 @@ export function ExpandedNodeContentArea({
 }: ExpandedNodeContentAreaProps) {
   const { theme } = useTheme();
 
+  // Track collapsed sections (Safety collapsed by default)
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
+    new Set(["Safety"]),
+  );
+
+  const toggleSection = useCallback((sectionName: string) => {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionName)) {
+        next.delete(sectionName);
+      } else {
+        next.add(sectionName);
+      }
+      return next;
+    });
+  }, []);
+
   // Get additional handles (used to filter outputs rendered inside vs at edge)
   const additionalHandles = useMemo(
     () => schema.ui.handle_layout?.additional_handles || [],
@@ -118,12 +136,13 @@ export function ExpandedNodeContentArea({
             language={field.language || "python"}
             readOnly={nodeData.isNodeLocked}
             height={Math.max(150, editorHeight)}
-            showMenuBar={!!onSave}
+            showMenuBar={!!onSave && !!filePath}
             filePath={filePath}
             onSave={onSave}
             onChangeFile={onChangeFile}
             isDirty={isDirty}
             isSaving={isSaving}
+            hideGutter={field.hide_gutter}
           />
         </div>
       );
@@ -155,36 +174,53 @@ export function ExpandedNodeContentArea({
     );
   };
 
-  // Render section with header and separator
+  // Render section with header and separator (collapsible when named)
   const renderSection = (
     sectionName: string | null,
     content: React.ReactNode,
     isFirst: boolean = false,
     compact: boolean = false,
-  ) => (
-    <div
-      key={sectionName || "default"}
-      className={isFirst ? "" : "mt-2 pt-2 border-t"}
-      style={
-        isFirst
-          ? undefined
-          : { borderColor: theme.colors.nodes.common.container.border }
-      }
-    >
-      {sectionName && (
-        <div
-          className="text-[10px] font-semibold uppercase tracking-wide mb-1 pl-1 border-l-2"
-          style={{
-            color: theme.colors.nodes.common.text.muted,
-            borderColor: headerColor,
-          }}
-        >
-          {sectionName}
-        </div>
-      )}
-      <div className={compact ? "" : "space-y-1"}>{content}</div>
-    </div>
-  );
+  ) => {
+    const isCollapsed = sectionName
+      ? collapsedSections.has(sectionName)
+      : false;
+    const isCollapsible = !!sectionName;
+
+    return (
+      <div
+        key={sectionName || "default"}
+        className={isFirst ? "" : "mt-2 pt-2 border-t"}
+        style={
+          isFirst
+            ? undefined
+            : { borderColor: theme.colors.nodes.common.container.border }
+        }
+      >
+        {sectionName && (
+          <button
+            type="button"
+            onClick={() => toggleSection(sectionName)}
+            className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide mb-1 pl-1 border-l-2 w-full text-left hover:opacity-80 transition-opacity"
+            style={{
+              color: theme.colors.nodes.common.text.muted,
+              borderColor: headerColor,
+            }}
+          >
+            {isCollapsible &&
+              (isCollapsed ? (
+                <ChevronRight className="w-3 h-3" />
+              ) : (
+                <ChevronDown className="w-3 h-3" />
+              ))}
+            {sectionName}
+          </button>
+        )}
+        {!isCollapsed && (
+          <div className={compact ? "" : "space-y-1"}>{content}</div>
+        )}
+      </div>
+    );
+  };
 
   // Get handle position for an input/output from additional_handles
   const getHandlePosition = useCallback(
