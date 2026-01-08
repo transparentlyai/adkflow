@@ -71,6 +71,11 @@ def create_agent_callbacks(
 ) -> dict[str, Any]:
     """Create ADK callbacks that emit RunEvents for real-time updates.
 
+    .. deprecated::
+        Use CallbackRegistry instead. This function is maintained for
+        backwards compatibility but will be removed in a future version.
+        See: adkflow_runner.runner.callbacks.CallbackRegistry
+
     Tool callbacks are async and await the emit to ensure events are sent
     before/after tool execution. Agent callbacks use fire-and-forget since
     their timing is less critical.
@@ -177,8 +182,9 @@ def create_agent_callbacks(
             contents=lambda: [str(c) for c in contents],
         )
 
-        # Invoke before_llm_request hooks
-        if hooks:
+        # Invoke before_llm_request hooks (only if hooks are actually registered)
+        # Check has_hooks BEFORE creating coroutine to avoid blocking event loop
+        if hooks and hooks.executor.has_hooks("before_llm_request"):
             try:
                 # Build config dict from llm_request attributes
                 config = {
@@ -261,8 +267,9 @@ def create_agent_callbacks(
             content=lambda: str(content) if content else None,
         )
 
-        # Invoke after_llm_response hooks
-        if hooks:
+        # Invoke after_llm_response hooks (only if hooks are actually registered)
+        # Check has_hooks BEFORE creating coroutine to avoid blocking event loop
+        if hooks and hooks.executor.has_hooks("after_llm_response"):
             try:
                 # Build response dict with key metadata
                 response_data = {

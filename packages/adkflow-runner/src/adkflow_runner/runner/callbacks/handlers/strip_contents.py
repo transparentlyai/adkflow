@@ -1,12 +1,15 @@
-"""Utility functions for agent name processing and content handling.
+"""Handler for stripping injected ADK context from LLM requests.
 
-Provides text sanitization and ADK content stripping utilities.
+Priority 100: Runs first to clean contents before other handlers process them.
 """
 
 from __future__ import annotations
 
 import re
-from typing import Any, Callable
+from typing import Any
+
+from adkflow_runner.runner.callbacks.handlers.base import BaseHandler
+from adkflow_runner.runner.callbacks.types import HandlerResult
 
 # Patterns for stripping injected context from ADK
 # See: https://github.com/google/adk-python/issues/2207
@@ -21,42 +24,54 @@ _CONTEXT_PATTERNS = [
 ]
 
 
-def sanitize_agent_name(name: str) -> str:
-    """Convert agent name to valid Python identifier.
-
-    ADK requires agent names to be valid identifiers:
-    - Start with letter or underscore
-    - Only letters, digits, underscores
-    """
-    # Replace spaces and hyphens with underscores
-    sanitized = re.sub(r"[\s\-]+", "_", name)
-    # Remove any other invalid characters
-    sanitized = re.sub(r"[^a-zA-Z0-9_]", "", sanitized)
-    # Ensure it starts with letter or underscore
-    if sanitized and not sanitized[0].isalpha() and sanitized[0] != "_":
-        sanitized = "_" + sanitized
-    # Default if empty
-    if not sanitized:
-        sanitized = "agent"
-    return sanitized
-
-
-def create_strip_contents_callback() -> Callable[..., None]:
-    """Create a before_model_callback that strips injected agent context.
-
-    .. deprecated::
-        Use StripContentsHandler instead. This function is maintained for
-        backwards compatibility but will be removed in a future version.
-        See: adkflow_runner.runner.callbacks.StripContentsHandler
+class StripContentsHandler(BaseHandler):
+    """Strips injected agent context from LLM requests.
 
     ADK injects "[agent] said:" context even when include_contents='none'.
-    This callback removes that pollution to achieve true context isolation.
+    This handler removes that pollution to achieve true context isolation.
+
+    Priority: 100 (runs first)
 
     See: https://github.com/google/adk-python/issues/2207
     """
 
-    def before_model_callback(callback_context: Any, llm_request: Any) -> None:
-        """Strip injected context from LLM request contents."""
+    DEFAULT_PRIORITY = 100
+
+    def __init__(
+        self,
+        enabled: bool = True,
+        priority: int | None = None,
+        on_error: str = "continue",
+    ):
+        """Initialize the strip contents handler.
+
+        Args:
+            enabled: Whether to enable stripping (default True)
+            priority: Execution priority (default 100)
+            on_error: Error handling policy
+        """
+        super().__init__(priority=priority, on_error=on_error)
+        self.enabled = enabled
+
+    def before_model(
+        self,
+        callback_context: Any,
+        llm_request: Any,
+        agent_name: str,
+    ) -> HandlerResult | None:
+        """Strip injected context from LLM request contents.
+
+        Args:
+            callback_context: ADK callback context
+            llm_request: The LLM request object
+            agent_name: Name of the agent
+
+        Returns:
+            None (modifies llm_request in place)
+        """
+        if not self.enabled:
+            return None
+
         if not hasattr(llm_request, "contents") or not llm_request.contents:
             return None
 
@@ -92,5 +107,3 @@ def create_strip_contents_callback() -> Callable[..., None]:
 
         llm_request.contents = cleaned_contents
         return None
-
-    return before_model_callback

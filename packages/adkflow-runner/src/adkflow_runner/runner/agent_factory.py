@@ -19,14 +19,21 @@ from adkflow_runner.errors import ExecutionError
 from adkflow_runner.hooks import HooksIntegration
 from adkflow_runner.ir import AgentIR, WorkflowIR
 from adkflow_runner.logging import get_logger
-from adkflow_runner.runner.agent_callbacks import EmitFn, create_agent_callbacks
+from adkflow_runner.runner.agent_callbacks import EmitFn
 from adkflow_runner.runner.agent_serialization import (
     serialize_agent_config,
     serialize_workflow_agent_config,
 )
-from adkflow_runner.runner.agent_utils import (
-    create_strip_contents_callback,
-    sanitize_agent_name,
+from adkflow_runner.runner.agent_utils import sanitize_agent_name
+from adkflow_runner.runner.callbacks import (
+    CallbackRegistry,
+    EmitHandler,
+    ExtensionHooksHandler,
+    LoggingHandler,
+    StripContentsHandler,
+    TracingHandler,
+    UserCallbackHandler,
+    UserCallbackLoader,
 )
 from adkflow_runner.runner.tool_loader import ToolLoader
 
@@ -173,26 +180,8 @@ class AgentFactory:
             http_options=http_options,
         )
 
-        # Create callbacks for real-time updates and logging (use original name)
-        # Pass hooks for before_tool_call and after_tool_result integration
-        callbacks = create_agent_callbacks(
-            self.emit, agent_ir.name, hooks=self.hooks, agent_id=agent_ir.id
-        )
-
-        # Handle strip_contents callback - chain with logging callback
-        # See: https://github.com/google/adk-python/issues/2207
-        if agent_ir.strip_contents:
-            logging_callback = callbacks.get("before_model_callback")
-            strip_callback = create_strip_contents_callback()
-
-            def chained_before_model(callback_context: Any, llm_request: Any) -> None:
-                # First log, then strip
-                if logging_callback:
-                    logging_callback(callback_context, llm_request)
-                strip_callback(callback_context, llm_request)
-                return None
-
-            callbacks["before_model_callback"] = chained_before_model
+        # Build callback registry with all handlers in priority order
+        callbacks = self._create_callback_registry(agent_ir)
 
         # Create the agent - tools must be a list or omitted entirely
         agent = Agent(
@@ -322,6 +311,50 @@ class AgentFactory:
             adk_config=lambda: serialize_workflow_agent_config(agent),
         )
         return agent
+
+    def _create_callback_registry(self, agent_ir: AgentIR) -> dict[str, Any]:
+        """Create callback registry with all handlers for an agent.
+
+        Handlers are registered in priority order:
+        - 100: StripContentsHandler (optional, if strip_contents enabled)
+        - 200: TracingHandler (OpenTelemetry span attributes)
+        - 300: LoggingHandler (API/tool logging)
+        - 400: EmitHandler (RunEvent emission to UI)
+        - 500: ExtensionHooksHandler (bridge to global hooks)
+        - 600: UserCallbackHandler (optional, if callbacks configured)
+
+        Args:
+            agent_ir: Agent IR definition
+
+        Returns:
+            Dict of callback functions to pass to ADK Agent constructor
+        """
+        registry = CallbackRegistry(agent_ir.name, agent_ir.id)
+
+        # Priority 100: Strip injected ADK context (optional)
+        if agent_ir.strip_contents:
+            registry.register(StripContentsHandler(enabled=True))
+
+        # Priority 200: OpenTelemetry tracing
+        registry.register(TracingHandler())
+
+        # Priority 300: API/tool logging
+        registry.register(LoggingHandler())
+
+        # Priority 400: RunEvent emission for UI
+        registry.register(EmitHandler(self.emit))
+
+        # Priority 500: Extension hooks bridge
+        registry.register(ExtensionHooksHandler(self.hooks))
+
+        # Priority 600: User-defined callbacks (optional)
+        if agent_ir.callbacks.has_any() and self.project_path:
+            loader = UserCallbackLoader(self.project_path)
+            loaded = loader.load(agent_ir.callbacks)
+            if loaded:
+                registry.register(UserCallbackHandler(loaded))
+
+        return registry.to_adk_callbacks()
 
     def _load_tools(self, agent_ir: AgentIR) -> list[Any]:
         """Load tools for an agent."""
