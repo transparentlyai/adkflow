@@ -213,19 +213,11 @@ export default function CanvasContextMenu({
   onSelectCustom,
 }: ContextMenuProps) {
   // Build custom node menu groups from schemas
-  // Exclude builtin nodes that have hardcoded menu entries
   const customMenuGroups = useMemo(() => {
     const groups: Record<string, { label: string; items: CustomNodeSchema[] }> =
       {};
 
-    const excludedBuiltins = ["builtin.context_aggregator"];
-
     for (const schema of customNodeSchemas) {
-      // Skip builtin nodes that are already in the hardcoded menu
-      if (excludedBuiltins.includes(schema.unit_id)) {
-        continue;
-      }
-
       const parts = schema.menu_location.split("/");
       const groupLabel = parts.slice(0, -1).join("/") || "Extensions";
 

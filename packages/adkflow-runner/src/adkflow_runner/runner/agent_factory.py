@@ -477,7 +477,12 @@ class AgentFactory:
         # Substitute only context_vars (not upstream_output_keys - ADK handles those)
         result = text
         for key, value in context_vars.items():
-            result = result.replace(f"{{{key}}}", value)
+            # Escape {word} patterns in value so ADK doesn't interpret them as variables.
+            # ADK's regex {+[^{}]*}+ matches any {word} pattern and tries to substitute.
+            # We insert a zero-width space (U+200B) after { to break isidentifier() check.
+            # This is invisible but prevents ADK from treating it as a variable.
+            escaped_value = re.sub(r"\{(\w+)\}", "{\u200b\\1}", value)
+            result = result.replace(f"{{{key}}}", escaped_value)
 
         return result
 

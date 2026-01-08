@@ -9,7 +9,7 @@ from typing import Any
 from adkflow_runner.compiler.graph import WorkflowGraph
 from adkflow_runner.compiler.node_config import get_node_config
 from adkflow_runner.config import EdgeSemantics
-from adkflow_runner.ir import CustomNodeIR, UserInputIR
+from adkflow_runner.ir import ContextAggregatorIR, CustomNodeIR, UserInputIR
 
 
 def sanitize_variable_name(name: str) -> str:
@@ -164,3 +164,37 @@ def transform_custom_nodes(graph: WorkflowGraph) -> list[CustomNodeIR]:
             )
 
     return custom_nodes
+
+
+def transform_context_aggregators(graph: WorkflowGraph) -> list[ContextAggregatorIR]:
+    """Transform context_aggregator nodes to IR.
+
+    Context aggregators collect content from files, directories, URLs, and
+    connected nodes into named variables for agent template substitution.
+    """
+    aggregators: list[ContextAggregatorIR] = []
+
+    for node in graph.nodes.values():
+        if node.type == "context_aggregator":
+            # Gather input connections (for "node" type dynamic inputs)
+            input_connections: dict[str, list[str]] = {}
+            for edge in node.incoming:
+                target_handle = edge.target_handle or "input"
+                if target_handle not in input_connections:
+                    input_connections[target_handle] = []
+                input_connections[target_handle].append(edge.source_id)
+
+            # Get name from config or use default
+            config = node.data.get("config", {})
+            name = config.get("name", node.name or "Context Aggregator")
+
+            aggregators.append(
+                ContextAggregatorIR(
+                    id=node.id,
+                    name=name,
+                    config=config,
+                    input_connections=input_connections,
+                )
+            )
+
+    return aggregators

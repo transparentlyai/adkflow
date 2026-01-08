@@ -285,6 +285,23 @@ class CustomNodeIR:
 
 
 @dataclass
+class ContextAggregatorIR:
+    """IR for context aggregator nodes.
+
+    Context aggregators collect content from files, directories, URLs, and
+    connected nodes into named variables for agent template substitution.
+    """
+
+    id: str  # Node ID
+    name: str  # Display name
+    config: dict[str, Any]  # aggregationMode, outputVariableName, separator, etc.
+
+    # Connection info for "node" type dynamic inputs
+    # Maps dynamic input ID → list of source node IDs
+    input_connections: dict[str, list[str]] = field(default_factory=dict)
+
+
+@dataclass
 class WorkflowIR:
     """Complete intermediate representation for a workflow.
 
@@ -302,6 +319,7 @@ class WorkflowIR:
     teleporters: dict[str, TeleporterIR] = field(default_factory=dict)
     user_inputs: list[UserInputIR] = field(default_factory=list)
     custom_nodes: list[CustomNodeIR] = field(default_factory=list)
+    context_aggregators: list[ContextAggregatorIR] = field(default_factory=list)
     variables: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
 

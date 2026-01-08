@@ -40,6 +40,9 @@ from adkflow_runner.runner.types import (
     RunnerCallbacks,
 )
 from adkflow_runner.runner.user_input import handle_user_input
+from adkflow_runner.runner.context_aggregator_executor import (
+    execute_context_aggregator,
+)
 from adkflow_runner.runner.execution_engine import (
     format_error,
     execute_custom_nodes_graph,
@@ -366,15 +369,59 @@ class WorkflowRunner:
                 hooks=hooks,
             )
 
-        # Resolve context variables for agents from custom node outputs
-        if custom_node_outputs:
+        # Execute context aggregators (built-in nodes)
+        context_aggregator_outputs: dict[str, dict[str, Any]] = {}
+        if ir.context_aggregators:
+            for aggregator_ir in ir.context_aggregators:
+                # Resolve inputs from connected nodes (custom node outputs)
+                node_inputs: dict[str, Any] = {}
+                for port_id, source_ids in aggregator_ir.input_connections.items():
+                    for source_id in source_ids:
+                        if source_id in custom_node_outputs:
+                            source_output = custom_node_outputs[source_id]
+                            if source_output:
+                                # Get first output value
+                                node_inputs[port_id] = next(
+                                    iter(source_output.values())
+                                )
+                            break
+
+                output = await execute_context_aggregator(
+                    aggregator_ir,
+                    str(config.project_path),
+                    node_inputs,
+                )
+                context_aggregator_outputs[aggregator_ir.id] = output
+
+        # Resolve context variables for agents from context aggregator and custom node outputs
+        if context_aggregator_outputs or custom_node_outputs:
             for agent_ir in ir.all_agents.values():
                 if agent_ir.context_var_sources:
                     # Collect outputs from all context var sources
                     source_dicts: list[dict[str, Any]] = []
                     source_names: list[str] = []
                     for source_id in agent_ir.context_var_sources:
-                        if source_id in custom_node_outputs:
+                        # Check context aggregator outputs first
+                        if source_id in context_aggregator_outputs:
+                            node_output = context_aggregator_outputs[source_id]
+                            if "output" in node_output:
+                                output_value = node_output["output"]
+                                if isinstance(output_value, dict):
+                                    source_dicts.append(output_value)
+                                    # Get name from IR
+                                    aggregator = next(
+                                        (
+                                            a
+                                            for a in ir.context_aggregators
+                                            if a.id == source_id
+                                        ),
+                                        None,
+                                    )
+                                    source_names.append(
+                                        aggregator.name if aggregator else source_id
+                                    )
+                        # Then check custom node outputs
+                        elif source_id in custom_node_outputs:
                             # Get the "output" port which contains the variables dict
                             node_output = custom_node_outputs[source_id]
                             if "output" in node_output:

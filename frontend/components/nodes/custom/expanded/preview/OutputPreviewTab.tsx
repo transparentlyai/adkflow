@@ -202,7 +202,7 @@ export function OutputPreviewTab({
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {/* Token count */}
-          {computedOutput.tokenCount !== undefined && (
+          {computedOutput.tokenCount != null && (
             <span
               className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px]"
               style={{
@@ -222,7 +222,7 @@ export function OutputPreviewTab({
                 backgroundColor: "rgba(245, 158, 11, 0.1)",
                 color: "#f59e0b",
               }}
-              title={computedOutput.tokenCountError}
+              title={`${computedOutput.tokenCountError}. Add GOOGLE_API_KEY to your project's .env file to enable token counting.`}
             >
               <AlertTriangle className="w-3 h-3" />
               Token count unavailable

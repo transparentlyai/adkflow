@@ -9,6 +9,7 @@ from adkflow_runner.compiler.hierarchy import HierarchyBuilder
 from adkflow_runner.compiler.loader import LoadedProject
 from adkflow_runner.compiler.node_config import get_node_config
 from adkflow_runner.compiler.node_transforms import (
+    transform_context_aggregators,
     transform_custom_nodes,
     transform_user_inputs,
 )
@@ -113,6 +114,9 @@ class IRTransformer:
         # Transform custom nodes
         custom_nodes = transform_custom_nodes(graph)
 
+        # Transform context aggregator nodes
+        context_aggregators = transform_context_aggregators(graph)
+
         # Detect flow control nodes (for topology visualization)
         has_start_node = any(n.type == "start" for n in graph.nodes.values())
         has_end_node = any(n.type == "end" for n in graph.nodes.values())
@@ -125,6 +129,7 @@ class IRTransformer:
             output_files=len(output_files),
             user_inputs=len(user_inputs),
             custom_nodes=len(custom_nodes),
+            context_aggregators=len(context_aggregators),
         )
 
         _log.debug(
@@ -141,6 +146,7 @@ class IRTransformer:
             teleporters=teleporters,
             user_inputs=user_inputs,
             custom_nodes=custom_nodes,
+            context_aggregators=context_aggregators,
             has_start_node=has_start_node,
             has_end_node=has_end_node,
             project_path=str(project.path),
