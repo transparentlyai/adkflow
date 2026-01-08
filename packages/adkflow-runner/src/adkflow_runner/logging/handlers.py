@@ -67,13 +67,13 @@ class ConsoleHandler(Handler):
         self.formatter = formatter or ConsoleFormatter(colored=colored)
         self._lock = threading.Lock()
 
-        # Attempt to use Rich for colored output
+        # Attempt to use Rich for colored output (only if stream is a TTY)
         self._console: Console | None = None
-        if colored:
+        if colored and self.stream.isatty():
             try:
                 from rich.console import Console
 
-                self._console = Console(file=self.stream, force_terminal=True)
+                self._console = Console(file=self.stream)
             except ImportError:
                 pass
 
