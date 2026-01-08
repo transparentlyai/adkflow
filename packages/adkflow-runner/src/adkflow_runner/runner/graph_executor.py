@@ -18,6 +18,7 @@ from typing import Any, Callable, Literal
 
 from adkflow_runner.extensions import EmitFn, ExecutionContext, get_registry
 from adkflow_runner.ir import AgentIR, CustomNodeIR
+from adkflow_runner.hooks import HookAction, HooksIntegration
 
 
 @dataclass
@@ -131,11 +132,13 @@ class GraphExecutor:
         emit: Callable,
         cache_dir: Path | None = None,
         enable_cache: bool = True,
+        hooks: HooksIntegration | None = None,
     ):
         self.emit = emit
         self.cache = ExecutionCache(cache_dir)
         self.enable_cache = enable_cache
         self.registry = get_registry()
+        self.hooks = hooks
 
     async def execute(
         self,
@@ -170,10 +173,32 @@ class GraphExecutor:
         # 3. Topological sort into parallel execution layers
         layers = self._topological_layers(required, graph)
 
+        # Invoke on_execution_plan hook
+        if self.hooks:
+            hook_result, layers = await self.hooks.on_execution_plan(layers)
+            if hook_result.action == HookAction.ABORT:
+                raise RuntimeError(
+                    hook_result.error or "Aborted by on_execution_plan hook"
+                )
+            if hook_result.action == HookAction.SKIP:
+                return {}  # Skip execution entirely
+
         # 4. Execute layer by layer
         results: dict[str, dict[str, Any]] = {}
 
         for layer_idx, layer in enumerate(layers):
+            # Invoke before_layer_execute hook
+            if self.hooks:
+                hook_result, layer = await self.hooks.before_layer_execute(
+                    layer_idx, layer
+                )
+                if hook_result.action == HookAction.ABORT:
+                    raise RuntimeError(
+                        hook_result.error or "Aborted by before_layer_execute hook"
+                    )
+                if hook_result.action == HookAction.SKIP:
+                    continue  # Skip this layer
+
             await self._emit_event("layer_start", {"layer": layer_idx, "nodes": layer})
 
             # Execute all nodes in layer concurrently
@@ -201,6 +226,7 @@ class GraphExecutor:
             )
 
             # Process results
+            layer_results_dict: dict[str, dict[str, Any]] = {}
             for (node_id, _), result in zip(layer_tasks, layer_results):
                 if isinstance(result, Exception):
                     await self._emit_event(
@@ -209,6 +235,17 @@ class GraphExecutor:
                     raise result
                 # At this point, result is guaranteed to be dict[str, Any]
                 results[node_id] = result  # type: ignore[assignment]
+                layer_results_dict[node_id] = result  # type: ignore[assignment]
+
+            # Invoke after_layer_execute hook
+            if self.hooks:
+                hook_result, layer_results_dict = await self.hooks.after_layer_execute(
+                    layer_idx, layer_results_dict
+                )
+                if hook_result.action == HookAction.REPLACE:
+                    # Update results with modified layer results
+                    for node_id, node_result in layer_results_dict.items():
+                        results[node_id] = node_result
 
             await self._emit_event(
                 "layer_end", {"layer": layer_idx, "node_count": len(layer)}
@@ -348,14 +385,38 @@ class GraphExecutor:
         if flow_unit_cls is None:
             raise ValueError(f"FlowUnit not found: {ir.unit_id}")
 
-        # Check IS_CHANGED
-        is_changed_value = flow_unit_cls.is_changed(ir.config, inputs)
+        # Invoke before_node_execute hook
+        config = ir.config
+        if self.hooks:
+            hook_result, inputs, config = await self.hooks.before_node_execute(
+                node_id=ir.id,
+                node_name=ir.name,
+                unit_id=ir.unit_id,
+                inputs=inputs,
+                config=config,
+            )
+            if hook_result.action == HookAction.ABORT:
+                raise RuntimeError(
+                    hook_result.error
+                    or f"Aborted by before_node_execute hook for {ir.name}"
+                )
+            if hook_result.action == HookAction.SKIP:
+                # Return empty outputs
+                return {}
+            if hook_result.action == HookAction.REPLACE:
+                # Replace with provided outputs directly
+                if (
+                    isinstance(hook_result.modified_data, dict)
+                    and "outputs" in hook_result.modified_data
+                ):
+                    return hook_result.modified_data["outputs"]
+
+        # Check IS_CHANGED (use potentially modified config)
+        is_changed_value = flow_unit_cls.is_changed(config, inputs)
 
         # Check cache (unless ALWAYS_EXECUTE)
         if self.enable_cache and not ir.always_execute:
-            cache_key = self.cache.compute_key(
-                ir.id, inputs, ir.config, is_changed_value
-            )
+            cache_key = self.cache.compute_key(ir.id, inputs, config, is_changed_value)
 
             if not self.cache.should_execute(
                 ir.id, is_changed_value, ir.always_execute
@@ -376,7 +437,7 @@ class GraphExecutor:
             }
             # Determine which lazy inputs are actually needed
             # TODO: Full lazy evaluation would re-trigger upstream nodes
-            _ = flow_unit_cls.check_lazy_status(ir.config, available)
+            _ = flow_unit_cls.check_lazy_status(config, available)
 
         # Execute
         await self._emit_event(
@@ -398,10 +459,24 @@ class GraphExecutor:
             )
 
             await instance.on_before_execute(context)
-            outputs = await instance.run_process(inputs, ir.config, context)
+            outputs = await instance.run_process(inputs, config, context)
             await instance.on_after_execute(context, outputs)
 
             duration = time.time() - start_time
+
+            # Invoke after_node_execute hook
+            if self.hooks:
+                hook_result, outputs = await self.hooks.after_node_execute(
+                    node_id=ir.id,
+                    node_name=ir.name,
+                    unit_id=ir.unit_id,
+                    outputs=outputs,
+                )
+                if hook_result.action == HookAction.ABORT:
+                    raise RuntimeError(
+                        hook_result.error
+                        or f"Aborted by after_node_execute hook for {ir.name}"
+                    )
 
             await self._emit_event(
                 "custom_node_end",
@@ -416,7 +491,7 @@ class GraphExecutor:
             # Cache result
             if self.enable_cache and not ir.always_execute:
                 cache_key = self.cache.compute_key(
-                    ir.id, inputs, ir.config, is_changed_value
+                    ir.id, inputs, config, is_changed_value
                 )
                 self.cache.set(cache_key, outputs)
                 self.cache.update_is_changed(ir.id, is_changed_value)
@@ -424,6 +499,26 @@ class GraphExecutor:
             return outputs
 
         except Exception as e:
+            # Invoke on_node_error hook
+            if self.hooks:
+                hook_result, fallback_output = await self.hooks.on_node_error(
+                    node_id=ir.id,
+                    node_name=ir.name,
+                    unit_id=ir.unit_id,
+                    error=e,
+                )
+                if hook_result.action == HookAction.SKIP:
+                    # Skip error, return empty outputs
+                    return {}
+                if (
+                    hook_result.action == HookAction.REPLACE
+                    and fallback_output is not None
+                ):
+                    # Use fallback output provided by hook
+                    if isinstance(fallback_output, dict):
+                        return fallback_output
+                    return {"output": fallback_output}
+
             await self._emit_event(
                 "custom_node_error",
                 {"node_id": ir.id, "node_name": ir.name, "error": str(e)},

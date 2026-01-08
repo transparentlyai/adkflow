@@ -59,6 +59,21 @@ class CallbackConfig:
     before_tool: str | None = None
     after_tool: str | None = None
 
+    def has_any(self) -> bool:
+        """Check if any callback file paths are configured.
+
+        Returns:
+            True if any callback path is set
+        """
+        return any(
+            [
+                self.before_model,
+                self.after_model,
+                self.before_tool,
+                self.after_tool,
+            ]
+        )
+
 
 @dataclass
 class GenerateContentConfig:

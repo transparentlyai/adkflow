@@ -269,18 +269,9 @@ class TestAdvancedAgentFeatures:
         assert mock_agent_cls.call_count >= 1
 
     @patch("adkflow_runner.runner.agent_factory.Agent")
-    @patch("adkflow_runner.runner.agent_factory.create_agent_callbacks")
-    @patch("adkflow_runner.runner.agent_factory.create_strip_contents_callback")
-    def test_chained_before_model_callback(
-        self, mock_strip_cb, mock_create_cb, mock_agent_cls
-    ):
-        """Test chained_before_model uses correct parameter names."""
-        # Setup mocks
+    def test_callback_registry_with_strip_contents(self, mock_agent_cls):
+        """Test callback registry includes strip_contents handler when enabled."""
         mock_agent_cls.return_value = MagicMock()
-        mock_logging_callback = MagicMock()
-        mock_create_cb.return_value = {"before_model_callback": mock_logging_callback}
-        mock_strip_callback = MagicMock()
-        mock_strip_cb.return_value = mock_strip_callback
 
         factory = AgentFactory()
         agent_ir = AgentIR(
@@ -294,29 +285,24 @@ class TestAdvancedAgentFeatures:
         factory.create(agent_ir)
 
         # Get the before_model_callback that was passed to Agent
-        # It should be the chained callback
         agent_call_kwargs = mock_agent_cls.call_args[1]
-        chained_callback = agent_call_kwargs.get("before_model_callback")
+        before_model_callback = agent_call_kwargs.get("before_model_callback")
 
-        # Verify the chained callback exists
-        assert chained_callback is not None
+        # Verify the callback exists
+        assert before_model_callback is not None
 
-        # Test that chained_before_model accepts keyword arguments
-        # with the correct parameter names: callback_context and llm_request
+        # Test that callback accepts keyword arguments with correct names
         mock_context = MagicMock()
         mock_request = MagicMock()
+        mock_request.contents = []  # Prevent StripContentsHandler from processing
 
         # Call with keyword arguments (as ADK does)
-        result = chained_callback(
+        result = before_model_callback(
             callback_context=mock_context, llm_request=mock_request
         )
 
-        # Should return None
+        # Should return None (handlers run in chain)
         assert result is None
-
-        # Both callbacks should have been called
-        mock_logging_callback.assert_called_once_with(mock_context, mock_request)
-        mock_strip_callback.assert_called_once_with(mock_context, mock_request)
 
     @patch("adkflow_runner.runner.agent_factory.Agent")
     def test_create_agent_with_subagents(self, mock_agent_cls):

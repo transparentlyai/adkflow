@@ -459,3 +459,259 @@ class TestCreateAgentCallbacks:
         # This should not raise even without an event loop
         result = callbacks["before_agent_callback"](context)
         assert result is None
+
+
+class TestHookIntegration:
+    """Tests for hook integration in callbacks."""
+
+    @pytest.mark.asyncio
+    async def test_before_tool_callback_hook_skip(self):
+        """before_tool_callback with SKIP action skips tool execution."""
+        from adkflow_runner.hooks import HookAction, HookResult, HooksIntegration
+
+        hooks = MagicMock(spec=HooksIntegration)
+
+        async def skip_hook(*args, **kwargs):
+            return (HookResult(action=HookAction.SKIP), {})
+
+        hooks.before_tool_call = skip_hook
+
+        callbacks = create_agent_callbacks(None, "TestAgent", hooks=hooks)
+
+        tool = MagicMock()
+        tool.name = "test_tool"
+        args = {"arg1": "value"}
+        tool_context = MagicMock()
+
+        result = await callbacks["before_tool_callback"](
+            tool=tool, args=args, tool_context=tool_context
+        )
+
+        assert result == {"skipped": True, "reason": "Skipped by hook"}
+
+    @pytest.mark.asyncio
+    async def test_before_tool_callback_hook_replace(self):
+        """before_tool_callback with REPLACE action modifies arguments."""
+        from adkflow_runner.hooks import HookAction, HookResult, HooksIntegration
+
+        modified_args = {"arg1": "modified"}
+        hooks = MagicMock(spec=HooksIntegration)
+
+        async def replace_hook(*args, **kwargs):
+            return (HookResult(action=HookAction.REPLACE), modified_args)
+
+        hooks.before_tool_call = replace_hook
+
+        callbacks = create_agent_callbacks(None, "TestAgent", hooks=hooks)
+
+        tool = MagicMock()
+        tool.name = "test_tool"
+        args = {"arg1": "original"}
+        tool_context = MagicMock()
+
+        result = await callbacks["before_tool_callback"](
+            tool=tool, args=args, tool_context=tool_context
+        )
+
+        # When REPLACE action, args are modified in place
+        # The callback returns None but logs with modified args
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_before_tool_callback_hook_abort(self):
+        """before_tool_callback with ABORT action raises error."""
+        from adkflow_runner.hooks import HookAction, HookResult, HooksIntegration
+
+        hooks = MagicMock(spec=HooksIntegration)
+
+        async def abort_hook(*args, **kwargs):
+            return (
+                HookResult(action=HookAction.ABORT, error="Custom error"),
+                {},
+            )
+
+        hooks.before_tool_call = abort_hook
+
+        callbacks = create_agent_callbacks(None, "TestAgent", hooks=hooks)
+
+        tool = MagicMock()
+        tool.name = "test_tool"
+        args = {}
+        tool_context = MagicMock()
+
+        with pytest.raises(RuntimeError, match="Custom error"):
+            await callbacks["before_tool_callback"](
+                tool=tool, args=args, tool_context=tool_context
+            )
+
+    @pytest.mark.asyncio
+    async def test_after_tool_callback_hook_replace(self):
+        """after_tool_callback with REPLACE action modifies response."""
+        from adkflow_runner.hooks import HookAction, HookResult, HooksIntegration
+
+        modified_response = {"modified": "response"}
+        hooks = MagicMock(spec=HooksIntegration)
+
+        async def replace_hook(*args, **kwargs):
+            return (HookResult(action=HookAction.REPLACE), modified_response)
+
+        hooks.after_tool_result = replace_hook
+
+        callbacks = create_agent_callbacks(None, "TestAgent", hooks=hooks)
+
+        tool = MagicMock()
+        tool.name = "test_tool"
+        args = {}
+        tool_context = MagicMock()
+        tool_response = {"original": "response"}
+
+        result = await callbacks["after_tool_callback"](
+            tool=tool, args=args, tool_context=tool_context, tool_response=tool_response
+        )
+
+        assert result == modified_response
+
+    @pytest.mark.asyncio
+    async def test_after_tool_callback_hook_abort(self):
+        """after_tool_callback with ABORT action raises error."""
+        from adkflow_runner.hooks import HookAction, HookResult, HooksIntegration
+
+        hooks = MagicMock(spec=HooksIntegration)
+
+        async def abort_hook(*args, **kwargs):
+            return (
+                HookResult(action=HookAction.ABORT, error="Tool failed"),
+                None,
+            )
+
+        hooks.after_tool_result = abort_hook
+
+        callbacks = create_agent_callbacks(None, "TestAgent", hooks=hooks)
+
+        tool = MagicMock()
+        tool.name = "test_tool"
+        args = {}
+        tool_context = MagicMock()
+        tool_response = "response"
+
+        with pytest.raises(RuntimeError, match="Tool failed"):
+            await callbacks["after_tool_callback"](
+                tool=tool,
+                args=args,
+                tool_context=tool_context,
+                tool_response=tool_response,
+            )
+
+    def test_before_model_callback_hook_abort(self):
+        """before_model_callback with ABORT action raises error."""
+        from adkflow_runner.hooks import HookAction, HookResult, HooksIntegration
+
+        hooks = MagicMock(spec=HooksIntegration)
+        # Mock executor.has_hooks to return True so hook is invoked
+        hooks.executor = MagicMock()
+        hooks.executor.has_hooks.return_value = True
+
+        async def abort_hook(*args, **kwargs):
+            # Return None/empty error to use default message
+            return (
+                HookResult(action=HookAction.ABORT, error=None),
+                [],
+                {},
+            )
+
+        hooks.before_llm_request = abort_hook
+
+        callbacks = create_agent_callbacks(None, "TestAgent", hooks=hooks)
+
+        context = MagicMock()
+        llm_request = MagicMock()
+        llm_request.contents = []
+        llm_request.model = "test-model"
+        llm_request.system_instruction = None
+        llm_request.tools = None
+
+        # Should raise with default "Aborted by" message
+        with pytest.raises(RuntimeError, match="Aborted by before_llm_request hook"):
+            callbacks["before_model_callback"](context, llm_request)
+
+    def test_after_model_callback_hook_abort(self):
+        """after_model_callback with ABORT action raises error."""
+        from adkflow_runner.hooks import HookAction, HookResult, HooksIntegration
+
+        hooks = MagicMock(spec=HooksIntegration)
+        # Mock executor.has_hooks to return True so hook is invoked
+        hooks.executor = MagicMock()
+        hooks.executor.has_hooks.return_value = True
+
+        async def abort_hook(*args, **kwargs):
+            # Return None/empty error to use default message
+            return (HookResult(action=HookAction.ABORT, error=None), {})
+
+        hooks.after_llm_response = abort_hook
+
+        callbacks = create_agent_callbacks(None, "TestAgent", hooks=hooks)
+
+        context = MagicMock()
+        llm_response = MagicMock()
+        llm_response.content = None
+        llm_response.usage_metadata = None
+        llm_response.finish_reason = None
+        llm_response.model_version = None
+
+        # Should raise with default "Aborted by" message
+        with pytest.raises(RuntimeError, match="Aborted by after_llm_response hook"):
+            callbacks["after_model_callback"](context, llm_response)
+
+    def test_before_model_callback_hook_error_handling(self):
+        """before_model_callback handles hook errors gracefully."""
+        from adkflow_runner.hooks import HooksIntegration
+
+        hooks = MagicMock(spec=HooksIntegration)
+        # Mock executor.has_hooks to return True so hook is invoked
+        hooks.executor = MagicMock()
+        hooks.executor.has_hooks.return_value = True
+
+        async def error_hook(*args, **kwargs):
+            raise ValueError("Hook failed")
+
+        hooks.before_llm_request = error_hook
+
+        callbacks = create_agent_callbacks(None, "TestAgent", hooks=hooks)
+
+        context = MagicMock()
+        llm_request = MagicMock()
+        llm_request.contents = []
+        llm_request.model = "test-model"
+        llm_request.system_instruction = None
+        llm_request.tools = None
+
+        # Should not raise - hook errors are logged but don't fail callback
+        result = callbacks["before_model_callback"](context, llm_request)
+        assert result is None
+
+    def test_after_model_callback_hook_error_handling(self):
+        """after_model_callback handles hook errors gracefully."""
+        from adkflow_runner.hooks import HooksIntegration
+
+        hooks = MagicMock(spec=HooksIntegration)
+        # Mock executor.has_hooks to return True so hook is invoked
+        hooks.executor = MagicMock()
+        hooks.executor.has_hooks.return_value = True
+
+        async def error_hook(*args, **kwargs):
+            raise ValueError("Hook failed")
+
+        hooks.after_llm_response = error_hook
+
+        callbacks = create_agent_callbacks(None, "TestAgent", hooks=hooks)
+
+        context = MagicMock()
+        llm_response = MagicMock()
+        llm_response.content = None
+        llm_response.usage_metadata = None
+        llm_response.finish_reason = None
+        llm_response.model_version = None
+
+        # Should not raise - hook errors are logged but don't fail callback
+        result = callbacks["after_model_callback"](context, llm_response)
+        assert result is None

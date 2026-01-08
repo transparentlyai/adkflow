@@ -11,6 +11,8 @@ from adkflow_runner.extensions.flow_unit import FlowUnit
 from adkflow_runner.extensions.types import ExtensionScope
 from adkflow_runner.extensions.schema_generator import generate_schema
 from adkflow_runner.extensions.file_watcher import FileWatcher
+from adkflow_runner.hooks.discovery import discover_hooks_from_module
+from adkflow_runner.hooks.registry import HooksRegistry, get_hooks_registry
 
 
 class ExtensionRegistry:
@@ -27,7 +29,7 @@ class ExtensionRegistry:
     - Scope tracking with project-level precedence
     """
 
-    def __init__(self):
+    def __init__(self, hooks_registry: HooksRegistry | None = None):
         self._units: dict[str, type[FlowUnit]] = {}
         self._schemas: dict[str, dict[str, Any]] = {}
         self._source_files: dict[str, Path] = {}
@@ -46,6 +48,9 @@ class ExtensionRegistry:
 
         # File watcher
         self._file_watcher = FileWatcher(self._check_for_changes_in_path)
+
+        # Hooks registry for extension hooks
+        self._hooks_registry = hooks_registry or get_hooks_registry()
 
     def discover(self, extensions_path: Path) -> int:
         """Scan directory for FlowUnit classes (legacy single-path).
@@ -205,6 +210,18 @@ class ExtensionRegistry:
                 ):
                     if self._register_unit(attr, package_dir, scope):
                         count += 1
+
+            # Discover and register hooks from the extension module
+            try:
+                hooks_count = discover_hooks_from_module(module, self._hooks_registry)
+                if hooks_count > 0:
+                    print(
+                        f"[ExtensionRegistry] Registered {hooks_count} hooks from {package_dir.name}"
+                    )
+            except Exception as e:
+                print(
+                    f"[ExtensionRegistry] Failed to discover hooks from {package_dir.name}: {e}"
+                )
 
             # Track package mtime (use latest mtime from any .py file)
             latest_mtime = 0.0
@@ -448,8 +465,15 @@ class ExtensionRegistry:
                 current[leaf].append(schema["unit_id"])
             return tree
 
+    @property
+    def hooks_registry(self) -> HooksRegistry:
+        """Get the hooks registry associated with this extension registry."""
+        return self._hooks_registry
+
     def reload_all(self) -> int:
         """Force reload all extensions from both locations.
+
+        Also clears and re-discovers hooks.
 
         Returns:
             Number of units loaded
@@ -460,6 +484,9 @@ class ExtensionRegistry:
             self._source_files.clear()
             self._scopes.clear()
             self._file_mtimes.clear()
+
+            # Clear hooks registry
+            self._hooks_registry.clear()
 
             count = 0
             # Reload global first (project takes precedence if same unit_id)
@@ -579,9 +606,7 @@ class ExtensionRegistry:
 
             self._project_path = None
 
-    def register_builtin_units(
-        self, unit_classes: Sequence[type[FlowUnit]]
-    ) -> int:
+    def register_builtin_units(self, unit_classes: Sequence[type[FlowUnit]]) -> int:
         """Register builtin FlowUnit classes directly.
 
         Builtin units are registered with BUILTIN scope (treated like global)

@@ -48,6 +48,11 @@ from adkflow_runner.runner.execution_engine import (
     process_adk_event,
     merge_context_vars,
 )
+from adkflow_runner.hooks import (
+    HookAction,
+    HookAbortError,
+    create_hooks_integration,
+)
 
 # Get workflow logger
 _log = get_logger("runner.workflow")
@@ -114,12 +119,57 @@ class WorkflowRunner:
             events.append(event)
             await callbacks.on_event(event)
 
+        # Create hooks integration for this run
+        session_id = str(uuid.uuid4())[:8]
+        hooks = create_hooks_integration(
+            run_id=run_id,
+            session_id=session_id,
+            project_path=config.project_path,
+            emit=emit,
+        )
+
         try:
             run_log.info(
                 "Workflow starting",
                 project_path=str(config.project_path),
                 tab_id=config.tab_id,
                 input_keys=list(config.input_data.keys()),
+            )
+
+            # Invoke before_run hooks
+            hook_result, input_data, _ = await hooks.before_run(
+                inputs=config.input_data,
+                config={
+                    "project_path": str(config.project_path),
+                    "tab_id": config.tab_id,
+                },
+            )
+            if hook_result.action == HookAction.ABORT:
+                raise HookAbortError(
+                    hook_result.error or "Aborted by before_run hook",
+                    hook_name="before_run",
+                    extension_id=None,
+                )
+            if hook_result.action == HookAction.SKIP:
+                # Skip the entire run, return empty result
+                return RunResult(
+                    run_id=run_id,
+                    status=RunStatus.COMPLETED,
+                    output="",
+                    events=events,
+                    duration_ms=(time.time() - start_time) * 1000,
+                    metadata={"skipped_by_hook": True},
+                )
+            # Use potentially modified input data
+            config = RunConfig(
+                project_path=config.project_path,
+                tab_id=config.tab_id,
+                input_data=input_data,
+                callbacks=config.callbacks,
+                timeout_seconds=config.timeout_seconds,
+                validate=config.validate,
+                user_input_provider=config.user_input_provider,
+                run_id=config.run_id,
             )
 
             # Emit run start
@@ -154,8 +204,19 @@ class WorkflowRunner:
 
             # Execute with timing
             with log_timing(run_log, "execute") as ctx:
-                output = await self._execute(ir, config, emit, run_id)
+                output = await self._execute(ir, config, emit, run_id, hooks)
                 ctx["output_length"] = len(output) if output else 0
+
+            # Invoke after_run hooks
+            hook_result, output = await hooks.after_run(
+                output=output, status="completed"
+            )
+            if hook_result.action == HookAction.ABORT:
+                raise HookAbortError(
+                    hook_result.error or "Aborted by after_run hook",
+                    hook_name="after_run",
+                    extension_id=None,
+                )
 
             # Emit completion
             await emit(
@@ -192,6 +253,9 @@ class WorkflowRunner:
             duration_ms = (time.time() - start_time) * 1000
             run_log.warning("Workflow cancelled", duration_ms=duration_ms)
 
+            # Invoke on_run_cancel hooks
+            await hooks.on_run_cancel()
+
             await emit(
                 RunEvent(
                     type=EventType.ERROR,
@@ -210,6 +274,27 @@ class WorkflowRunner:
         except Exception as e:
             duration_ms = (time.time() - start_time) * 1000
             error_msg = str(e)
+
+            # Invoke on_run_error hooks
+            hook_result, modified_error = await hooks.on_run_error(error=e)
+            if hook_result.action == HookAction.SKIP:
+                # Error suppressed by hook - return success with empty output
+                run_log.info(
+                    "Workflow error suppressed by hook", original_error=error_msg
+                )
+                return RunResult(
+                    run_id=run_id,
+                    status=RunStatus.COMPLETED,
+                    output="",
+                    events=events,
+                    duration_ms=duration_ms,
+                    metadata={"error_suppressed_by_hook": True},
+                )
+
+            # Use modified error if provided
+            if modified_error is not None:
+                e = modified_error
+                error_msg = str(e)
 
             run_log.error(
                 "Workflow failed",
@@ -246,6 +331,7 @@ class WorkflowRunner:
         config: RunConfig,
         emit: Any,
         run_id: str,
+        hooks: Any,  # HooksIntegration
     ) -> str:
         """Execute the compiled workflow."""
         session_state: dict[str, Any] = {}
@@ -261,6 +347,7 @@ class WorkflowRunner:
                 previous_output=None,
                 config=config,
                 emit=emit,
+                hooks=hooks,
             )
             if user_response is not None:
                 accumulated_outputs[user_input.variable_name] = user_response
@@ -276,6 +363,7 @@ class WorkflowRunner:
                 run_id=run_id,
                 enable_cache=self._enable_cache,
                 cache_dir=self._cache_dir,
+                hooks=hooks,
             )
 
         # Resolve context variables for agents from custom node outputs
@@ -328,7 +416,7 @@ class WorkflowRunner:
                         }
 
         factory = AgentFactory(config.project_path)
-        root_agent = factory.create_from_workflow(ir, emit=emit)
+        root_agent = factory.create_from_workflow(ir, emit=emit, hooks=hooks)
 
         session_service = InMemorySessionService()
         session = await session_service.create_session(
@@ -424,6 +512,7 @@ class WorkflowRunner:
                     previous_output=output,
                     config=config,
                     emit=emit,
+                    hooks=hooks,
                 )
                 if user_response is not None:
                     accumulated_outputs[user_input.variable_name] = user_response
