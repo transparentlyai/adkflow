@@ -35,6 +35,15 @@ class MockCallbacks:
 
 
 @pytest.fixture
+def mock_hooks():
+    """Create a mock HooksIntegration that returns default values."""
+    hooks = MagicMock()
+    hooks.executor = MagicMock()
+    hooks.executor.has_hooks.return_value = False
+    return hooks
+
+
+@pytest.fixture
 def mock_adk():
     """Mock all ADK dependencies."""
     with (
@@ -537,7 +546,9 @@ class TestWorkflowRunnerExecute:
     """Tests for WorkflowRunner._execute method."""
 
     @pytest.mark.asyncio
-    async def test_execute_simple_workflow(self, tmp_path, mock_adk, simple_ir):
+    async def test_execute_simple_workflow(
+        self, tmp_path, mock_adk, simple_ir, mock_hooks
+    ):
         """Execute a simple workflow with mocked ADK."""
         # Mock agent factory and runner
         with (
@@ -574,15 +585,19 @@ class TestWorkflowRunnerExecute:
             )
             emit = AsyncMock()
 
-            output = await runner._execute(simple_ir, config, emit, "run-123")
+            output = await runner._execute(
+                simple_ir, config, emit, "run-123", mock_hooks
+            )
 
             assert output == "Hello, world!"
             mock_factory.create_from_workflow.assert_called_once_with(
-                simple_ir, emit=emit
+                simple_ir, emit=emit, hooks=mock_hooks
             )
 
     @pytest.mark.asyncio
-    async def test_execute_with_default_prompt(self, tmp_path, mock_adk, simple_ir):
+    async def test_execute_with_default_prompt(
+        self, tmp_path, mock_adk, simple_ir, mock_hooks
+    ):
         """Execute uses default prompt if none provided."""
         with (
             patch(
@@ -609,10 +624,12 @@ class TestWorkflowRunnerExecute:
             )
             emit = AsyncMock()
 
-            await runner._execute(simple_ir, config, emit, "run-123")
+            await runner._execute(simple_ir, config, emit, "run-123", mock_hooks)
 
     @pytest.mark.asyncio
-    async def test_execute_with_trigger_user_inputs(self, tmp_path, mock_adk):
+    async def test_execute_with_trigger_user_inputs(
+        self, tmp_path, mock_adk, mock_hooks
+    ):
         """Execute handles trigger user inputs."""
         user_input = UserInputIR(
             id="ui1",
@@ -653,11 +670,11 @@ class TestWorkflowRunnerExecute:
             config = RunConfig(project_path=tmp_path, input_data={})
             emit = AsyncMock()
 
-            await runner._execute(ir, config, emit, "run-123")
+            await runner._execute(ir, config, emit, "run-123", mock_hooks)
             mock_handle_input.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_execute_with_custom_nodes(self, tmp_path, mock_adk):
+    async def test_execute_with_custom_nodes(self, tmp_path, mock_adk, mock_hooks):
         """Execute handles custom nodes."""
         custom_node = CustomNodeIR(
             id="custom1",
@@ -699,11 +716,11 @@ class TestWorkflowRunnerExecute:
             config = RunConfig(project_path=tmp_path, input_data={})
             emit = AsyncMock()
 
-            await runner._execute(ir, config, emit, "run-123")
+            await runner._execute(ir, config, emit, "run-123", mock_hooks)
             mock_execute_custom.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_execute_with_context_vars(self, tmp_path, mock_adk):
+    async def test_execute_with_context_vars(self, tmp_path, mock_adk, mock_hooks):
         """Execute resolves context variables from custom nodes."""
         custom_node = CustomNodeIR(
             id="custom1",
@@ -756,7 +773,7 @@ class TestWorkflowRunnerExecute:
             config = RunConfig(project_path=tmp_path, input_data={})
             emit = AsyncMock()
 
-            await runner._execute(ir, config, emit, "run-123")
+            await runner._execute(ir, config, emit, "run-123", mock_hooks)
 
             # Verify merge_context_vars was called
             mock_merge_vars.assert_called_once()
@@ -764,7 +781,7 @@ class TestWorkflowRunnerExecute:
             assert agent.context_vars == {"var1": "value1", "var2": "value2"}
 
     @pytest.mark.asyncio
-    async def test_execute_with_pause_user_inputs(self, tmp_path, mock_adk):
+    async def test_execute_with_pause_user_inputs(self, tmp_path, mock_adk, mock_hooks):
         """Execute handles pause user inputs after agent execution."""
         user_input = UserInputIR(
             id="ui1",
@@ -819,7 +836,7 @@ class TestWorkflowRunnerExecute:
                 config = RunConfig(project_path=tmp_path, input_data={})
                 emit = AsyncMock()
 
-                output = await runner._execute(ir, config, emit, "run-123")
+                output = await runner._execute(ir, config, emit, "run-123", mock_hooks)
 
                 # Verify pause input was handled
                 mock_handle_input.assert_awaited_once()
@@ -829,7 +846,9 @@ class TestWorkflowRunnerExecute:
                 assert output == "Downstream output"
 
     @pytest.mark.asyncio
-    async def test_execute_pause_input_no_downstream(self, tmp_path, mock_adk):
+    async def test_execute_pause_input_no_downstream(
+        self, tmp_path, mock_adk, mock_hooks
+    ):
         """Execute handles pause user input with no downstream agents."""
         user_input = UserInputIR(
             id="ui1",
@@ -885,13 +904,13 @@ class TestWorkflowRunnerExecute:
                 config = RunConfig(project_path=tmp_path, input_data={})
                 emit = AsyncMock()
 
-                output = await runner._execute(ir, config, emit, "run-123")
+                output = await runner._execute(ir, config, emit, "run-123", mock_hooks)
 
                 # Final output should be the user input itself (no downstream)
                 assert output == "Final user input"
 
     @pytest.mark.asyncio
-    async def test_execute_writes_output_files(self, tmp_path, mock_adk):
+    async def test_execute_writes_output_files(self, tmp_path, mock_adk, mock_hooks):
         """Execute writes output files after completion."""
         from adkflow_runner.ir import OutputFileIR
 
@@ -930,13 +949,15 @@ class TestWorkflowRunnerExecute:
             config = RunConfig(project_path=tmp_path, input_data={})
             emit = AsyncMock()
 
-            await runner._execute(ir, config, emit, "run-123")
+            await runner._execute(ir, config, emit, "run-123", mock_hooks)
 
             # Verify write_output_files was called
             mock_write.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_execute_reraises_with_friendly_error(self, tmp_path, mock_adk):
+    async def test_execute_reraises_with_friendly_error(
+        self, tmp_path, mock_adk, mock_hooks
+    ):
         """Execute re-raises exceptions with friendly error messages."""
         agent = AgentIR(id="a1", name="Agent", type="llm", model="gemini-2.0-flash")
         ir = WorkflowIR(root_agent=agent, all_agents={"a1": agent})
@@ -964,7 +985,7 @@ class TestWorkflowRunnerExecute:
             emit = AsyncMock()
 
             with pytest.raises(RuntimeError, match="Friendly error message"):
-                await runner._execute(ir, config, emit, "run-123")
+                await runner._execute(ir, config, emit, "run-123", mock_hooks)
 
             mock_format_error.assert_called_once()
 

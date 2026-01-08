@@ -607,6 +607,9 @@ class TestHookIntegration:
         from adkflow_runner.hooks import HookAction, HookResult, HooksIntegration
 
         hooks = MagicMock(spec=HooksIntegration)
+        # Mock executor.has_hooks to return True so hook is invoked
+        hooks.executor = MagicMock()
+        hooks.executor.has_hooks.return_value = True
 
         async def abort_hook(*args, **kwargs):
             # Return None/empty error to use default message
@@ -636,6 +639,9 @@ class TestHookIntegration:
         from adkflow_runner.hooks import HookAction, HookResult, HooksIntegration
 
         hooks = MagicMock(spec=HooksIntegration)
+        # Mock executor.has_hooks to return True so hook is invoked
+        hooks.executor = MagicMock()
+        hooks.executor.has_hooks.return_value = True
 
         async def abort_hook(*args, **kwargs):
             # Return None/empty error to use default message
@@ -661,6 +667,9 @@ class TestHookIntegration:
         from adkflow_runner.hooks import HooksIntegration
 
         hooks = MagicMock(spec=HooksIntegration)
+        # Mock executor.has_hooks to return True so hook is invoked
+        hooks.executor = MagicMock()
+        hooks.executor.has_hooks.return_value = True
 
         async def error_hook(*args, **kwargs):
             raise ValueError("Hook failed")
@@ -685,6 +694,9 @@ class TestHookIntegration:
         from adkflow_runner.hooks import HooksIntegration
 
         hooks = MagicMock(spec=HooksIntegration)
+        # Mock executor.has_hooks to return True so hook is invoked
+        hooks.executor = MagicMock()
+        hooks.executor.has_hooks.return_value = True
 
         async def error_hook(*args, **kwargs):
             raise ValueError("Hook failed")
