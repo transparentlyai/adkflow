@@ -38,6 +38,7 @@ import {
   useValidation,
   useEdgeHighlight,
   useEdgeTabOpacity,
+  useAltClickZoom,
   getCanvasStyles,
 } from "./hooks/canvas";
 
@@ -378,6 +379,9 @@ const ReactFlowCanvasInner = forwardRef<
         duplicateErrorNodesRef,
       });
 
+    // Alt+Click zoom shortcut
+    const { onNodeClick, onPaneClick } = useAltClickZoom();
+
     // Expose methods to parent via ref
     useImperativeHandle(ref, () => ({
       // Layout nodes (non-schema-driven)
@@ -434,6 +438,8 @@ const ReactFlowCanvasInner = forwardRef<
             onPaneContextMenu={onPaneContextMenu}
             onNodeContextMenu={onNodeContextMenu}
             onSelectionContextMenu={onSelectionContextMenu}
+            onNodeClick={onNodeClick}
+            onPaneClick={onPaneClick}
             onMouseMove={onMouseMove}
             nodeTypes={nodeTypes}
             fitView

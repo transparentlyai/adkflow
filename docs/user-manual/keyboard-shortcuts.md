@@ -37,6 +37,8 @@ All keyboard shortcuts in ADKFlow.
 |----------|--------|
 | `Scroll` | Pan canvas (when not over node) |
 | `Ctrl+Scroll` / `Cmd+Scroll` | Zoom in/out |
+| `Alt+Click (node)` | Zoom to fit node |
+| `Alt+Click (canvas)` | Return to previous viewport |
 | `Double-click (canvas)` | Fit view |
 | `Arrow keys` | Move selected nodes |
 
@@ -93,6 +95,7 @@ Currently, keyboard shortcuts cannot be customized. This may be added in a futur
 - Double-click to fit view when lost
 - Use minimap for large workflows
 - Scroll to pan, Ctrl+Scroll to zoom
+- Alt+Click on a node to zoom in, Alt+Click on canvas to return
 
 ## See Also
 

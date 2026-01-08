@@ -86,6 +86,7 @@ vi.mock("@/components/hooks/canvas", () => ({
   useValidation: () => mockUseValidation(),
   useEdgeHighlight: () => mockUseEdgeHighlight(),
   useEdgeTabOpacity: () => mockUseEdgeTabOpacity(),
+  useAltClickZoom: () => ({ onNodeClick: vi.fn(), onPaneClick: vi.fn() }),
   getCanvasStyles: () => mockGetCanvasStyles(),
 }));
 
