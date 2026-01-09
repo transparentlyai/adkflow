@@ -19,6 +19,17 @@ The AI Chat can be invoked programmatically by components throughout the applica
 3. Type your message in the text input at the bottom
 4. Press **Enter** to send (or click the send button)
 
+### Panel Features
+
+The chat panel has several useful features:
+
+| Feature | Description |
+|---------|-------------|
+| **Resizable** | Drag the left edge to resize (400-900px width) |
+| **Non-modal** | Continue working on the canvas while chat is open |
+| **Markdown** | Responses are rendered with full markdown formatting |
+| **Auto-scroll** | Automatically scrolls to the latest message |
+
 ### Multi-turn Conversations
 
 The assistant remembers your conversation history within each session:
@@ -34,6 +45,50 @@ The assistant remembers your conversation history within each session:
 |--------|----------|
 | Send message | Enter |
 | New line | Shift + Enter |
+
+## AI Assist for Prompts
+
+### Using AI Assist on Prompt Nodes
+
+Prompt nodes have a built-in **AI Assist** dropdown that provides specialized help:
+
+1. Expand a Prompt node
+2. Click the **AI Assist** button (sparkles icon) in the header
+3. Choose an option:
+   - **Help me create a prompt** - Start from scratch with guidance
+   - **Fix this prompt** - Improve an existing prompt
+
+### Content Return
+
+When the AI suggests a complete prompt, it appears in a **content block**:
+
+1. The AI response includes the suggested prompt in a code editor
+2. Review the suggestion (you can scroll/resize the editor)
+3. Click **"Use it"** to insert the content into your prompt node
+4. Or click **"Copy"** to copy to clipboard
+
+The "Use it" button automatically:
+- Closes the chat panel
+- Updates the prompt node's content with the suggestion
+
+### Prompt Creation Flow
+
+When you select "Help me create a prompt":
+
+1. The AI asks what kind of prompt you need
+2. Describe your use case and requirements
+3. The AI generates a complete prompt
+4. Review and click "Use it" to apply
+
+### Prompt Fixing Flow
+
+When you select "Fix this prompt":
+
+1. The AI sees your current prompt content
+2. It asks "What's wrong with it?" or "What issue are you experiencing?"
+3. Explain the problem (e.g., "responses are too verbose")
+4. The AI provides a fixed version
+5. Click "Use it" to apply the fix
 
 ## Context Awareness
 

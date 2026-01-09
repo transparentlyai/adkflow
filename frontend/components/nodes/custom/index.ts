@@ -48,3 +48,8 @@ export {
   type NodeIconProps,
   hasIcon,
 } from "@/components/nodes/custom/NodeIcon";
+export {
+  default as AiAssistButton,
+  type AiAssistButtonProps,
+  type AiAssistOption,
+} from "@/components/nodes/custom/AiAssistButton";

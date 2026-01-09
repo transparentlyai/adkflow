@@ -4,8 +4,14 @@ import { memo, useState, useCallback, useMemo, useEffect } from "react";
 import { type NodeProps, useReactFlow, useStore } from "@xyflow/react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
+import { useAiChat } from "@/components/AiChat";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import {
+  PROMPT_CREATOR_SYSTEM_PROMPT,
+  PROMPT_FIXER_SYSTEM_PROMPT,
+} from "@/lib/aiPrompts";
+import type { AiAssistOption } from "@/components/nodes/custom/AiAssistButton";
 
 // Import types from dedicated types file
 import type {
@@ -95,6 +101,7 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
   const { setNodes } = useReactFlow();
   const { theme } = useTheme();
   const canvasActions = useCanvasActions();
+  const { openChat } = useAiChat();
   const [isExpanded, setIsExpanded] = useState(dataIsExpanded ?? false);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -115,6 +122,60 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
     e.stopPropagation();
     setContextMenu({ x: e.clientX, y: e.clientY });
   }, []);
+
+  // Config change handler - needed by AI assist and other handlers
+  const handleConfigChange = useCallback(
+    (fieldId: string, value: unknown) => {
+      setNodes((nodes) =>
+        nodes.map((node) =>
+          node.id === id
+            ? {
+                ...node,
+                data: { ...node.data, config: { ...config, [fieldId]: value } },
+              }
+            : node,
+        ),
+      );
+    },
+    [id, config, setNodes],
+  );
+
+  // AI assist handler for prompt nodes
+  const handleAiAssist = useCallback(
+    (option: AiAssistOption) => {
+      const content = (config.content as string) || "";
+      const systemPrompt =
+        option === "create"
+          ? PROMPT_CREATOR_SYSTEM_PROMPT.replace("{content}", content)
+          : PROMPT_FIXER_SYSTEM_PROMPT.replace("{content}", content);
+
+      // Initial message to trigger assistant response
+      const initialMessage =
+        option === "create"
+          ? "Hi! I need help creating a prompt."
+          : "Hi! I need help fixing my prompt.";
+
+      openChat({
+        sessionId: `prompt-${id}-${option}`,
+        systemPrompt,
+        context: {
+          nodeId: id,
+          nodeName: name,
+          nodeType: "prompt",
+          assistType: option,
+        },
+        initialMessage,
+        // Handle returned content from chat
+        onContentReturn: (newContent: string) => {
+          handleConfigChange("content", newContent);
+        },
+      });
+    },
+    [id, name, config.content, openChat, handleConfigChange],
+  );
+
+  // Only show AI assist for prompt nodes
+  const showAiAssist = schema.ui.theme_key === "prompt";
 
   const handleToggleNodeLock = useCallback(() => {
     setNodes((nodes) =>
@@ -246,22 +307,6 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
     );
   }, [schema]);
 
-  const handleConfigChange = useCallback(
-    (fieldId: string, value: unknown) => {
-      setNodes((nodes) =>
-        nodes.map((node) =>
-          node.id === id
-            ? {
-                ...node,
-                data: { ...node.data, config: { ...config, [fieldId]: value } },
-              }
-            : node,
-        ),
-      );
-    },
-    [id, config, setNodes],
-  );
-
   const toggleExpand = useCallback(() => {
     const newExpanded = !isExpanded;
 
@@ -390,6 +435,7 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
           onNameSave={handleNameSave}
           onNameKeyDown={handleNameKeyDown}
           onContextMenu={handleHeaderContextMenu}
+          onAiAssist={showAiAssist ? handleAiAssist : undefined}
         />
         {contextMenu && (
           <NodeContextMenu
@@ -454,6 +500,7 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
         // Resize handler for resizable nodes
         onResize={schema.ui.resizable ? handleResize : undefined}
         onContextMenu={handleHeaderContextMenu}
+        onAiAssist={showAiAssist ? handleAiAssist : undefined}
       />
       {contextMenu && (
         <NodeContextMenu

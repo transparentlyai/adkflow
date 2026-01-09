@@ -25,6 +25,7 @@ import type {
   FieldDefinition,
 } from "@/components/nodes/CustomNode";
 import type { HandleTypes } from "@/components/nodes/custom/hooks/useCustomNodeHandleTypes";
+import type { AiAssistOption } from "@/components/nodes/custom/AiAssistButton";
 
 export interface CustomNodeExpandedProps {
   id: string;
@@ -60,6 +61,8 @@ export interface CustomNodeExpandedProps {
   onResize?: (deltaWidth: number, deltaHeight: number) => void;
   // Context menu
   onContextMenu?: (e: React.MouseEvent) => void;
+  // AI assist callback (for prompt nodes)
+  onAiAssist?: (option: AiAssistOption) => void;
 }
 
 /**
@@ -100,6 +103,7 @@ const CustomNodeExpanded = memo(
     selected = false,
     onResize,
     onContextMenu,
+    onAiAssist,
   }: CustomNodeExpandedProps) => {
     const { theme } = useTheme();
 
@@ -158,6 +162,7 @@ const CustomNodeExpanded = memo(
             validationWarnings={nodeData.validationWarnings}
             duplicateNameError={nodeData.duplicateNameError}
             onContextMenu={onContextMenu}
+            onAiAssist={onAiAssist}
           />
 
           {tabs && tabs.length > 0 && (

@@ -46,6 +46,18 @@ echo "Analyze the following: {input}" > prompts/analyze.prompt.md
 3. Edit directly in the node
 4. Changes are saved to the file
 
+#### With AI Assistance
+
+Prompt nodes have a built-in **AI Assist** button:
+
+1. Click the **AI Assist** button (sparkles icon) in the expanded node header
+2. Choose:
+   - **Help me create a prompt** - Get help writing a new prompt from scratch
+   - **Fix this prompt** - Get help improving your current prompt
+3. The AI suggests changes which you can accept with the "Use it" button
+
+See [AI Chat Assistant](./ai-chat-assistant.md) for more details.
+
 #### External Editor
 
 Edit the markdown file with any text editor:

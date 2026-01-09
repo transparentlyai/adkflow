@@ -50,17 +50,8 @@ class ChatService:
         session = ChatSession(
             id=session_id,
             config=config,
-            messages=[],
+            messages=[],  # System prompt stays in config, not in messages
         )
-
-        # Add system message if system_prompt is provided
-        if config.system_prompt:
-            system_message = ChatMessage(
-                role="system",
-                content=config.system_prompt,
-                timestamp=datetime.utcnow(),
-            )
-            session.messages.append(system_message)
 
         self._sessions[session_id] = session
         return session
@@ -254,7 +245,7 @@ class ChatService:
         """Build messages array for LLM from session history.
 
         Converts ChatMessage list to google.genai Content format.
-        Injects context into system prompt if provided.
+        Prepends system prompt from config if provided.
 
         Args:
             session: Chat session with message history
@@ -264,33 +255,35 @@ class ChatService:
         """
         contents: list[types.Content] = []
 
+        # Add system prompt from config as the first message pair
+        if session.config.system_prompt:
+            content_text = session.config.system_prompt
+            if session.config.context:
+                context_str = json.dumps(session.config.context, indent=2)
+                content_text = (
+                    f"{content_text}\n\nContext:\n```json\n{context_str}\n```"
+                )
+            contents.append(
+                types.Content(
+                    role="user",
+                    parts=[types.Part.from_text(text=content_text)],
+                )
+            )
+            # Add a placeholder model response to maintain conversation flow
+            contents.append(
+                types.Content(
+                    role="model",
+                    parts=[
+                        types.Part.from_text(
+                            text="Understood. I'll follow these instructions."
+                        )
+                    ],
+                )
+            )
+
+        # Add conversation messages
         for msg in session.messages:
-            if msg.role == "system":
-                # System messages become the first user message with context
-                content_text = msg.content
-                if session.config.context:
-                    context_str = json.dumps(session.config.context, indent=2)
-                    content_text = (
-                        f"{msg.content}\n\nContext:\n```json\n{context_str}\n```"
-                    )
-                contents.append(
-                    types.Content(
-                        role="user",
-                        parts=[types.Part.from_text(text=content_text)],
-                    )
-                )
-                # Add a placeholder model response to maintain conversation flow
-                contents.append(
-                    types.Content(
-                        role="model",
-                        parts=[
-                            types.Part.from_text(
-                                text="Understood. I'll help you with that context in mind."
-                            )
-                        ],
-                    )
-                )
-            elif msg.role == "user":
+            if msg.role == "user":
                 contents.append(
                     types.Content(
                         role="user",

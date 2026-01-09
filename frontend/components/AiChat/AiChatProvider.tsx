@@ -6,6 +6,7 @@ import {
   useState,
   useCallback,
   useRef,
+  useEffect,
   type ReactNode,
 } from "react";
 import { useProject } from "@/contexts/ProjectContext";
@@ -39,6 +40,12 @@ export function AiChatProvider({ children }: AiChatProviderProps) {
   // Ref to hold abort function for current stream
   const abortRef = useRef<(() => void) | null>(null);
 
+  // Ref to store initial message for auto-send after state updates
+  const initialMessageRef = useRef<string | null>(null);
+
+  // Ref to store content return callback
+  const contentReturnRef = useRef<((content: string) => void) | null>(null);
+
   const openChat = useCallback(async (options: OpenChatOptions) => {
     try {
       setError(null);
@@ -58,6 +65,14 @@ export function AiChatProvider({ children }: AiChatProviderProps) {
       setSession(existingSession);
       setMessages(existingSession.messages);
       setIsOpen(true);
+
+      // Store initial message for auto-send (will be processed by effect)
+      if (options.initialMessage && existingSession.messages.length === 0) {
+        initialMessageRef.current = options.initialMessage;
+      }
+
+      // Store content return callback
+      contentReturnRef.current = options.onContentReturn || null;
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to open chat";
@@ -157,6 +172,30 @@ export function AiChatProvider({ children }: AiChatProviderProps) {
     setError(null);
   }, []);
 
+  // Accept content and trigger callback, then close chat
+  const acceptContent = useCallback(
+    (content: string) => {
+      if (contentReturnRef.current) {
+        contentReturnRef.current(content);
+        contentReturnRef.current = null;
+      }
+      closeChat();
+    },
+    [closeChat],
+  );
+
+  // Effect to auto-send initial message after session is ready
+  useEffect(() => {
+    if (isOpen && session && initialMessageRef.current && !isLoading) {
+      const message = initialMessageRef.current;
+      initialMessageRef.current = null; // Clear to prevent re-sending
+      // Use setTimeout to ensure state is fully updated
+      setTimeout(() => {
+        sendMessage(message);
+      }, 0);
+    }
+  }, [isOpen, session, isLoading, sendMessage]);
+
   const value: AiChatContextValue = {
     isOpen,
     session,
@@ -167,6 +206,7 @@ export function AiChatProvider({ children }: AiChatProviderProps) {
     closeChat,
     sendMessage,
     clearError,
+    acceptContent,
   };
 
   return (

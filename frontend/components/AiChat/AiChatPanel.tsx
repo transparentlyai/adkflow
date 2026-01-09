@@ -6,7 +6,10 @@ import {
   useState,
   useCallback,
   type KeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
 } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { useAiChat } from "./AiChatProvider";
 import {
   Sheet,
@@ -14,23 +17,124 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Send, X, Loader2, Bot, User, AlertCircle } from "lucide-react";
+import {
+  Send,
+  X,
+  Loader2,
+  Bot,
+  User,
+  AlertCircle,
+  GripVertical,
+} from "lucide-react";
 import type { ChatMessage } from "@/lib/types";
+import ContentBlock from "./ContentBlock";
+
+const MIN_WIDTH = 400;
+const MAX_WIDTH = 900;
+const DEFAULT_WIDTH = 540;
+
+/** Segment of a message, either plain text or content block */
+interface MessageSegment {
+  type: "text" | "content";
+  value: string;
+}
+
+/**
+ * Parse message content for <content>...</content> tags.
+ * Returns segments that can be rendered as text or content blocks.
+ */
+function parseContentBlocks(text: string): MessageSegment[] {
+  const regex = /<content>([\s\S]*?)<\/content>/g;
+  const segments: MessageSegment[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    // Text before the tag
+    if (match.index > lastIndex) {
+      const textBefore = text.slice(lastIndex, match.index).trim();
+      if (textBefore) {
+        segments.push({ type: "text", value: textBefore });
+      }
+    }
+    // Content inside the tag
+    segments.push({ type: "content", value: match[1].trim() });
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Remaining text after last tag
+  if (lastIndex < text.length) {
+    const textAfter = text.slice(lastIndex).trim();
+    if (textAfter) {
+      segments.push({ type: "text", value: textAfter });
+    }
+  }
+
+  // If no segments were created, return the original text
+  if (segments.length === 0 && text.trim()) {
+    segments.push({ type: "text", value: text });
+  }
+
+  return segments;
+}
 
 interface MessageBubbleProps {
   message: ChatMessage;
   isStreaming?: boolean;
+  onAcceptContent?: (content: string) => void;
 }
 
-function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
+function MessageBubble({
+  message,
+  isStreaming,
+  onAcceptContent,
+}: MessageBubbleProps) {
   const isUser = message.role === "user";
   const isAssistant = message.role === "assistant";
 
+  // Parse content blocks for assistant messages (only when not streaming)
+  const segments =
+    isAssistant && !isStreaming && message.content
+      ? parseContentBlocks(message.content)
+      : [];
+
+  // Render streaming or simple text content
+  const renderSimpleContent = () => {
+    if (!message.content && isStreaming) {
+      return (
+        <span className="inline-flex items-center gap-1">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          <span className="text-muted-foreground">Thinking...</span>
+        </span>
+      );
+    }
+    return (
+      <>
+        {isAssistant ? (
+          <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-headings:my-2 prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-a:text-primary">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {message.content}
+            </ReactMarkdown>
+          </div>
+        ) : (
+          message.content
+        )}
+        {isStreaming && message.content && (
+          <span className="inline-block w-1 h-4 ml-0.5 bg-current animate-pulse" />
+        )}
+      </>
+    );
+  };
+
   return (
-    <div className={cn("flex gap-3 p-4", isUser && "flex-row-reverse")}>
+    <div
+      className={cn(
+        "flex gap-3 p-4 overflow-hidden",
+        isUser && "flex-row-reverse",
+      )}
+    >
       {/* Avatar */}
       <div
         className={cn(
@@ -43,25 +147,47 @@ function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
       </div>
 
       {/* Message content */}
-      <div className={cn("flex-1 space-y-1", isUser && "text-right")}>
-        <div
-          className={cn(
-            "inline-block rounded-lg px-4 py-2 text-sm",
-            isUser && "bg-primary text-primary-foreground",
-            isAssistant && "bg-muted",
+      <div
+        className={cn(
+          "flex-1 min-w-0 space-y-2 overflow-hidden",
+          isUser && "text-right",
+        )}
+      >
+        {/* User messages or streaming assistant messages */}
+        {(isUser || isStreaming || segments.length === 0) && (
+          <div
+            className={cn(
+              "inline-block rounded-lg px-4 py-2 text-sm",
+              isUser && "bg-primary text-primary-foreground",
+              isAssistant && "bg-muted",
+            )}
+          >
+            {renderSimpleContent()}
+          </div>
+        )}
+
+        {/* Parsed segments for completed assistant messages */}
+        {isAssistant &&
+          !isStreaming &&
+          segments.length > 0 &&
+          segments.map((segment, i) =>
+            segment.type === "content" ? (
+              <ContentBlock
+                key={i}
+                content={segment.value}
+                onAccept={() => onAcceptContent?.(segment.value)}
+              />
+            ) : (
+              <div
+                key={i}
+                className="rounded-lg px-4 py-2 text-sm bg-muted prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-headings:my-2 prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-code:text-foreground prose-a:text-primary"
+              >
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {segment.value}
+                </ReactMarkdown>
+              </div>
+            ),
           )}
-        >
-          {message.content ||
-            (isStreaming && (
-              <span className="inline-flex items-center gap-1">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                <span className="text-muted-foreground">Thinking...</span>
-              </span>
-            ))}
-          {isStreaming && message.content && (
-            <span className="inline-block w-1 h-4 ml-0.5 bg-current animate-pulse" />
-          )}
-        </div>
       </div>
     </div>
   );
@@ -113,21 +239,57 @@ export function AiChatPanel() {
     error,
     sendMessage,
     clearError,
+    acceptContent,
   } = useAiChat();
 
   const [inputValue, setInputValue] = useState("");
+  const [panelWidth, setPanelWidth] = useState(DEFAULT_WIDTH);
+  const [isResizing, setIsResizing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // Handle resize drag
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = window.innerWidth - e.clientX;
+      setPanelWidth(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, newWidth)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing]);
+
+  // Prevent text selection while resizing
+  useEffect(() => {
+    if (isResizing) {
+      document.body.style.userSelect = "none";
+      document.body.style.cursor = "ew-resize";
+    } else {
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+    }
+  }, [isResizing]);
+
+  const handleResizeStart = useCallback((e: ReactMouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (scrollAreaRef.current) {
-      const scrollContainer = scrollAreaRef.current.querySelector(
-        "[data-radix-scroll-area-viewport]",
-      );
-      if (scrollContainer) {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight;
-      }
+      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
   }, [messages]);
 
@@ -172,11 +334,31 @@ export function AiChatPanel() {
   }, []);
 
   return (
-    <Sheet open={isOpen} onOpenChange={(open) => !open && closeChat()}>
+    <Sheet
+      open={isOpen}
+      onOpenChange={(open) => !open && closeChat()}
+      modal={false}
+    >
       <SheetContent
         side="right"
-        className="w-[400px] sm:w-[540px] p-0 flex flex-col"
+        className={cn(
+          "p-0 flex flex-col overflow-hidden !w-[var(--panel-width)] !min-w-[var(--panel-width)] !max-w-[var(--panel-width)]",
+          isResizing && "!transition-none",
+        )}
+        style={{ "--panel-width": `${panelWidth}px` } as React.CSSProperties}
+        showOverlay={false}
+        onInteractOutside={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
       >
+        {/* Resize handle - wide hit area, thin visual */}
+        <div
+          className="absolute -left-2 top-0 bottom-0 w-4 cursor-ew-resize group flex items-center justify-center"
+          onMouseDown={handleResizeStart}
+        >
+          <div className="absolute left-2 top-0 bottom-0 w-px bg-border group-hover:bg-primary/50 transition-colors" />
+          <GripVertical className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
+
         {/* Header */}
         <SheetHeader className="px-6 py-4 border-b shrink-0">
           <SheetTitle className="flex items-center gap-2">
@@ -189,7 +371,10 @@ export function AiChatPanel() {
         {error && <ErrorBanner error={error} onDismiss={clearError} />}
 
         {/* Messages area */}
-        <ScrollArea ref={scrollAreaRef} className="flex-1">
+        <div
+          ref={scrollAreaRef}
+          className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin-auto"
+        >
           {messages.length === 0 ? (
             <WelcomeMessage />
           ) : (
@@ -203,11 +388,12 @@ export function AiChatPanel() {
                     index === messages.length - 1 &&
                     message.role === "assistant"
                   }
+                  onAcceptContent={acceptContent}
                 />
               ))}
             </div>
           )}
-        </ScrollArea>
+        </div>
 
         {/* Input area */}
         <div className="border-t p-4 shrink-0">

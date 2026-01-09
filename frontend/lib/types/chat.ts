@@ -100,6 +100,16 @@ export interface OpenChatOptions {
   systemPrompt?: string;
   context?: Record<string, unknown>;
   model?: string;
+  /**
+   * If provided, this message will be sent automatically when the chat opens.
+   * This triggers the assistant to respond immediately, starting the conversation.
+   */
+  initialMessage?: string;
+  /**
+   * Callback invoked when user accepts returned content from chat.
+   * Used for returning suggested/fixed content back to the originating component.
+   */
+  onContentReturn?: (content: string) => void;
 }
 
 /**
@@ -121,4 +131,6 @@ export interface AiChatContextValue extends AiChatState {
   closeChat: () => void;
   sendMessage: (content: string) => Promise<void>;
   clearError: () => void;
+  /** Accept content and trigger the onContentReturn callback, then close chat */
+  acceptContent: (content: string) => void;
 }

@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from backend.src.models.chat import ChatMessage, ChatSessionConfig, ChatStreamEvent
+from backend.src.models.chat import ChatMessage, ChatSessionConfig
 from backend.src.services.chat_service import ChatService
 
 
@@ -39,14 +39,14 @@ class TestCreateSession:
         assert "session-1" in service._sessions
 
     def test_create_session_with_system_prompt(self):
-        """Create session with system prompt adds system message."""
+        """Create session with system prompt stores it in config, not messages."""
         service = ChatService()
-        config = ChatSessionConfig(system_prompt="You are helpful")
+        config = ChatSessionConfig(system_prompt="You are helpful")  # type: ignore[call-arg]
         session = service.create_session("session-1", config)
 
-        assert len(session.messages) == 1
-        assert session.messages[0].role == "system"
-        assert session.messages[0].content == "You are helpful"
+        # System prompt is stored in config, not in messages
+        assert len(session.messages) == 0
+        assert session.config.system_prompt == "You are helpful"
 
     def test_create_session_duplicate_id(self):
         """Creating duplicate session raises ValueError."""
@@ -185,7 +185,9 @@ class TestCreateClient:
         mock_client_cls.assert_called_once_with(api_key="test_key")
 
     @patch("backend.src.services.chat_service.genai.Client")
-    def test_create_client_api_key_from_project_env(self, mock_client_cls, tmp_path: Path):
+    def test_create_client_api_key_from_project_env(
+        self, mock_client_cls, tmp_path: Path
+    ):
         """Create client with API key from project .env file."""
         env_file = tmp_path / ".env"
         env_file.write_text("GOOGLE_API_KEY=project_key\n")
@@ -215,12 +217,13 @@ class TestCreateClient:
         )
 
     @patch("backend.src.services.chat_service.genai.Client")
-    def test_create_client_vertex_ai_default_location(self, mock_client_cls, tmp_path: Path):
+    def test_create_client_vertex_ai_default_location(
+        self, mock_client_cls, tmp_path: Path
+    ):
         """Create client with default location when not specified."""
         env_file = tmp_path / ".env"
         env_file.write_text(
-            "GOOGLE_GENAI_USE_VERTEXAI=true\n"
-            "GOOGLE_CLOUD_PROJECT=my-project\n"
+            "GOOGLE_GENAI_USE_VERTEXAI=true\nGOOGLE_CLOUD_PROJECT=my-project\n"
         )
 
         service = ChatService()
@@ -248,25 +251,26 @@ class TestBuildLLMMessages:
     def test_build_messages_with_system_prompt(self):
         """Build messages with system prompt converts to user/model pair."""
         service = ChatService()
-        config = ChatSessionConfig(system_prompt="You are helpful")
+        config = ChatSessionConfig(system_prompt="You are helpful")  # type: ignore[call-arg]
         session = service.create_session("session-1", config)
 
         messages = service._build_llm_messages(session)
         assert len(messages) == 2
         assert messages[0].role == "user"
-        assert messages[0].parts[0].text == "You are helpful"
+        assert messages[0].parts[0].text == "You are helpful"  # type: ignore[union-attr]
         assert messages[1].role == "model"
 
     def test_build_messages_with_context(self):
         """Build messages with context injects into system prompt."""
         service = ChatService()
         context = {"user_id": "123", "preferences": {"theme": "dark"}}
-        config = ChatSessionConfig(system_prompt="You are helpful", context=context)
+        config = ChatSessionConfig(system_prompt="You are helpful", context=context)  # type: ignore[call-arg]
         session = service.create_session("session-1", config)
 
         messages = service._build_llm_messages(session)
         assert len(messages) == 2
-        first_message_text = messages[0].parts[0].text
+        first_message_text = messages[0].parts[0].text  # type: ignore[union-attr]
+        assert first_message_text is not None
         assert "You are helpful" in first_message_text
         assert "Context:" in first_message_text
         assert "user_id" in first_message_text
@@ -283,9 +287,9 @@ class TestBuildLLMMessages:
         messages = service._build_llm_messages(session)
         assert len(messages) == 2
         assert messages[0].role == "user"
-        assert messages[0].parts[0].text == "Hello"
+        assert messages[0].parts[0].text == "Hello"  # type: ignore[union-attr]
         assert messages[1].role == "model"
-        assert messages[1].parts[0].text == "Hi there"
+        assert messages[1].parts[0].text == "Hi there"  # type: ignore[union-attr]
 
 
 class TestSendMessage:
@@ -322,7 +326,9 @@ class TestSendMessage:
                 yield
             raise Exception("Test error to stop stream")
 
-        mock_client.aio.models.generate_content_stream = AsyncMock(return_value=mock_stream())
+        mock_client.aio.models.generate_content_stream = AsyncMock(
+            return_value=mock_stream()
+        )
 
         # Create session and send message
         service = ChatService()
@@ -334,6 +340,7 @@ class TestSendMessage:
 
         # Verify user message was added
         session = service.get_session("session-1")
+        assert session is not None
         assert len(session.messages) == 1
         assert session.messages[0].role == "user"
         assert session.messages[0].content == "Hello"
@@ -359,7 +366,9 @@ class TestSendMessage:
             yield MockChunk("Hello")
             yield MockChunk(" world")
 
-        mock_client.aio.models.generate_content_stream = AsyncMock(return_value=mock_stream())
+        mock_client.aio.models.generate_content_stream = AsyncMock(
+            return_value=mock_stream()
+        )
 
         # Create session and send message
         service = ChatService()
@@ -379,6 +388,7 @@ class TestSendMessage:
 
         # Verify assistant message was added
         session = service.get_session("session-1")
+        assert session is not None
         assert len(session.messages) == 2
         assert session.messages[1].role == "assistant"
         assert session.messages[1].content == "Hello world"
@@ -399,7 +409,9 @@ class TestSendMessage:
                 yield
             raise Exception("LLM error")
 
-        mock_client.aio.models.generate_content_stream = AsyncMock(return_value=mock_stream())
+        mock_client.aio.models.generate_content_stream = AsyncMock(
+            return_value=mock_stream()
+        )
 
         # Create session and send message
         service = ChatService()
@@ -431,14 +443,18 @@ class TestSendMessage:
                 yield
             raise Exception("Test stop")
 
-        mock_client.aio.models.generate_content_stream = AsyncMock(return_value=mock_stream())
+        mock_client.aio.models.generate_content_stream = AsyncMock(
+            return_value=mock_stream()
+        )
 
         # Create session and send message
         service = ChatService()
         service.create_session("session-1", ChatSessionConfig())
 
         events = []
-        async for event in service.send_message("session-1", "Hi", project_path="/test/path"):
+        async for event in service.send_message(
+            "session-1", "Hi", project_path="/test/path"
+        ):
             events.append(event)
 
         # Verify project_path was passed

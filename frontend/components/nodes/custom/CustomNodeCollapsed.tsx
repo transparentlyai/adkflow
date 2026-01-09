@@ -7,6 +7,7 @@ import type {
 } from "@/components/nodes/CustomNode";
 import type { HandlePositions } from "@/lib/types";
 import type { HandleTypes } from "@/components/nodes/custom/hooks/useCustomNodeHandleTypes";
+import type { AiAssistOption } from "@/components/nodes/custom/AiAssistButton";
 import {
   PillLayout,
   CircleLayout,
@@ -40,6 +41,8 @@ export interface CustomNodeCollapsedProps {
   onNameKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   // Context menu
   onContextMenu?: (e: React.MouseEvent) => void;
+  // AI assist callback (for prompt nodes)
+  onAiAssist?: (option: AiAssistOption) => void;
 }
 
 /**

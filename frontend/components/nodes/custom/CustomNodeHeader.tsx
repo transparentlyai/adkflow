@@ -6,6 +6,9 @@ import { useTheme } from "@/contexts/ThemeContext";
 import type { CustomNodeSchema } from "@/components/nodes/CustomNode";
 import NodeIcon from "@/components/nodes/custom/NodeIcon";
 import ValidationIndicator from "@/components/nodes/ValidationIndicator";
+import AiAssistButton, {
+  type AiAssistOption,
+} from "@/components/nodes/custom/AiAssistButton";
 
 export interface CustomNodeHeaderProps {
   name: string;
@@ -29,6 +32,8 @@ export interface CustomNodeHeaderProps {
   description?: string;
   // Context menu handler
   onContextMenu?: (e: React.MouseEvent) => void;
+  // AI assist callback (for prompt nodes)
+  onAiAssist?: (option: AiAssistOption) => void;
 }
 
 /**
@@ -54,6 +59,7 @@ const CustomNodeHeader = memo(
     duplicateNameError,
     description,
     onContextMenu,
+    onAiAssist,
   }: CustomNodeHeaderProps) => {
     const { theme } = useTheme();
     const ChevronIcon = isExpanded ? ChevronUp : ChevronDown;
@@ -126,6 +132,7 @@ const CustomNodeHeader = memo(
           )}
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
+          {onAiAssist && <AiAssistButton onSelect={onAiAssist} />}
           {hasValidationIssues && (
             <ValidationIndicator
               errors={validationErrors}

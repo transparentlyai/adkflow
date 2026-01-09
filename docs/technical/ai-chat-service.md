@@ -175,6 +175,8 @@ export interface OpenChatOptions {
   systemPrompt?: string;
   context?: Record<string, unknown>;
   model?: string;
+  initialMessage?: string;  // Auto-send first message
+  onContentReturn?: (content: string) => void;  // Callback for "Use it" button
 }
 
 export interface AiChatContextValue {
@@ -187,6 +189,7 @@ export interface AiChatContextValue {
   closeChat: () => void;
   sendMessage: (content: string) => Promise<void>;
   clearError: () => void;
+  acceptContent: (content: string) => void;  // Trigger onContentReturn callback
 }
 ```
 
@@ -270,10 +273,11 @@ function MyComponent() {
 Located in `frontend/components/AiChat/AiChatPanel.tsx`:
 
 Components:
-- **Sheet**: Side panel container from Radix UI
+- **Sheet**: Side panel container from Radix UI (non-modal)
 - **MessageBubble**: Renders individual messages with avatars
 - **WelcomeMessage**: Empty state with helpful text
 - **ErrorBanner**: Displays errors with dismiss button
+- **ContentBlock**: Monaco editor for AI-suggested content with "Use it" button
 - **Composer**: Text input with send button
 
 Features:
@@ -281,6 +285,62 @@ Features:
 - Streaming indicator with typing cursor
 - Enter to send, Shift+Enter for new line
 - Auto-resize textarea
+- **Resizable panel**: Drag left edge (400-900px width)
+- **Non-modal**: Canvas interaction allowed while open
+- **Markdown rendering**: Responses rendered with react-markdown
+
+### Content Return Mechanism
+
+The chat supports returning content to the originating component:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  CustomNode (prompt)                                             │
+│    └── openChat({ onContentReturn: (content) => updateConfig() })│
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+┌──────────────────────────────▼──────────────────────────────────┐
+│  AiChatProvider                                                  │
+│    └── Stores onContentReturn callback in ref                   │
+│    └── Exposes acceptContent() method to trigger callback       │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+┌──────────────────────────────▼──────────────────────────────────┐
+│  AiChatPanel                                                     │
+│    └── MessageBubble detects <content>...</content> in messages │
+│    └── Renders ContentBlock with Monaco editor + "Use it" btn   │
+│    └── "Use it" calls acceptContent() → closes chat → callback  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+System prompts instruct the AI to wrap final suggestions in `<content>` tags:
+
+```markdown
+When you present the final prompt, wrap it in XML tags:
+
+<content>
+[The complete prompt here]
+</content>
+```
+
+### ContentBlock Component
+
+Located in `frontend/components/AiChat/ContentBlock.tsx`:
+
+A readonly Monaco editor with copy/accept actions:
+
+```tsx
+interface ContentBlockProps {
+  content: string;
+  onAccept: () => void;
+}
+```
+
+Features:
+- Monaco editor with markdown syntax highlighting
+- Resizable height (drag bottom edge, 80-500px)
+- "Copy" button to copy content to clipboard
+- "Use it" button to accept and return content
 
 ## Integration Guide
 
@@ -359,6 +419,45 @@ function MyComponent() {
 }
 ```
 
+### Content Return from AI
+
+To receive content back from the AI (like suggested prompts):
+
+```tsx
+function PromptEditor({ nodeId, content, onContentChange }) {
+  const { openChat } = useAiChat();
+
+  const handleAiAssist = (action: "create" | "fix") => {
+    openChat({
+      sessionId: `prompt-${nodeId}-${action}`,
+      systemPrompt: action === "create"
+        ? PROMPT_CREATOR_SYSTEM_PROMPT
+        : PROMPT_FIXER_SYSTEM_PROMPT.replace("{content}", content),
+      initialMessage: action === "create"
+        ? "Help me create a prompt"
+        : "Help me fix this prompt",
+      // This callback is invoked when user clicks "Use it"
+      onContentReturn: (newContent) => {
+        onContentChange(newContent);
+      },
+    });
+  };
+}
+```
+
+## System Prompts
+
+Located in `frontend/lib/aiPrompts.ts`:
+
+Pre-defined system prompts for AI assistance features:
+
+| Export | Purpose |
+|--------|---------|
+| `PROMPT_CREATOR_SYSTEM_PROMPT` | Guides AI to help create prompts from scratch |
+| `PROMPT_FIXER_SYSTEM_PROMPT` | Guides AI to fix/improve existing prompts |
+
+Both prompts instruct the AI to use `<content>` tags for final output.
+
 ## Configuration
 
 ### Model Selection
@@ -395,10 +494,14 @@ frontend/
 ├── components/AiChat/
 │   ├── index.ts          # Barrel exports
 │   ├── AiChatProvider.tsx # React context
-│   └── AiChatPanel.tsx   # Chat UI
+│   ├── AiChatPanel.tsx   # Chat UI with markdown rendering
+│   └── ContentBlock.tsx  # Monaco editor for content return
+├── components/nodes/custom/
+│   └── AiAssistButton.tsx # AI Assist dropdown for prompt nodes
 └── lib/
     ├── api/
     │   └── chat.ts       # API client
+    ├── aiPrompts.ts      # System prompts for AI assistance
     └── types/
         └── chat.ts       # TypeScript types
 ```
