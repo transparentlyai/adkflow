@@ -26,6 +26,10 @@ Complete guide to using ADKFlow for building AI agent workflows.
 - [Running Workflows](./running-workflows.md) - Executing workflows and viewing output
 - [Validation](./validation.md) - Validating workflows and viewing topology
 
+## AI Assistance
+
+- [AI Chat Assistant](./ai-chat-assistant.md) - Using the built-in AI assistant
+
 ## Debugging (Dev Mode)
 
 When running with `./adkflow dev`, additional debugging tools are available:

@@ -33,6 +33,7 @@ For end users building workflows with ADKFlow.
 - [Prompts & Contexts](./user-manual/prompts-and-contexts.md) - Creating content
 - [Running Workflows](./user-manual/running-workflows.md) - Execution and output
 - [Validation](./user-manual/validation.md) - Validation and topology
+- [AI Chat Assistant](./user-manual/ai-chat-assistant.md) - Built-in AI assistance
 - [Keyboard Shortcuts](./user-manual/keyboard-shortcuts.md) - All shortcuts
 - [Themes](./user-manual/themes.md) - Theme customization
 - [Troubleshooting](./user-manual/troubleshooting.md) - Common issues
@@ -66,6 +67,9 @@ FastAPI backend implementation.
 - [Extension System](./technical/backend/extension-system.md) - Custom node loading
 - [Logging System](./technical/backend/logging.md) - Debug logging configuration
 - [Tracing System](./technical/backend/tracing.md) - OpenTelemetry tracing
+
+#### [AI Chat Service](./technical/ai-chat-service.md)
+Built-in AI chat assistant for contextual help.
 
 #### [Extensions](./technical/extensions/README.md)
 Creating custom nodes with the FlowUnit API.

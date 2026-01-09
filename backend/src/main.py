@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.src.api.routes import router as api_router
 from backend.src.api.execution_routes import router as execution_router
 from backend.src.api.extension_routes import router as extension_router
+from backend.src.api.routes.chat_routes import router as chat_router
 
 # Check if running in dev mode
 DEV_MODE = os.getenv("ADKFLOW_DEV_MODE", "0") == "1"
@@ -115,6 +116,7 @@ app.add_middleware(
 app.include_router(api_router)
 app.include_router(execution_router)
 app.include_router(extension_router)
+app.include_router(chat_router)
 
 # Include debug routes only in dev mode
 if DEV_MODE and debug_router is not None:

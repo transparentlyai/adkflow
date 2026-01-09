@@ -83,3 +83,21 @@ export type {
   UserInputSubmission,
   UserInputResponse,
 } from "./execution";
+
+// Chat types
+export type {
+  ChatMessageRole,
+  ChatMessage,
+  ChatSessionConfig,
+  ChatSession,
+  ChatStreamEventType,
+  ChatStreamEvent,
+  CreateChatSessionRequest,
+  CreateChatSessionResponse,
+  GetChatSessionResponse,
+  DeleteChatSessionResponse,
+  SendChatMessageRequest,
+  OpenChatOptions,
+  AiChatState,
+  AiChatContextValue,
+} from "./chat";
