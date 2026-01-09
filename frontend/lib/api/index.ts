@@ -95,3 +95,11 @@ export type {
   PreviewResponse,
   PreviewRequest,
 } from "./contextPreview";
+
+// Chat APIs
+export {
+  createChatSession,
+  getChatSession,
+  deleteChatSession,
+  streamChatMessage,
+} from "./chat";

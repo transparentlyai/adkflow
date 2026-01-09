@@ -78,6 +78,14 @@ vi.mock("@/contexts/CanvasActionsContext", () => ({
   useCanvasActions: vi.fn(() => mockCanvasActions),
 }));
 
+// Mock AiChat
+const mockOpenChat = vi.fn();
+vi.mock("@/components/AiChat", () => ({
+  useAiChat: vi.fn(() => ({
+    openChat: mockOpenChat,
+  })),
+}));
+
 // Mock NodeContextMenu
 vi.mock("@/components/NodeContextMenu", () => ({
   default: vi.fn(

@@ -12,6 +12,18 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 
+@pytest.fixture(autouse=True)
+def reset_chat_service():
+    """Reset chat service singleton before each test."""
+    from backend.src.services.chat_service import chat_service
+
+    # Clear all sessions
+    chat_service._sessions.clear()
+    yield
+    # Cleanup after test
+    chat_service._sessions.clear()
+
+
 @pytest.fixture
 async def app():
     """Create FastAPI app instance for testing."""

@@ -39,6 +39,7 @@ const StandardLayout = memo(
     onNameSave,
     onNameKeyDown,
     onContextMenu,
+    onAiAssist,
   }: CustomNodeCollapsedProps) => {
     const { theme } = useTheme();
     const themeColors = getThemeColors(theme, schema.ui.theme_key);
@@ -119,6 +120,7 @@ const StandardLayout = memo(
               duplicateNameError={nodeData.duplicateNameError}
               description={config.description as string | undefined}
               onContextMenu={onContextMenu}
+              onAiAssist={onAiAssist}
             />
 
             {/* Body with summary */}
