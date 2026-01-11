@@ -94,23 +94,24 @@ class TestDevCommand:
         mock_frontend_proc.stdout = None
 
         with patch("cli.main.get_project_root", return_value=mock_project):
-            with patch("cli.main.start_backend_server", return_value=mock_backend_proc):
-                with patch("cli.main.start_frontend_server", return_value=mock_frontend_proc):
-                    with patch("cli.main.wait_for_server_health", return_value=True):
-                        with patch("cli.main.wait_for_process_running", return_value=True):
-                            with patch("cli.main.create_dev_manager") as mock_manager:
-                                manager = MagicMock()
-                                manager.monitor_processes = MagicMock(
-                                    side_effect=KeyboardInterrupt
-                                )
-                                mock_manager.return_value = manager
+            with patch("cli.main.ensure_frontend_deps", return_value=True):
+                with patch("cli.main.start_backend_server", return_value=mock_backend_proc):
+                    with patch("cli.main.start_frontend_server", return_value=mock_frontend_proc):
+                        with patch("cli.main.wait_for_server_health", return_value=True):
+                            with patch("cli.main.wait_for_process_running", return_value=True):
+                                with patch("cli.main.create_dev_manager") as mock_manager:
+                                    manager = MagicMock()
+                                    manager.monitor_processes = MagicMock(
+                                        side_effect=KeyboardInterrupt
+                                    )
+                                    mock_manager.return_value = manager
 
-                                with patch("cli.main.print_msg"):
-                                    with patch("cli.main.print_panel"):
-                                        result = runner.invoke(dev)
+                                    with patch("cli.main.print_msg"):
+                                        with patch("cli.main.print_panel"):
+                                            result = runner.invoke(dev)
 
-                                # Manager should be set up
-                                manager.setup_signal_handlers.assert_called_once()
+                                    # Manager should be set up
+                                    manager.setup_signal_handlers.assert_called_once()
 
     def test_dev_custom_ports(self, runner, mock_project: Path):
         """Test dev command accepts custom ports."""
@@ -119,29 +120,30 @@ class TestDevCommand:
         mock_proc.stdout = None
 
         with patch("cli.main.get_project_root", return_value=mock_project):
-            with patch("cli.main.start_backend_server", return_value=mock_proc) as mock_backend:
-                with patch("cli.main.start_frontend_server", return_value=mock_proc) as mock_frontend:
-                    with patch("cli.main.wait_for_server_health", return_value=True):
-                        with patch("cli.main.wait_for_process_running", return_value=True):
-                            with patch("cli.main.create_dev_manager") as mock_manager:
-                                manager = MagicMock()
-                                manager.monitor_processes = MagicMock(
-                                    side_effect=KeyboardInterrupt
-                                )
-                                mock_manager.return_value = manager
+            with patch("cli.main.ensure_frontend_deps", return_value=True):
+                with patch("cli.main.start_backend_server", return_value=mock_proc) as mock_backend:
+                    with patch("cli.main.start_frontend_server", return_value=mock_proc) as mock_frontend:
+                        with patch("cli.main.wait_for_server_health", return_value=True):
+                            with patch("cli.main.wait_for_process_running", return_value=True):
+                                with patch("cli.main.create_dev_manager") as mock_manager:
+                                    manager = MagicMock()
+                                    manager.monitor_processes = MagicMock(
+                                        side_effect=KeyboardInterrupt
+                                    )
+                                    mock_manager.return_value = manager
 
-                                with patch("cli.main.print_msg"):
-                                    with patch("cli.main.print_panel"):
-                                        runner.invoke(dev, ["--backend-port", "7000", "--frontend-port", "7006"])
+                                    with patch("cli.main.print_msg"):
+                                        with patch("cli.main.print_panel"):
+                                            runner.invoke(dev, ["--backend-port", "7000", "--frontend-port", "7006"])
 
-                                # Check ports were passed
-                                mock_backend.assert_called()
-                                backend_args = mock_backend.call_args
-                                assert backend_args[0][1] == 7000
+                                    # Check ports were passed
+                                    mock_backend.assert_called()
+                                    backend_args = mock_backend.call_args
+                                    assert backend_args[0][1] == 7000
 
-                                mock_frontend.assert_called()
-                                frontend_args = mock_frontend.call_args
-                                assert frontend_args[0][1] == 7006
+                                    mock_frontend.assert_called()
+                                    frontend_args = mock_frontend.call_args
+                                    assert frontend_args[0][1] == 7006
 
     def test_dev_backend_health_failure(self, runner, mock_project: Path):
         """Test dev command handles backend health check failure."""
@@ -182,28 +184,29 @@ class TestStartCommand:
         mock_proc.stdout = None
 
         with patch("cli.main.get_project_root", return_value=mock_project):
-            with patch("cli.main.start_backend_server", return_value=mock_proc):
-                with patch("cli.main.start_frontend_server", return_value=mock_proc):
-                    with patch("cli.main.wait_for_server_health", return_value=True):
-                        with patch("cli.main.wait_for_process_running", return_value=True):
-                            with patch("cli.main.subprocess.run") as mock_run:
-                                with patch("cli.main.create_prod_manager") as mock_manager:
-                                    manager = MagicMock()
-                                    manager.monitor_processes = MagicMock(
-                                        side_effect=KeyboardInterrupt
-                                    )
-                                    mock_manager.return_value = manager
+            with patch("cli.main.ensure_frontend_deps", return_value=True):
+                with patch("cli.main.start_backend_server", return_value=mock_proc):
+                    with patch("cli.main.start_frontend_server", return_value=mock_proc):
+                        with patch("cli.main.wait_for_server_health", return_value=True):
+                            with patch("cli.main.wait_for_process_running", return_value=True):
+                                with patch("cli.main.subprocess.run") as mock_run:
+                                    with patch("cli.main.create_prod_manager") as mock_manager:
+                                        manager = MagicMock()
+                                        manager.monitor_processes = MagicMock(
+                                            side_effect=KeyboardInterrupt
+                                        )
+                                        mock_manager.return_value = manager
 
-                                    with patch("cli.main.print_msg"):
-                                        with patch("cli.main.print_panel"):
-                                            runner.invoke(start)
+                                        with patch("cli.main.print_msg"):
+                                            with patch("cli.main.print_panel"):
+                                                runner.invoke(start)
 
-                                    # Build should be called
-                                    build_called = any(
-                                        "build" in str(c[0])
-                                        for c in mock_run.call_args_list
-                                    )
-                                    assert build_called
+                                        # Build should be called
+                                        build_called = any(
+                                            "build" in str(c[0])
+                                            for c in mock_run.call_args_list
+                                        )
+                                        assert build_called
 
     def test_start_no_build_option(self, runner, mock_project: Path):
         """Test start command --no-build option."""
@@ -215,28 +218,29 @@ class TestStartCommand:
         (mock_project / "frontend" / ".next").mkdir()
 
         with patch("cli.main.get_project_root", return_value=mock_project):
-            with patch("cli.main.start_backend_server", return_value=mock_proc):
-                with patch("cli.main.start_frontend_server", return_value=mock_proc):
-                    with patch("cli.main.wait_for_server_health", return_value=True):
-                        with patch("cli.main.wait_for_process_running", return_value=True):
-                            with patch("cli.main.subprocess.run") as mock_run:
-                                with patch("cli.main.create_prod_manager") as mock_manager:
-                                    manager = MagicMock()
-                                    manager.monitor_processes = MagicMock(
-                                        side_effect=KeyboardInterrupt
-                                    )
-                                    mock_manager.return_value = manager
+            with patch("cli.main.ensure_frontend_deps", return_value=True):
+                with patch("cli.main.start_backend_server", return_value=mock_proc):
+                    with patch("cli.main.start_frontend_server", return_value=mock_proc):
+                        with patch("cli.main.wait_for_server_health", return_value=True):
+                            with patch("cli.main.wait_for_process_running", return_value=True):
+                                with patch("cli.main.subprocess.run") as mock_run:
+                                    with patch("cli.main.create_prod_manager") as mock_manager:
+                                        manager = MagicMock()
+                                        manager.monitor_processes = MagicMock(
+                                            side_effect=KeyboardInterrupt
+                                        )
+                                        mock_manager.return_value = manager
 
-                                    with patch("cli.main.print_msg"):
-                                        with patch("cli.main.print_panel"):
-                                            runner.invoke(start, ["--no-build"])
+                                        with patch("cli.main.print_msg"):
+                                            with patch("cli.main.print_panel"):
+                                                runner.invoke(start, ["--no-build"])
 
-                                    # Build should NOT be called
-                                    build_called = any(
-                                        "build" in str(c[0])
-                                        for c in mock_run.call_args_list
-                                    )
-                                    assert not build_called
+                                        # Build should NOT be called
+                                        build_called = any(
+                                            "build" in str(c[0])
+                                            for c in mock_run.call_args_list
+                                        )
+                                        assert not build_called
 
 
 class TestBackendCommand:
@@ -309,16 +313,17 @@ class TestFrontendCommand:
         mock_proc.stdout.readline.return_value = b""
 
         with patch("cli.main.get_project_root", return_value=mock_project):
-            with patch("cli.main.start_frontend_server", return_value=mock_proc) as mock_start:
-                with patch("cli.main.create_frontend_manager") as mock_manager:
-                    manager = MagicMock()
-                    mock_manager.return_value = manager
+            with patch("cli.main.ensure_frontend_deps", return_value=True):
+                with patch("cli.main.start_frontend_server", return_value=mock_proc) as mock_start:
+                    with patch("cli.main.create_frontend_manager") as mock_manager:
+                        manager = MagicMock()
+                        mock_manager.return_value = manager
 
-                    with patch("cli.main.print_msg"):
-                        with patch("cli.main.print_panel"):
-                            runner.invoke(frontend)
+                        with patch("cli.main.print_msg"):
+                            with patch("cli.main.print_panel"):
+                                runner.invoke(frontend)
 
-                    mock_start.assert_called_once()
+                        mock_start.assert_called_once()
 
 
 class TestStopCommand:
@@ -392,19 +397,20 @@ class TestSetupCommand:
     def test_setup_installs_frontend_deps(self, runner, mock_project: Path):
         """Test setup command installs frontend dependencies."""
         with patch("cli.main.get_project_root", return_value=mock_project):
-            with patch("cli.main.subprocess.run") as mock_run:
-                mock_run.return_value = MagicMock(returncode=0)
+            with patch("cli.main.verify_frontend_deps", return_value=True):
+                with patch("cli.main.subprocess.run") as mock_run:
+                    mock_run.return_value = MagicMock(returncode=0)
 
-                with patch("cli.main.print_msg"):
-                    with patch("cli.main.print_panel"):
-                        runner.invoke(setup)
+                    with patch("cli.main.print_msg"):
+                        with patch("cli.main.print_panel"):
+                            runner.invoke(setup)
 
-                # npm install should be called
-                npm_called = any(
-                    "npm" in str(c[0])
-                    for c in mock_run.call_args_list
-                )
-                assert npm_called
+                    # npm install should be called
+                    npm_called = any(
+                        "npm" in str(c[0])
+                        for c in mock_run.call_args_list
+                    )
+                    assert npm_called
 
     def test_setup_handles_missing_directories(self, runner, tmp_path: Path):
         """Test setup command handles missing directories gracefully."""

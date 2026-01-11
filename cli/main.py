@@ -20,6 +20,7 @@ from cli.utils import (
     HAS_RICH,
     console,
 )
+from cli.health import ensure_frontend_deps, verify_frontend_deps
 from cli.servers import start_backend_server, start_frontend_server
 from cli.process_manager import (
     create_dev_manager,
@@ -101,6 +102,15 @@ def dev(ctx: click.Context, backend_port: int, frontend_port: int):
     if not (project_root / "backend").exists():
         print_msg("Error: backend directory not found", "red")
         print_msg("Please run this command from the adkflow project root")
+        raise click.Abort()
+
+    # Ensure frontend dependencies are healthy before starting
+    frontend_dir = project_root / "frontend"
+    if not ensure_frontend_deps(frontend_dir):
+        print_msg("Error: Could not repair frontend dependencies", "red")
+        print_msg(
+            "Try manually running: cd frontend && rm -rf node_modules && npm install"
+        )
         raise click.Abort()
 
     print_panel("Starting ADKFlow Development Environment")
@@ -206,6 +216,15 @@ def start(backend_port: int, frontend_port: int, build: bool):
 
     if not (project_root / "backend").exists():
         print_msg("Error: backend directory not found", "red")
+        raise click.Abort()
+
+    # Ensure frontend dependencies are healthy before starting
+    frontend_dir = project_root / "frontend"
+    if not ensure_frontend_deps(frontend_dir):
+        print_msg("Error: Could not repair frontend dependencies", "red")
+        print_msg(
+            "Try manually running: cd frontend && rm -rf node_modules && npm install"
+        )
         raise click.Abort()
 
     print_panel("Starting ADKFlow (Production Mode)")
@@ -340,8 +359,17 @@ def frontend(port: int, backend_port: int):
     """Start only the frontend server."""
     project_root = get_project_root()
 
-    if not (project_root / "frontend").exists():
+    frontend_dir = project_root / "frontend"
+    if not frontend_dir.exists():
         print_msg("Error: frontend directory not found", "red")
+        raise click.Abort()
+
+    # Ensure frontend dependencies are healthy before starting
+    if not ensure_frontend_deps(frontend_dir):
+        print_msg("Error: Could not repair frontend dependencies", "red")
+        print_msg(
+            "Try manually running: cd frontend && rm -rf node_modules && npm install"
+        )
         raise click.Abort()
 
     print_panel("Starting ADKFlow Frontend")
@@ -457,6 +485,21 @@ def setup():
         print_msg("\nSetting up frontend...", "bold")
         print_msg("  Installing dependencies...")
         subprocess.run(["npm", "install"], cwd=str(frontend_dir), check=True)
+
+        # Verify installation worked
+        print_msg("  Verifying installation...")
+        if not verify_frontend_deps(frontend_dir):
+            print_msg("  Installation incomplete, retrying...", "yellow")
+            # Clean install on failure
+            node_modules = frontend_dir / "node_modules"
+            if node_modules.exists():
+                subprocess.run(["rm", "-rf", str(node_modules)], check=True)
+            subprocess.run(["npm", "install"], cwd=str(frontend_dir), check=True)
+
+            if not verify_frontend_deps(frontend_dir):
+                print_msg("  Frontend setup failed after retry", "red")
+                raise click.Abort()
+
         print_msg("  Frontend ready", "green")
     else:
         print_msg("Frontend directory not found, skipping", "yellow")
