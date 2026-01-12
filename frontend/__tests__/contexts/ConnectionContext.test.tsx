@@ -7,7 +7,14 @@ import {
 } from "@/contexts/ConnectionContext";
 
 function TestConsumer() {
-  const { connectionState, startConnection, endConnection } = useConnection();
+  const {
+    connectionState,
+    startConnection,
+    endConnection,
+    nodeToExpand,
+    expandNodeForConnection,
+    clearExpansionRequest,
+  } = useConnection();
   return (
     <div>
       <span data-testid="isDragging">
@@ -25,6 +32,7 @@ function TestConsumer() {
       <span data-testid="sourceOutputType">
         {connectionState.sourceOutputType ?? "null"}
       </span>
+      <span data-testid="nodeToExpand">{nodeToExpand ?? "null"}</span>
       <button
         data-testid="startBtn"
         onClick={() => startConnection("node1", "handle1", "prompt", "str")}
@@ -33,6 +41,15 @@ function TestConsumer() {
       </button>
       <button data-testid="endBtn" onClick={() => endConnection()}>
         End
+      </button>
+      <button
+        data-testid="expandBtn"
+        onClick={() => expandNodeForConnection("node2")}
+      >
+        Expand
+      </button>
+      <button data-testid="clearBtn" onClick={() => clearExpansionRequest()}>
+        Clear
       </button>
     </div>
   );
@@ -93,6 +110,45 @@ describe("ConnectionContext", () => {
         "null",
       );
       expect(screen.getByTestId("sourceOutputType")).toHaveTextContent("null");
+    });
+
+    it("should provide initial nodeToExpand as null", () => {
+      render(
+        <ConnectionProvider>
+          <TestConsumer />
+        </ConnectionProvider>,
+      );
+
+      expect(screen.getByTestId("nodeToExpand")).toHaveTextContent("null");
+    });
+
+    it("should expand node when expandNodeForConnection is called", () => {
+      render(
+        <ConnectionProvider>
+          <TestConsumer />
+        </ConnectionProvider>,
+      );
+
+      expect(screen.getByTestId("nodeToExpand")).toHaveTextContent("null");
+
+      fireEvent.click(screen.getByTestId("expandBtn"));
+
+      expect(screen.getByTestId("nodeToExpand")).toHaveTextContent("node2");
+    });
+
+    it("should clear expansion request when clearExpansionRequest is called", () => {
+      render(
+        <ConnectionProvider>
+          <TestConsumer />
+        </ConnectionProvider>,
+      );
+
+      fireEvent.click(screen.getByTestId("expandBtn"));
+      expect(screen.getByTestId("nodeToExpand")).toHaveTextContent("node2");
+
+      fireEvent.click(screen.getByTestId("clearBtn"));
+
+      expect(screen.getByTestId("nodeToExpand")).toHaveTextContent("null");
     });
   });
 
