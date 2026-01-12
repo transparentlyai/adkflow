@@ -70,12 +70,27 @@ export function useCustomNodeHandleTypes(
       acceptedTypes: Array.from(allAcceptedTypes),
     };
 
+    // Collect all output types for merged universal output handle
+    const allOutputSources = new Set<string>();
+    const allOutputTypes = new Set<string>();
+
     schema.ui.outputs.forEach((output) => {
+      allOutputSources.add(output.source_type);
+      allOutputTypes.add(output.data_type);
       types[output.id] = {
         outputSource: output.source_type,
         outputType: output.data_type,
       };
     });
+
+    // Combined entry for collapsed view's main output handle
+    // Uses wildcard if multiple sources/types, otherwise the single value
+    types["output"] = {
+      outputSource:
+        allOutputSources.size === 1 ? Array.from(allOutputSources)[0] : "*",
+      outputType:
+        allOutputTypes.size === 1 ? Array.from(allOutputTypes)[0] : "*",
+    };
 
     // Add type info for additional handles from handle_layout
     // These are used for link-top/link-bottom and other positioned handles

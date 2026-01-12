@@ -11,7 +11,8 @@ interface UseConnectionTrackingParams {
 export function useConnectionTracking({
   handleTypeRegistry,
 }: UseConnectionTrackingParams) {
-  const { startConnection, endConnection } = useConnection();
+  const { startConnection, endConnection, expandNodeForConnection } =
+    useConnection();
 
   // Track drag start to update connection context for visual feedback
   const onConnectStart = useCallback(
@@ -30,9 +31,15 @@ export function useConnectionTracking({
           typeInfo.outputSource,
           typeInfo.outputType,
         );
+
+        // Auto-expand node when dragging from universal "output" handle
+        // This allows user to pick the specific handle they want
+        if (params.handleId === "output") {
+          expandNodeForConnection(params.nodeId);
+        }
       }
     },
-    [handleTypeRegistry, startConnection],
+    [handleTypeRegistry, startConnection, expandNodeForConnection],
   );
 
   // Clear drag state when connection ends

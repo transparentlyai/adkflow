@@ -25,6 +25,10 @@ interface ConnectionContextValue {
     outputType: string,
   ) => void;
   endConnection: () => void;
+  // Expansion control for auto-expand on edge drag
+  nodeToExpand: string | null;
+  expandNodeForConnection: (nodeId: string) => void;
+  clearExpansionRequest: () => void;
 }
 
 const ConnectionContext = createContext<ConnectionContextValue | null>(null);
@@ -40,6 +44,7 @@ const initialState: ConnectionState = {
 export function ConnectionProvider({ children }: { children: ReactNode }) {
   const [connectionState, setConnectionState] =
     useState<ConnectionState>(initialState);
+  const [nodeToExpand, setNodeToExpand] = useState<string | null>(null);
 
   const startConnection = useCallback(
     (
@@ -63,9 +68,26 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
     setConnectionState(initialState);
   }, []);
 
+  // Request a node to expand (for auto-expand on edge drag)
+  const expandNodeForConnection = useCallback((nodeId: string) => {
+    setNodeToExpand(nodeId);
+  }, []);
+
+  // Clear the expansion request (called after node processes it)
+  const clearExpansionRequest = useCallback(() => {
+    setNodeToExpand(null);
+  }, []);
+
   return (
     <ConnectionContext.Provider
-      value={{ connectionState, startConnection, endConnection }}
+      value={{
+        connectionState,
+        startConnection,
+        endConnection,
+        nodeToExpand,
+        expandNodeForConnection,
+        clearExpansionRequest,
+      }}
     >
       {children}
     </ConnectionContext.Provider>

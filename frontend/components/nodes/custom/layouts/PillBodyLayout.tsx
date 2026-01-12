@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useMemo } from "react";
+import { Handle, Position } from "@xyflow/react";
 import { useTheme } from "@/contexts/ThemeContext";
 import DraggableHandle from "@/components/DraggableHandle";
 import ValidationIndicator from "@/components/nodes/ValidationIndicator";
@@ -287,26 +288,43 @@ const PillBodyLayout = memo(
               );
             })}
 
-          {/* Output handle */}
+          {/* Universal output handle - single handle for all outputs in collapsed view */}
+          {schema.ui.outputs.filter(
+            (o) => !additionalHandles.some((h) => h.id === o.id),
+          ).length > 0 && (
+            <DraggableHandle
+              nodeId={id}
+              handleId="output"
+              type="source"
+              defaultEdge={schema.ui.handle_layout?.output_position || "right"}
+              defaultPercent={50}
+              handlePositions={handlePositions}
+              outputSource={handleTypes["output"]?.outputSource}
+              outputType={handleTypes["output"]?.outputType}
+              style={{
+                ...handleStyle,
+                backgroundColor:
+                  schema.ui.outputs[0]?.handle_color ||
+                  theme.colors.handles.output,
+              }}
+            />
+          )}
+
+          {/* Hidden handles for specific output types - used for edge routing */}
           {schema.ui.outputs
             .filter((o) => !additionalHandles.some((h) => h.id === o.id))
+            .filter((o) => o.id !== "output") // Exclude if there's a literal "output" id
             .map((output) => (
-              <DraggableHandle
+              <Handle
                 key={output.id}
-                nodeId={id}
-                handleId={output.id}
                 type="source"
-                defaultEdge={
-                  schema.ui.handle_layout?.output_position || "right"
-                }
-                defaultPercent={50}
-                handlePositions={handlePositions}
-                outputSource={handleTypes[output.id]?.outputSource}
-                outputType={handleTypes[output.id]?.outputType}
+                position={Position.Right}
+                id={output.id}
                 style={{
-                  ...handleStyle,
-                  backgroundColor:
-                    output.handle_color || theme.colors.handles.output,
+                  opacity: 0,
+                  pointerEvents: "none",
+                  top: "50%",
+                  right: 0,
                 }}
               />
             ))}

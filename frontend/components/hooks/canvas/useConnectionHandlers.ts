@@ -63,7 +63,33 @@ export function useConnectionHandlers({
     (params: Connection) => {
       if (isLocked) return;
 
+      let sourceHandle = params.sourceHandle;
       let targetHandle = params.targetHandle;
+
+      // Auto-route for universal "output" handle on source node
+      // This routes to the specific output if node has only one
+      if (params.sourceHandle === "output" && params.source) {
+        const sourceNode = nodes.find((n) => n.id === params.source);
+        const sourceData = sourceNode?.data as
+          | { schema?: { ui?: { outputs?: { id: string }[] } } }
+          | undefined;
+        const outputs = sourceData?.schema?.ui?.outputs || [];
+        // Filter to get regular outputs (not in additional_handles)
+        const additionalHandles =
+          (
+            sourceData?.schema?.ui as {
+              handle_layout?: { additional_handles?: { id: string }[] };
+            }
+          )?.handle_layout?.additional_handles || [];
+        const regularOutputs = outputs.filter(
+          (o) => !additionalHandles.some((h) => h.id === o.id),
+        );
+        if (regularOutputs.length === 1) {
+          // Single output - auto-route to it
+          sourceHandle = regularOutputs[0].id;
+        }
+        // If multiple outputs, keep "output" - edge will attach to universal handle
+      }
 
       // Auto-detect for AgentNode collapsed "input" handle
       if (
@@ -71,7 +97,7 @@ export function useConnectionHandlers({
         params.targetHandle === "input"
       ) {
         // Look up source handle's source type from registry
-        const sourceKey = `${params.source}:${params.sourceHandle}`;
+        const sourceKey = `${params.source}:${sourceHandle}`;
         const sourceInfo = handleTypeRegistry[sourceKey];
         const outputSource = sourceInfo?.outputSource;
 
@@ -87,13 +113,13 @@ export function useConnectionHandlers({
 
       // Check if this is a link connection (from link handles)
       const isLinkConnection =
-        params.sourceHandle?.startsWith("link-") &&
-        targetHandle?.startsWith("link-");
+        sourceHandle?.startsWith("link-") && targetHandle?.startsWith("link-");
 
       if (isLinkConnection) {
         // Gray dotted edge for link connections between agents
         const edgeWithStyle = {
           ...params,
+          sourceHandle,
           targetHandle,
           type: "default",
           style: {
@@ -104,16 +130,18 @@ export function useConnectionHandlers({
         };
         setEdges((eds) => addEdge(edgeWithStyle, eds));
       } else if (
-        params.sourceHandle?.startsWith("link-") ||
+        sourceHandle?.startsWith("link-") ||
         targetHandle?.startsWith("link-")
       ) {
         // Prevent mixing link handles with regular handles
         return;
       } else {
-        setEdges((eds) => addEdge({ ...params, targetHandle }, eds));
+        setEdges((eds) =>
+          addEdge({ ...params, sourceHandle, targetHandle }, eds),
+        );
       }
     },
-    [isLocked, linkEdgeColor, handleTypeRegistry, setEdges],
+    [isLocked, linkEdgeColor, handleTypeRegistry, nodes, setEdges],
   );
 
   return {

@@ -496,11 +496,13 @@ describe("StandardLayout", () => {
 
       render(<StandardLayout {...props} />);
 
+      // Universal output handle is visible
       expect(
         screen.getByTestId("draggable-handle-source-output"),
       ).toBeInTheDocument();
+      // Secondary output is rendered as a hidden handle (for edge routing)
       expect(
-        screen.getByTestId("draggable-handle-source-secondary"),
+        screen.getByTestId("xyflow-handle-source-secondary"),
       ).toBeInTheDocument();
     });
 

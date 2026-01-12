@@ -4,6 +4,7 @@ import { memo, useState, useCallback, useMemo, useEffect } from "react";
 import { type NodeProps, useReactFlow, useStore } from "@xyflow/react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useCanvasActions } from "@/contexts/CanvasActionsContext";
+import { useConnection } from "@/contexts/ConnectionContext";
 import { useAiChat } from "@/components/AiChat";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -101,6 +102,7 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
   const { setNodes } = useReactFlow();
   const { theme } = useTheme();
   const canvasActions = useCanvasActions();
+  const { nodeToExpand, clearExpansionRequest } = useConnection();
   const { openChat } = useAiChat();
   const [isExpanded, setIsExpanded] = useState(dataIsExpanded ?? false);
   const [contextMenu, setContextMenu] = useState<{
@@ -345,6 +347,42 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
 
     setIsExpanded(newExpanded);
   }, [id, isExpanded, setNodes]);
+
+  // Auto-expand when requested by ConnectionContext (edge drag from universal handle)
+  useEffect(() => {
+    if (
+      nodeToExpand === id &&
+      !isExpanded &&
+      schema.ui.expandable &&
+      // Only expand if node has multiple outputs (single output auto-routes)
+      schema.ui.outputs.filter(
+        (o) =>
+          !schema.ui.handle_layout?.additional_handles?.some(
+            (h) => h.id === o.id,
+          ),
+      ).length > 1
+    ) {
+      toggleExpand();
+      clearExpansionRequest();
+      // Cancel the edge drag by dispatching mouseup after expansion
+      // This allows user to pick the specific output handle they want
+      requestAnimationFrame(() => {
+        document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+      });
+    } else if (nodeToExpand === id) {
+      // Clear even if we didn't expand (single output, already expanded, or not expandable)
+      clearExpansionRequest();
+    }
+  }, [
+    nodeToExpand,
+    id,
+    isExpanded,
+    schema.ui.expandable,
+    schema.ui.outputs,
+    schema.ui.handle_layout?.additional_handles,
+    toggleExpand,
+    clearExpansionRequest,
+  ]);
 
   // Resize handler for resizable nodes
   const handleResize = useCallback(

@@ -78,6 +78,24 @@ vi.mock("@/contexts/CanvasActionsContext", () => ({
   useCanvasActions: vi.fn(() => mockCanvasActions),
 }));
 
+// Mock ConnectionContext
+vi.mock("@/contexts/ConnectionContext", () => ({
+  useConnection: vi.fn(() => ({
+    connectionState: {
+      isDragging: false,
+      sourceNodeId: null,
+      sourceHandleId: null,
+      sourceOutputSource: null,
+      sourceOutputType: null,
+    },
+    startConnection: vi.fn(),
+    endConnection: vi.fn(),
+    nodeToExpand: null,
+    expandNodeForConnection: vi.fn(),
+    clearExpansionRequest: vi.fn(),
+  })),
+}));
+
 // Mock AiChat
 const mockOpenChat = vi.fn();
 vi.mock("@/components/AiChat", () => ({
