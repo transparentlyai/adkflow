@@ -166,6 +166,16 @@ export const agentNodeSchema: CustomNodeSchema = {
         multiple: true,
         handle_color: "#a78bfa", // Purple - matches sub-agents input
       },
+      // Finish reason output - returns {name, description} dict
+      {
+        id: "finish-reason",
+        label: "Finish Reason",
+        source_type: "agent",
+        data_type: "dict",
+        required: false,
+        multiple: true,
+        handle_color: "#f59e0b", // Amber - warning/status color
+      },
     ],
     // Tabs and fields are driven by the model schema
     tabs: baseModelSchema.tabs,
@@ -249,6 +259,9 @@ export const agentNodeSchema: CustomNodeSchema = {
           position: "left",
           label: "Plug into parent agent",
         },
+        // NOTE: "finish-reason" is NOT in additional_handles because it's a regular
+        // right-side output handle. additional_handles are for edge-positioned handles
+        // (top/bottom) or unconventional positions (like plug on left).
       ],
     },
   },

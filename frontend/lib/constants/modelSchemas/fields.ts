@@ -345,6 +345,16 @@ export function createFlowFields(): FieldDefinition[] {
       section: "Schema",
       tab: "Flow",
     },
+    {
+      id: "finish_reason_fail_fast",
+      label: "Finish Reason Fail Fast",
+      widget: "checkbox",
+      default: false,
+      help_text:
+        "Fail flow execution if finish_reason is not STOP (e.g., MAX_TOKENS, SAFETY)",
+      section: "Finish Reason",
+      tab: "Flow",
+    },
   ];
 }
 

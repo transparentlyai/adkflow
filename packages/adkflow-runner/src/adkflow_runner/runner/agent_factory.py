@@ -29,6 +29,7 @@ from adkflow_runner.runner.callbacks import (
     CallbackRegistry,
     EmitHandler,
     ExtensionHooksHandler,
+    FinishReasonHandler,
     LoggingHandler,
     StripContentsHandler,
     TracingHandler,
@@ -354,6 +355,11 @@ class AgentFactory:
 
         # Priority 300: API/tool logging
         registry.register(LoggingHandler())
+
+        # Priority 350: Finish reason validation (optional fail-fast)
+        registry.register(
+            FinishReasonHandler(fail_fast=agent_ir.finish_reason_fail_fast)
+        )
 
         # Priority 400: RunEvent emission for UI
         registry.register(EmitHandler(self.emit))

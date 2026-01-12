@@ -7,6 +7,8 @@ from adkflow_runner.runner.callbacks.handlers import (
     BaseHandler,
     EmitHandler,
     ExtensionHooksHandler,
+    FinishReasonError,
+    FinishReasonHandler,
     LoggingHandler,
     StripContentsHandler,
     TracingHandler,
@@ -226,7 +228,7 @@ class TestUserCallbackHandler:
         handler = UserCallbackHandler(callbacks={"before_model_callback": user_cb})
 
         result = handler.before_model("ctx", "req", "TestAgent")
-        assert result.action == FlowControl.SKIP
+        assert result.action == FlowControl.SKIP  # type: ignore[union-attr]
 
     def test_converts_abort_action(self):
         """Converts dict with action='abort' to HandlerResult."""
@@ -234,8 +236,8 @@ class TestUserCallbackHandler:
         handler = UserCallbackHandler(callbacks={"before_model_callback": user_cb})
 
         result = handler.before_model("ctx", "req", "TestAgent")
-        assert result.action == FlowControl.ABORT
-        assert result.error == "test error"
+        assert result.action == FlowControl.ABORT  # type: ignore[union-attr]
+        assert result.error == "test error"  # type: ignore[union-attr]
 
     def test_converts_replace_action(self):
         """Converts dict with action='replace' to HandlerResult."""
@@ -245,5 +247,137 @@ class TestUserCallbackHandler:
         handler = UserCallbackHandler(callbacks={"before_model_callback": user_cb})
 
         result = handler.before_model("ctx", "req", "TestAgent")
-        assert result.action == FlowControl.REPLACE
-        assert result.modified_data == {"new": True}
+        assert result.action == FlowControl.REPLACE  # type: ignore[union-attr]
+        assert result.modified_data == {"new": True}  # type: ignore[union-attr]
+
+
+class TestFinishReasonHandler:
+    """Tests for FinishReasonHandler."""
+
+    def test_default_priority(self):
+        """FinishReasonHandler has priority 350."""
+        handler = FinishReasonHandler()
+        assert handler.priority == 350
+
+    def test_fail_fast_disabled_by_default(self):
+        """fail_fast is disabled by default."""
+        handler = FinishReasonHandler()
+        assert handler.fail_fast is False
+
+    def test_fail_fast_enabled_in_constructor(self):
+        """fail_fast can be enabled in constructor."""
+        handler = FinishReasonHandler(fail_fast=True)
+        assert handler.fail_fast is True
+
+    def test_stores_finish_reason_data_for_stop(self):
+        """Stores finish reason data when finish_reason is STOP."""
+        handler = FinishReasonHandler()
+
+        # Mock LLM response with STOP finish_reason
+        finish_reason = MagicMock()
+        finish_reason.name = "STOP"
+        llm_response = MagicMock()
+        llm_response.finish_reason = finish_reason
+
+        handler.after_model(None, llm_response, "TestAgent")
+
+        assert handler.last_finish_reason is not None
+        assert handler.last_finish_reason["name"] == "STOP"
+        assert handler.last_finish_reason["description"] == "Natural completion"
+
+    def test_stores_finish_reason_data_for_max_tokens(self):
+        """Stores finish reason data when finish_reason is MAX_TOKENS."""
+        handler = FinishReasonHandler()
+
+        finish_reason = MagicMock()
+        finish_reason.name = "MAX_TOKENS"
+        llm_response = MagicMock()
+        llm_response.finish_reason = finish_reason
+
+        handler.after_model(None, llm_response, "TestAgent")
+
+        assert handler.last_finish_reason["name"] == "MAX_TOKENS"  # type: ignore[index]
+        assert "truncated" in handler.last_finish_reason["description"].lower()  # type: ignore[index]
+
+    def test_fail_fast_allows_stop(self):
+        """Fail fast allows STOP to pass without error."""
+        handler = FinishReasonHandler(fail_fast=True)
+
+        finish_reason = MagicMock()
+        finish_reason.name = "STOP"
+        llm_response = MagicMock()
+        llm_response.finish_reason = finish_reason
+
+        # Should not raise
+        result = handler.after_model(None, llm_response, "TestAgent")
+        assert result is None
+
+    def test_fail_fast_raises_on_max_tokens(self):
+        """Fail fast raises FinishReasonError on MAX_TOKENS."""
+        handler = FinishReasonHandler(fail_fast=True)
+
+        finish_reason = MagicMock()
+        finish_reason.name = "MAX_TOKENS"
+        llm_response = MagicMock()
+        llm_response.finish_reason = finish_reason
+
+        with pytest.raises(FinishReasonError) as exc_info:
+            handler.after_model(None, llm_response, "TestAgent")
+
+        assert exc_info.value.finish_reason == "MAX_TOKENS"
+        assert "MAX_TOKENS" in str(exc_info.value)
+        assert "TestAgent" in str(exc_info.value)
+
+    def test_fail_fast_raises_on_safety(self):
+        """Fail fast raises FinishReasonError on SAFETY."""
+        handler = FinishReasonHandler(fail_fast=True)
+
+        finish_reason = MagicMock()
+        finish_reason.name = "SAFETY"
+        llm_response = MagicMock()
+        llm_response.finish_reason = finish_reason
+
+        with pytest.raises(FinishReasonError) as exc_info:
+            handler.after_model(None, llm_response, "TestAgent")
+
+        assert exc_info.value.finish_reason == "SAFETY"
+        assert "safety" in exc_info.value.description.lower()
+
+    def test_fail_fast_disabled_allows_any(self):
+        """With fail_fast=False, any finish_reason passes."""
+        handler = FinishReasonHandler(fail_fast=False)
+
+        finish_reason = MagicMock()
+        finish_reason.name = "MAX_TOKENS"
+        llm_response = MagicMock()
+        llm_response.finish_reason = finish_reason
+
+        # Should not raise
+        result = handler.after_model(None, llm_response, "TestAgent")
+        assert result is None
+
+    def test_handles_missing_finish_reason(self):
+        """Handles responses without finish_reason."""
+        handler = FinishReasonHandler(fail_fast=True)
+
+        llm_response = MagicMock()
+        llm_response.finish_reason = None
+
+        # Should not raise
+        result = handler.after_model(None, llm_response, "TestAgent")
+        assert result is None
+        assert handler.last_finish_reason["name"] == "UNKNOWN"  # type: ignore[index]
+
+    def test_error_contains_description(self):
+        """FinishReasonError contains human-readable description."""
+        handler = FinishReasonHandler(fail_fast=True)
+
+        finish_reason = MagicMock()
+        finish_reason.name = "MALFORMED_FUNCTION_CALL"
+        llm_response = MagicMock()
+        llm_response.finish_reason = finish_reason
+
+        with pytest.raises(FinishReasonError) as exc_info:
+            handler.after_model(None, llm_response, "TestAgent")
+
+        assert "syntactically invalid" in exc_info.value.description.lower()

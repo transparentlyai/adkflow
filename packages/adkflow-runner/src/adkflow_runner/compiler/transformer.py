@@ -306,6 +306,7 @@ class IRTransformer:
             disallow_transfer_to_peers=agent_data.get(
                 "disallow_transfer_to_peers", False
             ),
+            finish_reason_fail_fast=agent_data.get("finish_reason_fail_fast", False),
             system_instruction=system_instruction,
             system_instruction_file=agent_data.get("system_instruction_file"),
             planner=planner,

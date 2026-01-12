@@ -77,6 +77,7 @@ export interface Agent {
   output_key?: string;
   include_contents?: boolean; // true = include history, false = no history
   strip_contents?: boolean;
+  finish_reason_fail_fast?: boolean; // Fail if finish_reason is not STOP
 
   // Callbacks (file paths to Python functions)
   before_model_callback?: string;
