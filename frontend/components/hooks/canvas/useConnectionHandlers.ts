@@ -15,25 +15,30 @@ import { useNodeDragParenting } from "./helpers/useNodeDragParenting";
 
 interface UseConnectionHandlersParams {
   nodes: Node[];
+  edges: Edge[];
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
   handleTypeRegistry: Record<string, HandleTypeInfo>;
   isLocked?: boolean;
   linkEdgeColor: string;
+  callbackEdgeColor: string;
 }
 
 export function useConnectionHandlers({
   nodes,
+  edges,
   setNodes,
   setEdges,
   handleTypeRegistry,
   isLocked,
   linkEdgeColor,
+  callbackEdgeColor,
 }: UseConnectionHandlersParams) {
   // Use helper hooks
   const { onConnectStart, onConnectEnd, isValidConnection } =
     useConnectionTracking({
       handleTypeRegistry,
+      edges,
     });
 
   const { onNodeDragStop } = useNodeDragParenting({
@@ -115,6 +120,11 @@ export function useConnectionHandlers({
       const isLinkConnection =
         sourceHandle?.startsWith("link-") && targetHandle?.startsWith("link-");
 
+      // Check if this is a callback connection (from callback node to agent callback input)
+      const sourceKey = `${params.source}:${sourceHandle}`;
+      const sourceInfo = handleTypeRegistry[sourceKey];
+      const isCallbackConnection = sourceInfo?.outputSource === "callback";
+
       if (isLinkConnection) {
         // Gray dotted edge for link connections between agents
         const edgeWithStyle = {
@@ -135,13 +145,33 @@ export function useConnectionHandlers({
       ) {
         // Prevent mixing link handles with regular handles
         return;
+      } else if (isCallbackConnection) {
+        // Purple solid edge for callback connections
+        const edgeWithStyle = {
+          ...params,
+          sourceHandle,
+          targetHandle,
+          type: "default",
+          style: {
+            strokeWidth: 2,
+            stroke: callbackEdgeColor,
+          },
+        };
+        setEdges((eds) => addEdge(edgeWithStyle, eds));
       } else {
         setEdges((eds) =>
           addEdge({ ...params, sourceHandle, targetHandle }, eds),
         );
       }
     },
-    [isLocked, linkEdgeColor, handleTypeRegistry, nodes, setEdges],
+    [
+      isLocked,
+      linkEdgeColor,
+      callbackEdgeColor,
+      handleTypeRegistry,
+      nodes,
+      setEdges,
+    ],
   );
 
   return {

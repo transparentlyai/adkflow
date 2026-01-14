@@ -209,11 +209,13 @@ const ReactFlowCanvasInner = forwardRef<
       onNodeDragStop,
     } = useConnectionHandlers({
       nodes,
+      edges,
       setNodes,
       setEdges,
       handleTypeRegistry,
       isLocked,
       linkEdgeColor: theme.colors.edges.link,
+      callbackEdgeColor: theme.colors.edges.callback,
     });
 
     // Edge highlight based on node selection

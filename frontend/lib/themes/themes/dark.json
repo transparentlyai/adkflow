@@ -162,6 +162,7 @@
       "default": "#6272a4",
       "hover": "#8294c4",
       "link": "#6b6b80",
+      "callback": "#c084fc",
       "selected": "#38bdf8",
       "connected": "#8be9fd"
     },

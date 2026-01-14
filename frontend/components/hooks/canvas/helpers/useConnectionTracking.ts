@@ -6,10 +6,12 @@ import { useConnection } from "@/contexts/ConnectionContext";
 
 interface UseConnectionTrackingParams {
   handleTypeRegistry: Record<string, HandleTypeInfo>;
+  edges: Edge[];
 }
 
 export function useConnectionTracking({
   handleTypeRegistry,
+  edges,
 }: UseConnectionTrackingParams) {
   const { startConnection, endConnection, expandNodeForConnection } =
     useConnection();
@@ -59,14 +61,30 @@ export function useConnectionTracking({
       const sourceInfo = handleTypeRegistry[sourceKey];
       const targetInfo = handleTypeRegistry[targetKey];
 
-      return isTypeCompatible(
+      // Check type compatibility first
+      const typeCompatible = isTypeCompatible(
         sourceInfo?.outputSource,
         sourceInfo?.outputType,
         targetInfo?.acceptedSources,
         targetInfo?.acceptedTypes,
       );
+
+      if (!typeCompatible) return false;
+
+      // Check multiplicity constraint for target handle
+      // If multiple: false, only allow one connection to the handle
+      if (targetInfo?.multiple === false) {
+        const existingConnection = edges.find(
+          (edge) =>
+            edge.target === connection.target &&
+            edge.targetHandle === connection.targetHandle,
+        );
+        if (existingConnection) return false;
+      }
+
+      return true;
     },
-    [handleTypeRegistry],
+    [handleTypeRegistry, edges],
   );
 
   return {

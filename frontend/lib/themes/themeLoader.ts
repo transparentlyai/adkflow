@@ -335,6 +335,7 @@ export function applyTheme(theme: Theme): void {
   // Edges
   root.style.setProperty("--edge-default", colors.edges.default);
   root.style.setProperty("--edge-link", colors.edges.link);
+  root.style.setProperty("--edge-callback", colors.edges.callback);
   root.style.setProperty("--edge-selected", colors.edges.selected);
 
   // UI colors (shadcn compatible)

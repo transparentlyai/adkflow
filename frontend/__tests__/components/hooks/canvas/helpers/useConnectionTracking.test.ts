@@ -50,7 +50,7 @@ describe("useConnectionTracking", () => {
   describe("onConnectStart", () => {
     it("should call startConnection with correct parameters when type info exists", () => {
       const { result } = renderHook(() =>
-        useConnectionTracking({ handleTypeRegistry }),
+        useConnectionTracking({ handleTypeRegistry, edges: [] }),
       );
 
       const params: OnConnectStartParams = {
@@ -73,7 +73,7 @@ describe("useConnectionTracking", () => {
 
     it("should expand node when dragging from universal output handle", () => {
       const { result } = renderHook(() =>
-        useConnectionTracking({ handleTypeRegistry }),
+        useConnectionTracking({ handleTypeRegistry, edges: [] }),
       );
 
       const params: OnConnectStartParams = {
@@ -100,6 +100,7 @@ describe("useConnectionTracking", () => {
       const { result } = renderHook(() =>
         useConnectionTracking({
           handleTypeRegistry: registryWithSpecificHandle,
+          edges: [],
         }),
       );
 
@@ -124,7 +125,7 @@ describe("useConnectionTracking", () => {
       };
 
       const { result } = renderHook(() =>
-        useConnectionTracking({ handleTypeRegistry: registryWithoutSource }),
+        useConnectionTracking({ handleTypeRegistry: registryWithoutSource, edges: [] }),
       );
 
       const params: OnConnectStartParams = {
@@ -148,7 +149,7 @@ describe("useConnectionTracking", () => {
       };
 
       const { result } = renderHook(() =>
-        useConnectionTracking({ handleTypeRegistry: registryWithoutType }),
+        useConnectionTracking({ handleTypeRegistry: registryWithoutType, edges: [] }),
       );
 
       const params: OnConnectStartParams = {
@@ -166,7 +167,7 @@ describe("useConnectionTracking", () => {
 
     it("should not call startConnection if nodeId is missing", () => {
       const { result } = renderHook(() =>
-        useConnectionTracking({ handleTypeRegistry }),
+        useConnectionTracking({ handleTypeRegistry, edges: [] }),
       );
 
       const params: OnConnectStartParams = {
@@ -184,7 +185,7 @@ describe("useConnectionTracking", () => {
 
     it("should not call startConnection if handleId is missing", () => {
       const { result } = renderHook(() =>
-        useConnectionTracking({ handleTypeRegistry }),
+        useConnectionTracking({ handleTypeRegistry, edges: [] }),
       );
 
       const params: OnConnectStartParams = {
@@ -204,7 +205,7 @@ describe("useConnectionTracking", () => {
   describe("onConnectEnd", () => {
     it("should call endConnection", () => {
       const { result } = renderHook(() =>
-        useConnectionTracking({ handleTypeRegistry }),
+        useConnectionTracking({ handleTypeRegistry, edges: [] }),
       );
 
       act(() => {
@@ -220,7 +221,7 @@ describe("useConnectionTracking", () => {
       mockIsTypeCompatible.mockReturnValue(true);
 
       const { result } = renderHook(() =>
-        useConnectionTracking({ handleTypeRegistry }),
+        useConnectionTracking({ handleTypeRegistry, edges: [] }),
       );
 
       const connection: Connection = {
@@ -240,7 +241,7 @@ describe("useConnectionTracking", () => {
       mockIsTypeCompatible.mockReturnValue(true);
 
       const { result } = renderHook(() =>
-        useConnectionTracking({ handleTypeRegistry }),
+        useConnectionTracking({ handleTypeRegistry, edges: [] }),
       );
 
       const connection: Connection = {
@@ -264,7 +265,7 @@ describe("useConnectionTracking", () => {
       mockIsTypeCompatible.mockReturnValue(true);
 
       const { result } = renderHook(() =>
-        useConnectionTracking({ handleTypeRegistry }),
+        useConnectionTracking({ handleTypeRegistry, edges: [] }),
       );
 
       const connection: Connection = {
@@ -283,7 +284,7 @@ describe("useConnectionTracking", () => {
       mockIsTypeCompatible.mockReturnValue(false);
 
       const { result } = renderHook(() =>
-        useConnectionTracking({ handleTypeRegistry }),
+        useConnectionTracking({ handleTypeRegistry, edges: [] }),
       );
 
       const connection: Connection = {
@@ -302,7 +303,7 @@ describe("useConnectionTracking", () => {
       mockIsTypeCompatible.mockReturnValue(true);
 
       const { result } = renderHook(() =>
-        useConnectionTracking({ handleTypeRegistry }),
+        useConnectionTracking({ handleTypeRegistry, edges: [] }),
       );
 
       const connection: Connection = {
@@ -326,7 +327,7 @@ describe("useConnectionTracking", () => {
       mockIsTypeCompatible.mockReturnValue(true);
 
       const { result } = renderHook(() =>
-        useConnectionTracking({ handleTypeRegistry }),
+        useConnectionTracking({ handleTypeRegistry, edges: [] }),
       );
 
       const connection: Connection = {
@@ -350,7 +351,7 @@ describe("useConnectionTracking", () => {
       mockIsTypeCompatible.mockReturnValue(false);
 
       const { result } = renderHook(() =>
-        useConnectionTracking({ handleTypeRegistry }),
+        useConnectionTracking({ handleTypeRegistry, edges: [] }),
       );
 
       const connection: Connection = {
@@ -369,12 +370,134 @@ describe("useConnectionTracking", () => {
         ["str"],
       );
     });
+
+    it("should return false when target handle has multiple: false and existing connection", () => {
+      mockIsTypeCompatible.mockReturnValue(true);
+
+      const registryWithMultipleFalse: Record<string, HandleTypeInfo> = {
+        "callback1:output": {
+          outputSource: "callback",
+          outputType: "callable",
+        },
+        "agent_1:before_agent_callback": {
+          acceptedSources: ["callback"],
+          acceptedTypes: ["callable"],
+          multiple: false,
+        },
+      };
+
+      const existingEdges: import("@xyflow/react").Edge[] = [
+        {
+          id: "edge1",
+          source: "callback1",
+          sourceHandle: "output",
+          target: "agent_1",
+          targetHandle: "before_agent_callback",
+        },
+      ];
+
+      const { result } = renderHook(() =>
+        useConnectionTracking({
+          handleTypeRegistry: registryWithMultipleFalse,
+          edges: existingEdges,
+        }),
+      );
+
+      const connection: import("@xyflow/react").Connection = {
+        source: "callback2",
+        sourceHandle: "output",
+        target: "agent_1",
+        targetHandle: "before_agent_callback",
+      };
+
+      const isValid = result.current.isValidConnection(connection);
+
+      expect(isValid).toBe(false);
+    });
+
+    it("should return true when target handle has multiple: false but no existing connection", () => {
+      mockIsTypeCompatible.mockReturnValue(true);
+
+      const registryWithMultipleFalse: Record<string, HandleTypeInfo> = {
+        "callback1:output": {
+          outputSource: "callback",
+          outputType: "callable",
+        },
+        "agent_1:before_agent_callback": {
+          acceptedSources: ["callback"],
+          acceptedTypes: ["callable"],
+          multiple: false,
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useConnectionTracking({
+          handleTypeRegistry: registryWithMultipleFalse,
+          edges: [],
+        }),
+      );
+
+      const connection: import("@xyflow/react").Connection = {
+        source: "callback1",
+        sourceHandle: "output",
+        target: "agent_1",
+        targetHandle: "before_agent_callback",
+      };
+
+      const isValid = result.current.isValidConnection(connection);
+
+      expect(isValid).toBe(true);
+    });
+
+    it("should return true when target handle has multiple: true with existing connections", () => {
+      mockIsTypeCompatible.mockReturnValue(true);
+
+      const registryWithMultipleTrue: Record<string, HandleTypeInfo> = {
+        "tool1:output": {
+          outputSource: "tool",
+          outputType: "callable",
+        },
+        "agent_1:tools-input": {
+          acceptedSources: ["tool"],
+          acceptedTypes: ["callable"],
+          multiple: true,
+        },
+      };
+
+      const existingEdges: import("@xyflow/react").Edge[] = [
+        {
+          id: "edge1",
+          source: "tool1",
+          sourceHandle: "output",
+          target: "agent_1",
+          targetHandle: "tools-input",
+        },
+      ];
+
+      const { result } = renderHook(() =>
+        useConnectionTracking({
+          handleTypeRegistry: registryWithMultipleTrue,
+          edges: existingEdges,
+        }),
+      );
+
+      const connection: import("@xyflow/react").Connection = {
+        source: "tool2",
+        sourceHandle: "output",
+        target: "agent_1",
+        targetHandle: "tools-input",
+      };
+
+      const isValid = result.current.isValidConnection(connection);
+
+      expect(isValid).toBe(true);
+    });
   });
 
   describe("memoization", () => {
     it("should memoize onConnectStart", () => {
       const { result, rerender } = renderHook(() =>
-        useConnectionTracking({ handleTypeRegistry }),
+        useConnectionTracking({ handleTypeRegistry, edges: [] }),
       );
 
       const firstHandler = result.current.onConnectStart;
@@ -385,7 +508,7 @@ describe("useConnectionTracking", () => {
 
     it("should memoize onConnectEnd", () => {
       const { result, rerender } = renderHook(() =>
-        useConnectionTracking({ handleTypeRegistry }),
+        useConnectionTracking({ handleTypeRegistry, edges: [] }),
       );
 
       const firstHandler = result.current.onConnectEnd;
@@ -394,9 +517,10 @@ describe("useConnectionTracking", () => {
       expect(result.current.onConnectEnd).toBe(firstHandler);
     });
 
-    it("should memoize isValidConnection", () => {
+    it("should memoize isValidConnection when dependencies are stable", () => {
+      const stableEdges: import("@xyflow/react").Edge[] = [];
       const { result, rerender } = renderHook(() =>
-        useConnectionTracking({ handleTypeRegistry }),
+        useConnectionTracking({ handleTypeRegistry, edges: stableEdges }),
       );
 
       const firstHandler = result.current.isValidConnection;
@@ -408,7 +532,7 @@ describe("useConnectionTracking", () => {
     it("should update callbacks when handleTypeRegistry changes", () => {
       const { result, rerender } = renderHook(
         ({ registry }) =>
-          useConnectionTracking({ handleTypeRegistry: registry }),
+          useConnectionTracking({ handleTypeRegistry: registry, edges: [] }),
         { initialProps: { registry: handleTypeRegistry } },
       );
 

@@ -78,10 +78,12 @@ describe("useConnectionHandlers", () => {
       const { result } = renderHook(() =>
         useConnectionHandlers({
           nodes: [],
+          edges: [],
           setNodes: mockSetNodes,
           setEdges: mockSetEdges,
           handleTypeRegistry,
           linkEdgeColor: "#888888",
+          callbackEdgeColor: "#a855f7",
         }),
       );
 
@@ -103,10 +105,12 @@ describe("useConnectionHandlers", () => {
       const { result } = renderHook(() =>
         useConnectionHandlers({
           nodes: [],
+          edges: [],
           setNodes: mockSetNodes,
           setEdges: mockSetEdges,
           handleTypeRegistry,
           linkEdgeColor: "#888888",
+          callbackEdgeColor: "#a855f7",
         }),
       );
 
@@ -128,10 +132,12 @@ describe("useConnectionHandlers", () => {
       const { result } = renderHook(() =>
         useConnectionHandlers({
           nodes: [],
+          edges: [],
           setNodes: mockSetNodes,
           setEdges: mockSetEdges,
           handleTypeRegistry,
           linkEdgeColor: "#888888",
+          callbackEdgeColor: "#a855f7",
         }),
       );
 
@@ -151,10 +157,12 @@ describe("useConnectionHandlers", () => {
       const { result } = renderHook(() =>
         useConnectionHandlers({
           nodes: [],
+          edges: [],
           setNodes: mockSetNodes,
           setEdges: mockSetEdges,
           handleTypeRegistry,
           linkEdgeColor: "#888888",
+          callbackEdgeColor: "#a855f7",
         }),
       );
 
@@ -173,10 +181,12 @@ describe("useConnectionHandlers", () => {
       const { result } = renderHook(() =>
         useConnectionHandlers({
           nodes: [],
+          edges: [],
           setNodes: mockSetNodes,
           setEdges: mockSetEdges,
           handleTypeRegistry,
           linkEdgeColor: "#888888",
+          callbackEdgeColor: "#a855f7",
         }),
       );
 
@@ -203,10 +213,12 @@ describe("useConnectionHandlers", () => {
       const { result } = renderHook(() =>
         useConnectionHandlers({
           nodes: [],
+          edges: [],
           setNodes: mockSetNodes,
           setEdges: mockSetEdges,
           handleTypeRegistry,
           linkEdgeColor: "#888888",
+          callbackEdgeColor: "#a855f7",
         }),
       );
 
@@ -225,11 +237,13 @@ describe("useConnectionHandlers", () => {
       const { result } = renderHook(() =>
         useConnectionHandlers({
           nodes: [],
+          edges: [],
           setNodes: mockSetNodes,
           setEdges: mockSetEdges,
           handleTypeRegistry,
           isLocked: true,
           linkEdgeColor: "#888888",
+          callbackEdgeColor: "#a855f7",
         }),
       );
 
@@ -257,10 +271,12 @@ describe("useConnectionHandlers", () => {
       const { result } = renderHook(() =>
         useConnectionHandlers({
           nodes: [],
+          edges: [],
           setNodes: mockSetNodes,
           setEdges: mockSetEdges,
           handleTypeRegistry,
           linkEdgeColor: "#888888",
+          callbackEdgeColor: "#a855f7",
         }),
       );
 
@@ -282,10 +298,12 @@ describe("useConnectionHandlers", () => {
       const { result } = renderHook(() =>
         useConnectionHandlers({
           nodes: [],
+          edges: [],
           setNodes: mockSetNodes,
           setEdges: mockSetEdges,
           handleTypeRegistry,
           linkEdgeColor: "#888888",
+          callbackEdgeColor: "#a855f7",
         }),
       );
 
@@ -319,10 +337,12 @@ describe("useConnectionHandlers", () => {
       const { result } = renderHook(() =>
         useConnectionHandlers({
           nodes: [],
+          edges: [],
           setNodes: mockSetNodes,
           setEdges: mockSetEdges,
           handleTypeRegistry,
           linkEdgeColor: "#888888",
+          callbackEdgeColor: "#a855f7",
         }),
       );
 
@@ -356,10 +376,12 @@ describe("useConnectionHandlers", () => {
       const { result } = renderHook(() =>
         useConnectionHandlers({
           nodes: [],
+          edges: [],
           setNodes: mockSetNodes,
           setEdges: mockSetEdges,
           handleTypeRegistry,
           linkEdgeColor: "#888888",
+          callbackEdgeColor: "#a855f7",
         }),
       );
 
@@ -393,10 +415,12 @@ describe("useConnectionHandlers", () => {
       const { result } = renderHook(() =>
         useConnectionHandlers({
           nodes: [],
+          edges: [],
           setNodes: mockSetNodes,
           setEdges: mockSetEdges,
           handleTypeRegistry,
           linkEdgeColor: "#666666",
+          callbackEdgeColor: "#a855f7",
         }),
       );
 
@@ -434,10 +458,12 @@ describe("useConnectionHandlers", () => {
       const { result } = renderHook(() =>
         useConnectionHandlers({
           nodes: [],
+          edges: [],
           setNodes: mockSetNodes,
           setEdges: mockSetEdges,
           handleTypeRegistry,
           linkEdgeColor: "#888888",
+          callbackEdgeColor: "#a855f7",
         }),
       );
 
@@ -469,6 +495,56 @@ describe("useConnectionHandlers", () => {
 
       expect(mockSetEdges).not.toHaveBeenCalled();
     });
+
+    it("should create styled edge for callback connections", () => {
+      const callbackRegistry: Record<string, HandleTypeInfo> = {
+        ...handleTypeRegistry,
+        "callback1:output": {
+          outputSource: "callback",
+          outputType: "callable",
+        },
+      };
+
+      const { result } = renderHook(() =>
+        useConnectionHandlers({
+          nodes: [],
+          edges: [],
+          setNodes: mockSetNodes,
+          setEdges: mockSetEdges,
+          handleTypeRegistry: callbackRegistry,
+          linkEdgeColor: "#888888",
+          callbackEdgeColor: "#a855f7",
+        }),
+      );
+
+      const connection: Connection = {
+        source: "callback1",
+        sourceHandle: "output",
+        target: "agent_1",
+        targetHandle: "before_agent_callback",
+      };
+
+      mockSetEdges.mockImplementation((fn) => {
+        if (typeof fn === "function") {
+          fn([]);
+        }
+      });
+
+      act(() => {
+        result.current.onConnect(connection);
+      });
+
+      expect(mockSetEdges).toHaveBeenCalled();
+      const edgeAdder = mockSetEdges.mock.calls[0][0];
+      if (typeof edgeAdder === "function") {
+        const result = edgeAdder([]);
+        expect(result[0].style).toEqual({
+          strokeWidth: 2,
+          stroke: "#a855f7",
+        });
+        expect(result[0].type).toBe("default");
+      }
+    });
   });
 
   describe("integration", () => {
@@ -476,10 +552,12 @@ describe("useConnectionHandlers", () => {
       const { result } = renderHook(() =>
         useConnectionHandlers({
           nodes: [],
+          edges: [],
           setNodes: mockSetNodes,
           setEdges: mockSetEdges,
           handleTypeRegistry,
           linkEdgeColor: "#888888",
+          callbackEdgeColor: "#a855f7",
         }),
       );
 
@@ -503,16 +581,19 @@ describe("useConnectionHandlers", () => {
       renderHook(() =>
         useConnectionHandlers({
           nodes,
+          edges: [],
           setNodes: mockSetNodes,
           setEdges: mockSetEdges,
           handleTypeRegistry,
           isLocked: true,
           linkEdgeColor: "#888888",
+          callbackEdgeColor: "#a855f7",
         }),
       );
 
       expect(useConnectionTracking).toHaveBeenCalledWith({
         handleTypeRegistry,
+        edges: [],
       });
 
       expect(useNodeDragParenting).toHaveBeenCalledWith({
@@ -528,10 +609,12 @@ describe("useConnectionHandlers", () => {
       const { result, rerender } = renderHook(() =>
         useConnectionHandlers({
           nodes: [],
+          edges: [],
           setNodes: mockSetNodes,
           setEdges: mockSetEdges,
           handleTypeRegistry,
           linkEdgeColor: "#888888",
+          callbackEdgeColor: "#a855f7",
         }),
       );
 
@@ -545,10 +628,12 @@ describe("useConnectionHandlers", () => {
       const { result, rerender } = renderHook(() =>
         useConnectionHandlers({
           nodes: [],
+          edges: [],
           setNodes: mockSetNodes,
           setEdges: mockSetEdges,
           handleTypeRegistry,
           linkEdgeColor: "#888888",
+          callbackEdgeColor: "#a855f7",
         }),
       );
 
@@ -563,11 +648,13 @@ describe("useConnectionHandlers", () => {
         ({ isLocked }) =>
           useConnectionHandlers({
             nodes: [],
+            edges: [],
             setNodes: mockSetNodes,
             setEdges: mockSetEdges,
             handleTypeRegistry,
             isLocked,
             linkEdgeColor: "#888888",
+            callbackEdgeColor: "#a855f7",
           }),
         { initialProps: { isLocked: false } },
       );

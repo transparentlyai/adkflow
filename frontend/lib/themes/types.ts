@@ -112,6 +112,7 @@ export interface EdgeColors {
   default: string;
   hover: string;
   link: string;
+  callback: string;
   selected: string;
   connected: string;
 }

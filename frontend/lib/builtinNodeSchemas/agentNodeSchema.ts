@@ -140,6 +140,8 @@ export const agentNodeSchema: CustomNodeSchema = {
       },
       // Callback input handles - receive callbacks from CallbackNodes
       // These appear on the right side of callback text fields in the Callbacks tab
+      // Note: multiple: false enforces 1:1 connection (one callback per handle)
+      // Fan-out is allowed: one CallbackNode can connect to multiple Agents
       {
         id: "before_agent_callback",
         label: "Before Agent",
@@ -148,7 +150,7 @@ export const agentNodeSchema: CustomNodeSchema = {
         accepted_sources: ["callback"],
         accepted_types: ["callable"],
         required: false,
-        multiple: true,
+        multiple: false, // 1:1 - only one callback per handle
         connection_only: true,
         handle_color: "#a855f7", // Purple - callback color
         section: "Agent Callbacks",
@@ -162,7 +164,7 @@ export const agentNodeSchema: CustomNodeSchema = {
         accepted_sources: ["callback"],
         accepted_types: ["callable"],
         required: false,
-        multiple: true,
+        multiple: false, // 1:1 - only one callback per handle
         connection_only: true,
         handle_color: "#a855f7", // Purple - callback color
         section: "Agent Callbacks",
@@ -176,7 +178,7 @@ export const agentNodeSchema: CustomNodeSchema = {
         accepted_sources: ["callback"],
         accepted_types: ["callable"],
         required: false,
-        multiple: true,
+        multiple: false, // 1:1 - only one callback per handle
         connection_only: true,
         handle_color: "#a855f7", // Purple - callback color
         section: "Model Callbacks",
@@ -190,7 +192,7 @@ export const agentNodeSchema: CustomNodeSchema = {
         accepted_sources: ["callback"],
         accepted_types: ["callable"],
         required: false,
-        multiple: true,
+        multiple: false, // 1:1 - only one callback per handle
         connection_only: true,
         handle_color: "#a855f7", // Purple - callback color
         section: "Model Callbacks",
@@ -204,7 +206,7 @@ export const agentNodeSchema: CustomNodeSchema = {
         accepted_sources: ["callback"],
         accepted_types: ["callable"],
         required: false,
-        multiple: true,
+        multiple: false, // 1:1 - only one callback per handle
         connection_only: true,
         handle_color: "#a855f7", // Purple - callback color
         section: "Tool Callbacks",
@@ -218,7 +220,7 @@ export const agentNodeSchema: CustomNodeSchema = {
         accepted_sources: ["callback"],
         accepted_types: ["callable"],
         required: false,
-        multiple: true,
+        multiple: false, // 1:1 - only one callback per handle
         connection_only: true,
         handle_color: "#a855f7", // Purple - callback color
         section: "Tool Callbacks",

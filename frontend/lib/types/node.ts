@@ -77,6 +77,9 @@ export interface HandleTypeInfo {
   // For target handles (inputs)
   acceptedSources?: string[]; // Which sources accepted (or ['*'] for any)
   acceptedTypes?: string[]; // Which Python types accepted (or ['*'] for any)
+
+  // Connection multiplicity
+  multiple?: boolean; // Whether multiple connections are allowed (default: true)
 }
 
 /**

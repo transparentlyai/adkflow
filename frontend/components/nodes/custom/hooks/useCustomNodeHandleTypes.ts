@@ -11,6 +11,7 @@ export interface HandleTypeInfo {
   outputType?: string;
   acceptedSources?: string[];
   acceptedTypes?: string[];
+  multiple?: boolean;
 }
 
 export type HandleTypes = Record<string, HandleTypeInfo>;
@@ -42,6 +43,7 @@ export function useCustomNodeHandleTypes(
       types[input.id] = {
         acceptedSources: input.accepted_sources || [input.source_type],
         acceptedTypes: input.accepted_types || [input.data_type],
+        multiple: input.multiple,
       };
     });
 
