@@ -13,6 +13,9 @@ export { agentNodeSchema } from "./agentNodeSchema";
 export { toolNodeSchema } from "./toolNodeSchema";
 export { agentToolNodeSchema } from "./agentToolNodeSchema";
 
+// Callback nodes
+export { callbackNodeSchema } from "./callbackNodeSchema";
+
 // Processing nodes
 export { processNodeSchema } from "./processNodeSchema";
 
@@ -43,6 +46,7 @@ export { variableNodeSchema } from "./variableNodeSchema";
 import { agentNodeSchema } from "./agentNodeSchema";
 import { toolNodeSchema } from "./toolNodeSchema";
 import { agentToolNodeSchema } from "./agentToolNodeSchema";
+import { callbackNodeSchema } from "./callbackNodeSchema";
 import { processNodeSchema } from "./processNodeSchema";
 import { inputProbeNodeSchema } from "./inputProbeNodeSchema";
 import { outputProbeNodeSchema } from "./outputProbeNodeSchema";
@@ -64,6 +68,8 @@ export const builtinNodeSchemas = [
   // Tool nodes
   toolNodeSchema,
   agentToolNodeSchema,
+  // Callback nodes
+  callbackNodeSchema,
   // Processing nodes
   processNodeSchema,
   // Probe nodes

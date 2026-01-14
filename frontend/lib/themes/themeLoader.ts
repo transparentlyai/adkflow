@@ -217,6 +217,18 @@ export function applyTheme(theme: Theme): void {
   root.style.setProperty("--node-agent-tool-text", colors.nodes.agentTool.text);
   root.style.setProperty("--node-agent-tool-ring", colors.nodes.agentTool.ring);
 
+  // Callback node
+  root.style.setProperty(
+    "--node-callback-header",
+    colors.nodes.callback.header,
+  );
+  root.style.setProperty(
+    "--node-callback-header-hover",
+    colors.nodes.callback.headerHover || colors.nodes.callback.header,
+  );
+  root.style.setProperty("--node-callback-text", colors.nodes.callback.text);
+  root.style.setProperty("--node-callback-ring", colors.nodes.callback.ring);
+
   // Variable node
   root.style.setProperty(
     "--node-variable-header",
@@ -315,6 +327,7 @@ export function applyTheme(theme: Theme): void {
   root.style.setProperty("--handle-tool", colors.handles.tool);
   root.style.setProperty("--handle-context", colors.handles.context);
   root.style.setProperty("--handle-agent-tool", colors.handles.agentTool);
+  root.style.setProperty("--handle-callback", colors.handles.callback);
   root.style.setProperty("--handle-process", colors.handles.process);
   root.style.setProperty("--handle-probe", colors.handles.probe);
   root.style.setProperty("--handle-border", colors.handles.border);
