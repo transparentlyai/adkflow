@@ -138,6 +138,92 @@ export const agentNodeSchema: CustomNodeSchema = {
         section: "Inputs",
         tab: "General",
       },
+      // Callback input handles - receive callbacks from CallbackNodes
+      // These appear on the right side of callback text fields in the Callbacks tab
+      {
+        id: "before_agent_callback",
+        label: "Before Agent",
+        source_type: "callback",
+        data_type: "callable",
+        accepted_sources: ["callback"],
+        accepted_types: ["callable"],
+        required: false,
+        multiple: true,
+        connection_only: true,
+        handle_color: "#a855f7", // Purple - callback color
+        section: "Agent Callbacks",
+        tab: "Callbacks",
+      },
+      {
+        id: "after_agent_callback",
+        label: "After Agent",
+        source_type: "callback",
+        data_type: "callable",
+        accepted_sources: ["callback"],
+        accepted_types: ["callable"],
+        required: false,
+        multiple: true,
+        connection_only: true,
+        handle_color: "#a855f7", // Purple - callback color
+        section: "Agent Callbacks",
+        tab: "Callbacks",
+      },
+      {
+        id: "before_model_callback",
+        label: "Before Model",
+        source_type: "callback",
+        data_type: "callable",
+        accepted_sources: ["callback"],
+        accepted_types: ["callable"],
+        required: false,
+        multiple: true,
+        connection_only: true,
+        handle_color: "#a855f7", // Purple - callback color
+        section: "Model Callbacks",
+        tab: "Callbacks",
+      },
+      {
+        id: "after_model_callback",
+        label: "After Model",
+        source_type: "callback",
+        data_type: "callable",
+        accepted_sources: ["callback"],
+        accepted_types: ["callable"],
+        required: false,
+        multiple: true,
+        connection_only: true,
+        handle_color: "#a855f7", // Purple - callback color
+        section: "Model Callbacks",
+        tab: "Callbacks",
+      },
+      {
+        id: "before_tool_callback",
+        label: "Before Tool",
+        source_type: "callback",
+        data_type: "callable",
+        accepted_sources: ["callback"],
+        accepted_types: ["callable"],
+        required: false,
+        multiple: true,
+        connection_only: true,
+        handle_color: "#a855f7", // Purple - callback color
+        section: "Tool Callbacks",
+        tab: "Callbacks",
+      },
+      {
+        id: "after_tool_callback",
+        label: "After Tool",
+        source_type: "callback",
+        data_type: "callable",
+        accepted_sources: ["callback"],
+        accepted_types: ["callable"],
+        required: false,
+        multiple: true,
+        connection_only: true,
+        handle_color: "#a855f7", // Purple - callback color
+        section: "Tool Callbacks",
+        tab: "Callbacks",
+      },
     ],
     outputs: [
       {
@@ -262,6 +348,43 @@ export const agentNodeSchema: CustomNodeSchema = {
         // NOTE: "finish-reason" is NOT in additional_handles because it's a regular
         // right-side output handle. additional_handles are for edge-positioned handles
         // (top/bottom) or unconventional positions (like plug on left).
+        // Callback input handles - positioned on the right side of callback text fields
+        {
+          id: "before_agent_callback",
+          type: "target",
+          position: "right",
+          label: "Before Agent Callback",
+        },
+        {
+          id: "after_agent_callback",
+          type: "target",
+          position: "right",
+          label: "After Agent Callback",
+        },
+        {
+          id: "before_model_callback",
+          type: "target",
+          position: "right",
+          label: "Before Model Callback",
+        },
+        {
+          id: "after_model_callback",
+          type: "target",
+          position: "right",
+          label: "After Model Callback",
+        },
+        {
+          id: "before_tool_callback",
+          type: "target",
+          position: "right",
+          label: "Before Tool Callback",
+        },
+        {
+          id: "after_tool_callback",
+          type: "target",
+          position: "right",
+          label: "After Tool Callback",
+        },
       ],
     },
   },
