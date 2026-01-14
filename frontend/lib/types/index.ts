@@ -38,8 +38,10 @@ export type {
   HandleDataType,
   HandleSourceType,
   CallbackHandleConfig,
+  CallbackType,
+  CallbackNode,
 } from "./handles";
-export { CALLBACK_HANDLE_CONFIGS } from "./handles";
+export { CALLBACK_HANDLE_CONFIGS, CALLBACK_TYPES } from "./handles";
 
 // API response types
 export type {

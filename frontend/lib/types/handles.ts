@@ -10,6 +10,62 @@
  */
 
 /**
+ * Callback type enum defining when callbacks are invoked in the agent lifecycle.
+ *
+ * These correspond to ADK's agent callback hooks:
+ * - before_agent/after_agent: Around entire agent execution
+ * - before_model/after_model: Around LLM calls
+ * - before_tool/after_tool: Around tool invocations
+ */
+export type CallbackType =
+  | "before_agent"
+  | "after_agent"
+  | "before_model"
+  | "after_model"
+  | "before_tool"
+  | "after_tool";
+
+/**
+ * All valid callback type values.
+ */
+export const CALLBACK_TYPES: readonly CallbackType[] = [
+  "before_agent",
+  "after_agent",
+  "before_model",
+  "after_model",
+  "before_tool",
+  "after_tool",
+] as const;
+
+/**
+ * CallbackNode represents a user-defined callback function in the workflow.
+ *
+ * Callbacks connect to Agent nodes to provide custom lifecycle hooks.
+ * The code property contains Python code that executes at the specified
+ * callback_type point in the agent lifecycle.
+ *
+ * @example
+ * ```typescript
+ * const callback: CallbackNode = {
+ *   id: "callback-1",
+ *   name: "Log Agent Start",
+ *   callback_type: "before_agent",
+ *   code: "async def callback(callback_context):\n    print('Agent starting')",
+ * };
+ * ```
+ */
+export interface CallbackNode {
+  /** Unique identifier for the callback node */
+  id: string;
+  /** Display name for the callback */
+  name: string;
+  /** When this callback is invoked in the agent lifecycle */
+  callback_type: CallbackType;
+  /** Python code implementing the callback function */
+  code: string;
+}
+
+/**
  * Handle data types define the format of data flowing through connections.
  *
  * These types are used in the `data_type` field of input/output definitions
