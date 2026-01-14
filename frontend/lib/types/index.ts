@@ -33,6 +33,14 @@ export type {
 } from "./node";
 export { isTypeCompatible } from "./node";
 
+// Handle type definitions
+export type {
+  HandleDataType,
+  HandleSourceType,
+  CallbackHandleConfig,
+} from "./handles";
+export { CALLBACK_HANDLE_CONFIGS } from "./handles";
+
 // API response types
 export type {
   ValidationResponse,
