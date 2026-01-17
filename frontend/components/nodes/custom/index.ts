@@ -20,7 +20,11 @@ export {
   type FilePickerOptions,
   type UseFileOperationsResult,
 } from "@/components/nodes/custom/hooks/useFileOperations";
-export { useModelFieldSync } from "@/components/nodes/custom/hooks/useModelFieldSync";
+export {
+  useModelChangeConfirmation,
+  type FieldChange,
+} from "@/components/nodes/custom/hooks/useModelChangeConfirmation";
+export { ModelChangeConfirmDialog } from "@/components/nodes/custom/ModelChangeConfirmDialog";
 
 // Components
 export {

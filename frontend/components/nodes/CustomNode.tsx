@@ -80,10 +80,12 @@ import {
   useConnectedInputs,
   useCustomNodeName,
   useFileOperations,
-  useModelFieldSync,
   CustomNodeCollapsed,
   CustomNodeExpanded,
 } from "@/components/nodes/custom";
+import { useModelChangeConfirmation } from "@/components/nodes/custom/hooks/useModelChangeConfirmation";
+import { ModelChangeConfirmDialog } from "@/components/nodes/custom/ModelChangeConfirmDialog";
+import { getModelSchema } from "@/lib/constants/modelSchemas";
 
 // Re-export utility function for backwards compatibility
 export { getDefaultCustomNodeData } from "./getDefaultCustomNodeData";
@@ -125,8 +127,26 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
     setContextMenu({ x: e.clientX, y: e.clientY });
   }, []);
 
-  // Config change handler - needed by AI assist and other handlers
-  const handleConfigChange = useCallback(
+  // Model change confirmation (Agent nodes only)
+  // Must be defined before handleConfigChange which uses requestModelChange
+  const {
+    isDialogOpen: isModelChangeDialogOpen,
+    pendingModel,
+    newModelLabel,
+    fieldChanges,
+    requestModelChange,
+    confirmModelChange,
+    cancelModelChange,
+    formatValue,
+  } = useModelChangeConfirmation({
+    nodeId: id,
+    config,
+    schema,
+    unitId: schema.unit_id,
+  });
+
+  // Base config change handler - directly updates config
+  const baseConfigChange = useCallback(
     (fieldId: string, value: unknown) => {
       setNodes((nodes) =>
         nodes.map((node) =>
@@ -140,6 +160,23 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
       );
     },
     [id, config, setNodes],
+  );
+
+  // Config change handler - intercepts model changes for confirmation
+  const handleConfigChange = useCallback(
+    (fieldId: string, value: unknown) => {
+      // Intercept model changes for Agent nodes
+      if (fieldId === "model" && schema.unit_id === "builtin.agent") {
+        const dialogShown = requestModelChange(value as string);
+        if (dialogShown) {
+          // Dialog will handle the change
+          return;
+        }
+      }
+      // For all other fields, apply directly
+      baseConfigChange(fieldId, value);
+    },
+    [schema.unit_id, requestModelChange, baseConfigChange],
   );
 
   // AI assist handler for prompt nodes
@@ -243,8 +280,12 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
     dynamicInputs,
   );
 
-  // Sync fields when model changes (Agent nodes only)
-  useModelFieldSync(id, config, schema, schema.unit_id);
+  // Get current model label for dialog
+  const currentModelLabel = useMemo(() => {
+    const currentModel = (config.model as string) || "";
+    if (!currentModel) return "";
+    return getModelSchema(currentModel).label;
+  }, [config.model]);
 
   // Sync handleTypes to node.data for the connection registry
   // This ensures stale saved handleTypes are updated when schema changes
@@ -565,6 +606,17 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
           cancelLabel="Keep Existing"
           onConfirm={handleConfirmLoad}
           onCancel={handleCancelLoad}
+        />
+      )}
+      {isModelChangeDialogOpen && (
+        <ModelChangeConfirmDialog
+          isOpen={isModelChangeDialogOpen}
+          currentModelLabel={currentModelLabel}
+          newModelLabel={newModelLabel}
+          fieldChanges={fieldChanges}
+          onConfirm={confirmModelChange}
+          onCancel={cancelModelChange}
+          formatValue={formatValue}
         />
       )}
     </>
