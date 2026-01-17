@@ -34,17 +34,29 @@ export function useCustomNodeHandleTypes(
     const allAcceptedTypes = new Set<string>();
 
     schema.ui.inputs.forEach((input) => {
-      (input.accepted_sources || [input.source_type]).forEach((s) =>
-        allAcceptedSources.add(s),
-      );
-      (input.accepted_types || [input.data_type]).forEach((t) =>
-        allAcceptedTypes.add(t),
-      );
-      types[input.id] = {
-        acceptedSources: input.accepted_sources || [input.source_type],
-        acceptedTypes: input.accepted_types || [input.data_type],
-        multiple: input.multiple,
-      };
+      // Check if input is rendered as source (handleType: "source")
+      // These are inputs that connect TO other nodes (like callback handles)
+      if (input.handleType === "source") {
+        // Treat as output for type purposes
+        types[input.id] = {
+          outputSource: input.source_type,
+          outputType: input.data_type,
+          multiple: input.multiple,
+        };
+      } else {
+        // Normal input - accepts connections from other nodes
+        (input.accepted_sources || [input.source_type]).forEach((s) =>
+          allAcceptedSources.add(s),
+        );
+        (input.accepted_types || [input.data_type]).forEach((t) =>
+          allAcceptedTypes.add(t),
+        );
+        types[input.id] = {
+          acceptedSources: input.accepted_sources || [input.source_type],
+          acceptedTypes: input.accepted_types || [input.data_type],
+          multiple: input.multiple,
+        };
+      }
     });
 
     // Add dynamic inputs (all types create handles)

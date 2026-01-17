@@ -90,6 +90,7 @@ describe("RunPanel", () => {
     onRunComplete: vi.fn(),
     onAgentStateChange: vi.fn(),
     onToolStateChange: vi.fn(),
+    onCallbackStateChange: vi.fn(),
     onUserInputStateChange: vi.fn(),
     onClearExecutionState: vi.fn(),
     events: [],

@@ -10,7 +10,7 @@ from adkflow_runner.compiler.loader import LoadedProject
 from adkflow_runner.compiler.node_config import get_node_config
 from adkflow_runner.config import EdgeSemantics
 from adkflow_runner.errors import CompilationError, ErrorLocation
-from adkflow_runner.ir import OutputFileIR, ToolIR
+from adkflow_runner.ir import CallbackConfig, CallbackSourceIR, OutputFileIR, ToolIR
 from adkflow_runner.logging import get_logger
 
 _log = get_logger("compiler.resolvers")
@@ -235,3 +235,95 @@ def resolve_output_files(graph: WorkflowGraph) -> list[OutputFileIR]:
                             )
 
     return output_files
+
+
+# Mapping from source handle IDs (on AgentNode) to callback type names
+CALLBACK_HANDLE_TO_TYPE = {
+    "before_agent_callback": "before_agent",
+    "after_agent_callback": "after_agent",
+    "before_model_callback": "before_model",
+    "after_model_callback": "after_model",
+    "before_tool_callback": "before_tool",
+    "after_tool_callback": "after_tool",
+}
+
+
+def resolve_callbacks(
+    node: GraphNode,
+    graph: WorkflowGraph,
+    agent_data: dict,
+) -> CallbackConfig:
+    """Resolve callbacks from connected CallbackNodes and text field values.
+
+    Connected CallbackNodes take precedence over text field values.
+    Connections go from AgentNode (source) to CallbackNode (target).
+    The callback type is determined by the source handle on the AgentNode
+    (e.g., before_model_callback → before_model).
+
+    Args:
+        node: The agent node to resolve callbacks for
+        graph: The workflow graph
+        agent_data: Agent node configuration data
+
+    Returns:
+        CallbackConfig with resolved callback sources
+    """
+    # Start with text field values (file paths)
+    config = CallbackConfig(
+        before_agent=_make_callback_source(agent_data.get("before_agent_callback")),
+        after_agent=_make_callback_source(agent_data.get("after_agent_callback")),
+        before_model=_make_callback_source(agent_data.get("before_model_callback")),
+        after_model=_make_callback_source(agent_data.get("after_model_callback")),
+        before_tool=_make_callback_source(agent_data.get("before_tool_callback")),
+        after_tool=_make_callback_source(agent_data.get("after_tool_callback")),
+    )
+
+    # Override with connected CallbackNodes (takes precedence)
+    # Edge direction: AgentNode (source) → CallbackNode (target)
+    for edge in node.outgoing:
+        if edge.semantics == EdgeSemantics.CALLBACK:
+            target_node = graph.get_node(edge.target_id)
+            if not target_node or target_node.type != "callback":
+                continue
+
+            # Get callback type from source handle (on AgentNode)
+            callback_type = CALLBACK_HANDLE_TO_TYPE.get(edge.source_handle or "")
+            if not callback_type:
+                _log.warning(
+                    "Unknown callback handle",
+                    agent_id=node.id,
+                    source_handle=edge.source_handle,
+                    target_node_id=target_node.id,
+                )
+                continue
+
+            # Extract code and name from the CallbackNode
+            target_config = get_node_config(target_node.data)
+            code = target_config.get("code", "")
+            target_name = target_config.get("name", "")
+
+            if code:
+                callback_source = CallbackSourceIR(
+                    code=code,
+                    source_node_id=target_node.id,
+                    source_node_name=target_name or f"callback_{target_node.id[:8]}",
+                )
+
+                # Set the appropriate callback field
+                setattr(config, callback_type, callback_source)
+
+                _log.debug(
+                    "Resolved callback from connected node",
+                    agent_id=node.id,
+                    callback_type=callback_type,
+                    callback_node_id=target_node.id,
+                )
+
+    return config
+
+
+def _make_callback_source(file_path: str | None) -> CallbackSourceIR | None:
+    """Create a CallbackSourceIR from a file path if provided."""
+    if file_path:
+        return CallbackSourceIR(file_path=file_path)
+    return None

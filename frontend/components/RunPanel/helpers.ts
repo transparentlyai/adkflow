@@ -39,6 +39,12 @@ export function formatEventContent(
       return `✓ Input received: ${event.data.node_name}`;
     case "user_input_timeout":
       return `⏱ Input timeout: ${event.data.node_name}`;
+    case "callback_start":
+      return `Callback started: ${event.data.callback_name} (${event.data.callback_type})`;
+    case "callback_end":
+      return `Callback finished: ${event.data.callback_name}`;
+    case "callback_error":
+      return `Callback error: ${event.data.callback_name} - ${event.data.error || "Unknown error"}`;
     default:
       return JSON.stringify(event.data);
   }
@@ -71,6 +77,12 @@ export function getEventColor(type: EventType | "info"): string {
       return "text-green-400";
     case "user_input_timeout":
       return "text-orange-400";
+    case "callback_start":
+      return "text-purple-400";
+    case "callback_end":
+      return "text-purple-300";
+    case "callback_error":
+      return "text-red-400";
     case "info":
       return "text-gray-400";
     default:

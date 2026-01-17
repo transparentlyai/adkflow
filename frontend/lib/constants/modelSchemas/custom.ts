@@ -13,7 +13,6 @@ import {
   createExecutionFieldsWithBudget,
   createGenerationFields,
   createFlowFields,
-  createCallbacksFields,
 } from "./fields";
 
 export const schema: ModelSchema = {
@@ -28,6 +27,5 @@ export const schema: ModelSchema = {
     ...createExecutionFieldsWithBudget(),
     ...createGenerationFields(),
     ...createFlowFields(),
-    ...createCallbacksFields(),
   ],
 };

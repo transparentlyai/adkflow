@@ -138,91 +138,95 @@ export const agentNodeSchema: CustomNodeSchema = {
         section: "Inputs",
         tab: "General",
       },
-      // Callback input handles - receive callbacks from CallbackNodes
-      // These appear on the right side of callback text fields in the Callbacks tab
-      // Note: multiple: false enforces 1:1 connection (one callback per handle)
-      // Fan-out is allowed: one CallbackNode can connect to multiple Agents
+      // Callback handles - rendered as source handles (outputs) but with input-style inline rendering
+      // These connect TO CallbackNodes, so they are sources. But they render with file picker widgets.
       {
         id: "before_agent_callback",
-        label: "Before Agent",
+        label: "Before Agent Callback",
         source_type: "callback",
         data_type: "callable",
-        accepted_sources: ["callback"],
-        accepted_types: ["callable"],
         required: false,
-        multiple: false, // 1:1 - only one callback per handle
-        connection_only: true,
+        multiple: false,
+        connection_only: false, // Show file picker widget
+        handleType: "source", // Renders as output handle
+        widget: "file_picker",
+        placeholder: "e.g., callbacks/setup.py",
         handle_color: "#a855f7", // Purple - callback color
         section: "Agent Callbacks",
         tab: "Callbacks",
       },
       {
         id: "after_agent_callback",
-        label: "After Agent",
+        label: "After Agent Callback",
         source_type: "callback",
         data_type: "callable",
-        accepted_sources: ["callback"],
-        accepted_types: ["callable"],
         required: false,
-        multiple: false, // 1:1 - only one callback per handle
-        connection_only: true,
-        handle_color: "#a855f7", // Purple - callback color
+        multiple: false,
+        connection_only: false,
+        handleType: "source",
+        widget: "file_picker",
+        placeholder: "e.g., callbacks/cleanup.py",
+        handle_color: "#a855f7",
         section: "Agent Callbacks",
         tab: "Callbacks",
       },
       {
         id: "before_model_callback",
-        label: "Before Model",
+        label: "Before Model Callback",
         source_type: "callback",
         data_type: "callable",
-        accepted_sources: ["callback"],
-        accepted_types: ["callable"],
         required: false,
-        multiple: false, // 1:1 - only one callback per handle
-        connection_only: true,
-        handle_color: "#a855f7", // Purple - callback color
+        multiple: false,
+        connection_only: false,
+        handleType: "source",
+        widget: "file_picker",
+        placeholder: "e.g., callbacks/guardrails.py",
+        handle_color: "#a855f7",
         section: "Model Callbacks",
         tab: "Callbacks",
       },
       {
         id: "after_model_callback",
-        label: "After Model",
+        label: "After Model Callback",
         source_type: "callback",
         data_type: "callable",
-        accepted_sources: ["callback"],
-        accepted_types: ["callable"],
         required: false,
-        multiple: false, // 1:1 - only one callback per handle
-        connection_only: true,
-        handle_color: "#a855f7", // Purple - callback color
+        multiple: false,
+        connection_only: false,
+        handleType: "source",
+        widget: "file_picker",
+        placeholder: "e.g., callbacks/logging.py",
+        handle_color: "#a855f7",
         section: "Model Callbacks",
         tab: "Callbacks",
       },
       {
         id: "before_tool_callback",
-        label: "Before Tool",
+        label: "Before Tool Callback",
         source_type: "callback",
         data_type: "callable",
-        accepted_sources: ["callback"],
-        accepted_types: ["callable"],
         required: false,
-        multiple: false, // 1:1 - only one callback per handle
-        connection_only: true,
-        handle_color: "#a855f7", // Purple - callback color
+        multiple: false,
+        connection_only: false,
+        handleType: "source",
+        widget: "file_picker",
+        placeholder: "e.g., callbacks/validation.py",
+        handle_color: "#a855f7",
         section: "Tool Callbacks",
         tab: "Callbacks",
       },
       {
         id: "after_tool_callback",
-        label: "After Tool",
+        label: "After Tool Callback",
         source_type: "callback",
         data_type: "callable",
-        accepted_sources: ["callback"],
-        accepted_types: ["callable"],
         required: false,
-        multiple: false, // 1:1 - only one callback per handle
-        connection_only: true,
-        handle_color: "#a855f7", // Purple - callback color
+        multiple: false,
+        connection_only: false,
+        handleType: "source",
+        widget: "file_picker",
+        placeholder: "e.g., callbacks/artifact_save.py",
+        handle_color: "#a855f7",
         section: "Tool Callbacks",
         tab: "Callbacks",
       },
@@ -350,40 +354,40 @@ export const agentNodeSchema: CustomNodeSchema = {
         // NOTE: "finish-reason" is NOT in additional_handles because it's a regular
         // right-side output handle. additional_handles are for edge-positioned handles
         // (top/bottom) or unconventional positions (like plug on left).
-        // Callback input handles - positioned on the right side of callback text fields
+        // Callback output handles - emit callback triggers to connected CallbackNodes
         {
           id: "before_agent_callback",
-          type: "target",
+          type: "source",
           position: "right",
           label: "Before Agent Callback",
         },
         {
           id: "after_agent_callback",
-          type: "target",
+          type: "source",
           position: "right",
           label: "After Agent Callback",
         },
         {
           id: "before_model_callback",
-          type: "target",
+          type: "source",
           position: "right",
           label: "Before Model Callback",
         },
         {
           id: "after_model_callback",
-          type: "target",
+          type: "source",
           position: "right",
           label: "After Model Callback",
         },
         {
           id: "before_tool_callback",
-          type: "target",
+          type: "source",
           position: "right",
           label: "Before Tool Callback",
         },
         {
           id: "after_tool_callback",
-          type: "target",
+          type: "source",
           position: "right",
           label: "After Tool Callback",
         },

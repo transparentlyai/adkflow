@@ -37,13 +37,32 @@ export function getCodeEditorField(
 }
 
 /**
- * Extract unique tabs from schema in definition order
+ * Extract unique tabs from schema.
+ * If schema.ui.tabs is defined, use that order (filtering to only tabs with content).
+ * Otherwise, extract tabs based on when they appear in inputs/fields/outputs.
  */
 export function extractTabsInOrder(schema: CustomNodeSchema): string[] {
+  // Collect all tabs that have actual content
+  const tabsWithContent = new Set<string>();
+  for (const input of schema.ui.inputs) {
+    if (input.tab) tabsWithContent.add(input.tab);
+  }
+  for (const field of schema.ui.fields) {
+    if (field.tab) tabsWithContent.add(field.tab);
+  }
+  for (const output of schema.ui.outputs) {
+    if (output.tab) tabsWithContent.add(output.tab);
+  }
+
+  // If schema.ui.tabs is defined, use that order but only include tabs with content
+  if (schema.ui.tabs && schema.ui.tabs.length > 0) {
+    return schema.ui.tabs.filter((tab) => tabsWithContent.has(tab));
+  }
+
+  // Fallback: extract tabs in order of first appearance
   const tabs: string[] = [];
   const seen = new Set<string>();
 
-  // Process inputs first
   for (const input of schema.ui.inputs) {
     if (input.tab && !seen.has(input.tab)) {
       seen.add(input.tab);
@@ -51,7 +70,6 @@ export function extractTabsInOrder(schema: CustomNodeSchema): string[] {
     }
   }
 
-  // Process fields next
   for (const field of schema.ui.fields) {
     if (field.tab && !seen.has(field.tab)) {
       seen.add(field.tab);
@@ -59,7 +77,6 @@ export function extractTabsInOrder(schema: CustomNodeSchema): string[] {
     }
   }
 
-  // Process outputs last
   for (const output of schema.ui.outputs) {
     if (output.tab && !seen.has(output.tab)) {
       seen.add(output.tab);

@@ -158,19 +158,20 @@ describe("CustomNodeInput", () => {
       expect(handle).toHaveAttribute("data-position", "right");
     });
 
-    it("should use right-aligned layout for right handles", () => {
+    it("should use right padding for right handles", () => {
       const { container } = render(
         <CustomNodeInput {...defaultProps} handlePosition="right" />,
       );
-      const wrapper = container.querySelector(".justify-end");
+      const wrapper = container.querySelector(".pr-3");
       expect(wrapper).toBeInTheDocument();
     });
 
-    it("should use left-aligned layout for left handles", () => {
+    it("should use left padding for left handles", () => {
       const { container } = render(
         <CustomNodeInput {...defaultProps} handlePosition="left" />,
       );
-      const wrapper = container.querySelector(".justify-end");
+      // Left handles have padding-left instead of pr-3
+      const wrapper = container.querySelector(".pr-3");
       expect(wrapper).not.toBeInTheDocument();
     });
   });
@@ -473,7 +474,7 @@ describe("CustomNodeInput", () => {
   });
 
   describe("right-positioned layout", () => {
-    it("should render source names before label for right handles", () => {
+    it("should render label before source names for right handles", () => {
       const { container } = render(
         <CustomNodeInput
           {...defaultProps}
@@ -484,8 +485,9 @@ describe("CustomNodeInput", () => {
       );
       const wrapper = container.firstChild as HTMLElement;
       const text = wrapper.textContent;
-      expect(text?.indexOf("Source A")).toBeLessThan(
-        text?.indexOf("Test Input") || Infinity,
+      // Label comes first, then source names (for right handles: [Label] [Connected] [Handle])
+      expect(text?.indexOf("Test Input")).toBeLessThan(
+        text?.indexOf("Source A") || Infinity,
       );
     });
 

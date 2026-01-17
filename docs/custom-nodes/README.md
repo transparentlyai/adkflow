@@ -20,22 +20,35 @@ Create custom nodes to extend ADKFlow with your own functionality. Custom nodes 
 
 ## Extension Locations
 
-ADKFlow supports **two locations** for custom nodes:
+ADKFlow supports **three locations** for custom nodes:
 
 | Location | Path | Scope | Description |
 |----------|------|-------|-------------|
-| **Global** | `~/.adkflow/adkflow_extensions/` | All projects | Shared utilities, company-wide tools |
+| **Shipped** | `{app}/extensions/` | All projects | Built-in extensions that ship with ADKFlow |
+| **Global** | `~/.adkflow/adkflow_extensions/` | All projects | User's shared utilities, company-wide tools |
 | **Project** | `{project}/adkflow_extensions/` | Single project | Project-specific integrations |
 
 ### Directory Structure
 
 ```
+# Shipped extensions (built-in, always available)
+{adkflow-root}/extensions/
+├── api_client/                  # HTTP API client example
+│   ├── __init__.py
+│   ├── nodes.py
+│   └── http_utils.py
+└── uppercase/                   # Simple text processing example
+    ├── __init__.py
+    └── nodes.py
+
+# User's global extensions
 ~/.adkflow/
 └── adkflow_extensions/
     ├── __init__.py
     ├── shared_utils.py          # Available in all projects
     └── company_integrations.py  # Team-wide tools
 
+# Project-specific extensions
 ~/projects/my-project/
 ├── adkflow_extensions/
 │   ├── __init__.py
@@ -47,10 +60,12 @@ ADKFlow supports **two locations** for custom nodes:
 
 ### Precedence Rules
 
-1. **Project-level takes precedence**: If the same `UNIT_ID` exists in both locations, the project version is used
-2. **Global loaded at startup**: Global extensions are loaded when the server starts
-3. **Project loaded on-demand**: Project extensions are loaded when you open a project
-4. **Hot-reload both**: File changes in either location trigger automatic reload
+1. **Project-level takes precedence**: Highest priority - overrides global and shipped
+2. **Global takes precedence over shipped**: User extensions override built-in ones
+3. **Shipped loaded first**: Built-in extensions loaded at startup
+4. **Global loaded at startup**: Global extensions loaded when the server starts
+5. **Project loaded on-demand**: Project extensions loaded when you open a project
+6. **Hot-reload**: File changes in global and project locations trigger automatic reload
 
 ### API Endpoints
 
@@ -75,6 +90,11 @@ Each node schema includes a `scope` field indicating its origin:
     "source_file": "~/.adkflow/adkflow_extensions/web_tools.py"
 }
 ```
+
+Possible `scope` values:
+- `"shipped"` - Built-in extension from `{app}/extensions/`
+- `"global"` - User's global extension from `~/.adkflow/adkflow_extensions/`
+- `"project"` - Project-specific extension from `{project}/adkflow_extensions/`
 
 ---
 
@@ -522,7 +542,7 @@ Sections display a header with a left border accent. Section order follows the o
 
 ### Complete Example
 
-See the [API Client example](./examples/api_client/nodes.py) for a complete implementation with tabs and sections:
+See the [API Client example](/extensions/api_client/nodes.py) for a complete implementation with tabs and sections:
 
 ```python
 UISchema(
@@ -957,6 +977,6 @@ POST /api/context-aggregator/preview
 
 ## Next Steps
 
-- See [Examples](./examples/) for complete working nodes
-- Check the [Simple Example](./examples/simple_uppercase.py) to get started
-- See the [Complex Example](./examples/advanced_api_client.py) for advanced patterns
+- See [Shipped Extensions](/extensions/) for complete working nodes that ship with ADKFlow
+- Check the [Uppercase Example](/extensions/uppercase/) to get started with a simple example
+- See the [API Client Example](/extensions/api_client/) for advanced patterns with tabs, sections, and all widget types

@@ -49,28 +49,53 @@ class HttpOptionsConfig:
 
 
 @dataclass
-class CallbackConfig:
-    """Callback file paths for agent lifecycle hooks."""
+class CallbackSourceIR:
+    """Source of a callback - either file path or inline code.
 
-    before_agent: str | None = None
-    after_agent: str | None = None
-    before_model: str | None = None
-    after_model: str | None = None
-    before_tool: str | None = None
-    after_tool: str | None = None
+    Connected CallbackNodes provide inline code, while text fields
+    in the Agent node provide file paths. Connected nodes take precedence.
+    """
+
+    file_path: str | None = None  # Path to callback file
+    code: str | None = None  # Inline code from connected CallbackNode
+    source_node_id: str | None = None  # ID of source CallbackNode (if connected)
+    source_node_name: str | None = None  # Name of source CallbackNode (for UI display)
+
+    def has_value(self) -> bool:
+        """Check if this callback source has a value."""
+        return bool(self.code) or bool(self.file_path)
+
+
+@dataclass
+class CallbackConfig:
+    """Callback configuration for agent lifecycle hooks.
+
+    Callbacks can come from:
+    1. Connected CallbackNodes (inline code, takes precedence)
+    2. Text fields in Agent node (file paths)
+    """
+
+    before_agent: CallbackSourceIR | None = None
+    after_agent: CallbackSourceIR | None = None
+    before_model: CallbackSourceIR | None = None
+    after_model: CallbackSourceIR | None = None
+    before_tool: CallbackSourceIR | None = None
+    after_tool: CallbackSourceIR | None = None
 
     def has_any(self) -> bool:
-        """Check if any callback file paths are configured.
+        """Check if any callback is configured.
 
         Returns:
-            True if any callback path is set
+            True if any callback source is set
         """
         return any(
             [
-                self.before_model,
-                self.after_model,
-                self.before_tool,
-                self.after_tool,
+                self.before_agent and self.before_agent.has_value(),
+                self.after_agent and self.after_agent.has_value(),
+                self.before_model and self.before_model.has_value(),
+                self.after_model and self.after_model.has_value(),
+                self.before_tool and self.before_tool.has_value(),
+                self.after_tool and self.after_tool.has_value(),
             ]
         )
 

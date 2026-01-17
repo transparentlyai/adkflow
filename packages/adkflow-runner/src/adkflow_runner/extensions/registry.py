@@ -35,7 +35,8 @@ class ExtensionRegistry:
         self._source_files: dict[str, Path] = {}
         self._scopes: dict[str, ExtensionScope] = {}  # Track scope per unit
 
-        # Dual-path support
+        # Multi-path support
+        self._shipped_path: Path | None = None
         self._global_path: Path | None = None
         self._project_path: Path | None = None
 
@@ -63,6 +64,21 @@ class ExtensionRegistry:
         """
         self._extensions_path = extensions_path
         return self._discover_from_path(extensions_path, ExtensionScope.PROJECT)
+
+    def discover_shipped(self, shipped_path: Path) -> int:
+        """Discover extensions shipped with the application.
+
+        Shipped extensions are built-in and always available. They have the
+        lowest precedence and can be overridden by global or project extensions.
+
+        Args:
+            shipped_path: Path to shipped extensions directory
+
+        Returns:
+            Number of units discovered
+        """
+        self._shipped_path = shipped_path
+        return self._discover_from_path(shipped_path, ExtensionScope.SHIPPED)
 
     def discover_global(self, global_path: Path) -> int:
         """Discover extensions from global ~/.adkflow/adkflow_extensions/.
@@ -300,26 +316,35 @@ class ExtensionRegistry:
     ) -> bool:
         """Register a FlowUnit and generate its schema.
 
-        Project-level units take precedence over global units with the
-        same UNIT_ID.
+        Precedence order (highest to lowest): PROJECT > GLOBAL > SHIPPED.
+        Higher precedence scopes override lower ones.
 
         Args:
             unit_cls: The FlowUnit class to register
             file_path: Path to the source file
-            scope: The scope of this unit (global or project)
+            scope: The scope of this unit (shipped, global, or project)
 
         Returns:
             True if the unit was registered, False if skipped due to precedence
         """
         unit_id = unit_cls.UNIT_ID
 
-        # Check precedence: project overrides global, but not vice versa
+        # Precedence: PROJECT > GLOBAL > SHIPPED
+        scope_priority = {
+            ExtensionScope.SHIPPED: 0,
+            ExtensionScope.GLOBAL: 1,
+            ExtensionScope.PROJECT: 2,
+        }
+
         existing_scope = self._scopes.get(unit_id)
-        if existing_scope == ExtensionScope.PROJECT and scope == ExtensionScope.GLOBAL:
-            print(
-                f"[ExtensionRegistry] Skipping global '{unit_id}' - project version takes precedence"
-            )
-            return False
+        if existing_scope is not None:
+            existing_priority = scope_priority.get(existing_scope, 0)
+            new_priority = scope_priority.get(scope, 0)
+            if new_priority < existing_priority:
+                print(
+                    f"[ExtensionRegistry] Skipping {scope.value} '{unit_id}' - {existing_scope.value} version takes precedence"
+                )
+                return False
 
         self._units[unit_id] = unit_cls
         self._source_files[unit_id] = file_path
@@ -471,9 +496,10 @@ class ExtensionRegistry:
         return self._hooks_registry
 
     def reload_all(self) -> int:
-        """Force reload all extensions from both locations.
+        """Force reload all extensions from all locations.
 
         Also clears and re-discovers hooks.
+        Order: shipped (lowest precedence) -> global -> project (highest precedence)
 
         Returns:
             Number of units loaded
@@ -489,12 +515,17 @@ class ExtensionRegistry:
             self._hooks_registry.clear()
 
             count = 0
-            # Reload global first (project takes precedence if same unit_id)
+            # Reload shipped first (lowest precedence)
+            if self._shipped_path:
+                count += self._discover_from_path(
+                    self._shipped_path, ExtensionScope.SHIPPED
+                )
+            # Then global (can override shipped)
             if self._global_path:
                 count += self._discover_from_path(
                     self._global_path, ExtensionScope.GLOBAL
                 )
-            # Then reload project
+            # Then project (highest precedence, can override both)
             if self._project_path:
                 count += self._discover_from_path(
                     self._project_path, ExtensionScope.PROJECT

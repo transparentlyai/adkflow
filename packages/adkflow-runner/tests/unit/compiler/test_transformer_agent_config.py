@@ -561,10 +561,15 @@ class TestCallbacksConfig:
         graph = builder.build(parsed)
         ir = transformer.transform(graph, project)
 
-        assert ir.root_agent.callbacks.before_model == "my_before_model"
-        assert ir.root_agent.callbacks.after_model == "my_after_model"
-        assert ir.root_agent.callbacks.before_tool == "my_before_tool"
-        assert ir.root_agent.callbacks.after_tool == "my_after_tool"
+        # Callbacks are now wrapped in CallbackSourceIR
+        assert ir.root_agent.callbacks.before_model is not None
+        assert ir.root_agent.callbacks.before_model.file_path == "my_before_model"
+        assert ir.root_agent.callbacks.after_model is not None
+        assert ir.root_agent.callbacks.after_model.file_path == "my_after_model"
+        assert ir.root_agent.callbacks.before_tool is not None
+        assert ir.root_agent.callbacks.before_tool.file_path == "my_before_tool"
+        assert ir.root_agent.callbacks.after_tool is not None
+        assert ir.root_agent.callbacks.after_tool.file_path == "my_after_tool"
 
 
 class TestGenerateContentConfig:

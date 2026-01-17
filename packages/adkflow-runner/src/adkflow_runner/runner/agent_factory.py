@@ -368,11 +368,20 @@ class AgentFactory:
         registry.register(ExtensionHooksHandler(self.hooks))
 
         # Priority 600: User-defined callbacks (optional)
-        if agent_ir.callbacks.has_any() and self.project_path:
-            loader = UserCallbackLoader(self.project_path)
-            loaded = loader.load(agent_ir.callbacks)
+        # Supports both file paths and inline code from connected CallbackNodes
+        if agent_ir.callbacks.has_any():
+            # Use project_path if available, otherwise use current directory
+            loader_path = self.project_path or Path.cwd()
+            loader = UserCallbackLoader(loader_path)
+            loaded, callback_metadata = loader.load(agent_ir.callbacks)
             if loaded:
-                registry.register(UserCallbackHandler(loaded))
+                registry.register(
+                    UserCallbackHandler(
+                        callbacks=loaded,
+                        callback_metadata=callback_metadata,
+                        emit=self.emit,
+                    )
+                )
 
         return registry.to_adk_callbacks()
 

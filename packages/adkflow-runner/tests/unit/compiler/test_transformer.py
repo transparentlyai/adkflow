@@ -757,10 +757,15 @@ class TestTransformAgent:
 
             agent_ir = transformer._transform_agent(agent, graph, mock_project)
 
-        assert agent_ir.callbacks.before_model == "callbacks/before_model.py"
-        assert agent_ir.callbacks.after_model == "callbacks/after_model.py"
-        assert agent_ir.callbacks.before_tool == "callbacks/before_tool.py"
-        assert agent_ir.callbacks.after_tool == "callbacks/after_tool.py"
+        # Callbacks are now wrapped in CallbackSourceIR
+        assert agent_ir.callbacks.before_model is not None
+        assert agent_ir.callbacks.before_model.file_path == "callbacks/before_model.py"
+        assert agent_ir.callbacks.after_model is not None
+        assert agent_ir.callbacks.after_model.file_path == "callbacks/after_model.py"
+        assert agent_ir.callbacks.before_tool is not None
+        assert agent_ir.callbacks.before_tool.file_path == "callbacks/before_tool.py"
+        assert agent_ir.callbacks.after_tool is not None
+        assert agent_ir.callbacks.after_tool.file_path == "callbacks/after_tool.py"
 
     def test_transform_agent_with_output_config(
         self,

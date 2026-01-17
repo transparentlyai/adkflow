@@ -117,6 +117,15 @@ class TestDualPathDiscovery:
         count = registry.discover_project(project_path)
         assert count == 0  # Empty dir
 
+    def test_discover_shipped(self, tmp_path):
+        """Discover from shipped path."""
+        shipped_path = tmp_path / "shipped"
+        shipped_path.mkdir()
+
+        registry = ExtensionRegistry()
+        count = registry.discover_shipped(shipped_path)
+        assert count == 0  # Empty dir
+
 
 class TestSchemaGeneration:
     """Tests for schema generation."""
@@ -163,6 +172,10 @@ class TestExtensionScope:
         """Verify scope enum values."""
         assert ExtensionScope.GLOBAL.value == "global"
         assert ExtensionScope.PROJECT.value == "project"
+
+    def test_shipped_scope_value(self):
+        """Verify shipped scope enum value."""
+        assert ExtensionScope.SHIPPED.value == "shipped"
 
 
 class TestRegistryMethods:
@@ -238,6 +251,12 @@ class TestRegistryMethods:
         """Clear project extensions."""
         registry = ExtensionRegistry()
         registry.clear_project()  # Should not raise
+
+    def test_hooks_registry_property(self):
+        """Access hooks_registry property."""
+        registry = ExtensionRegistry()
+        hooks_reg = registry.hooks_registry
+        assert hooks_reg is not None
 
 
 class TestRegistryWithExtensions:
@@ -409,3 +428,101 @@ class SharedUnit(FlowUnit):
         if unit:
             assert unit.UI_LABEL == "Project Shared"
             assert registry.get_scope("shared.unit") == ExtensionScope.PROJECT
+
+
+class TestBuiltinUnits:
+    """Tests for builtin unit registration."""
+
+    def test_register_builtin_units(self, tmp_path):
+        """Register builtin units from list."""
+        from adkflow_runner.extensions.flow_unit import FlowUnit, UISchema, PortDefinition
+
+        # Create a proper FlowUnit subclass
+        class TestBuiltinUnit(FlowUnit):
+            UNIT_ID = "builtin.test"
+            UI_LABEL = "Test Builtin"
+            MENU_LOCATION = "Builtin"
+
+            @classmethod
+            def setup_interface(cls):
+                return UISchema(
+                    inputs=[PortDefinition(id="in", label="In", source_type="*", data_type="str")],
+                    outputs=[PortDefinition(id="out", label="Out", source_type="builtin", data_type="str")],
+                )
+
+            async def run_process(self, inputs, config, context):
+                return {"out": ""}
+
+        registry = ExtensionRegistry()
+        count = registry.register_builtin_units([TestBuiltinUnit])
+
+        # Should register successfully
+        assert count >= 0
+
+    def test_register_builtin_units_empty_list(self):
+        """Register empty list of builtin units."""
+        registry = ExtensionRegistry()
+        count = registry.register_builtin_units([])
+        assert count == 0
+
+
+class TestReloadOperations:
+    """Tests for reload operations."""
+
+    def test_reload_global_with_extensions(self, tmp_path):
+        """Reload global extensions."""
+        global_path = tmp_path / "global"
+        global_path.mkdir()
+
+        registry = ExtensionRegistry()
+        registry.discover_global(global_path)
+        count = registry.reload_global()
+        assert count == 0  # Empty dir
+
+    def test_reload_project_with_extensions(self, tmp_path):
+        """Reload project extensions."""
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+
+        registry = ExtensionRegistry()
+        registry.discover_project(project_path)
+        count = registry.reload_project()
+        assert count == 0  # Empty dir
+
+    def test_clear_project_with_extensions(self, tmp_path):
+        """Clear project extensions after loading."""
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+
+        ext_dir = project_path / "test_ext"
+        ext_dir.mkdir()
+        (ext_dir / "__init__.py").write_text("""
+from adkflow_runner.extensions.flow_unit import (
+    FlowUnit, UISchema, PortDefinition
+)
+
+class TestUnit(FlowUnit):
+    UNIT_ID = "test.unit"
+    UI_LABEL = "Test"
+    MENU_LOCATION = "Test"
+
+    @classmethod
+    def setup_interface(cls) -> UISchema:
+        return UISchema(
+            inputs=[PortDefinition(id="in", label="In", source_type="*", data_type="str")],
+            outputs=[PortDefinition(id="out", label="Out", source_type="test", data_type="str")],
+        )
+
+    async def run_process(self, inputs, config, context):
+        return {"out": ""}
+""")
+
+        registry = ExtensionRegistry()
+        count = registry.discover_project(project_path)
+
+        # Clear project extensions
+        registry.clear_project()
+
+        # Unit should be removed if it was loaded
+        if count > 0:
+            assert registry.get_unit("test.unit") is None

@@ -1,0 +1,217 @@
+{
+  "name": "Callback Nodes & Agent Callback Handles",
+  "branchName": "feature/callback-nodes",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add callback handle type definition",
+      "description": "As a developer, I want to define a callback handle type so that CallbackNodes can connect to Agent callback inputs",
+      "acceptanceCriteria": [
+        "Add 'callback' handle type to handles.ts",
+        "Define callback handle configuration (id, type, position, handleType)",
+        "Handle type is compatible with existing handle system"
+      ],
+      "priority": 1,
+      "passes": true,
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-002",
+      "title": "Add CallbackNode type definition",
+      "description": "As a developer, I want CallbackNode type definitions in shared types so that frontend and backend can use consistent types",
+      "acceptanceCriteria": [
+        "Add CallbackNode interface with id, name, callback_type, and code properties",
+        "Define callback_type enum with 6 values: before_agent, after_agent, before_model, after_model, before_tool, after_tool",
+        "Export types from shared package"
+      ],
+      "priority": 1,
+      "passes": true,
+      "dependsOn": [
+        "US-001"
+      ],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-003",
+      "title": "Create CallbackNode component",
+      "description": "As a user, I want to drag a CallbackNode onto the canvas so that I can visually connect callbacks to agents",
+      "acceptanceCriteria": [
+        "CallbackNode styled like ToolNode (48x48 compact square)",
+        "Single output handle of type 'callback'",
+        "Compact view shows only icon and callback name (callback type selector hidden)",
+        "Node is registered in nodeTypes.ts",
+        "Node is exported from nodes/index.ts"
+      ],
+      "priority": 2,
+      "passes": true,
+      "dependsOn": [
+        "US-002"
+      ],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-004",
+      "title": "Add inline code editor to CallbackNode",
+      "description": "As a user, I want to double-click a CallbackNode to open a code editor so that I can write callback Python code",
+      "acceptanceCriteria": [
+        "Double-click opens Monaco code editor panel",
+        "Callback type selector visible in editor (not on compact node)",
+        "Code editor pre-populates function signature based on callback_type",
+        "before_model signature: async def callback(callback_context, llm_request) -> Optional[LlmResponse]",
+        "after_model signature: async def callback(callback_context, llm_response) -> LlmResponse",
+        "before_tool/after_tool signature: async def callback(tool, args, tool_context) -> Optional[dict]",
+        "before_agent/after_agent signature: async def callback(callback_context) -> Optional[Content]",
+        "Same UX as ToolAgent code editing"
+      ],
+      "priority": 2,
+      "passes": true,
+      "dependsOn": [
+        "US-003"
+      ],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-005",
+      "title": "Add callback input handles to Agent node",
+      "description": "As a user, I want to see callback input handles on the Agent node so that I can connect CallbackNodes to them",
+      "acceptanceCriteria": [
+        "6 callback input handles appear on Agent node: before_agent, after_agent, before_model, after_model, before_tool, after_tool",
+        "Handles appear on right side of callback text fields in expanded Callbacks tab",
+        "Handles only visible when Agent is expanded and Callbacks tab is active",
+        "Handles show filled state when connected, empty/outline when disconnected"
+      ],
+      "priority": 2,
+      "passes": true,
+      "dependsOn": [
+        "US-001"
+      ],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-006",
+      "title": "Implement callback edge connections",
+      "description": "As a user, I want to connect CallbackNodes to Agent callback handles so that callbacks are visually linked",
+      "acceptanceCriteria": [
+        "New 'callback' edge type similar to 'tool' and 'sub-agent' edge types",
+        "CallbackNode output can connect to Agent callback input handles",
+        "Fan-out supported: One CallbackNode can connect to multiple Agents",
+        "One callback input handle can only have one connected CallbackNode (1:1 from Agent to CallbackNode)",
+        "Connection validation prevents invalid connections"
+      ],
+      "priority": 3,
+      "passes": true,
+      "dependsOn": [
+        "US-003",
+        "US-005"
+      ],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-007",
+      "title": "Add CallbackNode CRUD to flowStore",
+      "description": "As a developer, I want flowStore to handle CallbackNode operations so that nodes can be created, updated, and deleted",
+      "acceptanceCriteria": [
+        "flowStore handles CallbackNode creation",
+        "flowStore handles CallbackNode updates (name, callback_type, code)",
+        "flowStore handles CallbackNode deletion",
+        "State updates trigger proper re-renders"
+      ],
+      "priority": 2,
+      "passes": true,
+      "dependsOn": [
+        "US-003"
+      ],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-008",
+      "title": "Add CallbackNode model to runner",
+      "description": "As a developer, I want a CallbackNode model in adkflow-runner so that the runner can process callback nodes",
+      "acceptanceCriteria": [
+        "Add CallbackNode model to models/nodes.py",
+        "Model includes id, name, callback_type, and code fields",
+        "Model validates callback_type enum values"
+      ],
+      "priority": 3,
+      "passes": true,
+      "dependsOn": [
+        "US-002"
+      ],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-009",
+      "title": "Generate callback code from CallbackNode",
+      "description": "As a user, I want the runner to generate callback functions from CallbackNodes so that my callbacks execute during agent runs",
+      "acceptanceCriteria": [
+        "Create callbacks.py with callback code generation utilities",
+        "Wrap CallbackNode code in async function with appropriate signature",
+        "Error handling follows ToolAgent patterns",
+        "Generated code is valid Python"
+      ],
+      "priority": 4,
+      "passes": true,
+      "dependsOn": [
+        "US-008"
+      ],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-010",
+      "title": "Inject callbacks into Agent instantiation",
+      "description": "As a user, I want connected callbacks to be injected into the Agent so that they run during agent execution",
+      "acceptanceCriteria": [
+        "Modify generator/agent.py to detect connected CallbackNodes",
+        "Generate callback function from connected node's code",
+        "Inject callback into Agent instantiation",
+        "Connected CallbackNode takes precedence over text field value"
+      ],
+      "priority": 4,
+      "passes": true,
+      "dependsOn": [
+        "US-006",
+        "US-009"
+      ],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-011",
+      "title": "Maintain backward compatibility with text callbacks",
+      "description": "As a user, I want existing text field callbacks to continue working so that my existing flows are not broken",
+      "acceptanceCriteria": [
+        "Text field callbacks work when no CallbackNode connected",
+        "Connected CallbackNode overrides text field value",
+        "Text fields show visual indicator (dimmed or info icon) when overridden by connected node",
+        "Flows without CallbackNodes continue to work unchanged"
+      ],
+      "priority": 4,
+      "passes": true,
+      "dependsOn": [
+        "US-010"
+      ],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-012",
+      "title": "Display callback execution logs in CallbackNode",
+      "description": "As a user, I want to see callback execution logs in the CallbackNode during runs so that I can debug and monitor callback behavior",
+      "acceptanceCriteria": [
+        "CallbackNode displays execution status during agent run (similar to ToolAgent)",
+        "Show callback invocation count during run",
+        "Display execution logs/output in CallbackNode",
+        "Show error state if callback throws exception",
+        "Execution feedback follows ToolAgent patterns"
+      ],
+      "priority": 4,
+      "passes": true,
+      "dependsOn": [
+        "US-010"
+      ],
+      "completionNotes": "Completed by agent"
+    }
+  ],
+  "metadata": {
+    "updatedAt": "2026-01-14T15:52:05.913Z"
+  }
+}

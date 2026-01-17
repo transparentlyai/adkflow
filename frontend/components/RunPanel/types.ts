@@ -15,6 +15,7 @@ export interface RunPanelProps {
   onRunComplete?: (status: RunStatus, output?: string, error?: string) => void;
   onAgentStateChange?: (agentName: string, state: NodeExecutionState) => void;
   onToolStateChange?: (toolName: string, state: NodeExecutionState) => void;
+  onCallbackStateChange?: (callbackName: string, state: NodeExecutionState) => void;
   onUserInputStateChange?: (nodeId: string, isWaiting: boolean) => void;
   onClearExecutionState?: () => void;
   events: DisplayEvent[];

@@ -25,7 +25,10 @@ export type EventType =
   | "warning"
   | "user_input_required"
   | "user_input_received"
-  | "user_input_timeout";
+  | "user_input_timeout"
+  | "callback_start"
+  | "callback_end"
+  | "callback_error";
 
 export interface RunEvent {
   type: EventType;

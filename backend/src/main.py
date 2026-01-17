@@ -61,8 +61,13 @@ else:
 
 # Try to import extension system
 try:
-    from adkflow_runner.extensions import init_global_extensions, init_builtin_units
+    from adkflow_runner.extensions import (
+        init_shipped_extensions,
+        init_global_extensions,
+        init_builtin_units,
+    )
 except ImportError:
+    init_shipped_extensions = None
     init_global_extensions = None
     init_builtin_units = None
 
@@ -75,11 +80,18 @@ async def lifespan(app: FastAPI):
     if DEV_MODE:
         log_startup("Development mode enabled - verbose logging active")
 
-    # Startup: Initialize builtin units and global extensions
+    # Startup: Initialize extensions in order of precedence (lowest first)
+    # Shipped extensions (built-in, lowest precedence)
+    if init_shipped_extensions is not None:
+        log_startup("Loading shipped extensions...")
+        init_shipped_extensions()
+
+    # Builtin units (registered directly, not from files)
     if init_builtin_units is not None:
         log_startup("Registering builtin FlowUnits...")
         init_builtin_units()
 
+    # Global extensions (user's global, can override shipped)
     if init_global_extensions is not None:
         log_startup("Initializing global extension system...")
         init_global_extensions(watch=True)

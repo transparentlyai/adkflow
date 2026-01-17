@@ -62,19 +62,40 @@ export function useExecutionState({ setNodes }: UseExecutionStateParams) {
     [setNodes],
   );
 
+  // Update callback execution state for real-time highlighting
+  const updateCallbackExecutionState = useCallback(
+    (callbackName: string, state: NodeExecutionState) => {
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.type !== "callback") return node;
+          const data = node.data as Record<string, unknown>;
+          const config = data.config as Record<string, unknown> | undefined;
+          const nodeName = (config?.name as string) || "";
+          if (nodeName.toLowerCase() === callbackName.toLowerCase()) {
+            return {
+              ...node,
+              data: {
+                ...data,
+                executionState: state,
+              },
+            };
+          }
+          return node;
+        }),
+      );
+    },
+    [setNodes],
+  );
+
   // Clear all execution states (when run completes)
   const clearExecutionState = useCallback(() => {
     setNodes((nds) =>
       nds.map((node) => {
-        if (node.type === "agent") {
-          const data = node.data as Record<string, unknown>;
-          if (data.executionState && data.executionState !== "idle") {
-            return {
-              ...node,
-              data: { ...data, executionState: "idle" as NodeExecutionState },
-            };
-          }
-        } else if (node.type === "tool") {
+        if (
+          node.type === "agent" ||
+          node.type === "tool" ||
+          node.type === "callback"
+        ) {
           const data = node.data as Record<string, unknown>;
           if (data.executionState && data.executionState !== "idle") {
             return {
@@ -117,6 +138,7 @@ export function useExecutionState({ setNodes }: UseExecutionStateParams) {
   return {
     updateNodeExecutionState,
     updateToolExecutionState,
+    updateCallbackExecutionState,
     clearExecutionState,
     updateUserInputWaitingState,
   };

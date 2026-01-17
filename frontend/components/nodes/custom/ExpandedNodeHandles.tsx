@@ -12,6 +12,8 @@ interface AdditionalHandle {
   type: "source" | "target";
   position: HandleEdge;
   label?: string;
+  /** If true, render this handle at the node edge even for left/right positions */
+  render_at_edge?: boolean;
 }
 
 export interface ExpandedNodeHandlesProps {
@@ -50,14 +52,17 @@ const ExpandedNodeHandles = memo(
 
         {/* Additional handles at node edges
             - top/bottom: rendered at edge (link handles for chaining)
-            - left/right: NOT rendered here - they are rendered inline by
-              CustomNodeInput (for right-positioned inputs like sub-agents) and
-              CustomNodeOutput (for left-positioned outputs like plug) */}
+            - left/right with render_at_edge: rendered at edge (standalone handles like CallbackNode input)
+            - left/right without render_at_edge: rendered inline by CustomNodeInput/CustomNodeOutput */}
         {additionalHandles
           .filter((handle) => {
-            // Only render top/bottom positioned handles at the edge
-            // Left/right positioned handles are rendered inline by CustomNodeInput/CustomNodeOutput
-            return handle.position === "top" || handle.position === "bottom";
+            // Render top/bottom positioned handles at the edge
+            // Also render left/right handles marked with render_at_edge
+            if (handle.position === "top" || handle.position === "bottom") {
+              return true;
+            }
+            // Check for render_at_edge flag on left/right handles
+            return handle.render_at_edge === true;
           })
           .map((handle) => {
             const matchingInput = schema.ui.inputs.find(

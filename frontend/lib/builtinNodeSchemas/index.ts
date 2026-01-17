@@ -14,7 +14,7 @@ export { toolNodeSchema } from "./toolNodeSchema";
 export { agentToolNodeSchema } from "./agentToolNodeSchema";
 
 // Callback nodes
-export { callbackNodeSchema, CALLBACK_CODE_TEMPLATES } from "./callbackNodeSchema";
+export { callbackNodeSchema } from "./callbackNodeSchema";
 
 // Processing nodes
 export { processNodeSchema } from "./processNodeSchema";

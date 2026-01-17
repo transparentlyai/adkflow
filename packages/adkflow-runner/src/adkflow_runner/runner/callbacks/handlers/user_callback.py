@@ -5,12 +5,20 @@ Priority 600: Runs user callbacks loaded from file paths in CallbackConfig.
 
 from __future__ import annotations
 
+import asyncio
 import inspect
-from typing import Any
+import time
+from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from adkflow_runner.logging import get_logger
 from adkflow_runner.runner.callbacks.handlers.base import BaseHandler
 from adkflow_runner.runner.callbacks.types import HandlerResult
+
+if TYPE_CHECKING:
+    from adkflow_runner.runner.workflow_runner import RunEvent
+
+# Type alias for emit function
+EmitFn = Callable[["RunEvent"], Awaitable[None]]
 
 _log = get_logger("runner.callbacks")
 
@@ -29,6 +37,8 @@ class UserCallbackHandler(BaseHandler):
     def __init__(
         self,
         callbacks: dict[str, Any] | None = None,
+        callback_metadata: dict[str, dict[str, str]] | None = None,
+        emit: EmitFn | None = None,
         priority: int | None = None,
         on_error: str = "continue",
     ):
@@ -42,11 +52,74 @@ class UserCallbackHandler(BaseHandler):
                 - after_model_callback: (callback_context, llm_response, agent_name) -> None | dict
                 - before_tool_callback: (tool, args, tool_context, agent_name) -> None | dict
                 - after_tool_callback: (tool, args, tool_context, tool_response, agent_name) -> None | dict
+            callback_metadata: Dict mapping callback names to metadata:
+                - { "callback_name": {"name": "...", "type": "..."} }
+            emit: Async function to emit RunEvent for UI updates
             priority: Execution priority (default 600)
             on_error: Error handling policy
         """
         super().__init__(priority=priority, on_error=on_error)
         self.callbacks = callbacks or {}
+        self.callback_metadata = callback_metadata or {}
+        self.emit = emit
+
+    def _emit_callback_event(
+        self,
+        callback_key: str,
+        event_type: str,
+        agent_name: str,
+        error: str | None = None,
+    ) -> None:
+        """Emit a callback event for UI updates.
+
+        Args:
+            callback_key: The callback key (e.g., "before_agent_callback")
+            event_type: Event type ("start", "end", or "error")
+            agent_name: Name of the agent executing the callback
+            error: Error message if event_type is "error"
+        """
+        if not self.emit:
+            return
+
+        from adkflow_runner.runner.types import EventType, RunEvent
+
+        # Get callback metadata
+        metadata = self.callback_metadata.get(callback_key, {})
+        callback_name = metadata.get("name", callback_key)
+        callback_type = metadata.get("type", callback_key.replace("_callback", ""))
+
+        # Map event type to EventType enum
+        type_map = {
+            "start": EventType.CALLBACK_START,
+            "end": EventType.CALLBACK_END,
+            "error": EventType.CALLBACK_ERROR,
+        }
+        evt_type = type_map.get(event_type, EventType.CALLBACK_START)
+
+        data: dict[str, Any] = {
+            "callback_name": callback_name,
+            "callback_type": callback_type,
+        }
+        if error:
+            data["error"] = error
+
+        event = RunEvent(
+            type=evt_type,
+            timestamp=time.time(),
+            agent_name=agent_name,
+            data=data,
+        )
+
+        # Fire-and-forget emission
+        async def _do_emit() -> None:
+            if self.emit:
+                await self.emit(event)
+
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_do_emit())
+        except RuntimeError:
+            pass
 
     def _convert_result(self, result: Any) -> HandlerResult | None:
         """Convert user callback result to HandlerResult.
@@ -99,10 +172,15 @@ class UserCallbackHandler(BaseHandler):
         if not callback:
             return None
 
+        self._emit_callback_event("before_agent_callback", "start", agent_name)
         try:
             result = callback(callback_context, agent_name)
+            self._emit_callback_event("before_agent_callback", "end", agent_name)
             return self._convert_result(result)
         except Exception as e:
+            self._emit_callback_event(
+                "before_agent_callback", "error", agent_name, str(e)
+            )
             _log.warning(f"User before_agent_callback error: {e}", agent=agent_name)
             raise
 
@@ -124,10 +202,15 @@ class UserCallbackHandler(BaseHandler):
         if not callback:
             return None
 
+        self._emit_callback_event("after_agent_callback", "start", agent_name)
         try:
             result = callback(callback_context, agent_name)
+            self._emit_callback_event("after_agent_callback", "end", agent_name)
             return self._convert_result(result)
         except Exception as e:
+            self._emit_callback_event(
+                "after_agent_callback", "error", agent_name, str(e)
+            )
             _log.warning(f"User after_agent_callback error: {e}", agent=agent_name)
             raise
 
@@ -151,10 +234,15 @@ class UserCallbackHandler(BaseHandler):
         if not callback:
             return None
 
+        self._emit_callback_event("before_model_callback", "start", agent_name)
         try:
             result = callback(callback_context, llm_request, agent_name)
+            self._emit_callback_event("before_model_callback", "end", agent_name)
             return self._convert_result(result)
         except Exception as e:
+            self._emit_callback_event(
+                "before_model_callback", "error", agent_name, str(e)
+            )
             _log.warning(f"User before_model_callback error: {e}", agent=agent_name)
             raise
 
@@ -178,10 +266,15 @@ class UserCallbackHandler(BaseHandler):
         if not callback:
             return None
 
+        self._emit_callback_event("after_model_callback", "start", agent_name)
         try:
             result = callback(callback_context, llm_response, agent_name)
+            self._emit_callback_event("after_model_callback", "end", agent_name)
             return self._convert_result(result)
         except Exception as e:
+            self._emit_callback_event(
+                "after_model_callback", "error", agent_name, str(e)
+            )
             _log.warning(f"User after_model_callback error: {e}", agent=agent_name)
             raise
 
@@ -207,13 +300,18 @@ class UserCallbackHandler(BaseHandler):
         if not callback:
             return None
 
+        self._emit_callback_event("before_tool_callback", "start", agent_name)
         try:
             result = callback(tool, args, tool_context, agent_name)
             # Handle async callbacks
             if inspect.isawaitable(result):
                 result = await result
+            self._emit_callback_event("before_tool_callback", "end", agent_name)
             return self._convert_result(result)
         except Exception as e:
+            self._emit_callback_event(
+                "before_tool_callback", "error", agent_name, str(e)
+            )
             _log.warning(f"User before_tool_callback error: {e}", agent=agent_name)
             raise
 
@@ -241,12 +339,17 @@ class UserCallbackHandler(BaseHandler):
         if not callback:
             return None
 
+        self._emit_callback_event("after_tool_callback", "start", agent_name)
         try:
             result = callback(tool, args, tool_context, tool_response, agent_name)
             # Handle async callbacks
             if inspect.isawaitable(result):
                 result = await result
+            self._emit_callback_event("after_tool_callback", "end", agent_name)
             return self._convert_result(result)
         except Exception as e:
+            self._emit_callback_event(
+                "after_tool_callback", "error", agent_name, str(e)
+            )
             _log.warning(f"User after_tool_callback error: {e}", agent=agent_name)
             raise

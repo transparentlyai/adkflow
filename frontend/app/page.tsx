@@ -428,6 +428,7 @@ function HomeContent() {
         onRunComplete={runWorkflowHandlers.handleRunComplete}
         onAgentStateChange={runWorkflowHandlers.handleAgentStateChange}
         onToolStateChange={runWorkflowHandlers.handleToolStateChange}
+        onCallbackStateChange={runWorkflowHandlers.handleCallbackStateChange}
         onUserInputStateChange={runWorkflowHandlers.handleUserInputStateChange}
         onClearExecutionState={runWorkflowHandlers.handleClearExecutionState}
         onEventsChange={setRunEvents}

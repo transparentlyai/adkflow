@@ -14,6 +14,7 @@ from adkflow_runner.compiler.node_transforms import (
     transform_user_inputs,
 )
 from adkflow_runner.compiler.resolvers import (
+    resolve_callbacks,
     resolve_context_var_sources,
     resolve_include_contents,
     resolve_instruction,
@@ -25,7 +26,6 @@ from adkflow_runner.config import EdgeSemantics, ExecutionConfig, get_default_co
 from adkflow_runner.errors import CompilationError
 from adkflow_runner.ir import (
     AgentIR,
-    CallbackConfig,
     CodeExecutorConfig,
     GenerateContentConfig,
     HttpOptionsConfig,
@@ -246,15 +246,9 @@ class IRTransformer:
             else http_data.get("retry_backoff_multiplier", 2.0),
         )
 
-        # Extract callbacks
-        callbacks = CallbackConfig(
-            before_agent=agent_data.get("before_agent_callback"),
-            after_agent=agent_data.get("after_agent_callback"),
-            before_model=agent_data.get("before_model_callback"),
-            after_model=agent_data.get("after_model_callback"),
-            before_tool=agent_data.get("before_tool_callback"),
-            after_tool=agent_data.get("after_tool_callback"),
-        )
+        # Resolve callbacks from connected CallbackNodes and text field values
+        # Connected CallbackNodes take precedence over text field values
+        callbacks = resolve_callbacks(node, graph, agent_data)
 
         # Extract GenerateContentConfig fields
         stop_sequences_raw = agent_data.get("stop_sequences", "")

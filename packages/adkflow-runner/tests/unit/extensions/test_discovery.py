@@ -1,7 +1,7 @@
 """Tests for extension discovery and initialization."""
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 
 from adkflow_runner.extensions.discovery import (
@@ -9,8 +9,11 @@ from adkflow_runner.extensions.discovery import (
     init_registry,
     init_global_extensions,
     init_project_extensions,
+    init_shipped_extensions,
+    init_builtin_units,
     clear_project_extensions,
     GLOBAL_EXTENSIONS_PATH,
+    SHIPPED_EXTENSIONS_PATH,
 )
 from adkflow_runner.extensions.registry import ExtensionRegistry
 from adkflow_runner.extensions.types import ExtensionScope
@@ -45,6 +48,13 @@ class TestInitRegistry:
         (tmp_path / "test_ext.py").write_text("")
         registry = init_registry(tmp_path)
         assert registry is not None
+
+    def test_init_registry_with_watch(self, tmp_path):
+        """Initialize registry with file watching enabled."""
+        registry = get_registry()
+        with patch.object(registry, "start_watching") as mock_watch:
+            init_registry(tmp_path, watch=True)
+            mock_watch.assert_called_once()
 
 
 class TestGlobalExtensionsPath:
@@ -83,6 +93,14 @@ class TestInitGlobalExtensions:
             init_global_extensions(watch=False)
         # Note: actual directory creation happens in the function
 
+    def test_init_global_extensions_with_watch(self):
+        """Initialize global extensions with file watching."""
+        registry = get_registry()
+        with patch.object(registry, "discover_global", return_value=0):
+            with patch.object(registry, "start_watching_global") as mock_watch:
+                init_global_extensions(watch=True)
+                mock_watch.assert_called_once()
+
 
 class TestInitProjectExtensions:
     """Tests for init_project_extensions function."""
@@ -92,6 +110,25 @@ class TestInitProjectExtensions:
         registry = get_registry()
         with patch.object(registry, "discover_project", return_value=0):
             init_project_extensions(tmp_path)
+
+    def test_init_project_extensions_when_exists(self, tmp_path):
+        """Initialize project extensions when directory exists."""
+        ext_path = tmp_path / "adkflow_extensions"
+        ext_path.mkdir()
+        registry = get_registry()
+        with patch.object(registry, "discover_project", return_value=1) as mock_discover:
+            init_project_extensions(tmp_path, watch=False)
+            mock_discover.assert_called_once_with(ext_path)
+
+    def test_init_project_extensions_with_watch(self, tmp_path):
+        """Initialize project extensions with file watching."""
+        ext_path = tmp_path / "adkflow_extensions"
+        ext_path.mkdir()
+        registry = get_registry()
+        with patch.object(registry, "discover_project", return_value=1):
+            with patch.object(registry, "start_watching_project") as mock_watch:
+                init_project_extensions(tmp_path, watch=True)
+                mock_watch.assert_called_once()
 
 
 class TestClearProjectExtensions:
@@ -103,6 +140,48 @@ class TestClearProjectExtensions:
         with patch.object(registry, "clear_project") as mock_clear:
             clear_project_extensions()
             mock_clear.assert_called_once()
+
+
+class TestInitShippedExtensions:
+    """Tests for init_shipped_extensions function."""
+
+    def test_init_shipped_extensions_path_exists(self, tmp_path, monkeypatch):
+        """Initialize shipped extensions when path exists."""
+        test_path = tmp_path / "extensions"
+        test_path.mkdir()
+        monkeypatch.setattr(
+            "adkflow_runner.extensions.discovery.SHIPPED_EXTENSIONS_PATH",
+            test_path,
+        )
+        registry = get_registry()
+        with patch.object(registry, "discover_shipped", return_value=2) as mock_discover:
+            result = init_shipped_extensions()
+            mock_discover.assert_called_once_with(test_path)
+            assert isinstance(result, ExtensionRegistry)
+
+    def test_init_shipped_extensions_path_missing(self, tmp_path, monkeypatch):
+        """Initialize shipped extensions when path does not exist."""
+        test_path = tmp_path / "nonexistent"
+        monkeypatch.setattr(
+            "adkflow_runner.extensions.discovery.SHIPPED_EXTENSIONS_PATH",
+            test_path,
+        )
+        result = init_shipped_extensions()
+        assert isinstance(result, ExtensionRegistry)
+
+
+class TestInitBuiltinUnits:
+    """Tests for init_builtin_units function."""
+
+    def test_init_builtin_units(self):
+        """Register builtin units."""
+        registry = get_registry()
+        with patch.object(registry, "register_builtin_units", return_value=5) as mock_register:
+            # Mock the import of BUILTIN_UNITS
+            with patch("adkflow_runner.builtin_units.BUILTIN_UNITS", []):
+                count = init_builtin_units()
+                assert count == 5
+                mock_register.assert_called_once()
 
 
 class TestExtensionScope:
@@ -119,3 +198,7 @@ class TestExtensionScope:
     def test_scope_values(self):
         """Scopes have distinct values."""
         assert ExtensionScope.GLOBAL != ExtensionScope.PROJECT
+
+    def test_shipped_scope(self):
+        """SHIPPED scope exists."""
+        assert hasattr(ExtensionScope, "SHIPPED")

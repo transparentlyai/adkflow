@@ -99,6 +99,7 @@ interface HomeDialogsProps {
   onRunComplete: (status: RunStatus) => void;
   onAgentStateChange: (agentName: string, state: NodeExecutionState) => void;
   onToolStateChange: (toolName: string, state: NodeExecutionState) => void;
+  onCallbackStateChange: (callbackName: string, state: NodeExecutionState) => void;
   onUserInputStateChange: (nodeId: string, isWaiting: boolean) => void;
   onClearExecutionState: () => void;
   onEventsChange: React.Dispatch<React.SetStateAction<DisplayEvent[]>>;
@@ -166,6 +167,7 @@ export function HomeDialogs({
   onRunComplete,
   onAgentStateChange,
   onToolStateChange,
+  onCallbackStateChange,
   onUserInputStateChange,
   onClearExecutionState,
   onEventsChange,
@@ -322,6 +324,7 @@ export function HomeDialogs({
           onRunComplete={onRunComplete}
           onAgentStateChange={onAgentStateChange}
           onToolStateChange={onToolStateChange}
+          onCallbackStateChange={onCallbackStateChange}
           onUserInputStateChange={onUserInputStateChange}
           onClearExecutionState={onClearExecutionState}
           events={runEvents}

@@ -210,5 +210,7 @@ export interface HandleLayout {
     position: "left" | "top" | "right" | "bottom";
     /** Optional label shown on hover */
     label?: string;
+    /** If true, render at node edge in expanded mode (for left/right positions) */
+    render_at_edge?: boolean;
   }[];
 }

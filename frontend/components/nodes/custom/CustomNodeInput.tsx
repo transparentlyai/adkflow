@@ -84,11 +84,20 @@ const CustomNodeInput = memo(
       [connectionState, nodeId, theme.colors],
     );
 
+    // Determine handle type - default to "target" for inputs, but allow "source" override
+    const handleType = input.handleType || "target";
+    const isSourceHandle = handleType === "source";
+
     const validityStyle = getHandleValidityStyle(
       handleTypeInfo?.acceptedSources,
       handleTypeInfo?.acceptedTypes,
     );
-    const handleColor = input.handle_color || theme.colors.handles.input;
+    // Use output handle color for source handles
+    const handleColor =
+      input.handle_color ||
+      (isSourceHandle
+        ? theme.colors.handles.output
+        : theme.colors.handles.input);
     const connectionOnly = input.connection_only !== false;
 
     // Check if widget needs multi-line support
@@ -124,44 +133,58 @@ const CustomNodeInput = memo(
     // Compact for connection-only, taller for editable widgets
     const rowHeight = connectionOnly ? "min-h-5" : "min-h-7";
 
-    // For right-positioned handles, render right-aligned like outputs
+    // For right-positioned handles, render: [Label] [Widget/Connected] [Handle]
     if (isRightHandle) {
       return (
-        <div
-          className={`relative flex items-center ${rowHeight} gap-2 justify-end pr-3`}
-        >
-          {/* Connected source names (shown before label for right-aligned) */}
-          {isConnected && (
-            <>
-              <span
-                className="text-[11px] truncate font-medium"
-                style={{ color: handleColor }}
-              >
-                {connectedSourceNames?.join(", ")}
-              </span>
-              <ArrowRight
-                className="w-3 h-3 flex-shrink-0"
-                style={{ color: theme.colors.nodes.common.text.muted }}
-              />
-            </>
-          )}
-          {/* Label */}
+        <div className={`relative flex items-center ${rowHeight} gap-2 pr-3`}>
+          {/* Label - use labelWidth for grid-like alignment */}
           <span
-            className="text-[10px] font-medium"
-            style={{ color: theme.colors.nodes.common.text.secondary }}
+            className="text-[10px] font-medium flex-shrink-0"
+            style={{
+              color: theme.colors.nodes.common.text.secondary,
+              width: labelWidth ? `${labelWidth * 5}px` : undefined,
+            }}
           >
             {input.label}
             {input.required && <span className="text-red-500 ml-0.5">*</span>}
           </span>
+
+          {/* Value area - widget or connected name */}
+          {isConnected ? (
+            <>
+              <ArrowRight
+                className="w-3 h-3 flex-shrink-0"
+                style={{ color: theme.colors.nodes.common.text.muted }}
+              />
+              <span
+                className="flex-1 text-[11px] truncate font-medium"
+                style={{ color: handleColor }}
+              >
+                {connectedSourceNames?.join(", ")}
+              </span>
+            </>
+          ) : connectionOnly ? (
+            <div className="flex-1" />
+          ) : (
+            <div className="flex-1 min-w-0">
+              {renderWidget(
+                inputAsField,
+                config[input.id] ?? input.default,
+                (value) => onConfigChange(input.id, value),
+                { disabled: isNodeLocked, theme, compact: true },
+              )}
+            </div>
+          )}
+
           {/* Handle */}
           <HandleTooltip
             label={input.label}
             sourceType={input.source_type}
             dataType={input.data_type}
-            type="input"
+            type={isSourceHandle ? "output" : "input"}
           >
             <Handle
-              type="target"
+              type={handleType}
               position={Position.Right}
               id={input.id}
               style={handleStyle}
@@ -182,22 +205,22 @@ const CustomNodeInput = memo(
           label={input.label}
           sourceType={input.source_type}
           dataType={input.data_type}
-          type="input"
+          type={isSourceHandle ? "output" : "input"}
         >
           <Handle
-            type="target"
+            type={handleType}
             position={Position.Left}
             id={input.id}
             style={handleStyle}
           />
         </HandleTooltip>
 
-        {/* Label - dynamic width for alignment, pt-1 for multi-line */}
+        {/* Label - fixed width for alignment, pt-1 for multi-line */}
         <span
           className={`flex-shrink-0 text-[10px] font-medium ${isMultiLine ? "pt-1" : ""}`}
           style={{
             color: theme.colors.nodes.common.text.secondary,
-            minWidth: labelWidth ? `${labelWidth * 0.55}ch` : undefined,
+            width: labelWidth ? `${labelWidth * 5}px` : undefined,
           }}
         >
           {input.label}

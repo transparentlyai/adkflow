@@ -36,6 +36,13 @@ export function useExecutionStateHandlers({
     [canvasRef],
   );
 
+  const handleCallbackStateChange = useCallback(
+    (callbackName: string, state: NodeExecutionState) => {
+      canvasRef.current?.updateCallbackExecutionState(callbackName, state);
+    },
+    [canvasRef],
+  );
+
   const handleUserInputStateChange = useCallback(
     (nodeId: string, isWaiting: boolean) => {
       canvasRef.current?.updateUserInputWaitingState(nodeId, isWaiting);
@@ -59,6 +66,7 @@ export function useExecutionStateHandlers({
     handleRunComplete,
     handleAgentStateChange,
     handleToolStateChange,
+    handleCallbackStateChange,
     handleUserInputStateChange,
     handleClearExecutionState,
     handleCloseRunPanel,

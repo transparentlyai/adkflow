@@ -128,6 +128,7 @@ export function useRunWorkflow({
     handleRunComplete: stateHandlers.handleRunComplete,
     handleAgentStateChange: stateHandlers.handleAgentStateChange,
     handleToolStateChange: stateHandlers.handleToolStateChange,
+    handleCallbackStateChange: stateHandlers.handleCallbackStateChange,
     handleUserInputStateChange: stateHandlers.handleUserInputStateChange,
     handleClearExecutionState: stateHandlers.handleClearExecutionState,
     handleCloseRunPanel: stateHandlers.handleCloseRunPanel,

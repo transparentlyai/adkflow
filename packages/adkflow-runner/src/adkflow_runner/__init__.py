@@ -37,6 +37,11 @@ from adkflow_runner.callbacks import (
     CompositeCallbacks,
     HttpCallbacks,
 )
+from adkflow_runner.codegen import (
+    CallbackCodeGenerator,
+    CallbackLoadError,
+    generate_callback_code,
+)
 
 __version__ = "0.1.0"
 
@@ -69,4 +74,8 @@ __all__ = [
     "ConsoleCallbacks",
     "CompositeCallbacks",
     "HttpCallbacks",
+    # Code generation
+    "CallbackCodeGenerator",
+    "CallbackLoadError",
+    "generate_callback_code",
 ]

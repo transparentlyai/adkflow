@@ -95,6 +95,10 @@ export interface ReactFlowCanvasRef {
     toolName: string,
     state: NodeExecutionState,
   ) => void;
+  updateCallbackExecutionState: (
+    callbackName: string,
+    state: NodeExecutionState,
+  ) => void;
   updateUserInputWaitingState: (nodeId: string, isWaiting: boolean) => void;
   clearExecutionState: () => void;
   highlightErrorNodes: (nodeErrors: Record<string, string[]>) => void;
@@ -369,6 +373,7 @@ const ReactFlowCanvasInner = forwardRef<
     const {
       updateNodeExecutionState,
       updateToolExecutionState,
+      updateCallbackExecutionState,
       clearExecutionState,
       updateUserInputWaitingState,
     } = useExecutionState({ setNodes });
@@ -404,6 +409,7 @@ const ReactFlowCanvasInner = forwardRef<
       focusNode,
       updateNodeExecutionState,
       updateToolExecutionState,
+      updateCallbackExecutionState,
       updateUserInputWaitingState,
       clearExecutionState,
       highlightErrorNodes,

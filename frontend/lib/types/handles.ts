@@ -99,24 +99,24 @@ export type HandleSourceType =
 /**
  * Callback handle configuration for CallbackNode connections.
  *
- * Callbacks connect to Agent callback inputs to provide custom
- * lifecycle hooks (before_agent, after_agent, before_model, etc.)
+ * Connection direction: AgentNode (source) → CallbackNode (target)
+ * Agent callback output handles emit triggers to connected CallbackNodes.
  *
- * @example CallbackNode output handle
+ * @example Agent callback output handle
  * ```typescript
  * {
- *   id: "output",
- *   label: "Callback",
+ *   id: "before_model_callback",
+ *   label: "Before Model",
  *   source_type: "callback",
  *   data_type: "callable",
  * }
  * ```
  *
- * @example Agent callback input handle
+ * @example CallbackNode input handle
  * ```typescript
  * {
- *   id: "callbacks-input",
- *   label: "Callbacks",
+ *   id: "input",
+ *   label: "Callback",
  *   source_type: "callback",
  *   data_type: "callable",
  *   accepted_sources: ["callback"],
@@ -145,32 +145,35 @@ export interface CallbackHandleConfig {
 
 /**
  * Predefined callback handle configurations for common use cases.
+ *
+ * Connection direction: AgentNode (source) → CallbackNode (target)
  */
 export const CALLBACK_HANDLE_CONFIGS = {
   /**
-   * Output handle for CallbackNode - emits callable callbacks.
+   * Output handle for AgentNode - emits callback triggers.
+   * Each callback type has its own output handle (before_agent_callback, etc.)
    */
-  callbackOutput: {
-    id: "output",
-    label: "Callback",
+  agentCallbackOutput: {
+    id: "before_model_callback", // Example - actual IDs vary by type
+    label: "Before Model",
     source_type: "callback",
     data_type: "callable",
     handleType: "source",
     position: "right",
-    multiple: true,
+    multiple: false,
   } as CallbackHandleConfig,
 
   /**
-   * Input handle for Agent nodes to receive callbacks.
+   * Input handle for CallbackNode to receive triggers from Agent.
    */
   callbackInput: {
-    id: "callbacks-input",
-    label: "Callbacks",
+    id: "input",
+    label: "Callback",
     source_type: "callback",
     data_type: "callable",
     handleType: "target",
     position: "left",
-    multiple: true,
+    multiple: false,
     connection_only: true,
   } as CallbackHandleConfig,
 } as const;

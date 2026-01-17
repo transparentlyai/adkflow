@@ -31,6 +31,7 @@ import {
   Square,
   Puzzle,
   Layers,
+  Zap,
 } from "lucide-react";
 import { formatShortcut } from "@/lib/utils";
 import { type CustomNodeSchema } from "@/components/nodes/CustomNode";
@@ -66,7 +67,8 @@ export type NodeTypeOption =
   | "teleportIn"
   | "userInput"
   | "start"
-  | "end";
+  | "end"
+  | "callback";
 
 interface ContextMenuProps {
   x: number;
@@ -170,6 +172,17 @@ const menuGroups: MenuGroup[] = [
     ],
   },
   {
+    label: "Callbacks",
+    icon: <Zap className="h-4 w-4" />,
+    items: [
+      {
+        type: "callback",
+        label: "Callback",
+        icon: <Zap className="h-4 w-4" />,
+      },
+    ],
+  },
+  {
     label: "Canvas",
     icon: <Layout className="h-4 w-4" />,
     items: [
@@ -195,6 +208,62 @@ const menuGroups: MenuGroup[] = [
   },
 ];
 
+// Type for nested menu tree
+type MenuNode = {
+  label: string;
+  items: CustomNodeSchema[];
+  children: Record<string, MenuNode>;
+};
+
+// Recursive component to render extension menu items
+function ExtensionMenuItems({
+  node,
+  onSelectCustom,
+  isRoot = false,
+}: {
+  node: MenuNode;
+  onSelectCustom?: (schema: CustomNodeSchema) => void;
+  isRoot?: boolean;
+}) {
+  const childKeys = Object.keys(node.children);
+
+  return (
+    <>
+      {/* Render child submenus */}
+      {childKeys.map((key) => {
+        const child = node.children[key];
+        const hasChildren = Object.keys(child.children).length > 0;
+        const hasItems = child.items.length > 0;
+
+        if (!hasChildren && !hasItems) return null;
+
+        return (
+          <DropdownMenuSub key={key}>
+            <DropdownMenuSubTrigger>
+              <Puzzle className="mr-2 h-4 w-4 text-muted-foreground" />
+              {child.label}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <ExtensionMenuItems node={child} onSelectCustom={onSelectCustom} />
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        );
+      })}
+
+      {/* Render items at this level */}
+      {node.items.map((schema) => (
+        <DropdownMenuItem
+          key={schema.unit_id}
+          onClick={() => onSelectCustom?.(schema)}
+        >
+          <Puzzle className="mr-2 h-4 w-4 text-muted-foreground" />
+          {schema.label}
+        </DropdownMenuItem>
+      ))}
+    </>
+  );
+}
+
 export default function CanvasContextMenu({
   x,
   y,
@@ -212,23 +281,33 @@ export default function CanvasContextMenu({
   customNodeSchemas = [],
   onSelectCustom,
 }: ContextMenuProps) {
-  // Build custom node menu groups from schemas
-  const customMenuGroups = useMemo(() => {
-    const groups: Record<string, { label: string; items: CustomNodeSchema[] }> =
-      {};
+  // Build nested menu tree from schemas
+  const customMenuTree = useMemo(() => {
+    const root: MenuNode = { label: "Extensions", items: [], children: {} };
 
     for (const schema of customNodeSchemas) {
-      const parts = schema.menu_location.split("/");
-      const groupLabel = parts.slice(0, -1).join("/") || "Extensions";
+      const parts = (schema.menu_location || "Other").split("/");
+      let current = root;
 
-      if (!groups[groupLabel]) {
-        groups[groupLabel] = { label: groupLabel, items: [] };
+      // Navigate/create the tree path
+      for (const part of parts) {
+        if (!current.children[part]) {
+          current.children[part] = { label: part, items: [], children: {} };
+        }
+        current = current.children[part];
       }
-      groups[groupLabel].items.push(schema);
+
+      // Add schema to the leaf node
+      current.items.push(schema);
     }
 
-    return Object.values(groups);
+    return root;
   }, [customNodeSchemas]);
+
+  // Check if tree has any content
+  const hasCustomNodes =
+    Object.keys(customMenuTree.children).length > 0 ||
+    customMenuTree.items.length > 0;
 
   const handleItemClick = (type: NodeTypeOption) => {
     onSelect(type);
@@ -343,33 +422,19 @@ export default function CanvasContextMenu({
               </DropdownMenuSub>
             ))}
 
-            {/* Extensions - single root submenu for all custom nodes */}
-            {customMenuGroups.length > 0 && (
+            {/* Extensions - nested submenu tree for all custom nodes */}
+            {hasCustomNodes && (
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
                   <Puzzle className="mr-2 h-4 w-4 text-muted-foreground" />
                   Extensions
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
-                  {customMenuGroups.map((group) => (
-                    <DropdownMenuSub key={group.label}>
-                      <DropdownMenuSubTrigger>
-                        <Puzzle className="mr-2 h-4 w-4 text-muted-foreground" />
-                        {group.label}
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent>
-                        {group.items.map((schema) => (
-                          <DropdownMenuItem
-                            key={schema.unit_id}
-                            onClick={() => onSelectCustom?.(schema)}
-                          >
-                            <Puzzle className="mr-2 h-4 w-4 text-muted-foreground" />
-                            {schema.label}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  ))}
+                  <ExtensionMenuItems
+                    node={customMenuTree}
+                    onSelectCustom={onSelectCustom}
+                    isRoot
+                  />
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
             )}

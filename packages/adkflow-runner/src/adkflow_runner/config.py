@@ -16,6 +16,7 @@ class EdgeSemantics(Enum):
     TOOL = "tool"  # Source provides tool to target agent
     CONTEXT = "context"  # Source provides context to target agent
     CONTEXT_VARS = "context_vars"  # Source provides context variables dict
+    CALLBACK = "callback"  # Agent triggers callback on connected CallbackNode
 
     # Agent relationships
     SEQUENTIAL = "sequential"  # Source runs before target
@@ -169,6 +170,50 @@ DEFAULT_EDGE_RULES: list[EdgeRule] = [
         source_handle="output",
         target_handle="input",
         semantics=EdgeSemantics.SEQUENTIAL,
+        priority=10,
+    ),
+    # Agent → Callback: callback connections for each callback type
+    # Edge direction: AgentNode (source) → CallbackNode (target)
+    EdgeRule(
+        source_type="agent",
+        target_type="callback",
+        source_handle="before_agent_callback",
+        semantics=EdgeSemantics.CALLBACK,
+        priority=10,
+    ),
+    EdgeRule(
+        source_type="agent",
+        target_type="callback",
+        source_handle="after_agent_callback",
+        semantics=EdgeSemantics.CALLBACK,
+        priority=10,
+    ),
+    EdgeRule(
+        source_type="agent",
+        target_type="callback",
+        source_handle="before_model_callback",
+        semantics=EdgeSemantics.CALLBACK,
+        priority=10,
+    ),
+    EdgeRule(
+        source_type="agent",
+        target_type="callback",
+        source_handle="after_model_callback",
+        semantics=EdgeSemantics.CALLBACK,
+        priority=10,
+    ),
+    EdgeRule(
+        source_type="agent",
+        target_type="callback",
+        source_handle="before_tool_callback",
+        semantics=EdgeSemantics.CALLBACK,
+        priority=10,
+    ),
+    EdgeRule(
+        source_type="agent",
+        target_type="callback",
+        source_handle="after_tool_callback",
+        semantics=EdgeSemantics.CALLBACK,
         priority=10,
     ),
 ]

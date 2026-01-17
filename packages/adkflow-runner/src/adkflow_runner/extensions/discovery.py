@@ -15,9 +15,11 @@ from adkflow_runner.extensions.registry import ExtensionRegistry
 __all__ = [
     "ExtensionScope",
     "ExtensionRegistry",
+    "SHIPPED_EXTENSIONS_PATH",
     "GLOBAL_EXTENSIONS_PATH",
     "get_registry",
     "init_registry",
+    "init_shipped_extensions",
     "init_global_extensions",
     "init_project_extensions",
     "init_builtin_units",
@@ -27,6 +29,13 @@ __all__ = [
 # Global registry instance
 _registry: ExtensionRegistry | None = None
 _registry_lock = threading.Lock()
+
+# Shipped extensions path (relative to project root)
+# Path: packages/adkflow-runner/src/adkflow_runner/extensions/discovery.py
+#       -> go up 6 levels to project root, then into extensions/
+_THIS_FILE = Path(__file__).resolve()
+_PROJECT_ROOT = _THIS_FILE.parent.parent.parent.parent.parent.parent
+SHIPPED_EXTENSIONS_PATH = _PROJECT_ROOT / "extensions"
 
 # Default global extensions path
 GLOBAL_EXTENSIONS_PATH = Path.home() / ".adkflow" / "adkflow_extensions"
@@ -55,6 +64,32 @@ def init_registry(extensions_path: Path, watch: bool = False) -> ExtensionRegist
     registry.discover(extensions_path)
     if watch:
         registry.start_watching()
+    return registry
+
+
+def init_shipped_extensions() -> ExtensionRegistry:
+    """Initialize shipped extensions at server startup.
+
+    Shipped extensions are built-in extensions that ship with the application.
+    They are loaded from the extensions/ directory at the project root and
+    are always available. They have the lowest precedence and can be
+    overridden by global or project extensions.
+
+    Returns:
+        The initialized registry
+    """
+    registry = get_registry()
+
+    if SHIPPED_EXTENSIONS_PATH.exists():
+        count = registry.discover_shipped(SHIPPED_EXTENSIONS_PATH)
+        print(
+            f"[ExtensionRegistry] Loaded {count} shipped extension(s) from {SHIPPED_EXTENSIONS_PATH}"
+        )
+    else:
+        print(
+            f"[ExtensionRegistry] Shipped extensions directory not found: {SHIPPED_EXTENSIONS_PATH}"
+        )
+
     return registry
 
 

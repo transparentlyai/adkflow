@@ -22,6 +22,7 @@ interface UseRunEventsOptions {
   onRunComplete?: (status: RunStatus, output?: string, error?: string) => void;
   onAgentStateChange?: (agentName: string, state: NodeExecutionState) => void;
   onToolStateChange?: (toolName: string, state: NodeExecutionState) => void;
+  onCallbackStateChange?: (callbackName: string, state: NodeExecutionState) => void;
   onUserInputStateChange?: (nodeId: string, isWaiting: boolean) => void;
   onClearExecutionState?: () => void;
   onUserInputRequired?: (request: UserInputRequest) => void;
@@ -41,6 +42,9 @@ const EVENT_TYPES = [
   "user_input_required",
   "user_input_received",
   "user_input_timeout",
+  "callback_start",
+  "callback_end",
+  "callback_error",
 ] as const;
 
 export function useRunEvents({
@@ -51,6 +55,7 @@ export function useRunEvents({
   onRunComplete,
   onAgentStateChange,
   onToolStateChange,
+  onCallbackStateChange,
   onUserInputStateChange,
   onClearExecutionState,
   onUserInputRequired,
@@ -90,6 +95,15 @@ export function useRunEvents({
         onToolStateChange?.(event.data.tool_name as string, "running");
       } else if (event.type === "tool_result" && event.data.tool_name) {
         onToolStateChange?.(event.data.tool_name as string, "completed");
+      }
+
+      // Callback state changes
+      if (event.type === "callback_start" && event.data.callback_name) {
+        onCallbackStateChange?.(event.data.callback_name as string, "running");
+      } else if (event.type === "callback_end" && event.data.callback_name) {
+        onCallbackStateChange?.(event.data.callback_name as string, "completed");
+      } else if (event.type === "callback_error" && event.data.callback_name) {
+        onCallbackStateChange?.(event.data.callback_name as string, "error");
       }
 
       // User input handling
@@ -236,6 +250,7 @@ export function useRunEvents({
     onRunComplete,
     onAgentStateChange,
     onToolStateChange,
+    onCallbackStateChange,
     onUserInputStateChange,
     onClearExecutionState,
     onUserInputRequired,

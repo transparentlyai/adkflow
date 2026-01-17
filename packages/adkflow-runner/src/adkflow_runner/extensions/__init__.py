@@ -17,9 +17,11 @@ from adkflow_runner.extensions.flow_unit import (
 from adkflow_runner.extensions.discovery import (
     ExtensionScope,
     ExtensionRegistry,
+    SHIPPED_EXTENSIONS_PATH,
     GLOBAL_EXTENSIONS_PATH,
     get_registry,
     init_registry,
+    init_shipped_extensions,
     init_global_extensions,
     init_project_extensions,
     init_builtin_units,
@@ -44,10 +46,12 @@ __all__ = [
     "ExtensionScope",
     # Registry and paths
     "ExtensionRegistry",
+    "SHIPPED_EXTENSIONS_PATH",
     "GLOBAL_EXTENSIONS_PATH",
     # Registry functions
     "get_registry",
     "init_registry",
+    "init_shipped_extensions",
     "init_global_extensions",
     "init_project_extensions",
     "init_builtin_units",

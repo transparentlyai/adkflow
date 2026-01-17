@@ -323,6 +323,7 @@ describe("ReactFlowCanvas", () => {
     mockUseExecutionState.mockReturnValue({
       updateNodeExecutionState: vi.fn(),
       updateToolExecutionState: vi.fn(),
+      updateCallbackExecutionState: vi.fn(),
       clearExecutionState: vi.fn(),
       updateUserInputWaitingState: vi.fn(),
     });
@@ -565,11 +566,13 @@ describe("ReactFlowCanvas", () => {
       const ref = React.createRef<ReactFlowCanvasRef>();
       const updateNodeExecutionState = vi.fn();
       const updateToolExecutionState = vi.fn();
+      const updateCallbackExecutionState = vi.fn();
       const clearExecutionState = vi.fn();
       const updateUserInputWaitingState = vi.fn();
       mockUseExecutionState.mockReturnValue({
         updateNodeExecutionState,
         updateToolExecutionState,
+        updateCallbackExecutionState,
         clearExecutionState,
         updateUserInputWaitingState,
       });
@@ -581,6 +584,9 @@ describe("ReactFlowCanvas", () => {
       );
       expect(ref.current?.updateToolExecutionState).toBe(
         updateToolExecutionState,
+      );
+      expect(ref.current?.updateCallbackExecutionState).toBe(
+        updateCallbackExecutionState,
       );
       expect(ref.current?.clearExecutionState).toBe(clearExecutionState);
       expect(ref.current?.updateUserInputWaitingState).toBe(

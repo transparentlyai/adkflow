@@ -3,6 +3,7 @@ import {
   agentNodeSchema,
   toolNodeSchema,
   agentToolNodeSchema,
+  callbackNodeSchema,
   processNodeSchema,
   inputProbeNodeSchema,
   outputProbeNodeSchema,
@@ -26,6 +27,7 @@ describe("builtinNodeSchemas", () => {
       { name: "agentNodeSchema", schema: agentNodeSchema },
       { name: "toolNodeSchema", schema: toolNodeSchema },
       { name: "agentToolNodeSchema", schema: agentToolNodeSchema },
+      { name: "callbackNodeSchema", schema: callbackNodeSchema },
       { name: "processNodeSchema", schema: processNodeSchema },
       { name: "inputProbeNodeSchema", schema: inputProbeNodeSchema },
       { name: "outputProbeNodeSchema", schema: outputProbeNodeSchema },
@@ -72,7 +74,7 @@ describe("builtinNodeSchemas", () => {
 
   describe("builtinNodeSchemas collection", () => {
     it("should contain all node schemas", () => {
-      expect(builtinNodeSchemas.length).toBe(17);
+      expect(builtinNodeSchemas.length).toBe(18);
     });
 
     it("should have unique unit_ids", () => {
@@ -85,6 +87,7 @@ describe("builtinNodeSchemas", () => {
       const validPrefixes = [
         "Agents/",
         "Tools/",
+        "Callbacks/",
         "Processing/",
         "Probes/",
         "Content/",

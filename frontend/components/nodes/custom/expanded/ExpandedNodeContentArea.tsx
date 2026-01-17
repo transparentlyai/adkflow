@@ -3,7 +3,7 @@
  */
 
 import React, { useCallback, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Info } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import CustomNodeInput from "@/components/nodes/custom/CustomNodeInput";
 import CustomNodeOutput from "@/components/nodes/custom/CustomNodeOutput";
@@ -121,6 +121,10 @@ export function ExpandedNodeContentArea({
 
   // Render config field with optional label width for alignment
   const renderField = (field: FieldDefinition, labelWidth?: number) => {
+    // Check if this field has a corresponding connected input (e.g., callback handles)
+    const connectedSources = connectedInputs[field.id];
+    const isOverridden = connectedSources && connectedSources.length > 0;
+
     if (field.widget === "code_editor" || field.widget === "monaco_editor") {
       const editorHeight = nodeData.expandedSize?.height
         ? nodeData.expandedSize.height - 150
@@ -144,6 +148,36 @@ export function ExpandedNodeContentArea({
             isSaving={isSaving}
             hideGutter={field.hide_gutter}
           />
+        </div>
+      );
+    }
+
+    // If field is overridden by a connected node, show indicator
+    if (isOverridden) {
+      return (
+        <div key={field.id} className="flex items-center gap-1">
+          <label
+            className="text-[10px] font-medium flex-shrink-0"
+            style={{
+              color: theme.colors.nodes.common.text.muted,
+              minWidth: labelWidth ? `${labelWidth}ch` : undefined,
+            }}
+          >
+            {field.label}
+          </label>
+          <div
+            className="flex-1 min-w-0 flex items-center gap-1.5 px-1.5 py-0.5 rounded text-[11px]"
+            style={{
+              backgroundColor: `${theme.colors.nodes.common.container.border}40`,
+              color: theme.colors.nodes.common.text.muted,
+            }}
+            title={`Overridden by connected node: ${connectedSources.join(", ")}`}
+          >
+            <Info className="w-3 h-3 flex-shrink-0" />
+            <span className="truncate">
+              Connected: {connectedSources.join(", ")}
+            </span>
+          </div>
         </div>
       );
     }
@@ -257,12 +291,6 @@ export function ExpandedNodeContentArea({
     );
   };
 
-  const getMaxInputLabelWidth = (inputs: PortDefinition[]) =>
-    Math.max(...inputs.map((i) => i.label.length));
-
-  const getMaxFieldLabelWidth = (fields: FieldDefinition[]) =>
-    Math.max(...fields.map((f) => f.label.length));
-
   // Render tab content
   const elements = tabs
     ? getElementsForTab(activeTab)
@@ -270,27 +298,35 @@ export function ExpandedNodeContentArea({
   const inputSections = groupBySection(elements.inputs);
   const fieldSections = groupBySection(elements.fields);
 
+  // Calculate global max label widths across ALL inputs/fields in the tab for grid alignment
+  const globalMaxInputLabelWidth =
+    elements.inputs.length > 0
+      ? Math.max(...elements.inputs.map((i) => i.label.length))
+      : 0;
+  const globalMaxFieldLabelWidth =
+    elements.fields.length > 0
+      ? Math.max(...elements.fields.map((f) => f.label.length))
+      : 0;
+
   let sectionIndex = 0;
 
   return (
     <div className="p-2 nodrag nowheel" style={{ overflow: "visible" }}>
-      {/* Inputs grouped by section - compact spacing */}
+      {/* Inputs grouped by section - use global label width for grid alignment */}
       {Array.from(inputSections.entries()).map(([section, inputs]) => {
-        const maxLabelWidth = getMaxInputLabelWidth(inputs);
         return renderSection(
           section,
-          inputs.map((input) => renderInput(input, maxLabelWidth)),
+          inputs.map((input) => renderInput(input, globalMaxInputLabelWidth)),
           sectionIndex++ === 0,
           true,
         );
       })}
 
-      {/* Fields grouped by section */}
+      {/* Fields grouped by section - use global label width for grid alignment */}
       {Array.from(fieldSections.entries()).map(([section, fields]) => {
-        const maxLabelWidth = getMaxFieldLabelWidth(fields);
         return renderSection(
           section,
-          fields.map((field) => renderField(field, maxLabelWidth)),
+          fields.map((field) => renderField(field, globalMaxFieldLabelWidth)),
           sectionIndex++ === 0,
         );
       })}

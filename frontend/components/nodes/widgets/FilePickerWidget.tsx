@@ -66,7 +66,7 @@ export default function FilePickerWidget({
         type="button"
         onClick={handleBrowse}
         disabled={disabled || !onRequestFilePicker}
-        className="px-2 py-1 text-xs rounded border flex items-center gap-1 hover:bg-accent transition-colors disabled:opacity-50"
+        className="p-1.5 text-xs rounded border flex items-center justify-center hover:bg-accent transition-colors disabled:opacity-50"
         style={{
           backgroundColor: theme.colors.nodes.common.footer.background,
           borderColor: theme.colors.nodes.common.container.border,
@@ -74,8 +74,7 @@ export default function FilePickerWidget({
         }}
         title="Browse for file"
       >
-        <FolderOpen className="w-3 h-3" />
-        <span>Browse</span>
+        <FolderOpen className="w-3.5 h-3.5" />
       </button>
     </div>
   );

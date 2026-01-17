@@ -80,7 +80,7 @@ class NodeSchemaResponse(BaseModel):
     menu_location: str
     description: str
     version: str
-    scope: Literal["global", "project"] = "project"
+    scope: Literal["shipped", "global", "project"] = "project"
     source_file: str | None = None
     # Execution control properties
     output_node: bool = False  # True = sink node (triggers execution trace)

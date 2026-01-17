@@ -39,6 +39,11 @@ class EventType(Enum):
     CUSTOM_NODE_END = "custom_node_end"
     CUSTOM_NODE_ERROR = "custom_node_error"
 
+    # Callback events
+    CALLBACK_START = "callback_start"
+    CALLBACK_END = "callback_end"
+    CALLBACK_ERROR = "callback_error"
+
 
 @dataclass
 class RunEvent:

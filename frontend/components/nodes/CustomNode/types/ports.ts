@@ -72,6 +72,16 @@ export interface PortDefinition {
    * When false: shows editable field, disabled when connected
    */
   connection_only?: boolean;
+  /**
+   * Handle type override for the port.
+   * - "target": Input handle (default for inputs) - receives connections
+   * - "source": Output handle - emits connections
+   *
+   * Use "source" on an input to render it as an output handle while keeping
+   * the inline rendering behavior (label + widget + handle on right).
+   * Useful for callback handles on AgentNode that need to connect TO CallbackNodes.
+   */
+  handleType?: "source" | "target";
   /** Widget type for manual input (when connection_only=false) */
   widget?: string;
   /** Default value for the port */
