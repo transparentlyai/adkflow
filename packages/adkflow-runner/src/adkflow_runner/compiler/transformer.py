@@ -276,9 +276,6 @@ class IRTransformer:
             dangerous_content=agent_data.get("safety_dangerous_content", "default"),
         )
 
-        # Extract system instruction (resolve from file if specified)
-        system_instruction = self._resolve_system_instruction(agent_data, project)
-
         return AgentIR(
             id=node.id,
             name=agent_data.get("name", node.id),
@@ -301,8 +298,6 @@ class IRTransformer:
                 "disallow_transfer_to_peers", False
             ),
             finish_reason_fail_fast=agent_data.get("finish_reason_fail_fast", False),
-            system_instruction=system_instruction,
-            system_instruction_file=agent_data.get("system_instruction_file"),
             planner=planner,
             code_executor=code_executor,
             http_options=http_options,
@@ -314,24 +309,6 @@ class IRTransformer:
             description=agent_data.get("description"),
             source_node_id=node.id,
         )
-
-    def _resolve_system_instruction(
-        self,
-        agent_data: dict,
-        project: LoadedProject,
-    ) -> str | None:
-        """Resolve system instruction from file or inline content.
-
-        If system_instruction_file is specified, load from that file.
-        Otherwise, use the inline system_instruction content.
-        """
-        file_path = agent_data.get("system_instruction_file")
-        if file_path:
-            # Load from file similar to prompts
-            loaded_prompt = project.get_prompt(file_path)
-            if loaded_prompt:
-                return loaded_prompt.content
-        return agent_data.get("system_instruction") or None
 
     def _build_agent_hierarchy(
         self,

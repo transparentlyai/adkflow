@@ -9,7 +9,6 @@ import type { ModelSchema } from "./types";
 import { UNIVERSAL_FIELD_IDS, DEFAULT_TABS } from "./types";
 import {
   createGeneralFields,
-  createSystemInstructionFields,
   createExecutionFieldsWithLevel,
   createGenerationFields,
   createFlowFields,
@@ -27,7 +26,6 @@ export const schema: ModelSchema = {
       temperatureHelpText:
         "Controls randomness in responses (0 = deterministic, 2 = creative). Note: For Gemini 3 models, temperatures below 1 are not recommended and may cause unexpected behavior.",
     }),
-    ...createSystemInstructionFields(),
     ...createExecutionFieldsWithLevel(),
     ...createGenerationFields(),
     ...createFlowFields(),

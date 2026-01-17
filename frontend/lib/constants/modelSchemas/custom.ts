@@ -9,7 +9,6 @@ import type { ModelSchema } from "./types";
 import { UNIVERSAL_FIELD_IDS, DEFAULT_TABS } from "./types";
 import {
   createGeneralFields,
-  createSystemInstructionFields,
   createExecutionFieldsWithBudget,
   createGenerationFields,
   createFlowFields,
@@ -23,7 +22,6 @@ export const schema: ModelSchema = {
   tabs: DEFAULT_TABS,
   fields: [
     ...createGeneralFields(),
-    ...createSystemInstructionFields(),
     ...createExecutionFieldsWithBudget(),
     ...createGenerationFields(),
     ...createFlowFields(),

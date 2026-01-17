@@ -201,10 +201,6 @@ class AgentIR:
     # Finish reason handling
     finish_reason_fail_fast: bool = False  # Fail if finish_reason is not STOP
 
-    # System instruction
-    system_instruction: str | None = None
-    system_instruction_file: str | None = None
-
     # Configuration
     planner: PlannerConfig = field(default_factory=PlannerConfig)
     code_executor: CodeExecutorConfig = field(default_factory=CodeExecutorConfig)

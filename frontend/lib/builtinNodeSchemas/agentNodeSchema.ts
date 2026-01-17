@@ -15,7 +15,7 @@ import { DEFAULT_MODEL } from "@/lib/constants/models";
  * NOTE: All agents are LLM agents - no type selection needed.
  *
  * Fields are defined in modelSchemas.ts and driven by the selected model.
- * Tabs: ["General", "System", "Execution", "Generation", "Flow", "Callbacks"]
+ * Tabs: ["General", "Execution", "Generation", "Flow", "Callbacks"]
  */
 
 // Get base schema from default model

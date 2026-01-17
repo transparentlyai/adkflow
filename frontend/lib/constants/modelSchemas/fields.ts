@@ -514,33 +514,3 @@ export function createGenerationFields(): FieldDefinition[] {
     },
   ];
 }
-
-/**
- * System Instruction tab fields.
- */
-export function createSystemInstructionFields(): FieldDefinition[] {
-  return [
-    {
-      id: "system_instruction_file",
-      label: "Load from File",
-      widget: "file_picker",
-      default: "",
-      placeholder: "Select a markdown file...",
-      help_text: "Optional: Load system instruction from a file",
-      tab: "System",
-    },
-    {
-      id: "system_instruction",
-      label: "System Instruction",
-      widget: "code_editor",
-      language: "markdown",
-      default: "",
-      placeholder: "Enter system instruction...",
-      help_text:
-        "High-level guidance that shapes the agent's behavior across all interactions",
-      section: "System Prompt",
-      tab: "System",
-      hide_gutter: true,
-    },
-  ];
-}
