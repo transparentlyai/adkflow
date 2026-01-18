@@ -1,8 +1,14 @@
 import { useCallback } from "react";
 import type { Node, Edge } from "@xyflow/react";
+import { toast } from "sonner";
 import type { ReactFlowCanvasRef } from "@/components/ReactFlowCanvas";
 import type { RecentProject } from "@/lib/recentProjects";
 import { getRecentProjects, removeRecentProject } from "@/lib/recentProjects";
+import {
+  collectDirtyFiles,
+  saveAllDirtyFiles,
+  clearDirtyStatesForNodes,
+} from "@/lib/fileSave";
 import { useProjectCreate } from "./helpers/useProjectCreate";
 import { useProjectLoad } from "./helpers/useProjectLoad";
 
@@ -119,33 +125,100 @@ export function useProjectManagement({
 
   const handleSaveCurrentProject = useCallback(async () => {
     if (!currentProjectPath || !activeTabId) {
-      alert("No project or tab loaded. Please create or load a project first.");
+      toast.error("No project loaded", {
+        description: "Please create or load a project first.",
+      });
       return;
     }
 
     setIsSaving(true);
+    const toastId = toast.loading("Saving project...");
+
     try {
       const flow = canvasRef.current?.saveFlow();
       if (!flow) {
-        alert("No flow data to save.");
+        toast.error("Failed to save project", {
+          id: toastId,
+          description: "No flow data to save.",
+        });
         return;
       }
 
+      // Collect and save dirty files
+      const dirtyFiles = collectDirtyFiles(flow.nodes);
+      let fileSaveResult = {
+        successCount: 0,
+        errorCount: 0,
+        totalFiles: 0,
+        results: [] as { nodeId: string; success: boolean }[],
+      };
+      let successfulNodeIds = new Set<string>();
+
+      if (dirtyFiles.length > 0) {
+        fileSaveResult = await saveAllDirtyFiles(
+          currentProjectPath,
+          dirtyFiles,
+        );
+        successfulNodeIds = new Set(
+          fileSaveResult.results.filter((r) => r.success).map((r) => r.nodeId),
+        );
+
+        // Clear dirty states for successfully saved files
+        if (successfulNodeIds.size > 0) {
+          const updatedNodes = clearDirtyStatesForNodes(
+            flow.nodes,
+            successfulNodeIds,
+          );
+          // Update the canvas with cleared dirty states
+          canvasRef.current?.restoreFlow({
+            ...flow,
+            nodes: updatedNodes,
+          });
+          // Update flow for saving
+          flow.nodes = updatedNodes;
+        }
+      }
+
+      // Save the flow structure
       const success = await saveTabFlow(
         currentProjectPath,
         activeTabId,
         flow,
         workflowName,
       );
+
       if (success) {
         setIsProjectSaved(true);
         tabFlowCacheRef.current.delete(activeTabId);
+
+        // Show success toast with file count
+        if (fileSaveResult.errorCount > 0) {
+          toast.warning("Project saved with errors", {
+            id: toastId,
+            description: `${fileSaveResult.successCount} files saved, ${fileSaveResult.errorCount} failed`,
+          });
+        } else if (fileSaveResult.successCount > 0) {
+          toast.success(
+            `Project saved (${fileSaveResult.successCount} files)`,
+            {
+              id: toastId,
+            },
+          );
+        } else {
+          toast.success("Project saved", { id: toastId });
+        }
       } else {
-        alert("Failed to save tab.");
+        toast.error("Failed to save project", {
+          id: toastId,
+          description: "Could not save workflow structure.",
+        });
       }
     } catch (error) {
       console.error("Error saving project:", error);
-      alert("Failed to save project: " + (error as Error).message);
+      toast.error("Failed to save project", {
+        id: toastId,
+        description: (error as Error).message,
+      });
     } finally {
       setIsSaving(false);
     }

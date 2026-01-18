@@ -61,4 +61,10 @@ export interface CustomNodeData {
   duplicateNameError?: string;
   /** Currently active tab in expanded view (for edge opacity calculation) */
   activeTab?: string;
+  /** File save state for project-level save (synced from useFileOperations) */
+  fileSaveState?: {
+    filePath: string;
+    content: string;
+    isDirty: boolean;
+  };
 }

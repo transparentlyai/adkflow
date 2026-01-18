@@ -1,6 +1,41 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { renderHook, act } from "@testing-library/react";
 import { useProjectManagement } from "@/hooks/home/useProjectManagement";
+import type { Node } from "@xyflow/react";
+
+/** Test node data type for file save state tests */
+interface TestNodeData extends Record<string, unknown> {
+  label?: string;
+  fileSaveState?: {
+    isDirty: boolean;
+    filePath: string;
+    content: string;
+  };
+}
+
+// Mock sonner toast
+vi.mock("sonner", () => ({
+  toast: {
+    loading: vi.fn().mockReturnValue("toast-id-123"),
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
+
+// Mock fileSave module
+vi.mock("@/lib/fileSave", () => ({
+  collectDirtyFiles: vi.fn(() => []),
+  saveAllDirtyFiles: vi.fn(() =>
+    Promise.resolve({
+      totalFiles: 0,
+      successCount: 0,
+      errorCount: 0,
+      results: [],
+    }),
+  ),
+  clearDirtyStatesForNodes: vi.fn((nodes) => nodes),
+}));
 
 // Mock helper hooks
 const mockHandleCreateNewProject = vi.fn();
@@ -25,13 +60,19 @@ vi.mock("@/lib/recentProjects", () => ({
 }));
 
 import { getRecentProjects, removeRecentProject } from "@/lib/recentProjects";
+import {
+  collectDirtyFiles,
+  saveAllDirtyFiles,
+  clearDirtyStatesForNodes,
+} from "@/lib/fileSave";
+import { toast } from "sonner";
 
 describe("useProjectManagement", () => {
   const mockCanvasRef = {
     current: {
       saveFlow: vi.fn(() => ({
-        nodes: [],
-        edges: [],
+        nodes: [] as Node[],
+        edges: [] as Node[],
         viewport: { x: 0, y: 0, zoom: 1 },
       })),
       clearCanvas: vi.fn(),
@@ -99,8 +140,7 @@ describe("useProjectManagement", () => {
   });
 
   describe("handleSaveCurrentProject", () => {
-    it("should alert if no project path", async () => {
-      const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    it("should show error toast if no project path", async () => {
       const props = { ...defaultProps, currentProjectPath: null };
 
       const { result } = renderHook(() => useProjectManagement(props));
@@ -109,14 +149,13 @@ describe("useProjectManagement", () => {
         await result.current.handleSaveCurrentProject();
       });
 
-      expect(alertSpy).toHaveBeenCalledWith(
-        "No project or tab loaded. Please create or load a project first.",
-      );
-      alertSpy.mockRestore();
+      expect(vi.mocked(toast).error).toHaveBeenCalledWith("No project loaded", {
+        description: "Please create or load a project first.",
+      });
+      expect(mockSetIsSaving).not.toHaveBeenCalled();
     });
 
-    it("should alert if no active tab", async () => {
-      const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    it("should show error toast if no active tab", async () => {
       const props = { ...defaultProps, activeTabId: null };
 
       const { result } = renderHook(() => useProjectManagement(props));
@@ -125,19 +164,22 @@ describe("useProjectManagement", () => {
         await result.current.handleSaveCurrentProject();
       });
 
-      expect(alertSpy).toHaveBeenCalledWith(
-        "No project or tab loaded. Please create or load a project first.",
-      );
-      alertSpy.mockRestore();
+      expect(vi.mocked(toast).error).toHaveBeenCalledWith("No project loaded", {
+        description: "Please create or load a project first.",
+      });
+      expect(mockSetIsSaving).not.toHaveBeenCalled();
     });
 
-    it("should set saving state during save", async () => {
+    it("should show loading toast and set saving state during save", async () => {
       const { result } = renderHook(() => useProjectManagement(defaultProps));
 
       await act(async () => {
         await result.current.handleSaveCurrentProject();
       });
 
+      expect(vi.mocked(toast).loading).toHaveBeenCalledWith(
+        "Saving project...",
+      );
       expect(mockSetIsSaving).toHaveBeenCalledWith(true);
       expect(mockSetIsSaving).toHaveBeenCalledWith(false);
     });
@@ -160,7 +202,7 @@ describe("useProjectManagement", () => {
       );
     });
 
-    it("should set project saved on success", async () => {
+    it("should set project saved and show success toast on success", async () => {
       mockSaveTabFlow.mockResolvedValue(true);
 
       const { result } = renderHook(() => useProjectManagement(defaultProps));
@@ -170,6 +212,9 @@ describe("useProjectManagement", () => {
       });
 
       expect(mockSetIsProjectSaved).toHaveBeenCalledWith(true);
+      expect(vi.mocked(toast).success).toHaveBeenCalledWith("Project saved", {
+        id: "toast-id-123",
+      });
     });
 
     it("should clear tab flow cache on success", async () => {
@@ -189,8 +234,7 @@ describe("useProjectManagement", () => {
       expect(mockTabFlowCacheRef.current.has("tab-1")).toBe(false);
     });
 
-    it("should alert on save failure", async () => {
-      const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    it("should show error toast on save failure", async () => {
       mockSaveTabFlow.mockResolvedValue(false);
 
       const { result } = renderHook(() => useProjectManagement(defaultProps));
@@ -199,13 +243,20 @@ describe("useProjectManagement", () => {
         await result.current.handleSaveCurrentProject();
       });
 
-      expect(alertSpy).toHaveBeenCalledWith("Failed to save tab.");
-      alertSpy.mockRestore();
+      expect(vi.mocked(toast).error).toHaveBeenCalledWith(
+        "Failed to save project",
+        {
+          id: "toast-id-123",
+          description: "Could not save workflow structure.",
+        },
+      );
+      expect(mockSetIsSaving).toHaveBeenCalledWith(false);
     });
 
-    it("should alert if no flow data from canvas", async () => {
-      const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
-      mockCanvasRef.current.saveFlow.mockReturnValue(null);
+    it("should show error toast if no flow data from canvas", async () => {
+      mockCanvasRef.current.saveFlow.mockReturnValue(
+        null as unknown as ReturnType<typeof mockCanvasRef.current.saveFlow>,
+      );
 
       const { result } = renderHook(() => useProjectManagement(defaultProps));
 
@@ -213,16 +264,20 @@ describe("useProjectManagement", () => {
         await result.current.handleSaveCurrentProject();
       });
 
-      expect(alertSpy).toHaveBeenCalledWith("No flow data to save.");
-      alertSpy.mockRestore();
+      expect(vi.mocked(toast).error).toHaveBeenCalledWith(
+        "Failed to save project",
+        {
+          id: "toast-id-123",
+          description: "No flow data to save.",
+        },
+      );
+      expect(mockSetIsSaving).toHaveBeenCalledWith(false);
     });
 
     it("should handle save error", async () => {
-      const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
       const consoleSpy = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
-      // Ensure saveFlow returns valid data so the error happens during saveTabFlow
       const flow = { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } };
       mockCanvasRef.current.saveFlow.mockReturnValue(flow);
       mockSaveTabFlow.mockRejectedValue(new Error("Save failed"));
@@ -233,12 +288,255 @@ describe("useProjectManagement", () => {
         await result.current.handleSaveCurrentProject();
       });
 
-      expect(alertSpy).toHaveBeenCalledWith(
-        "Failed to save project: Save failed",
+      expect(vi.mocked(toast).error).toHaveBeenCalledWith(
+        "Failed to save project",
+        {
+          id: "toast-id-123",
+          description: "Save failed",
+        },
       );
       expect(consoleSpy).toHaveBeenCalled();
-      alertSpy.mockRestore();
       consoleSpy.mockRestore();
+    });
+
+    it("should save project with dirty files successfully", async () => {
+      const dirtyNodes: Node<TestNodeData>[] = [
+        {
+          id: "node-1",
+          type: "custom",
+          position: { x: 0, y: 0 },
+          data: {
+            fileSaveState: {
+              isDirty: true,
+              filePath: "prompts/test.txt",
+              content: "test content",
+            },
+          },
+        },
+        {
+          id: "node-2",
+          type: "custom",
+          position: { x: 100, y: 100 },
+          data: {
+            fileSaveState: {
+              isDirty: true,
+              filePath: "prompts/test2.txt",
+              content: "test content 2",
+            },
+          },
+        },
+      ];
+
+      const flow = {
+        nodes: dirtyNodes as Node[],
+        edges: [],
+        viewport: { x: 0, y: 0, zoom: 1 },
+      };
+      mockCanvasRef.current.saveFlow.mockReturnValue(flow);
+
+      const dirtyFiles = [
+        {
+          nodeId: "node-1",
+          filePath: "prompts/test.txt",
+          content: "test content",
+        },
+        {
+          nodeId: "node-2",
+          filePath: "prompts/test2.txt",
+          content: "test content 2",
+        },
+      ];
+
+      vi.mocked(collectDirtyFiles).mockReturnValue(dirtyFiles);
+      vi.mocked(saveAllDirtyFiles).mockResolvedValue({
+        totalFiles: 2,
+        successCount: 2,
+        errorCount: 0,
+        results: [
+          { nodeId: "node-1", filePath: "prompts/test.txt", success: true },
+          { nodeId: "node-2", filePath: "prompts/test2.txt", success: true },
+        ],
+      });
+
+      const clearedNodes: Node<TestNodeData>[] = dirtyNodes.map((node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          fileSaveState: {
+            ...node.data.fileSaveState!,
+            isDirty: false,
+          },
+        },
+      }));
+
+      vi.mocked(clearDirtyStatesForNodes).mockReturnValue(
+        clearedNodes as Node[],
+      );
+
+      const { result } = renderHook(() => useProjectManagement(defaultProps));
+
+      await act(async () => {
+        await result.current.handleSaveCurrentProject();
+      });
+
+      expect(collectDirtyFiles).toHaveBeenCalledWith(dirtyNodes as Node[]);
+      expect(saveAllDirtyFiles).toHaveBeenCalledWith(
+        "/path/to/project",
+        dirtyFiles,
+      );
+      expect(clearDirtyStatesForNodes).toHaveBeenCalledWith(
+        dirtyNodes as Node[],
+        new Set(["node-1", "node-2"]),
+      );
+      expect(mockCanvasRef.current.restoreFlow).toHaveBeenCalledWith({
+        ...flow,
+        nodes: clearedNodes,
+      });
+      expect(vi.mocked(toast).success).toHaveBeenCalledWith(
+        "Project saved (2 files)",
+        {
+          id: "toast-id-123",
+        },
+      );
+    });
+
+    it("should handle partial file save failure", async () => {
+      const dirtyNodes: Node<TestNodeData>[] = [
+        {
+          id: "node-1",
+          type: "custom",
+          position: { x: 0, y: 0 },
+          data: {
+            fileSaveState: {
+              isDirty: true,
+              filePath: "prompts/test.txt",
+              content: "test content",
+            },
+          },
+        },
+        {
+          id: "node-2",
+          type: "custom",
+          position: { x: 100, y: 100 },
+          data: {
+            fileSaveState: {
+              isDirty: true,
+              filePath: "prompts/test2.txt",
+              content: "test content 2",
+            },
+          },
+        },
+      ];
+
+      const flow = {
+        nodes: dirtyNodes as Node[],
+        edges: [],
+        viewport: { x: 0, y: 0, zoom: 1 },
+      };
+      mockCanvasRef.current.saveFlow.mockReturnValue(flow);
+
+      const dirtyFiles = [
+        {
+          nodeId: "node-1",
+          filePath: "prompts/test.txt",
+          content: "test content",
+        },
+        {
+          nodeId: "node-2",
+          filePath: "prompts/test2.txt",
+          content: "test content 2",
+        },
+      ];
+
+      vi.mocked(collectDirtyFiles).mockReturnValue(dirtyFiles);
+      vi.mocked(saveAllDirtyFiles).mockResolvedValue({
+        totalFiles: 2,
+        successCount: 1,
+        errorCount: 1,
+        results: [
+          { nodeId: "node-1", filePath: "prompts/test.txt", success: true },
+          {
+            nodeId: "node-2",
+            filePath: "prompts/test2.txt",
+            success: false,
+            error: "Permission denied",
+          },
+        ],
+      });
+
+      const partiallyCleared: Node<TestNodeData>[] = [
+        {
+          ...dirtyNodes[0],
+          data: {
+            ...dirtyNodes[0].data,
+            fileSaveState: {
+              ...dirtyNodes[0].data.fileSaveState!,
+              isDirty: false,
+            },
+          },
+        },
+        dirtyNodes[1],
+      ];
+
+      vi.mocked(clearDirtyStatesForNodes).mockReturnValue(
+        partiallyCleared as Node[],
+      );
+
+      const { result } = renderHook(() => useProjectManagement(defaultProps));
+
+      await act(async () => {
+        await result.current.handleSaveCurrentProject();
+      });
+
+      expect(clearDirtyStatesForNodes).toHaveBeenCalledWith(
+        dirtyNodes as Node[],
+        new Set(["node-1"]),
+      );
+      expect(mockCanvasRef.current.restoreFlow).toHaveBeenCalledWith({
+        ...flow,
+        nodes: partiallyCleared,
+      });
+      expect(vi.mocked(toast).warning).toHaveBeenCalledWith(
+        "Project saved with errors",
+        {
+          id: "toast-id-123",
+          description: "1 files saved, 1 failed",
+        },
+      );
+    });
+
+    it("should save project with no dirty files", async () => {
+      const cleanNodes: Node<TestNodeData>[] = [
+        {
+          id: "node-1",
+          type: "custom",
+          position: { x: 0, y: 0 },
+          data: { label: "Clean node" },
+        },
+      ];
+
+      const flow = {
+        nodes: cleanNodes as Node[],
+        edges: [],
+        viewport: { x: 0, y: 0, zoom: 1 },
+      };
+      mockCanvasRef.current.saveFlow.mockReturnValue(flow);
+
+      vi.mocked(collectDirtyFiles).mockReturnValue([]);
+
+      const { result } = renderHook(() => useProjectManagement(defaultProps));
+
+      await act(async () => {
+        await result.current.handleSaveCurrentProject();
+      });
+
+      expect(collectDirtyFiles).toHaveBeenCalledWith(cleanNodes as Node[]);
+      expect(saveAllDirtyFiles).not.toHaveBeenCalled();
+      expect(clearDirtyStatesForNodes).not.toHaveBeenCalled();
+      expect(mockCanvasRef.current.restoreFlow).not.toHaveBeenCalled();
+      expect(vi.mocked(toast).success).toHaveBeenCalledWith("Project saved", {
+        id: "toast-id-123",
+      });
     });
   });
 

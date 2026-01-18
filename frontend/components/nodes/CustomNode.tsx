@@ -341,7 +341,7 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
     fileLoadConfirm,
     handleConfirmLoad,
     handleCancelLoad,
-  } = useFileOperations(id, schema, config, isExpanded);
+  } = useFileOperations(id, schema, config, isExpanded, nodeData.fileSaveState);
 
   // Check if node has code editor field (for conditional props)
   const hasCodeEditor = useMemo(() => {
