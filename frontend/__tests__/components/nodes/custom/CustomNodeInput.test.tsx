@@ -463,7 +463,7 @@ describe("CustomNodeInput", () => {
     it("should apply custom label width when specified", () => {
       render(<CustomNodeInput {...defaultProps} labelWidth={20} />);
       const label = screen.getByText("Test Input");
-      expect(label).toHaveStyle({ minWidth: "11ch" }); // 20 * 0.55
+      expect(label).toHaveStyle({ width: "100px" }); // 20 * 5
     });
 
     it("should not apply label width when not specified", () => {

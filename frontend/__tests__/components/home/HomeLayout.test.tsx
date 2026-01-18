@@ -34,6 +34,10 @@ vi.mock("@/contexts/ProjectContext", () => ({
       {children}
     </div>
   ),
+  useProject: () => ({
+    projectPath: "/test/project",
+    defaultModel: "gemini-2.5-flash",
+  }),
 }));
 
 vi.mock("@/contexts/RunWorkflowContext", () => ({

@@ -141,6 +141,17 @@ Element.prototype.scrollTo = vi.fn();
 Element.prototype.scrollIntoView = vi.fn();
 window.scrollTo = vi.fn();
 
+// Mock clipboard API globally (navigator.clipboard is a getter-only property)
+const mockClipboard = {
+  writeText: vi.fn().mockResolvedValue(undefined),
+  readText: vi.fn().mockResolvedValue(""),
+};
+Object.defineProperty(navigator, "clipboard", {
+  value: mockClipboard,
+  writable: true,
+  configurable: true,
+});
+
 // Mock requestAnimationFrame
 global.requestAnimationFrame = vi.fn((cb) => {
   cb(0);
