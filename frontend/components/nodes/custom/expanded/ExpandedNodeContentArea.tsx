@@ -107,8 +107,14 @@ export function ExpandedNodeContentArea({
       const tabFilter = <T extends { tab?: string }>(el: T) =>
         tab === null ? !el.tab : el.tab === tab;
 
+      // Filter out the first input if it's meant to be in the footer
+      const inputInFooter = schema.ui.handle_layout?.input_in_footer;
+      const footerInputId = inputInFooter ? schema.ui.inputs[0]?.id : null;
+
       return {
-        inputs: schema.ui.inputs.filter(tabFilter),
+        inputs: schema.ui.inputs
+          .filter(tabFilter)
+          .filter((input) => input.id !== footerInputId),
         fields: schema.ui.fields
           .filter(isFieldVisible)
           .filter(tabFilter)

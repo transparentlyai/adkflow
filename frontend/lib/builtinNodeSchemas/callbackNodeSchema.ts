@@ -104,6 +104,7 @@ export const callbackNodeSchema: CustomNodeSchema = {
     },
     handle_layout: {
       input_position: "left",
+      input_in_footer: true,
     },
   },
 };

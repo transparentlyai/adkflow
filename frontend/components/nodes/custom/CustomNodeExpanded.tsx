@@ -165,7 +165,7 @@ const CustomNodeExpanded = memo(
             onAiAssist={onAiAssist}
           />
 
-          {tabs && tabs.length > 0 && (
+          {tabs && tabs.length > 1 && (
             <ExpandedNodeTabBar
               tabs={tabs}
               activeTab={activeTab}
@@ -199,6 +199,7 @@ const CustomNodeExpanded = memo(
             theme={theme}
             hasEditor={hasEditor}
             lineCount={lineCount}
+            handleTypes={handleTypes}
           />
 
           {schema.ui.resizable && onResize && (
@@ -214,22 +215,42 @@ const CustomNodeExpanded = memo(
           additionalHandles={schema.ui.handle_layout?.additional_handles || []}
         />
 
-        {/* Hidden handles for inactive tab inputs */}
+        {/* Hidden handles for inactive tab inputs - invisible but edges remain visible */}
         {tabs &&
           schema.ui.inputs
             .filter((input) => input.tab && input.tab !== activeTab)
-            .map((input) => (
+            .map((input) => {
+              // Inputs with source_type are rendered as source handles (e.g., callback handles)
+              const isSourceHandle = !!input.source_type;
+              return (
+                <Handle
+                  key={`inactive-${input.id}`}
+                  type={isSourceHandle ? "source" : "target"}
+                  position={isSourceHandle ? Position.Right : Position.Left}
+                  id={input.id}
+                  style={{
+                    width: 1,
+                    height: 1,
+                    opacity: 0,
+                    pointerEvents: "none",
+                  }}
+                />
+              );
+            })}
+
+        {/* Hidden handles for inactive tab outputs - invisible but edges remain visible */}
+        {tabs &&
+          schema.ui.outputs
+            .filter((output) => output.tab && output.tab !== activeTab)
+            .map((output) => (
               <Handle
-                key={`hidden-${input.id}`}
-                type="target"
-                position={Position.Left}
-                id={input.id}
+                key={`inactive-${output.id}`}
+                type="source"
+                position={Position.Right}
+                id={output.id}
                 style={{
-                  position: "absolute",
-                  left: -5,
-                  top: "50%",
-                  width: 0,
-                  height: 0,
+                  width: 1,
+                  height: 1,
                   opacity: 0,
                   pointerEvents: "none",
                 }}
