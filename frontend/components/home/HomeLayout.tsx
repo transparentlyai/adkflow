@@ -3,6 +3,7 @@ import ReactFlowCanvas, {
 } from "@/components/ReactFlowCanvas";
 import TabBar from "@/components/TabBar";
 import ProjectSwitcher from "@/components/ProjectSwitcher";
+import { ShortcutsFooter } from "./ShortcutsFooter";
 import {
   ProjectProvider,
   type FilePickerOptions,
@@ -144,6 +145,9 @@ export function HomeLayout({
           </div>
         </main>
       </div>
+
+      {/* Shortcuts Footer */}
+      <ShortcutsFooter />
 
       {/* Project Switcher */}
       <ProjectSwitcher
