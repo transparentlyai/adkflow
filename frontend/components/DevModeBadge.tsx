@@ -38,7 +38,7 @@ export default function DevModeBadge() {
 
   return (
     <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none">
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500 text-amber-950 shadow-lg shadow-amber-500/25 font-semibold text-sm pointer-events-auto">
+      <div className="flex items-center gap-2 px-3 py-0.5 rounded-full bg-amber-500 text-amber-950 shadow-lg shadow-amber-500/25 font-semibold text-sm pointer-events-auto">
         <span className="uppercase tracking-wide">Dev</span>
         {branch && (
           <>
