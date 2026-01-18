@@ -27,6 +27,7 @@ interface UseRunEventsOptions {
   onClearExecutionState?: () => void;
   onUserInputRequired?: (request: UserInputRequest) => void;
   onUserInputComplete?: () => void;
+  onMonitorUpdate?: (nodeId: string, value: string, valueType: string, timestamp: string) => void;
 }
 
 const EVENT_TYPES = [
@@ -45,6 +46,7 @@ const EVENT_TYPES = [
   "callback_start",
   "callback_end",
   "callback_error",
+  "monitor_update",
 ] as const;
 
 export function useRunEvents({
@@ -60,6 +62,7 @@ export function useRunEvents({
   onClearExecutionState,
   onUserInputRequired,
   onUserInputComplete,
+  onMonitorUpdate,
 }: UseRunEventsOptions) {
   const eventSourceRef = useRef<EventSource | null>(null);
 
@@ -129,6 +132,15 @@ export function useRunEvents({
           onUserInputStateChange?.(nodeId, false);
         }
         onUserInputComplete?.();
+      }
+
+      // Monitor update handling
+      if (event.type === "monitor_update") {
+        const nodeId = event.data.node_id as string;
+        const value = event.data.value as string;
+        const valueType = event.data.value_type as string;
+        const timestamp = event.data.timestamp as string;
+        onMonitorUpdate?.(nodeId, value, valueType, timestamp);
       }
 
       // Run completion
@@ -255,6 +267,7 @@ export function useRunEvents({
     onClearExecutionState,
     onUserInputRequired,
     onUserInputComplete,
+    onMonitorUpdate,
   ]);
 
   return eventSourceRef;

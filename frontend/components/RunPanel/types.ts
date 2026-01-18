@@ -18,6 +18,7 @@ export interface RunPanelProps {
   onCallbackStateChange?: (callbackName: string, state: NodeExecutionState) => void;
   onUserInputStateChange?: (nodeId: string, isWaiting: boolean) => void;
   onClearExecutionState?: () => void;
+  onMonitorUpdate?: (nodeId: string, value: string, valueType: string, timestamp: string) => void;
   events: DisplayEvent[];
   onEventsChange: React.Dispatch<React.SetStateAction<DisplayEvent[]>>;
   lastRunStatus: RunStatus;

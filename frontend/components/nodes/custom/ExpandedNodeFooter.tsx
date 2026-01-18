@@ -6,6 +6,7 @@ import { Circle, Zap } from "lucide-react";
 import type { Theme } from "@/lib/themes/types";
 import type { CustomNodeSchema } from "@/components/nodes/CustomNode";
 import type { HandleTypes } from "@/components/nodes/custom/hooks/useCustomNodeHandleTypes";
+import HandleTooltip from "@/components/HandleTooltip";
 
 interface ExpandedNodeFooterProps {
   schema: CustomNodeSchema;
@@ -41,30 +42,45 @@ const ExpandedNodeFooter = memo(
           {/* Footer input handle */}
           {footerInput && (
             <div className="flex items-center gap-1.5">
-              <Handle
-                type="target"
-                position={Position.Left}
-                id={footerInput.id}
-                style={{
-                  position: "relative",
-                  left: 0,
-                  top: 0,
-                  transform: "none",
-                  width: 10,
-                  height: 10,
-                  backgroundColor:
-                    footerInput.handle_color || theme.colors.handles.callback,
-                  border: `2px solid ${theme.colors.handles.border}`,
-                }}
-                data-accepted-sources={
-                  handleTypes?.[footerInput.id]?.acceptedSources?.join(",") ||
-                  footerInput.accepted_sources?.join(",")
+              <HandleTooltip
+                label={footerInput.label}
+                sourceType={
+                  handleTypes?.[footerInput.id]?.acceptedSources?.join("|") ||
+                  footerInput.accepted_sources?.join("|") ||
+                  "any"
                 }
-                data-accepted-types={
-                  handleTypes?.[footerInput.id]?.acceptedTypes?.join(",") ||
-                  footerInput.accepted_types?.join(",")
+                dataType={
+                  handleTypes?.[footerInput.id]?.acceptedTypes?.join("|") ||
+                  footerInput.accepted_types?.join("|") ||
+                  "any"
                 }
-              />
+                type="input"
+              >
+                <Handle
+                  type="target"
+                  position={Position.Left}
+                  id={footerInput.id}
+                  style={{
+                    position: "relative",
+                    left: 0,
+                    top: 0,
+                    transform: "none",
+                    width: 10,
+                    height: 10,
+                    backgroundColor:
+                      footerInput.handle_color || theme.colors.handles.callback,
+                    border: `2px solid ${theme.colors.handles.border}`,
+                  }}
+                  data-accepted-sources={
+                    handleTypes?.[footerInput.id]?.acceptedSources?.join(",") ||
+                    footerInput.accepted_sources?.join(",")
+                  }
+                  data-accepted-types={
+                    handleTypes?.[footerInput.id]?.acceptedTypes?.join(",") ||
+                    footerInput.accepted_types?.join(",")
+                  }
+                />
+              </HandleTooltip>
               <span
                 className="text-xs"
                 style={{ color: theme.colors.nodes.common.footer.text }}

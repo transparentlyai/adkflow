@@ -135,11 +135,40 @@ export function useExecutionState({ setNodes }: UseExecutionStateParams) {
     [setNodes],
   );
 
+  // Update monitor node value (persists to config for session reload)
+  const updateMonitorValue = useCallback(
+    (nodeId: string, value: string, valueType: string, timestamp: string) => {
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.id === nodeId && node.type === "monitor") {
+            const data = node.data as Record<string, unknown>;
+            const config = (data.config as Record<string, unknown>) || {};
+            return {
+              ...node,
+              data: {
+                ...data,
+                config: {
+                  ...config,
+                  monitoredValue: value,
+                  monitoredValueType: valueType,
+                  monitoredTimestamp: timestamp,
+                },
+              },
+            };
+          }
+          return node;
+        }),
+      );
+    },
+    [setNodes],
+  );
+
   return {
     updateNodeExecutionState,
     updateToolExecutionState,
     updateCallbackExecutionState,
     clearExecutionState,
     updateUserInputWaitingState,
+    updateMonitorValue,
   };
 }

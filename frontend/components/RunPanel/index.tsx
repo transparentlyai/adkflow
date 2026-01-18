@@ -40,6 +40,7 @@ export default function RunPanel({
   onCallbackStateChange,
   onUserInputStateChange,
   onClearExecutionState,
+  onMonitorUpdate,
   events,
   onEventsChange,
   lastRunStatus,
@@ -119,6 +120,7 @@ export default function RunPanel({
     onClearExecutionState,
     onUserInputRequired: handleUserInputRequired,
     onUserInputComplete: handleUserInputComplete,
+    onMonitorUpdate,
   });
 
   // Status polling fallback

@@ -8,9 +8,14 @@ the workflow runner (see runner/context_aggregator_executor.py) and is no
 longer registered as a FlowUnit.
 """
 
+from adkflow_runner.builtin_units.monitor_unit import MonitorUnit
+
 # All builtin FlowUnit classes
-BUILTIN_UNITS: list = []
+BUILTIN_UNITS: list = [
+    MonitorUnit,
+]
 
 __all__ = [
     "BUILTIN_UNITS",
+    "MonitorUnit",
 ]

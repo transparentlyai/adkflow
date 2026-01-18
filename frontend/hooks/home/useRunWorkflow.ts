@@ -132,5 +132,6 @@ export function useRunWorkflow({
     handleUserInputStateChange: stateHandlers.handleUserInputStateChange,
     handleClearExecutionState: stateHandlers.handleClearExecutionState,
     handleCloseRunPanel: stateHandlers.handleCloseRunPanel,
+    handleMonitorUpdate: stateHandlers.handleMonitorUpdate,
   };
 }

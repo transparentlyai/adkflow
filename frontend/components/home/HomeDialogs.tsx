@@ -102,6 +102,7 @@ interface HomeDialogsProps {
   onCallbackStateChange: (callbackName: string, state: NodeExecutionState) => void;
   onUserInputStateChange: (nodeId: string, isWaiting: boolean) => void;
   onClearExecutionState: () => void;
+  onMonitorUpdate: (nodeId: string, value: string, valueType: string, timestamp: string) => void;
   onEventsChange: React.Dispatch<React.SetStateAction<DisplayEvent[]>>;
   onStatusChange: React.Dispatch<React.SetStateAction<RunStatus>>;
 
@@ -170,6 +171,7 @@ export function HomeDialogs({
   onCallbackStateChange,
   onUserInputStateChange,
   onClearExecutionState,
+  onMonitorUpdate,
   onEventsChange,
   onStatusChange,
   isProjectSettingsOpen,
@@ -327,6 +329,7 @@ export function HomeDialogs({
           onCallbackStateChange={onCallbackStateChange}
           onUserInputStateChange={onUserInputStateChange}
           onClearExecutionState={onClearExecutionState}
+          onMonitorUpdate={onMonitorUpdate}
           events={runEvents}
           onEventsChange={onEventsChange}
           lastRunStatus={lastRunStatus}

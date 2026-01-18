@@ -28,7 +28,8 @@ export type EventType =
   | "user_input_timeout"
   | "callback_start"
   | "callback_end"
-  | "callback_error";
+  | "callback_error"
+  | "monitor_update";
 
 export interface RunEvent {
   type: EventType;

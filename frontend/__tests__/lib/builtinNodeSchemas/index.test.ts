@@ -9,6 +9,7 @@ import {
   inputProbeNodeSchema,
   outputProbeNodeSchema,
   logProbeNodeSchema,
+  monitorNodeSchema,
   promptNodeSchema,
   contextNodeSchema,
   userInputNodeSchema,
@@ -34,6 +35,7 @@ describe("builtinNodeSchemas", () => {
       { name: "inputProbeNodeSchema", schema: inputProbeNodeSchema },
       { name: "outputProbeNodeSchema", schema: outputProbeNodeSchema },
       { name: "logProbeNodeSchema", schema: logProbeNodeSchema },
+      { name: "monitorNodeSchema", schema: monitorNodeSchema },
       { name: "promptNodeSchema", schema: promptNodeSchema },
       { name: "contextNodeSchema", schema: contextNodeSchema },
       { name: "userInputNodeSchema", schema: userInputNodeSchema },
@@ -76,7 +78,7 @@ describe("builtinNodeSchemas", () => {
 
   describe("builtinNodeSchemas collection", () => {
     it("should contain all node schemas", () => {
-      expect(builtinNodeSchemas.length).toBe(19);
+      expect(builtinNodeSchemas.length).toBe(20);
     });
 
     it("should have unique unit_ids", () => {
