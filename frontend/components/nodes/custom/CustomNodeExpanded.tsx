@@ -220,8 +220,9 @@ const CustomNodeExpanded = memo(
           schema.ui.inputs
             .filter((input) => input.tab && input.tab !== activeTab)
             .map((input) => {
-              // Inputs with source_type are rendered as source handles (e.g., callback handles)
-              const isSourceHandle = !!input.source_type;
+              // Only inputs with explicit handleType: "source" are rendered as source handles (e.g., callback handles)
+              // Inputs with just source_type (like schema handles) are still target handles
+              const isSourceHandle = input.handleType === "source";
               return (
                 <Handle
                   key={`inactive-${input.id}`}
@@ -242,20 +243,25 @@ const CustomNodeExpanded = memo(
         {tabs &&
           schema.ui.outputs
             .filter((output) => output.tab && output.tab !== activeTab)
-            .map((output) => (
-              <Handle
-                key={`inactive-${output.id}`}
-                type="source"
-                position={Position.Right}
-                id={output.id}
-                style={{
-                  width: 1,
-                  height: 1,
-                  opacity: 0,
-                  pointerEvents: "none",
-                }}
-              />
-            ))}
+            .map((output) => {
+              // Only outputs with explicit handleType: "target" are rendered as target handles
+              // Outputs are source handles by default
+              const isTargetHandle = output.handleType === "target";
+              return (
+                <Handle
+                  key={`inactive-${output.id}`}
+                  type={isTargetHandle ? "target" : "source"}
+                  position={isTargetHandle ? Position.Left : Position.Right}
+                  id={output.id}
+                  style={{
+                    width: 1,
+                    height: 1,
+                    opacity: 0,
+                    pointerEvents: "none",
+                  }}
+                />
+              );
+            })}
       </div>
     );
   },
