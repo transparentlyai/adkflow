@@ -32,6 +32,7 @@ import {
   Puzzle,
   Layers,
   Zap,
+  Eye,
 } from "lucide-react";
 import { formatShortcut } from "@/lib/utils";
 import { type CustomNodeSchema } from "@/components/nodes/CustomNode";
@@ -58,6 +59,7 @@ export type NodeTypeOption =
   | "inputProbe"
   | "outputProbe"
   | "logProbe"
+  | "monitor"
   | "outputFile"
   | "tool"
   | "agentTool"
@@ -175,6 +177,11 @@ const menuGroups: MenuGroup[] = [
         type: "logProbe",
         label: "Log Probe",
         icon: <List className="h-4 w-4" />,
+      },
+      {
+        type: "monitor",
+        label: "Monitor",
+        icon: <Eye className="h-4 w-4" />,
       },
     ],
   },

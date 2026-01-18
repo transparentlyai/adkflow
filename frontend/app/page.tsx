@@ -431,6 +431,7 @@ function HomeContent() {
         onCallbackStateChange={runWorkflowHandlers.handleCallbackStateChange}
         onUserInputStateChange={runWorkflowHandlers.handleUserInputStateChange}
         onClearExecutionState={runWorkflowHandlers.handleClearExecutionState}
+        onMonitorUpdate={runWorkflowHandlers.handleMonitorUpdate}
         onEventsChange={setRunEvents}
         onStatusChange={setLastRunStatus}
         isProjectSettingsOpen={isProjectSettingsOpen}

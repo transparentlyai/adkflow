@@ -8,6 +8,7 @@ export interface NodePositions {
   inputProbe: { x: number; y: number };
   outputProbe: { x: number; y: number };
   logProbe: { x: number; y: number };
+  monitor: { x: number; y: number };
   outputFile: { x: number; y: number };
   tool: { x: number; y: number };
   agentTool: { x: number; y: number };
@@ -27,6 +28,7 @@ const INITIAL_POSITIONS: NodePositions = {
   inputProbe: { x: 150, y: 450 },
   outputProbe: { x: 150, y: 500 },
   logProbe: { x: 150, y: 550 },
+  monitor: { x: 150, y: 575 },
   outputFile: { x: 150, y: 600 },
   tool: { x: 150, y: 650 },
   agentTool: { x: 150, y: 600 },
@@ -56,6 +58,9 @@ export function useNodePositionState() {
   );
   const [logProbePosition, setLogProbePosition] = useState(
     INITIAL_POSITIONS.logProbe,
+  );
+  const [monitorPosition, setMonitorPosition] = useState(
+    INITIAL_POSITIONS.monitor,
   );
   const [outputFilePosition, setOutputFilePosition] = useState(
     INITIAL_POSITIONS.outputFile,
@@ -89,6 +94,7 @@ export function useNodePositionState() {
     setInputProbePosition(INITIAL_POSITIONS.inputProbe);
     setOutputProbePosition(INITIAL_POSITIONS.outputProbe);
     setLogProbePosition(INITIAL_POSITIONS.logProbe);
+    setMonitorPosition(INITIAL_POSITIONS.monitor);
     setOutputFilePosition(INITIAL_POSITIONS.outputFile);
     setToolPosition(INITIAL_POSITIONS.tool);
     setAgentToolPosition(INITIAL_POSITIONS.agentTool);
@@ -115,6 +121,8 @@ export function useNodePositionState() {
     setOutputProbePosition,
     logProbePosition,
     setLogProbePosition,
+    monitorPosition,
+    setMonitorPosition,
     outputFilePosition,
     setOutputFilePosition,
     toolPosition,

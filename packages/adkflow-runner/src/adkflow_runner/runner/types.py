@@ -44,6 +44,9 @@ class EventType(Enum):
     CALLBACK_END = "callback_end"
     CALLBACK_ERROR = "callback_error"
 
+    # Monitor events
+    MONITOR_UPDATE = "monitor_update"
+
 
 @dataclass
 class RunEvent:

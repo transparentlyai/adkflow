@@ -17,6 +17,7 @@ export function getMiniMapNodeColor(node: Node, theme: Theme): string {
     case "inputProbe":
     case "outputProbe":
     case "logProbe":
+    case "monitor":
       return theme.colors.nodes.probe.header;
     case "outputFile":
       return theme.colors.nodes.outputFile.header;

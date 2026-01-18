@@ -319,9 +319,11 @@ export default function DraggableHandle({
   // Determine tooltip content based on handle type
   const tooltipLabel = title || handleId;
   const tooltipSourceType =
-    type === "source" ? outputSource || "any" : acceptedSources?.[0] || "any";
+    type === "source"
+      ? outputSource || "any"
+      : acceptedSources?.join("|") || "any";
   const tooltipDataType =
-    type === "source" ? outputType || "any" : acceptedTypes?.[0] || "any";
+    type === "source" ? outputType || "any" : acceptedTypes?.join("|") || "any";
   const tooltipType = type === "source" ? "output" : "input";
 
   return (

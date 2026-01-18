@@ -18,6 +18,7 @@ import { extractTabsInOrder } from "@/components/nodes/custom/expandedNodeUtils"
 import {
   ExpandedNodeContentArea,
   useCodeEditorInfo,
+  MonitorPreviewContent,
 } from "@/components/nodes/custom/expanded";
 import type {
   CustomNodeSchema,
@@ -175,24 +176,37 @@ const CustomNodeExpanded = memo(
             />
           )}
 
-          <ExpandedNodeContentArea
-            id={id}
-            nodeData={nodeData}
-            schema={schema}
-            config={config}
-            handleTypes={handleTypes}
-            connectedInputs={connectedInputs}
-            headerColor={headerColor}
-            tabs={tabs}
-            activeTab={activeTab}
-            onConfigChange={onConfigChange}
-            isFieldVisible={isFieldVisible}
-            filePath={filePath}
-            onSave={onSave}
-            onChangeFile={onChangeFile}
-            isSaving={isSaving}
-            isDirty={isDirty}
-          />
+          {schema.unit_id === "builtin.monitor" ? (
+            <MonitorPreviewContent
+              value={(config.monitoredValue as string) || ""}
+              valueType={(config.monitoredValueType as string) || "plaintext"}
+              timestamp={(config.monitoredTimestamp as string) || ""}
+              height={
+                nodeData.expandedSize?.height
+                  ? nodeData.expandedSize.height - 80
+                  : 200
+              }
+            />
+          ) : (
+            <ExpandedNodeContentArea
+              id={id}
+              nodeData={nodeData}
+              schema={schema}
+              config={config}
+              handleTypes={handleTypes}
+              connectedInputs={connectedInputs}
+              headerColor={headerColor}
+              tabs={tabs}
+              activeTab={activeTab}
+              onConfigChange={onConfigChange}
+              isFieldVisible={isFieldVisible}
+              filePath={filePath}
+              onSave={onSave}
+              onChangeFile={onChangeFile}
+              isSaving={isSaving}
+              isDirty={isDirty}
+            />
+          )}
 
           <ExpandedNodeFooter
             schema={schema}

@@ -62,6 +62,13 @@ export function useExecutionStateHandlers({
     canvasRef.current?.clearErrorHighlights();
   }, [canvasRef, setIsRunPanelOpen, setCurrentRunId, setIsRunning]);
 
+  const handleMonitorUpdate = useCallback(
+    (nodeId: string, value: string, valueType: string, timestamp: string) => {
+      canvasRef.current?.updateMonitorValue(nodeId, value, valueType, timestamp);
+    },
+    [canvasRef],
+  );
+
   return {
     handleRunComplete,
     handleAgentStateChange,
@@ -70,5 +77,6 @@ export function useExecutionStateHandlers({
     handleUserInputStateChange,
     handleClearExecutionState,
     handleCloseRunPanel,
+    handleMonitorUpdate,
   };
 }

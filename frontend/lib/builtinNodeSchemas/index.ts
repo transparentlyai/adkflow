@@ -26,6 +26,7 @@ export { processNodeSchema } from "./processNodeSchema";
 export { inputProbeNodeSchema } from "./inputProbeNodeSchema";
 export { outputProbeNodeSchema } from "./outputProbeNodeSchema";
 export { logProbeNodeSchema } from "./logProbeNodeSchema";
+export { monitorNodeSchema } from "./monitorNodeSchema";
 
 // Content nodes
 export { promptNodeSchema } from "./promptNodeSchema";
@@ -55,6 +56,7 @@ import { processNodeSchema } from "./processNodeSchema";
 import { inputProbeNodeSchema } from "./inputProbeNodeSchema";
 import { outputProbeNodeSchema } from "./outputProbeNodeSchema";
 import { logProbeNodeSchema } from "./logProbeNodeSchema";
+import { monitorNodeSchema } from "./monitorNodeSchema";
 import { promptNodeSchema } from "./promptNodeSchema";
 import { contextNodeSchema } from "./contextNodeSchema";
 import { contextAggregatorNodeSchema } from "./contextAggregatorNodeSchema";
@@ -82,6 +84,7 @@ export const builtinNodeSchemas = [
   inputProbeNodeSchema,
   outputProbeNodeSchema,
   logProbeNodeSchema,
+  monitorNodeSchema,
   // Content nodes
   promptNodeSchema,
   contextNodeSchema,

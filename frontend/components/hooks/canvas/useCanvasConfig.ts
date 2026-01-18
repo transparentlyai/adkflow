@@ -21,6 +21,7 @@ const staticNodeTypes = {
   inputProbe: CustomNode,
   outputProbe: CustomNode,
   logProbe: CustomNode,
+  monitor: CustomNode,
   outputFile: CustomNode,
   tool: CustomNode,
   agentTool: CustomNode,

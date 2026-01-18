@@ -198,6 +198,11 @@ export interface HandleLayout {
   /** Position for the main output handle. Default: "right" */
   output_position?: "left" | "top" | "right" | "bottom";
   /**
+   * If true, render the first input handle in the footer when expanded.
+   * Used by nodes like Callback and Monitor that have a single footer-positioned input.
+   */
+  input_in_footer?: boolean;
+  /**
    * Additional handles for specialized connections (e.g., agent chaining).
    * Each handle has a unique ID, type (source/target), position, and optional label.
    */

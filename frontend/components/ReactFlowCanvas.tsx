@@ -104,6 +104,12 @@ export interface ReactFlowCanvasRef {
   highlightErrorNodes: (nodeErrors: Record<string, string[]>) => void;
   highlightWarningNodes: (nodeWarnings: Record<string, string[]>) => void;
   clearErrorHighlights: () => void;
+  updateMonitorValue: (
+    nodeId: string,
+    value: string,
+    valueType: string,
+    timestamp: string,
+  ) => void;
 }
 
 /**
@@ -376,6 +382,7 @@ const ReactFlowCanvasInner = forwardRef<
       updateCallbackExecutionState,
       clearExecutionState,
       updateUserInputWaitingState,
+      updateMonitorValue,
     } = useExecutionState({ setNodes });
 
     // Validation
@@ -415,6 +422,7 @@ const ReactFlowCanvasInner = forwardRef<
       highlightErrorNodes,
       highlightWarningNodes,
       clearErrorHighlights,
+      updateMonitorValue,
     }));
 
     return (
