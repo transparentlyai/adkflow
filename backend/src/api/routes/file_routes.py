@@ -1,9 +1,14 @@
 """File operations API routes (prompts, contexts, tools, chunks)."""
 
+import asyncio
+import json
 import re
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
+
+from backend.src.api.file_watcher import file_watcher_manager
 
 from backend.src.api.routes.models import (
     PromptCreateRequest,
@@ -409,13 +414,15 @@ async def save_prompt_file(request: PromptSaveRequest) -> PromptSaveResponse:
         HTTPException: If file save fails
     """
     try:
+        # Resolve project path
+        project_path = Path(request.project_path).resolve()
+
         # Check if file_path is absolute
         file_path = Path(request.file_path)
         if file_path.is_absolute():
             prompt_file = file_path
         else:
             # Relative path - construct from project path
-            project_path = Path(request.project_path).resolve()
             prompt_file = project_path / request.file_path
 
         # Create parent directories if they don't exist
@@ -424,6 +431,13 @@ async def save_prompt_file(request: PromptSaveRequest) -> PromptSaveResponse:
         # Write content to file (creates file if it doesn't exist)
         with open(prompt_file, "w", encoding="utf-8") as f:
             f.write(request.content)
+
+        # Notify file watcher of the change
+        file_watcher_manager.notify_file_change(
+            project_path=str(project_path),
+            file_path=request.file_path,
+            change_type="modified",
+        )
 
         return PromptSaveResponse(
             success=True,
@@ -442,3 +456,54 @@ async def save_prompt_file(request: PromptSaveRequest) -> PromptSaveResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save prompt file: {str(e)}",
         )
+
+
+@router.get("/project/files/events")
+async def stream_file_events(project_path: str, request: Request):
+    """
+    Stream file change events via Server-Sent Events (SSE).
+
+    Args:
+        project_path: Absolute path to the project root
+        request: FastAPI request object (used to detect client disconnect)
+
+    Returns:
+        SSE stream of file change events
+    """
+    # Resolve path to ensure consistent matching with save endpoint
+    resolved_path = str(Path(project_path).resolve())
+
+    async def event_generator():
+        queue = await file_watcher_manager.subscribe(resolved_path)
+        try:
+            while True:
+                # Check if client disconnected
+                if await request.is_disconnected():
+                    break
+
+                try:
+                    # Wait for event with timeout (for keepalive)
+                    event = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    data = json.dumps(
+                        {
+                            "file_path": event.file_path,
+                            "change_type": event.change_type,
+                            "timestamp": event.timestamp,
+                        }
+                    )
+                    yield f"event: file_change\ndata: {data}\n\n"
+                except asyncio.TimeoutError:
+                    # Send keepalive
+                    yield ": keepalive\n\n"
+        finally:
+            await file_watcher_manager.unsubscribe(resolved_path, queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

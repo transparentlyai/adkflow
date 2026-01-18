@@ -146,6 +146,10 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
   });
 
   // Base config change handler - directly updates config
+  // IMPORTANT: We use node.data.config from the setNodes callback parameter,
+  // NOT the config prop from the closure. This ensures we always have the
+  // latest config even if there are concurrent setNodes updates (e.g., from
+  // file sync subscription).
   const baseConfigChange = useCallback(
     (fieldId: string, value: unknown) => {
       setNodes((nodes) =>
@@ -153,13 +157,19 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
           node.id === id
             ? {
                 ...node,
-                data: { ...node.data, config: { ...config, [fieldId]: value } },
+                data: {
+                  ...node.data,
+                  config: {
+                    ...((node.data as unknown as CustomNodeData).config || {}),
+                    [fieldId]: value,
+                  },
+                },
               }
             : node,
         ),
       );
     },
-    [id, config, setNodes],
+    [id, setNodes],
   );
 
   // Config change handler - intercepts model changes for confirmation

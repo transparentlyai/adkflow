@@ -8,6 +8,7 @@ import {
   ProjectProvider,
   type FilePickerOptions,
 } from "@/contexts/ProjectContext";
+import { FileSyncProvider } from "@/contexts/FileSyncContext";
 import { RunWorkflowProvider } from "@/contexts/RunWorkflowContext";
 import { AiChatProvider, AiChatPanel } from "@/components/AiChat";
 import type { Node, Edge } from "@xyflow/react";
@@ -119,28 +120,30 @@ export function HomeLayout({
               isLocked={isCanvasLocked}
               defaultModel={defaultModel}
             >
-              <AiChatProvider>
-                <RunWorkflowProvider
-                  runWorkflow={onRunWorkflow}
-                  isRunning={isRunning}
-                  hasProjectPath={!!currentProjectPath}
-                >
-                  <ReactFlowCanvas
-                    ref={canvasRef}
-                    onWorkflowChange={onWorkflowChange}
-                    onRequestPromptCreation={onRequestPromptCreation}
-                    onRequestContextCreation={onRequestContextCreation}
-                    onRequestToolCreation={onRequestToolCreation}
-                    onRequestProcessCreation={onRequestProcessCreation}
-                    onRequestOutputFileCreation={onRequestOutputFileCreation}
-                    isLocked={isCanvasLocked}
-                    onToggleLock={onToggleLock}
-                    activeTabId={activeTabId ?? undefined}
-                    onSave={onSave}
-                  />
-                </RunWorkflowProvider>
-                <AiChatPanel />
-              </AiChatProvider>
+              <FileSyncProvider projectPath={currentProjectPath}>
+                <AiChatProvider>
+                  <RunWorkflowProvider
+                    runWorkflow={onRunWorkflow}
+                    isRunning={isRunning}
+                    hasProjectPath={!!currentProjectPath}
+                  >
+                    <ReactFlowCanvas
+                      ref={canvasRef}
+                      onWorkflowChange={onWorkflowChange}
+                      onRequestPromptCreation={onRequestPromptCreation}
+                      onRequestContextCreation={onRequestContextCreation}
+                      onRequestToolCreation={onRequestToolCreation}
+                      onRequestProcessCreation={onRequestProcessCreation}
+                      onRequestOutputFileCreation={onRequestOutputFileCreation}
+                      isLocked={isCanvasLocked}
+                      onToggleLock={onToggleLock}
+                      activeTabId={activeTabId ?? undefined}
+                      onSave={onSave}
+                    />
+                  </RunWorkflowProvider>
+                  <AiChatPanel />
+                </AiChatProvider>
+              </FileSyncProvider>
             </ProjectProvider>
           </div>
         </main>

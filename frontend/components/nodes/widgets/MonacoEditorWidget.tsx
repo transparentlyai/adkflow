@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useEffect } from "react";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -37,9 +37,36 @@ export default function MonacoEditorWidget({
 }: MonacoEditorWidgetProps) {
   const { theme } = useTheme();
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  // Track the last value we set programmatically to avoid loops
+  const lastExternalValueRef = useRef<string>(value);
+
+  // Sync external value changes to the editor
+  // This handles updates from file sync (when another node modifies the same file)
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    // Update if the value prop differs from what we last tracked
+    // This means it's an external change (not from user typing)
+    if (value !== lastExternalValueRef.current) {
+      lastExternalValueRef.current = value;
+
+      // Only call setValue if the editor doesn't already have this value
+      const currentEditorValue = editor.getValue();
+      if (value !== currentEditorValue) {
+        // Preserve cursor position when updating
+        const position = editor.getPosition();
+        editor.setValue(value);
+        if (position) {
+          editor.setPosition(position);
+        }
+      }
+    }
+  }, [value]);
 
   const handleEditorChange = useCallback(
     (newValue: string | undefined) => {
+      lastExternalValueRef.current = newValue ?? "";
       onChange(newValue ?? "");
     },
     [onChange],
@@ -48,6 +75,7 @@ export default function MonacoEditorWidget({
   const handleEditorMount = useCallback(
     (editor: editor.IStandaloneCodeEditor, monaco: Monaco) => {
       editorRef.current = editor;
+      lastExternalValueRef.current = value;
 
       // Register Ctrl+S / Cmd+S keyboard shortcut for save
       if (onSave) {
@@ -56,7 +84,7 @@ export default function MonacoEditorWidget({
         );
       }
     },
-    [onSave],
+    [onSave, value],
   );
 
   const computedHeight = typeof height === "number" ? `${height}px` : height;

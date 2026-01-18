@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useReactFlow } from "@xyflow/react";
 import type { CustomNodeSchema } from "@/components/nodes/CustomNode/types";
 import {
@@ -7,6 +7,7 @@ import {
 } from "./helpers/useFileContentLoader";
 import { useFileSaveHandler } from "./helpers/useFileSaveHandler";
 import { useFilePickerHandler } from "./helpers/useFilePickerHandler";
+import { useFileSyncSubscription } from "./helpers/useFileSyncSubscription";
 
 // Re-export for backward compatibility
 export type { FilePickerOptions } from "./helpers/useFilePickerHandler";
@@ -102,7 +103,7 @@ export function useFileOperations(
     setSavedContent,
   });
 
-  const { handleFileSave } = useFileSaveHandler({
+  const { handleFileSave: baseSaveHandler } = useFileSaveHandler({
     filePath,
     codeContent,
     codeEditorField,
@@ -117,6 +118,21 @@ export function useFileOperations(
     config,
     codeEditorField,
   });
+
+  // Subscribe to file sync (for multi-node synchronization)
+  const { markSaveTimestamp } = useFileSyncSubscription({
+    nodeId,
+    filePath,
+    codeFieldId: codeEditorField?.id || "",
+    isExpanded,
+    setSavedContent,
+  });
+
+  // Wrap save handler to mark timestamp before saving
+  const handleFileSave = useCallback(async () => {
+    markSaveTimestamp();
+    await baseSaveHandler();
+  }, [markSaveTimestamp, baseSaveHandler]);
 
   // Track dirty state - only when editing a file (not inline content)
   const isDirty = !!filePath && isContentLoaded && codeContent !== savedContent;

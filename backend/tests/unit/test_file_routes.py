@@ -5,6 +5,8 @@ Tests prompt, context, tool creation and file reading endpoints.
 
 from __future__ import annotations
 
+import asyncio
+import json
 from pathlib import Path
 
 from httpx import AsyncClient
@@ -365,3 +367,91 @@ class TestReadFileChunk:
         data = response.json()
         assert data["content"] == ""
         assert data["has_more"] is False
+
+
+class TestErrorHandling:
+    """Tests for error handling in file routes."""
+
+    async def test_create_prompt_permission_error(
+        self, client: AsyncClient, tmp_project: Path, monkeypatch
+    ):
+        """Handle permission errors when creating prompt."""
+        from pathlib import Path as PathlibPath
+
+        # Mock Path.touch to raise PermissionError
+        original_touch = PathlibPath.touch
+
+        def mock_touch(self, *args, **kwargs):
+            if "prompt.md" in str(self):
+                raise PermissionError("No write permission")
+            return original_touch(self, *args, **kwargs)
+
+        monkeypatch.setattr(PathlibPath, "touch", mock_touch)
+
+        response = await client.post(
+            "/api/project/prompt/create",
+            json={"project_path": str(tmp_project), "prompt_name": "test"},
+        )
+
+        assert response.status_code == 403
+        assert "Permission denied" in response.json()["detail"]
+
+    async def test_create_context_permission_error(
+        self, client: AsyncClient, tmp_project: Path, monkeypatch
+    ):
+        """Handle permission errors when creating context."""
+        from pathlib import Path as PathlibPath
+
+        # Mock Path.touch to raise PermissionError
+        original_touch = PathlibPath.touch
+
+        def mock_touch(self, *args, **kwargs):
+            if "context.md" in str(self):
+                raise PermissionError("No write permission")
+            return original_touch(self, *args, **kwargs)
+
+        monkeypatch.setattr(PathlibPath, "touch", mock_touch)
+
+        response = await client.post(
+            "/api/project/context/create",
+            json={"project_path": str(tmp_project), "context_name": "test"},
+        )
+
+        assert response.status_code == 403
+        assert "Permission denied" in response.json()["detail"]
+
+
+class TestFileWatcherIntegration:
+    """Tests for file watcher integration with file routes."""
+
+
+class TestSavePromptNotifiesWatcher:
+    """Tests that save endpoint notifies file watcher."""
+
+    async def test_save_prompt_notifies_watcher(
+        self, client: AsyncClient, tmp_project: Path
+    ):
+        """Save prompt notifies file watcher of change."""
+        from backend.src.api.file_watcher import file_watcher_manager
+
+        project_path = str(tmp_project.resolve())
+
+        # Subscribe to file changes
+        queue = await file_watcher_manager.subscribe(project_path)
+
+        # Save a file via API
+        await client.post(
+            "/api/project/prompt/save",
+            json={
+                "project_path": str(tmp_project),
+                "file_path": "prompts/notified.md",
+                "content": "Test content",
+            },
+        )
+
+        # Should receive notification
+        event = await asyncio.wait_for(queue.get(), timeout=1.0)
+        assert event.file_path == "prompts/notified.md"
+        assert event.change_type == "modified"
+
+        await file_watcher_manager.unsubscribe(project_path, queue)

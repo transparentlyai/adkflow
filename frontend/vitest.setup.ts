@@ -159,6 +159,20 @@ global.requestAnimationFrame = vi.fn((cb) => {
 });
 global.cancelAnimationFrame = vi.fn();
 
+// Mock EventSource
+global.EventSource = vi.fn().mockImplementation(() => ({
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
+  close: vi.fn(),
+  onopen: null,
+  onerror: null,
+  onmessage: null,
+  CONNECTING: 0,
+  OPEN: 1,
+  CLOSED: 2,
+  readyState: 1,
+})) as any;
+
 // Suppress console errors for expected test failures
 const originalError = console.error;
 beforeAll(() => {
