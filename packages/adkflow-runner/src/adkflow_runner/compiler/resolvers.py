@@ -10,7 +10,13 @@ from adkflow_runner.compiler.loader import LoadedProject
 from adkflow_runner.compiler.node_config import get_node_config
 from adkflow_runner.config import EdgeSemantics
 from adkflow_runner.errors import CompilationError, ErrorLocation
-from adkflow_runner.ir import CallbackConfig, CallbackSourceIR, OutputFileIR, ToolIR
+from adkflow_runner.ir import (
+    CallbackConfig,
+    CallbackSourceIR,
+    OutputFileIR,
+    SchemaSourceIR,
+    ToolIR,
+)
 from adkflow_runner.logging import get_logger
 
 _log = get_logger("compiler.resolvers")
@@ -326,4 +332,92 @@ def _make_callback_source(file_path: str | None) -> CallbackSourceIR | None:
     """Create a CallbackSourceIR from a file path if provided."""
     if file_path:
         return CallbackSourceIR(file_path=file_path)
+    return None
+
+
+# Mapping from target handle IDs (on AgentNode) to schema field names
+SCHEMA_HANDLE_TO_FIELD = {
+    "input_schema": "input_schema",
+    "output_schema": "output_schema",
+}
+
+
+def resolve_schemas(
+    node: GraphNode,
+    graph: WorkflowGraph,
+    agent_data: dict,
+) -> tuple[SchemaSourceIR | None, SchemaSourceIR | None]:
+    """Resolve schemas from connected SchemaNodes and file picker field values.
+
+    Connected SchemaNodes take precedence over file picker field values.
+    Connections go from SchemaNode (source) to AgentNode (target).
+    The schema type is determined by the target handle on the AgentNode
+    (e.g., input_schema, output_schema).
+
+    Args:
+        node: The agent node to resolve schemas for
+        graph: The workflow graph
+        agent_data: Agent node configuration data
+
+    Returns:
+        Tuple of (input_schema, output_schema) SchemaSourceIR objects
+    """
+    # Start with file picker field values (file paths)
+    input_schema = _make_schema_source(agent_data.get("input_schema"))
+    output_schema = _make_schema_source(agent_data.get("output_schema"))
+
+    # Override with connected SchemaNodes (takes precedence)
+    # Edge direction: SchemaNode (source) → AgentNode (target)
+    for edge in node.incoming:
+        if edge.semantics == EdgeSemantics.SCHEMA:
+            source_node = graph.get_node(edge.source_id)
+            if not source_node or source_node.type != "schema":
+                continue
+
+            # Get schema field from target handle (on AgentNode)
+            schema_field = SCHEMA_HANDLE_TO_FIELD.get(edge.target_handle or "")
+            if not schema_field:
+                _log.warning(
+                    "Unknown schema handle",
+                    agent_id=node.id,
+                    target_handle=edge.target_handle,
+                    source_node_id=source_node.id,
+                )
+                continue
+
+            # Extract code, class name, and name from the SchemaNode
+            source_config = get_node_config(source_node.data)
+            code = source_config.get("code", "")
+            class_name = source_config.get("schema_class", "")
+            source_name = source_config.get("name", "")
+
+            if code:
+                schema_source = SchemaSourceIR(
+                    code=code,
+                    class_name=class_name or None,
+                    source_node_id=source_node.id,
+                    source_node_name=source_name or f"schema_{source_node.id[:8]}",
+                )
+
+                # Set the appropriate schema field
+                if schema_field == "input_schema":
+                    input_schema = schema_source
+                elif schema_field == "output_schema":
+                    output_schema = schema_source
+
+                _log.debug(
+                    "Resolved schema from connected node",
+                    agent_id=node.id,
+                    schema_field=schema_field,
+                    schema_node_id=source_node.id,
+                    class_name=class_name,
+                )
+
+    return input_schema, output_schema
+
+
+def _make_schema_source(file_path: str | None) -> SchemaSourceIR | None:
+    """Create a SchemaSourceIR from a file path if provided."""
+    if file_path:
+        return SchemaSourceIR(file_path=file_path)
     return None

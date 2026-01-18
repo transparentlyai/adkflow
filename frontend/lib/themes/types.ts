@@ -81,6 +81,7 @@ export interface NodeColors {
   tool: NodeTypeColors;
   agentTool: NodeTypeColors;
   callback: NodeTypeColors;
+  schema: NodeTypeColors;
   variable: NodeTypeColors;
   process: NodeTypeColors;
   group: GroupNodeColors;
@@ -103,6 +104,7 @@ export interface HandleColors {
   context: string;
   agentTool: string;
   callback: string;
+  schema: string;
   process: string;
   probe: string;
   border: string;

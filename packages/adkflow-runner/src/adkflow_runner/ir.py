@@ -101,6 +101,26 @@ class CallbackConfig:
 
 
 @dataclass
+class SchemaSourceIR:
+    """Source of a schema - either file path or inline code.
+
+    Connected SchemaNodes provide inline code with a class name,
+    while file picker fields in the Agent node provide file paths.
+    Connected nodes take precedence.
+    """
+
+    file_path: str | None = None  # Path to schema file
+    code: str | None = None  # Inline code from connected SchemaNode
+    class_name: str | None = None  # Name of the Pydantic BaseModel class
+    source_node_id: str | None = None  # ID of source SchemaNode (if connected)
+    source_node_name: str | None = None  # Name of source SchemaNode (for UI display)
+
+    def has_value(self) -> bool:
+        """Check if this schema source has a value."""
+        return bool(self.code) or bool(self.file_path)
+
+
+@dataclass
 class GenerateContentConfig:
     """GenerateContentConfig parameters for fine-tuning model output."""
 
@@ -186,8 +206,8 @@ class AgentIR:
 
     # Output
     output_key: str | None = None
-    output_schema: str | None = None
-    input_schema: str | None = None
+    output_schema: SchemaSourceIR | None = None
+    input_schema: SchemaSourceIR | None = None
     include_contents: Literal["default", "none"] = "default"
     strip_contents: bool = False  # Strip injected "[agent] said:" context
 

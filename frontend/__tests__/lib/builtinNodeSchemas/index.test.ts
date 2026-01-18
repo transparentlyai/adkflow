@@ -4,6 +4,7 @@ import {
   toolNodeSchema,
   agentToolNodeSchema,
   callbackNodeSchema,
+  schemaNodeSchema,
   processNodeSchema,
   inputProbeNodeSchema,
   outputProbeNodeSchema,
@@ -28,6 +29,7 @@ describe("builtinNodeSchemas", () => {
       { name: "toolNodeSchema", schema: toolNodeSchema },
       { name: "agentToolNodeSchema", schema: agentToolNodeSchema },
       { name: "callbackNodeSchema", schema: callbackNodeSchema },
+      { name: "schemaNodeSchema", schema: schemaNodeSchema },
       { name: "processNodeSchema", schema: processNodeSchema },
       { name: "inputProbeNodeSchema", schema: inputProbeNodeSchema },
       { name: "outputProbeNodeSchema", schema: outputProbeNodeSchema },
@@ -74,7 +76,7 @@ describe("builtinNodeSchemas", () => {
 
   describe("builtinNodeSchemas collection", () => {
     it("should contain all node schemas", () => {
-      expect(builtinNodeSchemas.length).toBe(18);
+      expect(builtinNodeSchemas.length).toBe(19);
     });
 
     it("should have unique unit_ids", () => {
@@ -188,6 +190,28 @@ describe("builtinNodeSchemas", () => {
       expect(
         teleportOutNodeSchema.menu_location.startsWith("Connectors/"),
       ).toBe(true);
+    });
+  });
+
+  describe("schemaNodeSchema", () => {
+    it("should have schema unit_id", () => {
+      expect(schemaNodeSchema.unit_id).toBe("builtin.schema");
+    });
+
+    it("should be in Tools menu", () => {
+      expect(schemaNodeSchema.menu_location.startsWith("Tools/")).toBe(true);
+    });
+
+    it("should have schema output with json type", () => {
+      expect(schemaNodeSchema.ui.outputs).toBeDefined();
+      expect(schemaNodeSchema.ui.outputs.length).toBeGreaterThan(0);
+      const output = schemaNodeSchema.ui.outputs[0];
+      expect(output.source_type).toBe("schema");
+      expect(output.data_type).toBe("json");
+    });
+
+    it("should have no inputs", () => {
+      expect(schemaNodeSchema.ui.inputs).toEqual([]);
     });
   });
 

@@ -230,6 +230,40 @@ export const agentNodeSchema: CustomNodeSchema = {
         section: "Tool Callbacks",
         tab: "Callbacks",
       },
+      // Schema handles - rendered as target handles (inputs) with file picker widgets
+      // These receive connections FROM SchemaNodes
+      {
+        id: "input_schema",
+        label: "Input Schema",
+        source_type: "schema",
+        data_type: "json",
+        accepted_sources: ["schema"],
+        accepted_types: ["json"],
+        required: false,
+        multiple: false,
+        connection_only: false, // Shows file picker widget
+        widget: "file_picker",
+        placeholder: "e.g., schemas/task_input.py",
+        handle_color: "#06b6d4", // Cyan - matches schema node
+        section: "Schema",
+        tab: "Flow",
+      },
+      {
+        id: "output_schema",
+        label: "Output Schema",
+        source_type: "schema",
+        data_type: "json",
+        accepted_sources: ["schema"],
+        accepted_types: ["json"],
+        required: false,
+        multiple: false,
+        connection_only: false,
+        widget: "file_picker",
+        placeholder: "e.g., schemas/task_output.py",
+        handle_color: "#06b6d4",
+        section: "Schema",
+        tab: "Flow",
+      },
     ],
     outputs: [
       {
@@ -390,6 +424,19 @@ export const agentNodeSchema: CustomNodeSchema = {
           type: "source",
           position: "right",
           label: "After Tool Callback",
+        },
+        // Schema input handles (target) - receive connections from SchemaNodes
+        {
+          id: "input_schema",
+          type: "target",
+          position: "left",
+          label: "Input Schema",
+        },
+        {
+          id: "output_schema",
+          type: "target",
+          position: "left",
+          label: "Output Schema",
         },
       ],
     },

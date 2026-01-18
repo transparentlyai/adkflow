@@ -78,6 +78,7 @@ export type HandleDataType =
   | "link" // Agent chaining connections
   | "trigger" // Flow control triggers (start node)
   | "adopt" // Sub-agent adoption connections
+  | "json" // JSON schema definitions (Pydantic BaseModel)
   | "any"; // Accepts any data type
 
 /**
@@ -94,6 +95,7 @@ export type HandleSourceType =
   | "context" // Context node outputs
   | "flow" // Flow control nodes (start, end)
   | "callback" // Callback node outputs
+  | "schema" // Schema provider nodes (Pydantic BaseModel)
   | "*"; // Wildcard - accepts any source
 
 /**

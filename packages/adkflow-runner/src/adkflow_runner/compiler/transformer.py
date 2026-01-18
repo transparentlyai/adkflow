@@ -19,6 +19,7 @@ from adkflow_runner.compiler.resolvers import (
     resolve_include_contents,
     resolve_instruction,
     resolve_output_files,
+    resolve_schemas,
     resolve_tools,
     resolve_upstream_output_keys,
 )
@@ -250,6 +251,10 @@ class IRTransformer:
         # Connected CallbackNodes take precedence over text field values
         callbacks = resolve_callbacks(node, graph, agent_data)
 
+        # Resolve schemas from connected SchemaNodes and file picker field values
+        # Connected SchemaNodes take precedence over file picker field values
+        input_schema, output_schema = resolve_schemas(node, graph, agent_data)
+
         # Extract GenerateContentConfig fields
         stop_sequences_raw = agent_data.get("stop_sequences", "")
         stop_sequences = (
@@ -286,8 +291,8 @@ class IRTransformer:
             tools=tools,
             # Normalize: strip curly braces if user entered them
             output_key=(agent_data.get("output_key") or "").strip("{}") or None,
-            output_schema=agent_data.get("output_schema"),
-            input_schema=agent_data.get("input_schema"),
+            output_schema=output_schema,
+            input_schema=input_schema,
             include_contents=resolve_include_contents(agent_data),
             strip_contents=agent_data.get("strip_contents", False),
             max_iterations=agent_data.get("max_iterations", 5),

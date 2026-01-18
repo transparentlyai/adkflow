@@ -62,6 +62,7 @@ export type NodeTypeOption =
   | "tool"
   | "agentTool"
   | "process"
+  | "schema"
   | "label"
   | "teleportOut"
   | "teleportIn"
@@ -153,6 +154,7 @@ const menuGroups: MenuGroup[] = [
         label: "Callback",
         icon: <Zap className="h-4 w-4" />,
       },
+      { type: "schema", label: "Schema", icon: <Code className="h-4 w-4" /> },
     ],
   },
   {
