@@ -46,6 +46,7 @@ vi.mock("lucide-react", () => ({
   Puzzle: () => <svg data-testid="icon-puzzle" />,
   Layers: () => <svg data-testid="icon-layers" />,
   ChevronRight: () => <svg data-testid="icon-chevron-right" />,
+  Zap: () => <svg data-testid="icon-zap" />,
 }));
 
 describe("CanvasContextMenu", () => {

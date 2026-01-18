@@ -148,6 +148,11 @@ const menuGroups: MenuGroup[] = [
         icon: <Terminal className="h-4 w-4" />,
       },
       { type: "process", label: "Process", icon: <Code className="h-4 w-4" /> },
+      {
+        type: "callback",
+        label: "Callback",
+        icon: <Zap className="h-4 w-4" />,
+      },
     ],
   },
   {
@@ -168,17 +173,6 @@ const menuGroups: MenuGroup[] = [
         type: "logProbe",
         label: "Log Probe",
         icon: <List className="h-4 w-4" />,
-      },
-    ],
-  },
-  {
-    label: "Callbacks",
-    icon: <Zap className="h-4 w-4" />,
-    items: [
-      {
-        type: "callback",
-        label: "Callback",
-        icon: <Zap className="h-4 w-4" />,
       },
     ],
   },
@@ -244,7 +238,10 @@ function ExtensionMenuItems({
               {child.label}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
-              <ExtensionMenuItems node={child} onSelectCustom={onSelectCustom} />
+              <ExtensionMenuItems
+                node={child}
+                onSelectCustom={onSelectCustom}
+              />
             </DropdownMenuSubContent>
           </DropdownMenuSub>
         );
