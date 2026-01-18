@@ -161,6 +161,35 @@ async def health_check() -> dict[str, str]:
     return {"status": "healthy"}
 
 
+@app.get("/api/dev/info")
+async def dev_info() -> dict[str, str | bool | None]:
+    """
+    Dev mode info endpoint.
+
+    Returns dev mode status and current git branch.
+    Only returns meaningful data when running in dev mode.
+    """
+    if not DEV_MODE:
+        return {"devMode": False, "branch": None}
+
+    import subprocess
+
+    branch = None
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            branch = result.stdout.strip()
+    except Exception:
+        pass
+
+    return {"devMode": True, "branch": branch}
+
+
 def check_port_available(port: int) -> bool:
     """Check if a port is available.
 

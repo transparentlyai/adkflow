@@ -103,3 +103,7 @@ export {
   deleteChatSession,
   streamChatMessage,
 } from "./chat";
+
+// Dev Mode APIs
+export { getDevInfo } from "./devMode";
+export type { DevInfo } from "./devMode";

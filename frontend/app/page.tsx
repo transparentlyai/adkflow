@@ -7,6 +7,7 @@ import { TabsProvider } from "@/contexts/TabsContext";
 import { TeleporterProvider } from "@/contexts/TeleporterContext";
 import { HomeHeader, HomeDialogs, HomeLayout } from "@/components/home";
 import { loadProjectSettings } from "@/lib/api";
+import DevModeBadge from "@/components/DevModeBadge";
 import {
   useHomeState,
   useProjectManagement,
@@ -297,151 +298,160 @@ function HomeContent() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
-      <HomeHeader
-        workflowName={workflowName}
-        setWorkflowName={setWorkflowName}
-        currentProjectPath={currentProjectPath}
-        hasUnsavedChanges={hasUnsavedChanges}
-        isSaving={isSaving}
-        isCanvasLocked={isCanvasLocked}
-        isRunning={isRunning}
-        isRunPanelOpen={isRunPanelOpen}
-        themeId={themeId}
-        tabs={tabs}
-        activeTabId={activeTabId}
-        canvasRef={canvasRef}
-        settingsRefreshKey={settingsRefreshKey}
-        onNewProject={projectManagement.handleNewProject}
-        onLoadProject={projectManagement.handleLoadProject}
-        onSaveProject={projectManagement.handleSaveCurrentProject}
-        onClearCanvas={dialogHandlers.handleClearCanvasClick}
-        onZoomIn={dialogHandlers.handleZoomIn}
-        onZoomOut={dialogHandlers.handleZoomOut}
-        onFitView={dialogHandlers.handleFitView}
-        onToggleLock={() => setIsCanvasLocked(!isCanvasLocked)}
-        onRunWorkflow={runWorkflowHandlers.handleRunWorkflow}
-        onValidateWorkflow={runWorkflowHandlers.handleValidateWorkflow}
-        onShowTopology={runWorkflowHandlers.handleShowTopology}
-        onToggleRunConsole={() => setIsRunPanelOpen(!isRunPanelOpen)}
-        onToggleTheme={toggleTheme}
-        onOpenProjectSettings={() => setIsProjectSettingsOpen(true)}
-        loadTabFlow={loadTabFlow}
-        navigateToNode={navigateToNode}
-      />
+    <>
+      <DevModeBadge />
+      <div className="flex flex-col h-screen">
+        <HomeHeader
+          workflowName={workflowName}
+          setWorkflowName={setWorkflowName}
+          currentProjectPath={currentProjectPath}
+          hasUnsavedChanges={hasUnsavedChanges}
+          isSaving={isSaving}
+          isCanvasLocked={isCanvasLocked}
+          isRunning={isRunning}
+          isRunPanelOpen={isRunPanelOpen}
+          themeId={themeId}
+          tabs={tabs}
+          activeTabId={activeTabId}
+          canvasRef={canvasRef}
+          settingsRefreshKey={settingsRefreshKey}
+          onNewProject={projectManagement.handleNewProject}
+          onLoadProject={projectManagement.handleLoadProject}
+          onSaveProject={projectManagement.handleSaveCurrentProject}
+          onClearCanvas={dialogHandlers.handleClearCanvasClick}
+          onZoomIn={dialogHandlers.handleZoomIn}
+          onZoomOut={dialogHandlers.handleZoomOut}
+          onFitView={dialogHandlers.handleFitView}
+          onToggleLock={() => setIsCanvasLocked(!isCanvasLocked)}
+          onRunWorkflow={runWorkflowHandlers.handleRunWorkflow}
+          onValidateWorkflow={runWorkflowHandlers.handleValidateWorkflow}
+          onShowTopology={runWorkflowHandlers.handleShowTopology}
+          onToggleRunConsole={() => setIsRunPanelOpen(!isRunPanelOpen)}
+          onToggleTheme={toggleTheme}
+          onOpenProjectSettings={() => setIsProjectSettingsOpen(true)}
+          loadTabFlow={loadTabFlow}
+          navigateToNode={navigateToNode}
+        />
 
-      <HomeLayout
-        canvasRef={canvasRef}
-        currentProjectPath={currentProjectPath}
-        tabs={tabs}
-        activeTabId={activeTabId}
-        isCanvasLocked={isCanvasLocked}
-        isRunning={isRunning}
-        defaultModel={defaultModel}
-        onTabClick={tabHandlers.handleTabClick}
-        onTabDelete={tabHandlers.handleTabDelete}
-        onTabRename={tabHandlers.handleTabRename}
-        onTabReorder={tabHandlers.handleTabReorder}
-        onAddTab={tabHandlers.handleAddTab}
-        onDuplicateTab={tabHandlers.handleDuplicateTab}
-        onWorkflowChange={handleWorkflowChange}
-        onRequestPromptCreation={dialogHandlers.handleRequestPromptCreation}
-        onRequestContextCreation={dialogHandlers.handleRequestContextCreation}
-        onRequestToolCreation={dialogHandlers.handleRequestToolCreation}
-        onRequestProcessCreation={dialogHandlers.handleRequestProcessCreation}
-        onRequestOutputFileCreation={
-          dialogHandlers.handleRequestOutputFileCreation
-        }
-        onToggleLock={() => setIsCanvasLocked(!isCanvasLocked)}
-        onSave={projectManagement.handleSaveCurrentProject}
-        onSaveFile={dialogHandlers.handleSaveFile}
-        onRequestFilePicker={dialogHandlers.handleRequestFilePicker}
-        onRunWorkflow={runWorkflowHandlers.handleRunWorkflow}
-        isProjectSwitcherOpen={isProjectSwitcherOpen}
-        projectSwitcherMode={projectSwitcherMode}
-        recentProjects={recentProjects}
-        onCloseProjectSwitcher={() => setIsProjectSwitcherOpen(false)}
-        onCreateProject={projectManagement.handleCreateNewProject}
-        onLoadProject={projectManagement.handleLoadExistingProject}
-        onRemoveRecent={projectManagement.handleRemoveRecentProject}
-      />
+        <HomeLayout
+          canvasRef={canvasRef}
+          currentProjectPath={currentProjectPath}
+          tabs={tabs}
+          activeTabId={activeTabId}
+          isCanvasLocked={isCanvasLocked}
+          isRunning={isRunning}
+          defaultModel={defaultModel}
+          onTabClick={tabHandlers.handleTabClick}
+          onTabDelete={tabHandlers.handleTabDelete}
+          onTabRename={tabHandlers.handleTabRename}
+          onTabReorder={tabHandlers.handleTabReorder}
+          onAddTab={tabHandlers.handleAddTab}
+          onDuplicateTab={tabHandlers.handleDuplicateTab}
+          onWorkflowChange={handleWorkflowChange}
+          onRequestPromptCreation={dialogHandlers.handleRequestPromptCreation}
+          onRequestContextCreation={dialogHandlers.handleRequestContextCreation}
+          onRequestToolCreation={dialogHandlers.handleRequestToolCreation}
+          onRequestProcessCreation={dialogHandlers.handleRequestProcessCreation}
+          onRequestOutputFileCreation={
+            dialogHandlers.handleRequestOutputFileCreation
+          }
+          onToggleLock={() => setIsCanvasLocked(!isCanvasLocked)}
+          onSave={projectManagement.handleSaveCurrentProject}
+          onSaveFile={dialogHandlers.handleSaveFile}
+          onRequestFilePicker={dialogHandlers.handleRequestFilePicker}
+          onRunWorkflow={runWorkflowHandlers.handleRunWorkflow}
+          isProjectSwitcherOpen={isProjectSwitcherOpen}
+          projectSwitcherMode={projectSwitcherMode}
+          recentProjects={recentProjects}
+          onCloseProjectSwitcher={() => setIsProjectSwitcherOpen(false)}
+          onCreateProject={projectManagement.handleCreateNewProject}
+          onLoadProject={projectManagement.handleLoadExistingProject}
+          onRemoveRecent={projectManagement.handleRemoveRecentProject}
+        />
 
-      <HomeDialogs
-        currentProjectPath={currentProjectPath}
-        tabs={tabs}
-        isSaveConfirmOpen={isSaveConfirmOpen}
-        onSaveAndContinue={projectManagement.handleSaveAndContinue}
-        onDontSave={projectManagement.handleDontSave}
-        onCancelNewProject={projectManagement.handleCancelNewProject}
-        isRunConfirmDialogOpen={isRunConfirmDialogOpen}
-        onRunConfirmSaveAndRun={runWorkflowHandlers.handleRunConfirmSaveAndRun}
-        onRunConfirmCancel={runWorkflowHandlers.handleRunConfirmCancel}
-        isTopologySaveDialogOpen={isTopologySaveDialogOpen}
-        onTopologySaveAndShow={runWorkflowHandlers.handleTopologySaveAndShow}
-        onTopologySaveCancel={runWorkflowHandlers.handleTopologySaveCancel}
-        isValidationSaveDialogOpen={isValidationSaveDialogOpen}
-        onValidationSaveAndValidate={
-          runWorkflowHandlers.handleValidationSaveAndValidate
-        }
-        onValidationSaveCancel={runWorkflowHandlers.handleValidationSaveCancel}
-        promptDialogState={promptDialogState}
-        onCreatePrompt={dialogHandlers.handleCreatePrompt}
-        onSelectExistingPrompt={dialogHandlers.handleSelectExistingPrompt}
-        onCancelPromptCreation={dialogHandlers.handleCancelPromptCreation}
-        contextDialogState={contextDialogState}
-        onCreateContext={dialogHandlers.handleCreateContext}
-        onSelectExistingContext={dialogHandlers.handleSelectExistingContext}
-        onCancelContextCreation={dialogHandlers.handleCancelContextCreation}
-        toolDialogState={toolDialogState}
-        onCreateTool={dialogHandlers.handleCreateTool}
-        onSelectExistingTool={dialogHandlers.handleSelectExistingTool}
-        onCancelToolCreation={dialogHandlers.handleCancelToolCreation}
-        processDialogState={processDialogState}
-        onCreateProcess={dialogHandlers.handleCreateProcess}
-        onSelectExistingProcess={dialogHandlers.handleSelectExistingProcess}
-        onCancelProcessCreation={dialogHandlers.handleCancelProcessCreation}
-        outputFileDialogState={outputFileDialogState}
-        onCreateOutputFile={dialogHandlers.handleCreateOutputFile}
-        onSelectExistingOutputFile={
-          dialogHandlers.handleSelectExistingOutputFile
-        }
-        onCancelOutputFileCreation={
-          dialogHandlers.handleCancelOutputFileCreation
-        }
-        isClearDialogOpen={isClearDialogOpen}
-        onClearCanvasConfirm={dialogHandlers.handleClearCanvasConfirm}
-        onClearCanvasCancel={dialogHandlers.handleClearCanvasCancel}
-        isTabDeleteDialogOpen={isTabDeleteDialogOpen}
-        pendingDeleteTabId={pendingDeleteTabId}
-        onTabDeleteConfirm={tabHandlers.handleTabDeleteConfirm}
-        onTabDeleteCancel={tabHandlers.handleTabDeleteCancel}
-        topologyResult={topologyResult}
-        onCloseTopology={() => setTopologyResult(null)}
-        filePickerState={filePickerState}
-        onFilePickerSelect={dialogHandlers.handleFilePickerSelect}
-        onFilePickerCancel={dialogHandlers.handleFilePickerCancel}
-        isRunPanelOpen={isRunPanelOpen}
-        currentRunId={currentRunId}
-        runEvents={runEvents}
-        lastRunStatus={lastRunStatus}
-        onCloseRunPanel={runWorkflowHandlers.handleCloseRunPanel}
-        onRunComplete={runWorkflowHandlers.handleRunComplete}
-        onAgentStateChange={runWorkflowHandlers.handleAgentStateChange}
-        onToolStateChange={runWorkflowHandlers.handleToolStateChange}
-        onCallbackStateChange={runWorkflowHandlers.handleCallbackStateChange}
-        onUserInputStateChange={runWorkflowHandlers.handleUserInputStateChange}
-        onClearExecutionState={runWorkflowHandlers.handleClearExecutionState}
-        onMonitorUpdate={runWorkflowHandlers.handleMonitorUpdate}
-        onEventsChange={setRunEvents}
-        onStatusChange={setLastRunStatus}
-        isProjectSettingsOpen={isProjectSettingsOpen}
-        onProjectSettingsOpenChange={setIsProjectSettingsOpen}
-        onProjectSettingsSaved={(settings) => {
-          setSettingsRefreshKey((k) => k + 1);
-          setDefaultModel(settings.defaultModel || undefined);
-        }}
-      />
-    </div>
+        <HomeDialogs
+          currentProjectPath={currentProjectPath}
+          tabs={tabs}
+          isSaveConfirmOpen={isSaveConfirmOpen}
+          onSaveAndContinue={projectManagement.handleSaveAndContinue}
+          onDontSave={projectManagement.handleDontSave}
+          onCancelNewProject={projectManagement.handleCancelNewProject}
+          isRunConfirmDialogOpen={isRunConfirmDialogOpen}
+          onRunConfirmSaveAndRun={
+            runWorkflowHandlers.handleRunConfirmSaveAndRun
+          }
+          onRunConfirmCancel={runWorkflowHandlers.handleRunConfirmCancel}
+          isTopologySaveDialogOpen={isTopologySaveDialogOpen}
+          onTopologySaveAndShow={runWorkflowHandlers.handleTopologySaveAndShow}
+          onTopologySaveCancel={runWorkflowHandlers.handleTopologySaveCancel}
+          isValidationSaveDialogOpen={isValidationSaveDialogOpen}
+          onValidationSaveAndValidate={
+            runWorkflowHandlers.handleValidationSaveAndValidate
+          }
+          onValidationSaveCancel={
+            runWorkflowHandlers.handleValidationSaveCancel
+          }
+          promptDialogState={promptDialogState}
+          onCreatePrompt={dialogHandlers.handleCreatePrompt}
+          onSelectExistingPrompt={dialogHandlers.handleSelectExistingPrompt}
+          onCancelPromptCreation={dialogHandlers.handleCancelPromptCreation}
+          contextDialogState={contextDialogState}
+          onCreateContext={dialogHandlers.handleCreateContext}
+          onSelectExistingContext={dialogHandlers.handleSelectExistingContext}
+          onCancelContextCreation={dialogHandlers.handleCancelContextCreation}
+          toolDialogState={toolDialogState}
+          onCreateTool={dialogHandlers.handleCreateTool}
+          onSelectExistingTool={dialogHandlers.handleSelectExistingTool}
+          onCancelToolCreation={dialogHandlers.handleCancelToolCreation}
+          processDialogState={processDialogState}
+          onCreateProcess={dialogHandlers.handleCreateProcess}
+          onSelectExistingProcess={dialogHandlers.handleSelectExistingProcess}
+          onCancelProcessCreation={dialogHandlers.handleCancelProcessCreation}
+          outputFileDialogState={outputFileDialogState}
+          onCreateOutputFile={dialogHandlers.handleCreateOutputFile}
+          onSelectExistingOutputFile={
+            dialogHandlers.handleSelectExistingOutputFile
+          }
+          onCancelOutputFileCreation={
+            dialogHandlers.handleCancelOutputFileCreation
+          }
+          isClearDialogOpen={isClearDialogOpen}
+          onClearCanvasConfirm={dialogHandlers.handleClearCanvasConfirm}
+          onClearCanvasCancel={dialogHandlers.handleClearCanvasCancel}
+          isTabDeleteDialogOpen={isTabDeleteDialogOpen}
+          pendingDeleteTabId={pendingDeleteTabId}
+          onTabDeleteConfirm={tabHandlers.handleTabDeleteConfirm}
+          onTabDeleteCancel={tabHandlers.handleTabDeleteCancel}
+          topologyResult={topologyResult}
+          onCloseTopology={() => setTopologyResult(null)}
+          filePickerState={filePickerState}
+          onFilePickerSelect={dialogHandlers.handleFilePickerSelect}
+          onFilePickerCancel={dialogHandlers.handleFilePickerCancel}
+          isRunPanelOpen={isRunPanelOpen}
+          currentRunId={currentRunId}
+          runEvents={runEvents}
+          lastRunStatus={lastRunStatus}
+          onCloseRunPanel={runWorkflowHandlers.handleCloseRunPanel}
+          onRunComplete={runWorkflowHandlers.handleRunComplete}
+          onAgentStateChange={runWorkflowHandlers.handleAgentStateChange}
+          onToolStateChange={runWorkflowHandlers.handleToolStateChange}
+          onCallbackStateChange={runWorkflowHandlers.handleCallbackStateChange}
+          onUserInputStateChange={
+            runWorkflowHandlers.handleUserInputStateChange
+          }
+          onClearExecutionState={runWorkflowHandlers.handleClearExecutionState}
+          onMonitorUpdate={runWorkflowHandlers.handleMonitorUpdate}
+          onEventsChange={setRunEvents}
+          onStatusChange={setLastRunStatus}
+          isProjectSettingsOpen={isProjectSettingsOpen}
+          onProjectSettingsOpenChange={setIsProjectSettingsOpen}
+          onProjectSettingsSaved={(settings) => {
+            setSettingsRefreshKey((k) => k + 1);
+            setDefaultModel(settings.defaultModel || undefined);
+          }}
+        />
+      </div>
+    </>
   );
 }
 
