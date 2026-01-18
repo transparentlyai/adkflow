@@ -165,12 +165,22 @@ def init_builtin_units() -> int:
     from extension directories. They are registered with GLOBAL scope
     and can be overridden by project-level extensions.
 
+    Some builtin units are registered for execution only (no schema exposure)
+    because their UI schemas are defined in the frontend.
+
     Returns:
-        Number of builtin units registered
+        Total number of builtin units registered
     """
-    from adkflow_runner.builtin_units import BUILTIN_UNITS
+    from adkflow_runner.builtin_units import BUILTIN_UNITS, EXECUTION_ONLY_UNITS
 
     registry = get_registry()
-    count = registry.register_builtin_units(BUILTIN_UNITS)
-    print(f"[ExtensionRegistry] Registered {count} builtin unit(s)")
-    return count
+
+    # Register units that expose schemas via the API
+    schema_count = registry.register_builtin_units(BUILTIN_UNITS)
+
+    # Register units for execution only (frontend defines the schema)
+    exec_count = registry.register_execution_only_units(EXECUTION_ONLY_UNITS)
+
+    total = schema_count + exec_count
+    print(f"[ExtensionRegistry] Registered {total} builtin unit(s) ({exec_count} execution-only)")
+    return total

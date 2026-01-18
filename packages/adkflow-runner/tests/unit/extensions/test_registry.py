@@ -465,6 +465,45 @@ class TestBuiltinUnits:
         count = registry.register_builtin_units([])
         assert count == 0
 
+    def test_register_execution_only_units(self, tmp_path):
+        """Register execution-only units (no schema exposure)."""
+        from adkflow_runner.extensions.flow_unit import FlowUnit, UISchema, PortDefinition
+
+        # Create a proper FlowUnit subclass
+        class TestExecOnlyUnit(FlowUnit):
+            UNIT_ID = "builtin.exec_only"
+            UI_LABEL = "Exec Only"
+            MENU_LOCATION = "Builtin"
+
+            @classmethod
+            def setup_interface(cls):
+                return UISchema(
+                    inputs=[PortDefinition(id="in", label="In", source_type="*", data_type="str")],
+                    outputs=[PortDefinition(id="out", label="Out", source_type="builtin", data_type="str")],
+                )
+
+            async def run_process(self, inputs, config, context):
+                return {"out": ""}
+
+        registry = ExtensionRegistry()
+        count = registry.register_execution_only_units([TestExecOnlyUnit])
+
+        # Should register successfully
+        assert count == 1
+
+        # Unit should be available for execution
+        assert registry.get_unit("builtin.exec_only") is TestExecOnlyUnit
+
+        # But schema should NOT be exposed
+        assert registry.get_schema("builtin.exec_only") is None
+        assert "builtin.exec_only" not in [s["unit_id"] for s in registry.get_all_schemas()]
+
+    def test_register_execution_only_units_empty_list(self):
+        """Register empty list of execution-only units."""
+        registry = ExtensionRegistry()
+        count = registry.register_execution_only_units([])
+        assert count == 0
+
 
 class TestReloadOperations:
     """Tests for reload operations."""

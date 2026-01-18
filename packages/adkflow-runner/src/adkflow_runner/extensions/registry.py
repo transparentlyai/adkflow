@@ -681,3 +681,34 @@ class ExtensionRegistry:
                     self._scopes.pop(unit_id, None)
 
         return count
+
+    def register_execution_only_units(
+        self, unit_classes: Sequence[type[FlowUnit]]
+    ) -> int:
+        """Register FlowUnit classes for execution only (no schema exposure).
+
+        These units are registered so they can be executed, but their schemas
+        are not exposed via the API. Use this for built-in nodes whose UI
+        schemas are defined in the frontend.
+
+        Args:
+            unit_classes: List of FlowUnit subclasses to register
+
+        Returns:
+            Number of units successfully registered
+        """
+        count = 0
+        with self._lock:
+            for unit_cls in unit_classes:
+                if not hasattr(unit_cls, "UNIT_ID"):
+                    print(
+                        f"[ExtensionRegistry] Skipping {unit_cls.__name__}: missing UNIT_ID"
+                    )
+                    continue
+
+                unit_id = unit_cls.UNIT_ID
+                self._units[unit_id] = unit_cls
+                self._scopes[unit_id] = ExtensionScope.GLOBAL
+                count += 1
+
+        return count

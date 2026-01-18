@@ -176,12 +176,17 @@ class TestInitBuiltinUnits:
     def test_init_builtin_units(self):
         """Register builtin units."""
         registry = get_registry()
-        with patch.object(registry, "register_builtin_units", return_value=5) as mock_register:
-            # Mock the import of BUILTIN_UNITS
-            with patch("adkflow_runner.builtin_units.BUILTIN_UNITS", []):
-                count = init_builtin_units()
-                assert count == 5
-                mock_register.assert_called_once()
+        with patch.object(registry, "register_builtin_units", return_value=3) as mock_register:
+            with patch.object(
+                registry, "register_execution_only_units", return_value=2
+            ) as mock_exec_register:
+                # Mock the imports
+                with patch("adkflow_runner.builtin_units.BUILTIN_UNITS", []):
+                    with patch("adkflow_runner.builtin_units.EXECUTION_ONLY_UNITS", []):
+                        count = init_builtin_units()
+                        assert count == 5  # 3 schema + 2 execution-only
+                        mock_register.assert_called_once()
+                        mock_exec_register.assert_called_once()
 
 
 class TestExtensionScope:
