@@ -31,7 +31,7 @@ const ExpandedNodeFooter = memo(
 
     return (
       <div
-        className="px-3 py-2 rounded-b-lg flex items-center justify-between border-t relative"
+        className="px-3 py-1 rounded-b-lg flex items-center justify-between border-t relative"
         style={{
           backgroundColor: theme.colors.nodes.common.footer.background,
           borderColor: theme.colors.nodes.common.footer.border,

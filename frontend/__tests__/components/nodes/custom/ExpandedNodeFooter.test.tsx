@@ -363,7 +363,7 @@ describe("ExpandedNodeFooter", () => {
 
       const footer = container.firstChild as HTMLElement;
       expect(footer).toHaveClass("px-3");
-      expect(footer).toHaveClass("py-2");
+      expect(footer).toHaveClass("py-1");
       expect(footer).toHaveClass("rounded-b-lg");
       expect(footer).toHaveClass("flex");
       expect(footer).toHaveClass("items-center");
