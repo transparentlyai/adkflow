@@ -132,8 +132,8 @@ describe("builtinNodeHelpers", () => {
       expect(schemaDriverNodeTypes).toContain("end");
     });
 
-    it("should have 18 types", () => {
-      expect(schemaDriverNodeTypes.length).toBe(18);
+    it("should have 19 types", () => {
+      expect(schemaDriverNodeTypes.length).toBe(19);
     });
   });
 
@@ -142,8 +142,8 @@ describe("builtinNodeHelpers", () => {
       expect(Array.isArray(builtinNodeSchemas)).toBe(true);
     });
 
-    it("should have 18 schemas", () => {
-      expect(builtinNodeSchemas.length).toBe(18);
+    it("should have 19 schemas", () => {
+      expect(builtinNodeSchemas.length).toBe(19);
     });
   });
 });

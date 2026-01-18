@@ -17,6 +17,7 @@ class EdgeSemantics(Enum):
     CONTEXT = "context"  # Source provides context to target agent
     CONTEXT_VARS = "context_vars"  # Source provides context variables dict
     CALLBACK = "callback"  # Agent triggers callback on connected CallbackNode
+    SCHEMA = "schema"  # SchemaNode provides schema to target agent
 
     # Agent relationships
     SEQUENTIAL = "sequential"  # Source runs before target
@@ -214,6 +215,24 @@ DEFAULT_EDGE_RULES: list[EdgeRule] = [
         target_type="callback",
         source_handle="after_tool_callback",
         semantics=EdgeSemantics.CALLBACK,
+        priority=10,
+    ),
+    # Schema → Agent: schema connections for input/output validation
+    # Edge direction: SchemaNode (source) → AgentNode (target)
+    EdgeRule(
+        source_type="schema",
+        target_type="agent",
+        source_handle="output",
+        target_handle="input_schema",
+        semantics=EdgeSemantics.SCHEMA,
+        priority=10,
+    ),
+    EdgeRule(
+        source_type="schema",
+        target_type="agent",
+        source_handle="output",
+        target_handle="output_schema",
+        semantics=EdgeSemantics.SCHEMA,
         priority=10,
     ),
 ]

@@ -74,6 +74,12 @@
         "text": "#ffffff",
         "ring": "#a855f7"
       },
+      "schema": {
+        "header": "#0891b2",
+        "headerHover": "#0e7490",
+        "text": "#ffffff",
+        "ring": "#06b6d4"
+      },
       "variable": {
         "header": "#7c3aed",
         "headerHover": "#6d28d9",
@@ -154,6 +160,7 @@
       "context": "#2563eb",
       "agentTool": "#d97706",
       "callback": "#9333ea",
+      "schema": "#06b6d4",
       "process": "#10b981",
       "probe": "#6b7280",
       "border": "#ffffff"

@@ -301,7 +301,10 @@ export function createHttpOptionsFields(): FieldDefinition[] {
 }
 
 /**
- * Flow tab fields (transfer controls + schema validation).
+ * Flow tab fields (transfer controls + finish reason handling).
+ *
+ * NOTE: Schema fields (input_schema, output_schema) are now defined as
+ * input handles in AgentNode schema, allowing connection from SchemaNodes.
  */
 export function createFlowFields(): FieldDefinition[] {
   return [
@@ -323,26 +326,6 @@ export function createFlowFields(): FieldDefinition[] {
       help_text:
         "Prevent this agent from transferring control to sibling agents",
       section: "Transfer Controls",
-      tab: "Flow",
-    },
-    {
-      id: "input_schema",
-      label: "Input Schema",
-      widget: "text",
-      default: "",
-      placeholder: "e.g., models.TaskInput",
-      help_text: "Pydantic BaseModel class path for input validation",
-      section: "Schema",
-      tab: "Flow",
-    },
-    {
-      id: "output_schema",
-      label: "Output Schema",
-      widget: "text",
-      default: "",
-      placeholder: "e.g., models.TaskOutput",
-      help_text: "Pydantic BaseModel class path for output validation",
-      section: "Schema",
       tab: "Flow",
     },
     {

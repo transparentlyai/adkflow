@@ -25,6 +25,7 @@ const staticNodeTypes = {
   tool: CustomNode,
   agentTool: CustomNode,
   callback: CustomNode,
+  schema: CustomNode,
   variable: CustomNode,
   process: CustomNode,
   teleportOut: CustomNode,

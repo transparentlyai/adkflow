@@ -62,6 +62,7 @@ export type NodeTypeOption =
   | "tool"
   | "agentTool"
   | "process"
+  | "schema"
   | "label"
   | "teleportOut"
   | "teleportIn"
@@ -148,6 +149,7 @@ const menuGroups: MenuGroup[] = [
         icon: <Terminal className="h-4 w-4" />,
       },
       { type: "process", label: "Process", icon: <Code className="h-4 w-4" /> },
+      { type: "schema", label: "Schema", icon: <Code className="h-4 w-4" /> },
     ],
   },
   {
