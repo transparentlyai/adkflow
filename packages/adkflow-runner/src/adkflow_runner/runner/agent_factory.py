@@ -57,6 +57,7 @@ class AgentFactory:
         self.hooks = hooks
         self.tool_loader = ToolLoader(project_path)
         self._agent_cache: dict[str, BaseAgent] = {}
+        self._finish_reason_handlers: dict[str, FinishReasonHandler] = {}
 
     def create_from_workflow(
         self,
@@ -355,9 +356,12 @@ class AgentFactory:
         registry.register(LoggingHandler())
 
         # Priority 350: Finish reason validation (optional fail-fast)
-        registry.register(
-            FinishReasonHandler(fail_fast=agent_ir.finish_reason_fail_fast)
+        finish_reason_handler = FinishReasonHandler(
+            fail_fast=agent_ir.finish_reason_fail_fast
         )
+        registry.register(finish_reason_handler)
+        # Store handler for post-execution retrieval
+        self._finish_reason_handlers[agent_ir.id] = finish_reason_handler
 
         # Priority 400: RunEvent emission for UI
         registry.register(EmitHandler(self.emit))
@@ -382,6 +386,21 @@ class AgentFactory:
                 )
 
         return registry.to_adk_callbacks()
+
+    def get_finish_reason(self, agent_id: str) -> dict[str, str] | None:
+        """Get the finish reason for an agent after execution.
+
+        Args:
+            agent_id: The agent ID to get finish reason for
+
+        Returns:
+            Dict with 'name' and 'description' keys, or None if not available.
+            Example: {"name": "STOP", "description": "Natural completion"}
+        """
+        handler = self._finish_reason_handlers.get(agent_id)
+        if handler:
+            return handler.last_finish_reason
+        return None
 
     def _load_tools(self, agent_ir: AgentIR) -> list[Any]:
         """Load tools for an agent."""

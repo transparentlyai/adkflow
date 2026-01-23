@@ -21,7 +21,13 @@ from adkflow_runner.runner.types import (
     RunStatus,
 )
 from adkflow_runner.runner.workflow_runner import WorkflowRunner, run_workflow
-from adkflow_runner.ir import AgentIR, WorkflowIR, UserInputIR, CustomNodeIR
+from adkflow_runner.ir import (
+    AgentIR,
+    WorkflowIR,
+    UserInputIR,
+    CustomNodeIR,
+    ConnectionSource,
+)
 
 
 class MockCallbacks:
@@ -991,6 +997,98 @@ class TestWorkflowRunnerExecute:
                 await runner._execute(ir, config, emit, "run-123", mock_hooks)
 
             mock_format_error.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_execute_with_post_agent_custom_nodes_includes_finish_reason(
+        self, tmp_path, mock_adk, mock_hooks
+    ):
+        """Execute includes finish-reason in agent outputs passed to post-agent custom nodes."""
+        custom_node = CustomNodeIR(
+            id="monitor1",
+            unit_id="monitor.unit",
+            name="Monitor Node",
+            source_node_id="monitor1",
+            config={},
+            input_connections={
+                "agent_output": [ConnectionSource(node_id="a1", handle="output")]
+            },
+            output_connections={},
+        )
+        agent = AgentIR(id="a1", name="Agent", type="llm", model="gemini-2.0-flash")
+        ir = WorkflowIR(
+            root_agent=agent,
+            all_agents={"a1": agent},
+            custom_nodes=[custom_node],
+        )
+
+        with (
+            patch(
+                "adkflow_runner.runner.workflow_runner.AgentFactory"
+            ) as mock_factory_cls,
+            patch(
+                "adkflow_runner.runner.workflow_runner.partition_custom_nodes"
+            ) as mock_partition,
+            patch(
+                "adkflow_runner.runner.workflow_runner.execute_custom_nodes_graph"
+            ) as mock_execute_custom,
+        ):
+            # Mock factory with finish reason support
+            mock_factory = MagicMock()
+            mock_factory.create_from_workflow.return_value = MagicMock()
+            mock_factory.get_finish_reason.return_value = {
+                "name": "STOP",
+                "description": "Natural completion",
+            }
+            mock_factory_cls.return_value = mock_factory
+
+            # Mock partition to return post-agent nodes
+            mock_partition.return_value = (
+                [],
+                ["monitor1"],
+            )  # No pre-agent, one post-agent
+
+            # Mock custom node execution
+            mock_execute_custom.return_value = {"monitor1": {"result": "processed"}}
+
+            # Mock agent execution
+            mock_part = MagicMock()
+            mock_part.text = "Agent output"
+            mock_content = MagicMock()
+            mock_content.parts = [mock_part]
+            mock_event = MagicMock()
+            mock_event.content = mock_content
+
+            async def mock_event_stream(*args, **kwargs):
+                yield mock_event
+
+            mock_adk["runner"].run_async = mock_event_stream
+
+            with patch(
+                "adkflow_runner.runner.workflow_runner.process_adk_event",
+                new_callable=AsyncMock,
+                return_value="Agent",
+            ):
+                runner = WorkflowRunner()
+                config = RunConfig(project_path=tmp_path, input_data={})
+                emit = AsyncMock()
+
+                await runner._execute(ir, config, emit, "run-123", mock_hooks)
+
+                # Verify execute_custom_nodes_graph was called with external_results
+                assert mock_execute_custom.call_count == 1
+                call_kwargs = mock_execute_custom.call_args[1]
+
+                # Verify external_results includes both output and finish-reason
+                external_results = call_kwargs["external_results"]
+                assert "a1" in external_results
+                assert external_results["a1"]["output"] == "Agent output"
+                assert external_results["a1"]["finish-reason"] == {
+                    "name": "STOP",
+                    "description": "Natural completion",
+                }
+
+                # Verify get_finish_reason was called for the agent
+                mock_factory.get_finish_reason.assert_called_with("a1")
 
 
 class TestRunAsyncGenerator:

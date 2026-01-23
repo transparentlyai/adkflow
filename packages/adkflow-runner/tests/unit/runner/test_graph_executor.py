@@ -8,7 +8,7 @@ from adkflow_runner.runner.graph_executor import (
     ExecutionGraph,
     ExecutionCache,
 )
-from adkflow_runner.ir import AgentIR, CustomNodeIR
+from adkflow_runner.ir import AgentIR, ConnectionSource, CustomNodeIR
 
 
 class TestExecutionNode:
@@ -396,7 +396,7 @@ class TestGraphExecutor:
             name="Node 2",
             source_node_id="custom_2_src",
             config={},
-            input_connections={"input_port": ["custom_1"]},
+            input_connections={"input_port": [ConnectionSource(node_id="custom_1")]},
             output_connections={},
         )
         node = ExecutionNode(id="custom_2", node_type="custom", ir=custom_ir)
@@ -427,7 +427,7 @@ class TestGraphExecutor:
             name="Node 2",
             source_node_id="custom_2_src",
             config={},
-            input_connections={"input_port": ["custom_1"]},
+            input_connections={"input_port": [ConnectionSource(node_id="custom_1")]},
             output_connections={},
         )
         node = ExecutionNode(id="custom_2", node_type="custom", ir=custom_ir)
@@ -439,6 +439,80 @@ class TestGraphExecutor:
         inputs = executor._resolve_inputs(node, graph, results)
 
         assert "input_port" not in inputs
+
+    def test_resolve_inputs_uses_specific_handle(self, mock_emit):
+        """Resolve inputs uses specific output handle from ConnectionSource."""
+        from adkflow_runner.runner.graph_executor import GraphExecutor
+        from adkflow_runner.ir import CustomNodeIR, ConnectionSource
+
+        custom_ir = CustomNodeIR(
+            id="custom_2",
+            unit_id="test.unit",
+            name="Node 2",
+            source_node_id="custom_2_src",
+            config={},
+            input_connections={
+                "input_port": [
+                    ConnectionSource(node_id="custom_1", handle="specific_output")
+                ]
+            },
+            output_connections={},
+        )
+        node = ExecutionNode(id="custom_2", node_type="custom", ir=custom_ir)
+
+        edge = ExecutionEdge(
+            source_id="custom_1",
+            source_port="specific_output",
+            target_id="custom_2",
+            target_port="input_port",
+        )
+        graph = ExecutionGraph(nodes={"custom_2": node}, edges=[edge])
+
+        # Upstream node has multiple outputs
+        results = {
+            "custom_1": {
+                "output": "default_value",
+                "specific_output": "specific_value",
+                "other_output": "other_value",
+            }
+        }
+
+        executor = GraphExecutor(emit=mock_emit)
+        inputs = executor._resolve_inputs(node, graph, results)
+
+        # Should use the specific handle, not the first value
+        assert inputs["input_port"] == "specific_value"
+
+    def test_resolve_inputs_fallback_when_handle_missing(self, mock_emit):
+        """Resolve inputs falls back to first value when handle not found."""
+        from adkflow_runner.runner.graph_executor import GraphExecutor
+        from adkflow_runner.ir import CustomNodeIR, ConnectionSource
+
+        custom_ir = CustomNodeIR(
+            id="custom_2",
+            unit_id="test.unit",
+            name="Node 2",
+            source_node_id="custom_2_src",
+            config={},
+            input_connections={
+                "input_port": [
+                    ConnectionSource(node_id="custom_1", handle="missing_handle")
+                ]
+            },
+            output_connections={},
+        )
+        node = ExecutionNode(id="custom_2", node_type="custom", ir=custom_ir)
+
+        graph = ExecutionGraph(nodes={"custom_2": node}, edges=[])
+
+        # Upstream has outputs but not the requested handle
+        results = {"custom_1": {"output": "first_value", "other": "second_value"}}
+
+        executor = GraphExecutor(emit=mock_emit)
+        inputs = executor._resolve_inputs(node, graph, results)
+
+        # Should fall back to first value
+        assert inputs["input_port"] == "first_value"
 
     @pytest.mark.asyncio
     async def test_execute_agent_raises_not_implemented(self, mock_emit, tmp_path):
@@ -949,7 +1023,10 @@ class TestGraphExecutorExecution:
             name="Node 3",
             source_node_id="custom_3_src",
             config={},
-            input_connections={"in1": ["custom_1"], "in2": ["custom_2"]},
+            input_connections={
+                "in1": [ConnectionSource(node_id="custom_1")],
+                "in2": [ConnectionSource(node_id="custom_2")],
+            },
             output_connections={},
             output_node=True,
         )

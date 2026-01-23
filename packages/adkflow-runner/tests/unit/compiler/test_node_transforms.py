@@ -18,6 +18,7 @@ from adkflow_runner.compiler.node_transforms import (
 )
 from adkflow_runner.compiler.parser import ParsedNode
 from adkflow_runner.config import EdgeSemantics
+from adkflow_runner.ir import ConnectionSource
 
 
 # =============================================================================
@@ -499,7 +500,9 @@ class TestTransformCustomNodes:
         result = transform_custom_nodes(graph)
 
         assert len(result) == 1
-        assert result[0].input_connections == {"data_in": ["agent-1"]}
+        assert result[0].input_connections == {
+            "data_in": [ConnectionSource(node_id="agent-1", handle="output")]
+        }
         assert result[0].output_connections == {"result": ["agent-2"]}
 
     def test_custom_node_with_multiple_connections(
@@ -541,8 +544,9 @@ class TestTransformCustomNodes:
 
         assert len(result) == 1
         assert len(result[0].input_connections["input"]) == 2
-        assert "source-1" in result[0].input_connections["input"]
-        assert "source-2" in result[0].input_connections["input"]
+        source_node_ids = [s.node_id for s in result[0].input_connections["input"]]
+        assert "source-1" in source_node_ids
+        assert "source-2" in source_node_ids
 
     def test_custom_node_with_registry(
         self,
@@ -662,8 +666,10 @@ class TestTransformCustomNodes:
         result = transform_custom_nodes(graph)
 
         assert len(result) == 1
-        # Should use "input" as default target handle
-        assert result[0].input_connections == {"input": ["agent-1"]}
+        # Should use "input" as default target handle, "output" as default source handle
+        assert result[0].input_connections == {
+            "input": [ConnectionSource(node_id="agent-1", handle="output")]
+        }
 
     def test_custom_node_fallback_name(
         self,

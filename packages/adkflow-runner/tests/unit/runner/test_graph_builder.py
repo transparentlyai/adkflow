@@ -6,7 +6,7 @@ Agents are executed separately by the workflow runner, not by the GraphExecutor.
 
 import pytest
 
-from adkflow_runner.ir import AgentIR, CustomNodeIR, WorkflowIR
+from adkflow_runner.ir import AgentIR, ConnectionSource, CustomNodeIR, WorkflowIR
 from adkflow_runner.runner.graph_builder import (
     GraphBuilder,
     partition_custom_nodes,
@@ -47,7 +47,9 @@ def ir_with_custom_nodes():
         name="Custom Node",
         source_node_id="custom_1_src",
         config={"value": 42},
-        input_connections={"input": ["agent_1"]},  # Depends on agent
+        input_connections={
+            "input": [ConnectionSource(node_id="agent_1")]
+        },  # Depends on agent
         output_connections={},
     )
     return WorkflowIR(
@@ -223,7 +225,7 @@ class TestGraphBuilderEdgeCases:
             name="Custom2",
             source_node_id="c2_src",
             config={},
-            input_connections={"input": ["c1"]},
+            input_connections={"input": [ConnectionSource(node_id="c1")]},
             output_connections={},
         )
         ir = WorkflowIR(
@@ -368,7 +370,9 @@ class TestPartitionCustomNodes:
             name="Custom1",
             source_node_id="c1_src",
             config={},
-            input_connections={"input": ["agent_1"]},  # Depends on agent
+            input_connections={
+                "input": [ConnectionSource(node_id="agent_1")]
+            },  # Depends on agent
             output_connections={},
         )
         ir = WorkflowIR(
@@ -391,7 +395,7 @@ class TestPartitionCustomNodes:
             name="Custom1",
             source_node_id="c1_src",
             config={},
-            input_connections={"input": ["agent_1"]},
+            input_connections={"input": [ConnectionSource(node_id="agent_1")]},
             output_connections={"output": ["c2"]},
         )
         custom2 = CustomNodeIR(
@@ -400,7 +404,9 @@ class TestPartitionCustomNodes:
             name="Custom2",
             source_node_id="c2_src",
             config={},
-            input_connections={"input": ["c1"]},  # Depends on c1 (transitively on agent)
+            input_connections={
+                "input": [ConnectionSource(node_id="c1")]
+            },  # Depends on c1 (transitively on agent)
             output_connections={},
         )
         ir = WorkflowIR(
@@ -432,7 +438,9 @@ class TestPartitionCustomNodes:
             name="Custom2",
             source_node_id="c2_src",
             config={},
-            input_connections={"input": ["agent_1"]},  # Depends on agent
+            input_connections={
+                "input": [ConnectionSource(node_id="agent_1")]
+            },  # Depends on agent
             output_connections={},
         )
         ir = WorkflowIR(
@@ -527,7 +535,7 @@ class TestGraphBuilderCustomNodeEdges:
             name="Custom2",
             source_node_id="c2_src",
             config={},
-            input_connections={"input": ["c1"]},
+            input_connections={"input": [ConnectionSource(node_id="c1")]},
             output_connections={},
         )
         ir = WorkflowIR(

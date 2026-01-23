@@ -359,14 +359,19 @@ class GraphExecutor:
         if node.node_type == "custom":
             ir = node.ir
             if isinstance(ir, CustomNodeIR):
-                for port_id, source_ids in ir.input_connections.items():
+                for port_id, sources in ir.input_connections.items():
                     # Get value from first connected source
-                    for source_id in source_ids:
-                        if source_id in results:
-                            source_outputs = results[source_id]
-                            # Use first output value (or match by port)
+                    for source in sources:
+                        if source.node_id in results:
+                            source_outputs = results[source.node_id]
                             if source_outputs:
-                                inputs[port_id] = next(iter(source_outputs.values()))
+                                # Use the specific output handle, fallback to first value
+                                if source.handle in source_outputs:
+                                    inputs[port_id] = source_outputs[source.handle]
+                                else:
+                                    inputs[port_id] = next(
+                                        iter(source_outputs.values())
+                                    )
                             break
 
         return inputs

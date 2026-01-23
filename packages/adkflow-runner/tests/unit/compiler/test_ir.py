@@ -16,6 +16,7 @@ from adkflow_runner.ir import (
     AgentIR,
     CallbackConfig,
     CodeExecutorConfig,
+    ConnectionSource,
     CustomNodeIR,
     HttpOptionsConfig,
     OutputFileIR,
@@ -376,7 +377,12 @@ class TestCustomNodeIR:
             name="Processor",
             config={},
             source_node_id="node-123",
-            input_connections={"data": ["agent-1", "agent-2"]},
+            input_connections={
+                "data": [
+                    ConnectionSource(node_id="agent-1"),
+                    ConnectionSource(node_id="agent-2"),
+                ]
+            },
             output_connections={"result": ["agent-3"]},
         )
         assert "data" in node.input_connections

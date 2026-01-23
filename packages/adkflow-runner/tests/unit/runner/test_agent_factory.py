@@ -572,22 +572,32 @@ class TestBuildSafetySettings:
 
         # Verify each setting is correctly mapped
         harassment_setting = next(
-            s for s in result if s.category == types.HarmCategory.HARM_CATEGORY_HARASSMENT
+            s
+            for s in result
+            if s.category == types.HarmCategory.HARM_CATEGORY_HARASSMENT
         )
-        assert harassment_setting.threshold == types.HarmBlockThreshold.BLOCK_LOW_AND_ABOVE
+        assert (
+            harassment_setting.threshold == types.HarmBlockThreshold.BLOCK_LOW_AND_ABOVE
+        )
 
         hate_setting = next(
-            s for s in result if s.category == types.HarmCategory.HARM_CATEGORY_HATE_SPEECH
+            s
+            for s in result
+            if s.category == types.HarmCategory.HARM_CATEGORY_HATE_SPEECH
         )
         assert hate_setting.threshold == types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE
 
         explicit_setting = next(
-            s for s in result if s.category == types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT
+            s
+            for s in result
+            if s.category == types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT
         )
         assert explicit_setting.threshold == types.HarmBlockThreshold.BLOCK_ONLY_HIGH
 
         dangerous_setting = next(
-            s for s in result if s.category == types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT
+            s
+            for s in result
+            if s.category == types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT
         )
         assert dangerous_setting.threshold == types.HarmBlockThreshold.OFF
 
@@ -655,3 +665,68 @@ class TestBuildSafetySettings:
         assert result is not None
         assert len(result) == 1
         assert result[0].threshold == types.HarmBlockThreshold.OFF
+
+
+class TestGetFinishReason:
+    """Tests for get_finish_reason method."""
+
+    @patch("adkflow_runner.runner.agent_factory.Agent")
+    def test_get_finish_reason_returns_none_when_not_available(self, mock_agent_cls):
+        """get_finish_reason returns None when handler not registered."""
+        mock_agent_cls.return_value = MagicMock()
+
+        factory = AgentFactory()
+        agent_ir = AgentIR(
+            id="agent_1",
+            name="TestAgent",
+            type="llm",
+            model="gemini-2.0-flash",
+        )
+
+        factory.create(agent_ir)
+
+        # Before any execution, finish reason should be None
+        result = factory.get_finish_reason("agent_1")
+        assert result is None
+
+    @patch("adkflow_runner.runner.agent_factory.Agent")
+    def test_get_finish_reason_returns_none_for_unknown_agent(self, mock_agent_cls):
+        """get_finish_reason returns None for unknown agent ID."""
+        mock_agent_cls.return_value = MagicMock()
+
+        factory = AgentFactory()
+
+        # Query non-existent agent
+        result = factory.get_finish_reason("unknown_agent")
+        assert result is None
+
+    @patch("adkflow_runner.runner.agent_factory.Agent")
+    def test_get_finish_reason_returns_stored_value(self, mock_agent_cls):
+        """get_finish_reason returns stored finish reason after execution."""
+        from unittest.mock import MagicMock
+
+        mock_agent_cls.return_value = MagicMock()
+
+        factory = AgentFactory()
+        agent_ir = AgentIR(
+            id="agent_1",
+            name="TestAgent",
+            type="llm",
+            model="gemini-2.0-flash",
+        )
+
+        factory.create(agent_ir)
+
+        # Simulate finish reason being stored by handler
+        # The FinishReasonHandler should be in _finish_reason_handlers
+        assert "agent_1" in factory._finish_reason_handlers
+        handler = factory._finish_reason_handlers["agent_1"]
+
+        # Set a finish reason (simulating what the handler would do during execution)
+        test_finish_reason = {"name": "STOP", "description": "Natural completion"}
+        handler._last_finish_reason = test_finish_reason
+
+        result = factory.get_finish_reason("agent_1")
+        assert result == test_finish_reason
+        assert result["name"] == "STOP"
+        assert result["description"] == "Natural completion"

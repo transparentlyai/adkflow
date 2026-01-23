@@ -11,6 +11,15 @@ that can be:
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+
+@dataclass
+class ConnectionSource:
+    """Represents a source connection with node ID and output handle."""
+
+    node_id: str
+    handle: str = "output"  # Default to "output" handle
+
+
 # Tool error handling behavior
 ToolErrorBehavior = Literal["fail_fast", "pass_to_model"]
 
@@ -322,9 +331,9 @@ class CustomNodeIR:
     source_node_id: str  # Original ReactFlow node ID
 
     # Connection info (resolved at transform time)
-    input_connections: dict[str, list[str]] = field(
+    input_connections: dict[str, list[ConnectionSource]] = field(
         default_factory=dict
-    )  # port_id -> [source_node_ids]
+    )  # port_id -> [ConnectionSource(node_id, handle)]
     output_connections: dict[str, list[str]] = field(
         default_factory=dict
     )  # port_id -> [target_node_ids]

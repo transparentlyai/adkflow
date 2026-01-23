@@ -558,7 +558,10 @@ class WorkflowRunner:
             # All output is passed to monitors (including intermediate steps)
             agent_outputs: dict[str, dict[str, Any]] = {}
             for agent_id in ir.all_agents:
-                agent_outputs[agent_id] = {"output": output}
+                agent_outputs[agent_id] = {
+                    "output": output,
+                    "finish-reason": factory.get_finish_reason(agent_id),
+                }
 
             # Merge pre-agent custom node outputs with agent outputs
             external_results = {**custom_node_outputs, **agent_outputs}

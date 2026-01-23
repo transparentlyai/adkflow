@@ -55,19 +55,18 @@ class GraphBuilder:
         for custom_ir in ir.custom_nodes:
             if custom_ir.id not in nodes:
                 continue
-            for port_id, source_ids in custom_ir.input_connections.items():
-                for source_id in source_ids:
+            for port_id, sources in custom_ir.input_connections.items():
+                for source in sources:
                     # Skip edges from agents - those are external dependencies
-                    if source_id in agent_ids:
+                    if source.node_id in agent_ids:
                         continue
                     # Skip edges from custom nodes not in this graph
-                    if source_id not in nodes:
+                    if source.node_id not in nodes:
                         continue
-                    source_port = self._find_source_port(source_id, ir)
                     edges.append(
                         ExecutionEdge(
-                            source_id=source_id,
-                            source_port=source_port,
+                            source_id=source.node_id,
+                            source_port=source.handle,
                             target_id=custom_ir.id,
                             target_port=port_id,
                         )
@@ -148,9 +147,9 @@ def partition_custom_nodes(
     # Find nodes that directly depend on agents
     direct_agent_dependents: set[str] = set()
     for custom_ir in ir.custom_nodes:
-        for source_ids in custom_ir.input_connections.values():
-            for source_id in source_ids:
-                if source_id in agent_ids:
+        for sources in custom_ir.input_connections.values():
+            for source in sources:
+                if source.node_id in agent_ids:
                     direct_agent_dependents.add(custom_ir.id)
                     break
 
@@ -162,9 +161,9 @@ def partition_custom_nodes(
         for custom_ir in ir.custom_nodes:
             if custom_ir.id in post_agent_nodes:
                 continue
-            for source_ids in custom_ir.input_connections.values():
-                for source_id in source_ids:
-                    if source_id in post_agent_nodes:
+            for sources in custom_ir.input_connections.values():
+                for source in sources:
+                    if source.node_id in post_agent_nodes:
                         post_agent_nodes.add(custom_ir.id)
                         changed = True
                         break

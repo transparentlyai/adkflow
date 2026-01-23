@@ -9,7 +9,12 @@ from typing import Any
 from adkflow_runner.compiler.graph import WorkflowGraph
 from adkflow_runner.compiler.node_config import get_node_config
 from adkflow_runner.config import EdgeSemantics
-from adkflow_runner.ir import ContextAggregatorIR, CustomNodeIR, UserInputIR
+from adkflow_runner.ir import (
+    ConnectionSource,
+    ContextAggregatorIR,
+    CustomNodeIR,
+    UserInputIR,
+)
 
 
 def sanitize_variable_name(name: str) -> str:
@@ -132,13 +137,16 @@ def transform_custom_nodes(graph: WorkflowGraph) -> list[CustomNodeIR]:
             unit_id = builtin_flowunit_types[node.type]
 
         if unit_id:
-            # Gather input connections
-            input_connections: dict[str, list[str]] = {}
+            # Gather input connections with source handle info
+            input_connections: dict[str, list[ConnectionSource]] = {}
             for edge in node.incoming:
                 target_handle = edge.target_handle or "input"
+                source_handle = edge.source_handle or "output"
                 if target_handle not in input_connections:
                     input_connections[target_handle] = []
-                input_connections[target_handle].append(edge.source_id)
+                input_connections[target_handle].append(
+                    ConnectionSource(node_id=edge.source_id, handle=source_handle)
+                )
 
             # Gather output connections
             output_connections: dict[str, list[str]] = {}
