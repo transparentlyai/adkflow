@@ -97,8 +97,20 @@ def transform_user_inputs(
 
 
 def transform_custom_nodes(graph: WorkflowGraph) -> list[CustomNodeIR]:
-    """Transform custom FlowUnit nodes to IR."""
+    """Transform custom FlowUnit nodes to IR.
+
+    Handles two types of FlowUnit nodes:
+    - Custom nodes with type "custom:unit_id" (from extensions)
+    - Builtin FlowUnit nodes with type matching their short name (e.g., "monitor")
+    """
     custom_nodes: list[CustomNodeIR] = []
+
+    # Mapping from builtin node types to their unit IDs
+    # These are FlowUnit nodes defined in the frontend with short types
+    # but need to be executed as FlowUnits with their full unit_id
+    builtin_flowunit_types: dict[str, str] = {
+        "monitor": "builtin.monitor",
+    }
 
     # Import registry to get FlowUnit class metadata
     try:
@@ -109,9 +121,15 @@ def transform_custom_nodes(graph: WorkflowGraph) -> list[CustomNodeIR]:
         registry = None
 
     for node in graph.nodes.values():
+        # Determine the unit_id based on node type
+        unit_id: str | None = None
+
         if node.type.startswith("custom:"):
             unit_id = node.data.get("_unit_id") or node.type[7:]
+        elif node.type in builtin_flowunit_types:
+            unit_id = builtin_flowunit_types[node.type]
 
+        if unit_id:
             # Gather input connections
             input_connections: dict[str, list[str]] = {}
             for edge in node.incoming:
