@@ -58,6 +58,7 @@ class AgentFactory:
         self.tool_loader = ToolLoader(project_path)
         self._agent_cache: dict[str, BaseAgent] = {}
         self._finish_reason_handlers: dict[str, FinishReasonHandler] = {}
+        self._global_variables: dict[str, str] = {}  # From unconnected Variable nodes
 
     def create_from_workflow(
         self,
@@ -79,6 +80,7 @@ class AgentFactory:
         self.emit = emit
         self.hooks = hooks
         self.tool_loader = ToolLoader(self.project_path)
+        self._global_variables = ir.global_variables  # Store for validation
 
         return self.create(ir.root_agent)
 
@@ -541,25 +543,25 @@ class AgentFactory:
         agent_name: str,
         upstream_output_keys: list[str] | None = None,
     ) -> str:
-        """Substitute {variable_name} placeholders with context variable values.
+        """Validate that all {variable} placeholders are known.
 
-        Placeholders that match upstream_output_keys are left unchanged for ADK
-        to substitute at runtime via state.
+        Does NOT substitute - ADK handles all substitution via session state.
+        This method only validates that referenced variables are either:
+        - In context_vars (will be in session state from connected Variable nodes)
+        - In global_variables (will be in session state from unconnected Variable nodes)
+        - In upstream_output_keys (will be written by upstream agent)
 
         Args:
             text: Text containing {variable_name} placeholders
-            context_vars: Dict mapping variable names to values
+            context_vars: Dict mapping variable names to values (for validation)
             agent_name: Agent name for error messages
             upstream_output_keys: output_keys from upstream sequential agents
-                (these are substituted by ADK at runtime, not here)
 
         Returns:
-            Text with placeholders replaced by variable values
-            (upstream_output_keys placeholders are preserved)
+            Text unchanged - ADK will substitute from session state
 
         Raises:
-            ExecutionError: If a placeholder references a missing variable
-                (excluding upstream_output_keys which ADK handles)
+            ExecutionError: If a placeholder references an unknown variable
         """
         if not text:
             return text
@@ -572,16 +574,27 @@ class AgentFactory:
         if not placeholders:
             return text
 
-        # Check for missing variables (excluding upstream_output_keys - ADK handles those)
+        # Validate all placeholders are known:
+        # - context_vars (from connected Variable nodes/Context Aggregators)
+        # - global_variables (from unconnected Variable nodes)
+        # - upstream_output_keys (from upstream agents' output_key)
         missing = [
-            p for p in placeholders if p not in context_vars and p not in upstream_keys
+            p
+            for p in placeholders
+            if p not in context_vars
+            and p not in self._global_variables
+            and p not in upstream_keys
         ]
 
         if missing:
-            if context_vars:
-                available = ", ".join(context_vars.keys())
+            # Build available variables message
+            all_available = set(context_vars.keys()) | set(
+                self._global_variables.keys()
+            )
+            if all_available:
+                available = ", ".join(sorted(all_available))
             elif upstream_keys:
-                available = f"upstream: {', '.join(upstream_keys)}"
+                available = f"upstream: {', '.join(sorted(upstream_keys))}"
             else:
                 available = "none"
             raise ExecutionError(
@@ -589,17 +602,8 @@ class AgentFactory:
                 f"{', '.join(missing)}. Available variables: {available}."
             )
 
-        # Substitute only context_vars (not upstream_output_keys - ADK handles those)
-        result = text
-        for key, value in context_vars.items():
-            # Escape {word} patterns in value so ADK doesn't interpret them as variables.
-            # ADK's regex {+[^{}]*}+ matches any {word} pattern and tries to substitute.
-            # We insert a zero-width space (U+200B) after { to break isidentifier() check.
-            # This is invisible but prevents ADK from treating it as a variable.
-            escaped_value = re.sub(r"\{(\w+)\}", "{\u200b\\1}", value)
-            result = result.replace(f"{{{key}}}", escaped_value)
-
-        return result
+        # Return unchanged - ADK substitutes from session state at runtime
+        return text
 
     def _build_safety_settings(
         self, agent_ir: AgentIR

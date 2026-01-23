@@ -448,19 +448,24 @@ class TestToolLoading:
 
 
 class TestSubstituteVariables:
-    """Tests for _substitute_variables method."""
+    """Tests for _substitute_variables method.
 
-    def test_substitute_context_vars(self):
-        """Context variables are substituted in text."""
+    NOTE: _substitute_variables now only validates - it does NOT substitute.
+    ADK handles all substitution via session state at runtime.
+    """
+
+    def test_validates_context_vars_but_does_not_substitute(self):
+        """Context variables are validated but text is returned unchanged."""
         factory = AgentFactory()
         text = "Hello {name}, your age is {age}."
         context_vars = {"name": "Alice", "age": "30"}
 
         result = factory._substitute_variables(text, context_vars, "TestAgent")
-        assert result == "Hello Alice, your age is 30."
+        # Text should be unchanged - ADK substitutes at runtime
+        assert result == "Hello {name}, your age is {age}."
 
-    def test_skip_upstream_output_keys(self):
-        """Upstream output_keys are not substituted - left for ADK."""
+    def test_preserves_upstream_output_keys(self):
+        """Upstream output_keys are preserved for ADK."""
         factory = AgentFactory()
         text = "Previous output: {poem}. Context: {topic}."
         context_vars = {"topic": "nature"}
@@ -469,8 +474,8 @@ class TestSubstituteVariables:
         result = factory._substitute_variables(
             text, context_vars, "TestAgent", upstream_output_keys
         )
-        # {poem} should be preserved for ADK, {topic} should be substituted
-        assert result == "Previous output: {poem}. Context: nature."
+        # All placeholders should be preserved - ADK substitutes at runtime
+        assert result == "Previous output: {poem}. Context: {topic}."
 
     def test_error_on_missing_vars(self):
         """Error when variable is missing from both context_vars and upstream_output_keys."""
@@ -497,7 +502,7 @@ class TestSubstituteVariables:
         result = factory._substitute_variables(
             text, context_vars, "TestAgent", upstream_output_keys
         )
-        # Both placeholders should be preserved
+        # Text should be unchanged - ADK substitutes at runtime
         assert result == text
 
     def test_empty_text_returns_empty(self):
@@ -530,6 +535,48 @@ class TestSubstituteVariables:
         assert "missing" in error_msg
         assert "upstream:" in error_msg
         assert "poem" in error_msg
+
+    def test_mixed_context_and_upstream_vars_preserved(self):
+        """Both context vars and upstream vars are preserved for ADK."""
+        factory = AgentFactory()
+        text = "Topic: {topic}. Info: {info}."
+        context_vars = {"topic": "nature"}
+        upstream_output_keys = ["info"]
+
+        result = factory._substitute_variables(
+            text, context_vars, "TestAgent", upstream_output_keys
+        )
+        # Text unchanged - ADK substitutes both at runtime
+        assert result == "Topic: {topic}. Info: {info}."
+
+    def test_validates_against_global_variables(self):
+        """Validates placeholders against global variables."""
+        factory = AgentFactory()
+        factory._global_variables = {"director": "John Smith"}
+        text = "Director: {director}."
+        context_vars: dict[str, str] = {}  # No agent-specific context vars
+
+        # Should not raise - director is in global_variables
+        result = factory._substitute_variables(text, context_vars, "TestAgent")
+        assert result == "Director: {director}."
+
+    def test_error_shows_both_context_and_global_vars(self):
+        """Error message includes both context and global variables."""
+        from adkflow_runner.errors import ExecutionError
+
+        factory = AgentFactory()
+        factory._global_variables = {"director": "John Smith"}
+        text = "Missing: {unknown}."
+        context_vars = {"topic": "nature"}
+
+        with pytest.raises(ExecutionError) as exc_info:
+            factory._substitute_variables(text, context_vars, "TestAgent")
+
+        error_msg = str(exc_info.value)
+        assert "unknown" in error_msg
+        # Should show both context_vars and global_variables as available
+        assert "director" in error_msg
+        assert "topic" in error_msg
 
 
 class TestBuildSafetySettings:
