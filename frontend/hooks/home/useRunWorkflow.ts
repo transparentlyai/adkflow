@@ -133,5 +133,6 @@ export function useRunWorkflow({
     handleClearExecutionState: stateHandlers.handleClearExecutionState,
     handleCloseRunPanel: stateHandlers.handleCloseRunPanel,
     handleMonitorUpdate: stateHandlers.handleMonitorUpdate,
+    handleClearAllMonitors: stateHandlers.handleClearAllMonitors,
   };
 }

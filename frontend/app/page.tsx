@@ -441,6 +441,7 @@ function HomeContent() {
           }
           onClearExecutionState={runWorkflowHandlers.handleClearExecutionState}
           onMonitorUpdate={runWorkflowHandlers.handleMonitorUpdate}
+          onClearAllMonitors={runWorkflowHandlers.handleClearAllMonitors}
           onEventsChange={setRunEvents}
           onStatusChange={setLastRunStatus}
           isProjectSettingsOpen={isProjectSettingsOpen}

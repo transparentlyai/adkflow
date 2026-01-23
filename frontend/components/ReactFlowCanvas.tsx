@@ -110,6 +110,7 @@ export interface ReactFlowCanvasRef {
     valueType: string,
     timestamp: string,
   ) => void;
+  clearAllMonitors: () => void;
 }
 
 /**
@@ -383,6 +384,7 @@ const ReactFlowCanvasInner = forwardRef<
       clearExecutionState,
       updateUserInputWaitingState,
       updateMonitorValue,
+      clearAllMonitors,
     } = useExecutionState({ setNodes });
 
     // Validation
@@ -423,6 +425,7 @@ const ReactFlowCanvasInner = forwardRef<
       highlightWarningNodes,
       clearErrorHighlights,
       updateMonitorValue,
+      clearAllMonitors,
     }));
 
     return (

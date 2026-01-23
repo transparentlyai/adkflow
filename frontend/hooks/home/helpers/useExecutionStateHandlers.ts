@@ -64,10 +64,19 @@ export function useExecutionStateHandlers({
 
   const handleMonitorUpdate = useCallback(
     (nodeId: string, value: string, valueType: string, timestamp: string) => {
-      canvasRef.current?.updateMonitorValue(nodeId, value, valueType, timestamp);
+      canvasRef.current?.updateMonitorValue(
+        nodeId,
+        value,
+        valueType,
+        timestamp,
+      );
     },
     [canvasRef],
   );
+
+  const handleClearAllMonitors = useCallback(() => {
+    canvasRef.current?.clearAllMonitors();
+  }, [canvasRef]);
 
   return {
     handleRunComplete,
@@ -78,5 +87,6 @@ export function useExecutionStateHandlers({
     handleClearExecutionState,
     handleCloseRunPanel,
     handleMonitorUpdate,
+    handleClearAllMonitors,
   };
 }

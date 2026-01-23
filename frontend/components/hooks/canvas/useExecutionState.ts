@@ -163,6 +163,34 @@ export function useExecutionState({ setNodes }: UseExecutionStateParams) {
     [setNodes],
   );
 
+  // Clear all monitor values (before starting a new run)
+  const clearAllMonitors = useCallback(() => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.type === "monitor") {
+          const data = node.data as Record<string, unknown>;
+          const config = (data.config as Record<string, unknown>) || {};
+          // Only update if there's something to clear
+          if (config.monitoredValue !== undefined) {
+            return {
+              ...node,
+              data: {
+                ...data,
+                config: {
+                  ...config,
+                  monitoredValue: undefined,
+                  monitoredValueType: undefined,
+                  monitoredTimestamp: undefined,
+                },
+              },
+            };
+          }
+        }
+        return node;
+      }),
+    );
+  }, [setNodes]);
+
   return {
     updateNodeExecutionState,
     updateToolExecutionState,
@@ -170,5 +198,6 @@ export function useExecutionState({ setNodes }: UseExecutionStateParams) {
     clearExecutionState,
     updateUserInputWaitingState,
     updateMonitorValue,
+    clearAllMonitors,
   };
 }

@@ -22,12 +22,21 @@ interface UseRunEventsOptions {
   onRunComplete?: (status: RunStatus, output?: string, error?: string) => void;
   onAgentStateChange?: (agentName: string, state: NodeExecutionState) => void;
   onToolStateChange?: (toolName: string, state: NodeExecutionState) => void;
-  onCallbackStateChange?: (callbackName: string, state: NodeExecutionState) => void;
+  onCallbackStateChange?: (
+    callbackName: string,
+    state: NodeExecutionState,
+  ) => void;
   onUserInputStateChange?: (nodeId: string, isWaiting: boolean) => void;
   onClearExecutionState?: () => void;
   onUserInputRequired?: (request: UserInputRequest) => void;
   onUserInputComplete?: () => void;
-  onMonitorUpdate?: (nodeId: string, value: string, valueType: string, timestamp: string) => void;
+  onMonitorUpdate?: (
+    nodeId: string,
+    value: string,
+    valueType: string,
+    timestamp: string,
+  ) => void;
+  onClearAllMonitors?: () => void;
 }
 
 const EVENT_TYPES = [
@@ -63,6 +72,7 @@ export function useRunEvents({
   onUserInputRequired,
   onUserInputComplete,
   onMonitorUpdate,
+  onClearAllMonitors,
 }: UseRunEventsOptions) {
   const eventSourceRef = useRef<EventSource | null>(null);
 
@@ -104,7 +114,10 @@ export function useRunEvents({
       if (event.type === "callback_start" && event.data.callback_name) {
         onCallbackStateChange?.(event.data.callback_name as string, "running");
       } else if (event.type === "callback_end" && event.data.callback_name) {
-        onCallbackStateChange?.(event.data.callback_name as string, "completed");
+        onCallbackStateChange?.(
+          event.data.callback_name as string,
+          "completed",
+        );
       } else if (event.type === "callback_error" && event.data.callback_name) {
         onCallbackStateChange?.(event.data.callback_name as string, "error");
       }
@@ -157,6 +170,7 @@ export function useRunEvents({
 
     // Initialize run
     onStatusChange("running");
+    onClearAllMonitors?.(); // Clear all monitors before starting
     onEventsChange([
       {
         id: "start",
@@ -268,6 +282,7 @@ export function useRunEvents({
     onUserInputRequired,
     onUserInputComplete,
     onMonitorUpdate,
+    onClearAllMonitors,
   ]);
 
   return eventSourceRef;
