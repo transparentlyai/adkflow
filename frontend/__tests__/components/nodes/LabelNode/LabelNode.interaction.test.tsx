@@ -11,19 +11,25 @@ vi.mock("@xyflow/react", () => ({
     setNodes: mockSetNodes,
   })),
   useStore: (selector: (state: unknown) => unknown) => mockUseStore(selector),
-  NodeResizer: ({
-    isVisible,
+  NodeResizeControl: ({
+    position,
+    variant,
     onResizeEnd,
   }: {
-    isVisible: boolean;
-    onResizeEnd: () => void;
+    position: string;
+    variant: string;
+    onResizeEnd?: () => void;
   }) => (
     <div
-      data-testid="node-resizer"
-      data-visible={isVisible}
+      data-testid={`resize-control-${position}`}
+      data-variant={variant}
       onClick={() => onResizeEnd?.()}
     />
   ),
+  ResizeControlVariant: {
+    Handle: "handle",
+    Line: "line",
+  },
 }));
 
 // Mock ThemeContext
@@ -119,13 +125,15 @@ describe("LabelNode Interaction", () => {
       expect(screen.getByText("Test Label")).toBeInTheDocument();
     });
 
-    it("should hide NodeResizer when project is locked", () => {
+    it("should hide resize controls when project is locked", () => {
       mockUseProject.mockReturnValue({ isLocked: true });
 
       render(<LabelNode {...defaultNodeProps} selected={true} />);
 
-      const resizer = screen.getByTestId("node-resizer");
-      expect(resizer).toHaveAttribute("data-visible", "false");
+      // Resize controls should not be rendered when locked
+      expect(
+        screen.queryByTestId("resize-control-top-left"),
+      ).not.toBeInTheDocument();
     });
   });
 

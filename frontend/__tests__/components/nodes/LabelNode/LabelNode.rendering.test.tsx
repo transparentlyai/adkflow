@@ -11,19 +11,25 @@ vi.mock("@xyflow/react", () => ({
     setNodes: mockSetNodes,
   })),
   useStore: (selector: (state: unknown) => unknown) => mockUseStore(selector),
-  NodeResizer: ({
-    isVisible,
+  NodeResizeControl: ({
+    position,
+    variant,
     onResizeEnd,
   }: {
-    isVisible: boolean;
-    onResizeEnd: () => void;
+    position: string;
+    variant: string;
+    onResizeEnd?: () => void;
   }) => (
     <div
-      data-testid="node-resizer"
-      data-visible={isVisible}
+      data-testid={`resize-control-${position}`}
+      data-variant={variant}
       onClick={() => onResizeEnd?.()}
     />
   ),
+  ResizeControlVariant: {
+    Handle: "handle",
+    Line: "line",
+  },
 }));
 
 // Mock ThemeContext
@@ -117,17 +123,26 @@ describe("LabelNode Rendering", () => {
       expect(screen.getByText("My Custom Label")).toBeInTheDocument();
     });
 
-    it("should render the NodeResizer when selected", () => {
+    it("should render corner resize controls when selected", () => {
       render(<LabelNode {...defaultNodeProps} selected={true} />);
-      const resizer = screen.getByTestId("node-resizer");
-      expect(resizer).toBeInTheDocument();
-      expect(resizer).toHaveAttribute("data-visible", "true");
+      // Should render 4 corner handles
+      expect(screen.getByTestId("resize-control-top-left")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("resize-control-top-right"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId("resize-control-bottom-left"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId("resize-control-bottom-right"),
+      ).toBeInTheDocument();
     });
 
-    it("should hide NodeResizer when not selected", () => {
+    it("should not render resize controls when not selected", () => {
       render(<LabelNode {...defaultNodeProps} selected={false} />);
-      const resizer = screen.getByTestId("node-resizer");
-      expect(resizer).toHaveAttribute("data-visible", "false");
+      expect(
+        screen.queryByTestId("resize-control-top-left"),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -176,10 +191,10 @@ describe("LabelNode Rendering", () => {
   });
 
   describe("selection state", () => {
-    it("should pass selected prop to NodeResizer", () => {
+    it("should render resize controls when selected", () => {
       render(<LabelNode {...defaultNodeProps} selected={true} />);
       expect(screen.getByText("Test Label")).toBeInTheDocument();
-      expect(screen.getByTestId("node-resizer")).toBeInTheDocument();
+      expect(screen.getByTestId("resize-control-top-left")).toBeInTheDocument();
     });
 
     it("should render when not selected", () => {
