@@ -126,7 +126,7 @@ describe("LabelNode Editing", () => {
       expect(input).toHaveValue("New Label Text");
     });
 
-    it("should save label on Enter key", async () => {
+    it("should save label on Ctrl+Enter key", async () => {
       render(<LabelNode {...defaultNodeProps} />);
 
       const labelContainer = screen.getByText("Test Label").parentElement!;
@@ -134,7 +134,7 @@ describe("LabelNode Editing", () => {
 
       const input = screen.getByRole("textbox");
       fireEvent.change(input, { target: { value: "New Label" } });
-      fireEvent.keyDown(input, { key: "Enter" });
+      fireEvent.keyDown(input, { key: "Enter", ctrlKey: true });
 
       await waitFor(() => {
         expect(mockSetNodes).toHaveBeenCalled();
@@ -142,6 +142,37 @@ describe("LabelNode Editing", () => {
 
       // Should exit editing mode
       expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    });
+
+    it("should save label on Cmd+Enter key", async () => {
+      render(<LabelNode {...defaultNodeProps} />);
+
+      const labelContainer = screen.getByText("Test Label").parentElement!;
+      fireEvent.doubleClick(labelContainer);
+
+      const input = screen.getByRole("textbox");
+      fireEvent.change(input, { target: { value: "New Label" } });
+      fireEvent.keyDown(input, { key: "Enter", metaKey: true });
+
+      await waitFor(() => {
+        expect(mockSetNodes).toHaveBeenCalled();
+      });
+
+      // Should exit editing mode
+      expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    });
+
+    it("should allow new lines with Enter key alone", () => {
+      render(<LabelNode {...defaultNodeProps} />);
+
+      const labelContainer = screen.getByText("Test Label").parentElement!;
+      fireEvent.doubleClick(labelContainer);
+
+      const input = screen.getByRole("textbox");
+      fireEvent.keyDown(input, { key: "Enter" });
+
+      // Should remain in editing mode (Enter alone doesn't save)
+      expect(screen.getByRole("textbox")).toBeInTheDocument();
     });
 
     it("should cancel editing on Escape key", () => {
@@ -182,7 +213,7 @@ describe("LabelNode Editing", () => {
 
       const input = screen.getByRole("textbox");
       fireEvent.change(input, { target: { value: "   " } });
-      fireEvent.keyDown(input, { key: "Enter" });
+      fireEvent.keyDown(input, { key: "Enter", ctrlKey: true });
 
       // Should not call setNodes with empty label
       await waitFor(() => {

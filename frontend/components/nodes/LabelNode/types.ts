@@ -9,6 +9,8 @@ export interface LabelNodeData extends Record<string, unknown> {
   expandedPosition?: { x: number; y: number };
   contractedPosition?: { x: number; y: number };
   isExpanded?: boolean;
+  fontScaleWidth?: number; // Base width for font scaling, independent of box size
+  manuallyResized?: boolean; // True if user has manually resized the node
 }
 
 export const DEFAULT_FONT_SIZE = 14;

@@ -116,7 +116,8 @@ export const createMockStore = (
         id: string;
         parentId?: string;
         measured?: { width: number };
-        style?: { width: number };
+        style?: { width?: number };
+        data?: Record<string, unknown>;
       }[];
     }) => unknown,
   ) => {
@@ -126,7 +127,8 @@ export const createMockStore = (
           id: "node-1",
           parentId: overrides.parentId,
           measured: overrides.width ? { width: overrides.width } : undefined,
-          style: {},
+          style: {} as { width?: number },
+          data: {},
         },
       ],
     };
@@ -144,4 +146,7 @@ export const defaultNodeProps = {
   positionAbsoluteX: 0,
   positionAbsoluteY: 0,
   dragging: false,
+  draggable: true,
+  selectable: true,
+  deletable: true,
 };

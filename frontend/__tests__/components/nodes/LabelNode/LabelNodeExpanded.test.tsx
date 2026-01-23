@@ -106,40 +106,6 @@ describe("LabelNodeExpanded", () => {
       expect(closeButton).toBeInTheDocument();
     });
 
-    it("should render preview section with label", () => {
-      render(
-        <LabelNodeExpanded
-          data={defaultData}
-          size={defaultSize}
-          onClose={mockOnClose}
-          onUpdate={mockOnUpdate}
-          onResize={mockOnResize}
-          onResizeEnd={mockOnResizeEnd}
-        />,
-      );
-
-      expect(screen.getByText("Preview")).toBeInTheDocument();
-      // The preview should display the label text
-      expect(screen.getAllByText("Test Label").length).toBeGreaterThan(0);
-    });
-
-    it("should render text input field", () => {
-      render(
-        <LabelNodeExpanded
-          data={defaultData}
-          size={defaultSize}
-          onClose={mockOnClose}
-          onUpdate={mockOnUpdate}
-          onResize={mockOnResize}
-          onResizeEnd={mockOnResizeEnd}
-        />,
-      );
-
-      expect(screen.getByText("Text")).toBeInTheDocument();
-      const textInput = screen.getByDisplayValue("Test Label");
-      expect(textInput).toBeInTheDocument();
-    });
-
     it("should render font family selector", () => {
       render(
         <LabelNodeExpanded
@@ -269,26 +235,6 @@ describe("LabelNodeExpanded", () => {
       fireEvent.click(closeButton);
 
       expect(mockOnClose).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe("text input", () => {
-    it("should call onUpdate when text is changed", () => {
-      render(
-        <LabelNodeExpanded
-          data={defaultData}
-          size={defaultSize}
-          onClose={mockOnClose}
-          onUpdate={mockOnUpdate}
-          onResize={mockOnResize}
-          onResizeEnd={mockOnResizeEnd}
-        />,
-      );
-
-      const textInput = screen.getByDisplayValue("Test Label");
-      fireEvent.change(textInput, { target: { value: "New Label" } });
-
-      expect(mockOnUpdate).toHaveBeenCalledWith({ label: "New Label" });
     });
   });
 
@@ -559,104 +505,6 @@ describe("LabelNodeExpanded", () => {
     });
   });
 
-  describe("preview", () => {
-    it("should display label text in preview", () => {
-      render(
-        <LabelNodeExpanded
-          data={defaultData}
-          size={defaultSize}
-          onClose={mockOnClose}
-          onUpdate={mockOnUpdate}
-          onResize={mockOnResize}
-          onResizeEnd={mockOnResizeEnd}
-        />,
-      );
-
-      // The preview section should show the label
-      const previewLabel = screen.getByText("Preview");
-      expect(previewLabel).toBeInTheDocument();
-
-      // Label text should appear at least twice (once in preview, once in input)
-      const labelTexts = screen.getAllByText("Test Label");
-      expect(labelTexts.length).toBeGreaterThanOrEqual(1);
-    });
-
-    it("should apply font styling to preview", () => {
-      const styledData = {
-        ...defaultData,
-        fontFamily: "monospace",
-        fontWeight: "bold",
-        fontStyle: "italic",
-        color: "#ff0000",
-      };
-
-      render(
-        <LabelNodeExpanded
-          data={styledData}
-          size={defaultSize}
-          onClose={mockOnClose}
-          onUpdate={mockOnUpdate}
-          onResize={mockOnResize}
-          onResizeEnd={mockOnResizeEnd}
-        />,
-      );
-
-      // Find the preview container (which is a div with specific styling)
-      const previewContainer = screen
-        .getByText("Preview")
-        .parentElement?.querySelector(".min-h-\\[40px\\]");
-
-      expect(previewContainer).toHaveStyle({
-        fontFamily: "monospace",
-        fontWeight: "bold",
-        fontStyle: "italic",
-        color: "#ff0000",
-      });
-    });
-
-    it("should apply text alignment to preview", () => {
-      const centerData = { ...defaultData, textAlign: "center" as const };
-
-      render(
-        <LabelNodeExpanded
-          data={centerData}
-          size={defaultSize}
-          onClose={mockOnClose}
-          onUpdate={mockOnUpdate}
-          onResize={mockOnResize}
-          onResizeEnd={mockOnResizeEnd}
-        />,
-      );
-
-      const previewContainer = screen
-        .getByText("Preview")
-        .parentElement?.querySelector(".min-h-\\[40px\\]");
-
-      expect(previewContainer).toHaveStyle({ justifyContent: "center" });
-    });
-
-    it("should apply right text alignment to preview", () => {
-      const rightData = { ...defaultData, textAlign: "right" as const };
-
-      render(
-        <LabelNodeExpanded
-          data={rightData}
-          size={defaultSize}
-          onClose={mockOnClose}
-          onUpdate={mockOnUpdate}
-          onResize={mockOnResize}
-          onResizeEnd={mockOnResizeEnd}
-        />,
-      );
-
-      const previewContainer = screen
-        .getByText("Preview")
-        .parentElement?.querySelector(".min-h-\\[40px\\]");
-
-      expect(previewContainer).toHaveStyle({ justifyContent: "flex-end" });
-    });
-  });
-
   describe("resize functionality", () => {
     it("should call onResize and onResizeEnd when resize handle is used", () => {
       render(
@@ -716,9 +564,6 @@ describe("LabelNodeExpanded", () => {
           onResizeEnd={mockOnResizeEnd}
         />,
       );
-
-      // The label should be displayed
-      expect(screen.getByDisplayValue("Minimal")).toBeInTheDocument();
 
       // Default font family should be applied (sans-serif)
       const selects = screen.getAllByRole("combobox");
