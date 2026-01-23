@@ -188,7 +188,7 @@ export function MonitorPreviewContent({
       </div>
 
       {/* Monaco editor - edge-to-edge */}
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 nodrag nowheel nopan">
         <Editor
           height="100%"
           language={language}
@@ -199,11 +199,12 @@ export function MonitorPreviewContent({
             domReadOnly: true,
             minimap: { enabled: false },
             fontSize: 11,
-            lineNumbers: "on",
+            lineNumbers: "off",
             scrollBeyondLastLine: false,
-            folding: true,
-            lineDecorationsWidth: 4,
-            lineNumbersMinChars: 3,
+            folding: false,
+            glyphMargin: false,
+            lineDecorationsWidth: 0,
+            lineNumbersMinChars: 0,
             renderLineHighlight: "none",
             overviewRulerLanes: 0,
             hideCursorInOverviewRuler: true,

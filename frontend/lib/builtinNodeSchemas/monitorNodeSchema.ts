@@ -73,6 +73,9 @@ export const monitorNodeSchema: CustomNodeSchema = {
     expandable: true,
     default_width: 400,
     default_height: 280,
+    resizable: true,
+    min_width: 300,
+    min_height: 200,
     // Circle layout when collapsed, like Input/Log Probe
     layout: "circle",
     theme_key: "probe",
