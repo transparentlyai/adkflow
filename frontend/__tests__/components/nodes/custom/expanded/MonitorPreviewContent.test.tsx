@@ -33,7 +33,14 @@ function MockMonacoEditor({
   language?: string;
   theme?: string;
   height?: string | number;
-  options?: Record<string, unknown>;
+  options?: {
+    readOnly?: boolean;
+    lineNumbers?: string;
+    minimap?: { enabled?: boolean };
+    glyphMargin?: boolean;
+    lineDecorationsWidth?: number;
+    wordWrap?: string;
+  };
 }) {
   return (
     <div
@@ -449,7 +456,7 @@ describe("MonitorPreviewContent", () => {
     });
 
     it("should copy formatted JSON content", async () => {
-      const writeTextMock = vi.fn(() => Promise.resolve());
+      const writeTextMock = vi.fn().mockResolvedValue(undefined);
       Object.assign(navigator, {
         clipboard: { writeText: writeTextMock },
       });
@@ -468,7 +475,7 @@ describe("MonitorPreviewContent", () => {
       await waitFor(
         () => {
           expect(writeTextMock).toHaveBeenCalled();
-          const [[copiedText]] = writeTextMock.mock.calls;
+          const copiedText = writeTextMock.mock.calls[0][0];
           expect(copiedText).toContain("key");
           expect(copiedText).toContain("value");
         },
@@ -575,11 +582,7 @@ describe("MonitorPreviewContent", () => {
   describe("language badge", () => {
     it("should display language type badge", () => {
       render(
-        <MonitorPreviewContent
-          value="test"
-          valueType="json"
-          timestamp=""
-        />,
+        <MonitorPreviewContent value="test" valueType="json" timestamp="" />,
       );
 
       expect(screen.getByText("json")).toBeInTheDocument();
@@ -613,11 +616,7 @@ describe("MonitorPreviewContent", () => {
   describe("edge cases", () => {
     it("should handle empty string value", () => {
       render(
-        <MonitorPreviewContent
-          value=""
-          valueType="plaintext"
-          timestamp=""
-        />,
+        <MonitorPreviewContent value="" valueType="plaintext" timestamp="" />,
       );
 
       expect(screen.getByText("No value captured yet")).toBeInTheDocument();

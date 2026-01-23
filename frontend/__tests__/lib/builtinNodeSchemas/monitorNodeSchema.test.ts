@@ -173,7 +173,9 @@ describe("monitorNodeSchema", () => {
     });
 
     describe("name field", () => {
-      const nameField = monitorNodeSchema.ui.fields.find((f) => f.id === "name");
+      const nameField = monitorNodeSchema.ui.fields.find(
+        (f) => f.id === "name",
+      );
 
       it("should exist", () => {
         expect(nameField).toBeDefined();
