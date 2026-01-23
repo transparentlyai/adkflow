@@ -148,7 +148,8 @@ class SafetyConfig:
 class ToolIR:
     """Intermediate representation for a tool.
 
-    Tools can be loaded from files or defined inline.
+    Tools can be loaded from files, defined inline, or be builtin tools
+    like ShellTool that are configured at compile time.
     """
 
     name: str
@@ -156,8 +157,14 @@ class ToolIR:
     code: str | None = None
     description: str | None = None
     error_behavior: ToolErrorBehavior = "fail_fast"
+    # For builtin tools like shellTool that need configuration
+    tool_type: str | None = None  # e.g., "shellTool"
+    config: dict[str, Any] | None = None  # Tool-specific configuration
 
     def __post_init__(self) -> None:
+        # Builtin tools with config don't need file_path or code
+        if self.tool_type and self.config:
+            return
         if not self.file_path and not self.code:
             raise ValueError("Tool must have either file_path or code")
 

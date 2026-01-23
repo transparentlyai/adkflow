@@ -17,7 +17,7 @@ from google.genai import types
 
 from adkflow_runner.errors import ExecutionError
 from adkflow_runner.hooks import HooksIntegration
-from adkflow_runner.ir import AgentIR, WorkflowIR
+from adkflow_runner.ir import AgentIR, ToolIR, WorkflowIR
 from adkflow_runner.logging import get_logger
 from adkflow_runner.runner.agent_callbacks import EmitFn
 from adkflow_runner.runner.agent_serialization import (
@@ -393,7 +393,17 @@ class AgentFactory:
                     f"Loading tool: {tool_ir.name}",
                     tool_name=tool_ir.name,
                     file_path=tool_ir.file_path,
+                    tool_type=tool_ir.tool_type,
                 )
+
+                # Handle builtin tools with config (like shellTool)
+                if tool_ir.tool_type == "shellTool":
+                    tool = self._create_shell_tool(tool_ir)
+                    tools.append(tool)
+                    _tool_log.debug(
+                        f"Shell tool created: {tool_ir.name}", tool_name=tool_ir.name
+                    )
+                    continue
 
                 tool = self.tool_loader.load(tool_ir)
 
@@ -431,6 +441,79 @@ class AgentFactory:
                     )
 
         return tools
+
+    def _create_shell_tool(self, tool_ir: ToolIR) -> Any:
+        """Create a shell tool from IR config."""
+        from pathlib import Path
+
+        from adkflow_runner.runner.shell_executor import (
+            ErrorBehavior,
+            OutputMode,
+            create_shell_tool,
+        )
+
+        config = tool_ir.config or {}
+
+        # Parse allowed commands
+        allowed_text = config.get("allowed_commands", "git:*\nls:*\ncat:*")
+        allowed_patterns = []
+        for line in allowed_text.strip().split("\n"):
+            line = line.strip()
+            if line and not line.startswith("#"):
+                allowed_patterns.append(line)
+
+        # Determine working directory
+        working_dir_str = config.get("working_directory", "").strip()
+        if working_dir_str:
+            working_dir = Path(working_dir_str)
+            if not working_dir.is_absolute() and self.project_path:
+                working_dir = self.project_path / working_dir
+        else:
+            working_dir = self.project_path or Path.cwd()
+
+        # Parse other config
+        timeout = float(config.get("timeout", 30))
+        output_mode = OutputMode(config.get("output_mode", "combined"))
+        error_behavior = ErrorBehavior(config.get("error_behavior", "pass_to_model"))
+        max_output_size = int(config.get("max_output_size", 100000))
+
+        # Parse environment variables
+        env_text = config.get("environment_variables", "")
+        env_vars = None
+        if env_text:
+            env_vars = {}
+            for line in env_text.strip().split("\n"):
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" in line:
+                    key, value = line.split("=", 1)
+                    env_vars[key.strip()] = value.strip()
+
+        # Parse pre/post shell config
+        pre_shell = config.get("pre_shell", "").strip() or None
+        post_shell = config.get("post_shell", "").strip() or None
+        include_pre_shell_output = config.get("include_pre_shell_output", False)
+        include_post_shell_output = config.get("include_post_shell_output", False)
+        pre_shell_on_fail = config.get("pre_shell_on_fail", "stop")
+        post_shell_on_fail = config.get("post_shell_on_fail", "run")
+
+        return create_shell_tool(
+            allowed_patterns=allowed_patterns,
+            working_directory=working_dir,
+            timeout=timeout,
+            output_mode=output_mode,
+            error_behavior=error_behavior,
+            max_output_size=max_output_size,
+            shell="bash",
+            environment_variables=env_vars,
+            pre_shell=pre_shell,
+            post_shell=post_shell,
+            include_pre_shell_output=include_pre_shell_output,
+            include_post_shell_output=include_post_shell_output,
+            pre_shell_on_fail=pre_shell_on_fail,
+            post_shell_on_fail=post_shell_on_fail,
+        )
 
     def _substitute_variables(
         self,

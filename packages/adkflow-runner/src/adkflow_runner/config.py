@@ -85,6 +85,12 @@ DEFAULT_EDGE_RULES: list[EdgeRule] = [
         semantics=EdgeSemantics.TOOL,
         priority=10,
     ),
+    EdgeRule(
+        source_type="shellTool",
+        target_type="agent",
+        semantics=EdgeSemantics.TOOL,
+        priority=10,
+    ),
     # Agent → Agent (output → agent-input): sequential
     EdgeRule(
         source_type="agent",

@@ -134,8 +134,11 @@ class WorkflowValidator:
         for agent_id, agent in ir.all_agents.items():
             self._validate_agent_ir(agent, result)
 
-        # Check tools have code or file paths
+        # Check tools have code, file paths, or are builtin tools with config
         for tool in ir.get_all_tools():
+            # Builtin tools (like shellTool) have tool_type and config instead
+            if tool.tool_type and tool.config is not None:
+                continue
             if not tool.code and not tool.file_path:
                 result.add_error(
                     ValidationError(

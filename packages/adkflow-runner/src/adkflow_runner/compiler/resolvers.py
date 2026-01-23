@@ -130,6 +130,17 @@ def resolve_tools(
                                 error_behavior=error_behavior,
                             )
                         )
+            elif source_node.type == "shellTool":
+                # ShellTool is a builtin tool with configuration
+                config = get_node_config(source_node.data)
+                tools.append(
+                    ToolIR(
+                        name="shell_tool",
+                        tool_type="shellTool",
+                        config=config,
+                        error_behavior=config.get("error_behavior", "pass_to_model"),
+                    )
+                )
 
     # Also add tools from agent's own tools array
     agent_data = get_node_config(node.data)
