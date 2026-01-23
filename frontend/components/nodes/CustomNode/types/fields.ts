@@ -96,4 +96,6 @@ export interface FieldDefinition {
   language?: string;
   /** Hide left gutter (line numbers, etc.) for code_editor widget */
   hide_gutter?: boolean;
+  /** Number of rows for text_area widget (default: 3) */
+  rows?: number;
 }

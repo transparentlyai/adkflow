@@ -12,6 +12,7 @@ export { agentNodeSchema } from "./agentNodeSchema";
 // Tool nodes
 export { toolNodeSchema } from "./toolNodeSchema";
 export { agentToolNodeSchema } from "./agentToolNodeSchema";
+export { shellToolNodeSchema } from "./shellToolNodeSchema";
 
 // Callback nodes
 export { callbackNodeSchema } from "./callbackNodeSchema";
@@ -50,6 +51,7 @@ export { variableNodeSchema } from "./variableNodeSchema";
 import { agentNodeSchema } from "./agentNodeSchema";
 import { toolNodeSchema } from "./toolNodeSchema";
 import { agentToolNodeSchema } from "./agentToolNodeSchema";
+import { shellToolNodeSchema } from "./shellToolNodeSchema";
 import { callbackNodeSchema } from "./callbackNodeSchema";
 import { schemaNodeSchema } from "./schemaNodeSchema";
 import { processNodeSchema } from "./processNodeSchema";
@@ -74,6 +76,7 @@ export const builtinNodeSchemas = [
   // Tool nodes
   toolNodeSchema,
   agentToolNodeSchema,
+  shellToolNodeSchema,
   // Callback nodes
   callbackNodeSchema,
   // Schema nodes

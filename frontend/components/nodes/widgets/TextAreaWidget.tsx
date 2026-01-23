@@ -9,6 +9,8 @@ export default function TextAreaWidget({
   options,
 }: WidgetProps) {
   const { disabled, theme, compact } = options;
+  const defaultRows = compact ? 2 : 3;
+  const rows = field.rows ?? defaultRows;
 
   return (
     <textarea
@@ -16,7 +18,7 @@ export default function TextAreaWidget({
       onChange={(e) => onChange(e.target.value)}
       placeholder={field.placeholder}
       disabled={disabled}
-      rows={compact ? 2 : 3}
+      rows={rows}
       className={
         compact
           ? "w-full px-1.5 py-1 rounded text-[11px] border resize-none"

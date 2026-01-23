@@ -7,12 +7,13 @@ Note: ContextAggregator was moved to a built-in node executed directly by
 the workflow runner (see runner/context_aggregator_executor.py) and is no
 longer registered as a FlowUnit.
 
-Note: MonitorUnit is registered for execution only (no schema exposure) since
-its UI schema is defined in the frontend. This prevents it from appearing
-in the extensions menu.
+Note: MonitorUnit and ShellToolUnit are registered for execution only (no
+schema exposure) since their UI schemas are defined in the frontend. This
+prevents them from appearing in the extensions menu.
 """
 
 from adkflow_runner.builtin_units.monitor_unit import MonitorUnit
+from adkflow_runner.builtin_units.shell_tool_unit import ShellToolUnit
 
 # Builtin FlowUnit classes that expose schemas via the extensions API
 BUILTIN_UNITS: list = []
@@ -21,10 +22,12 @@ BUILTIN_UNITS: list = []
 # These have their UI schemas defined in the frontend
 EXECUTION_ONLY_UNITS: list = [
     MonitorUnit,
+    ShellToolUnit,
 ]
 
 __all__ = [
     "BUILTIN_UNITS",
     "EXECUTION_ONLY_UNITS",
     "MonitorUnit",
+    "ShellToolUnit",
 ]

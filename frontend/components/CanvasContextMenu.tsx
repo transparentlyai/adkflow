@@ -63,6 +63,7 @@ export type NodeTypeOption =
   | "outputFile"
   | "tool"
   | "agentTool"
+  | "shellTool"
   | "process"
   | "schema"
   | "label"
@@ -148,6 +149,11 @@ const menuGroups: MenuGroup[] = [
       {
         type: "agentTool",
         label: "Agent Tool",
+        icon: <Terminal className="h-4 w-4" />,
+      },
+      {
+        type: "shellTool",
+        label: "Shell Tool",
         icon: <Terminal className="h-4 w-4" />,
       },
       { type: "process", label: "Process", icon: <Code className="h-4 w-4" /> },
