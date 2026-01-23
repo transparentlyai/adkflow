@@ -25,7 +25,6 @@ export default function LabelNodeExpanded({
 }: LabelNodeExpandedProps) {
   const { theme } = useTheme();
   const {
-    label,
     fontFamily = "sans-serif",
     fontWeight = "normal",
     fontStyle = "normal",
@@ -61,68 +60,11 @@ export default function LabelNodeExpanded({
         </button>
       </div>
 
-      {/* Preview */}
-      <div
-        className="p-3 border-b"
-        style={{
-          borderColor: theme.colors.nodes.common.container.border,
-          backgroundColor: theme.colors.ui.muted,
-        }}
-      >
-        <div
-          className="text-xs mb-1"
-          style={{ color: theme.colors.nodes.common.text.muted }}
-        >
-          Preview
-        </div>
-        <div
-          className="p-2 rounded border min-h-[40px] flex items-center"
-          style={{
-            backgroundColor: theme.colors.nodes.common.container.background,
-            borderColor: theme.colors.nodes.common.container.border,
-            fontFamily,
-            fontWeight,
-            fontStyle,
-            textAlign,
-            color,
-            justifyContent:
-              textAlign === "left"
-                ? "flex-start"
-                : textAlign === "right"
-                  ? "flex-end"
-                  : "center",
-          }}
-        >
-          {label}
-        </div>
-      </div>
-
       {/* Settings */}
       <div
         className="p-3 space-y-3 overflow-y-auto nodrag"
-        style={{ height: size.height - 140 }}
+        style={{ height: size.height - 44 }}
       >
-        {/* Text */}
-        <div className="space-y-1">
-          <label
-            className="text-xs font-medium"
-            style={{ color: theme.colors.nodes.common.text.primary }}
-          >
-            Text
-          </label>
-          <input
-            type="text"
-            value={label}
-            onChange={(e) => onUpdate({ label: e.target.value })}
-            className="w-full px-2 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-1"
-            style={{
-              borderColor: theme.colors.ui.border,
-              backgroundColor: theme.colors.ui.background,
-              color: theme.colors.ui.foreground,
-            }}
-          />
-        </div>
-
         {/* Font Family */}
         <div className="space-y-1">
           <label

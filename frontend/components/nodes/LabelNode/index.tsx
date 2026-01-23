@@ -3,7 +3,8 @@
 import { memo, useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import {
-  NodeResizer,
+  NodeResizeControl,
+  ResizeControlVariant,
   type NodeProps,
   useReactFlow,
   useStore,
@@ -16,6 +17,14 @@ import LabelNodeExpanded from "./LabelNodeExpanded";
 import type { LabelNodeData } from "./types";
 import { DEFAULT_FONT_SIZE, DEFAULT_WIDTH, EXPANDED_SIZE } from "./types";
 
+const CORNER_POSITIONS = [
+  "top-left",
+  "top-right",
+  "bottom-left",
+  "bottom-right",
+] as const;
+const EDGE_POSITIONS = ["top", "right", "bottom", "left"] as const;
+
 const LabelNode = memo(({ data, id, selected }: NodeProps) => {
   const {
     label,
@@ -24,14 +33,13 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
     fontStyle = "normal",
     textAlign = "left",
     color = "#374151",
-    expandedPosition,
-    contractedPosition,
     isExpanded: dataIsExpanded,
   } = data as unknown as LabelNodeData;
 
   const { setNodes } = useReactFlow();
   const { isLocked } = useProject();
   const { theme } = useTheme();
+  const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedLabel, setEditedLabel] = useState(label);
   const [isExpanded, setIsExpanded] = useState(dataIsExpanded ?? false);
@@ -40,7 +48,7 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
     y: number;
   } | null>(null);
   const [size, setSize] = useState(EXPANDED_SIZE);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const parentId = useStore(
     useCallback(
@@ -61,7 +69,52 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
       [id],
     ),
   );
-  const scaledFontSize = (nodeWidth / DEFAULT_WIDTH) * DEFAULT_FONT_SIZE;
+  const fontScaleWidth = useStore(
+    useCallback(
+      (state) =>
+        (state.nodes.find((n) => n.id === id)?.data as LabelNodeData)
+          ?.fontScaleWidth,
+      [id],
+    ),
+  );
+  const manuallyResized = useStore(
+    useCallback(
+      (state) =>
+        (state.nodes.find((n) => n.id === id)?.data as LabelNodeData)
+          ?.manuallyResized,
+      [id],
+    ),
+  );
+  const effectiveFontWidth = fontScaleWidth ?? nodeWidth;
+  const scaledFontSize =
+    (effectiveFontWidth / DEFAULT_WIDTH) * DEFAULT_FONT_SIZE;
+
+  // Measure text width using canvas
+  const measureTextSize = useCallback(
+    (text: string) => {
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+      if (!context) return { width: DEFAULT_WIDTH, height: 20 };
+
+      context.font = `${fontStyle} ${fontWeight} ${DEFAULT_FONT_SIZE}px ${fontFamily}`;
+
+      const lines = text.split("\n");
+      const lineHeight = DEFAULT_FONT_SIZE * 1.2;
+      let maxWidth = 0;
+
+      for (const line of lines) {
+        const metrics = context.measureText(line);
+        maxWidth = Math.max(maxWidth, metrics.width);
+      }
+
+      const padding = 8;
+      const width = Math.max(50, maxWidth + padding);
+      const height = Math.max(20, lines.length * lineHeight);
+
+      return { width, height };
+    },
+    [fontFamily, fontWeight, fontStyle],
+  );
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -91,19 +144,41 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
 
   const handleSave = useCallback(() => {
     if (editedLabel.trim()) {
+      const trimmedLabel = editedLabel.trim();
       setNodes((nodes) =>
-        nodes.map((node) =>
-          node.id === id
-            ? { ...node, data: { ...node.data, label: editedLabel.trim() } }
-            : node,
-        ),
+        nodes.map((node) => {
+          if (node.id !== id) return node;
+
+          const nodeData = node.data as LabelNodeData;
+          const updatedNode = {
+            ...node,
+            data: { ...nodeData, label: trimmedLabel },
+          };
+
+          // Auto-resize if not manually resized
+          if (!nodeData.manuallyResized) {
+            const { width, height } = measureTextSize(trimmedLabel);
+            updatedNode.style = {
+              ...node.style,
+              width,
+              height,
+            };
+            // Also update fontScaleWidth to keep font consistent with auto-sizing
+            updatedNode.data = {
+              ...updatedNode.data,
+              fontScaleWidth: width,
+            };
+          }
+
+          return updatedNode;
+        }),
       );
     }
     setIsEditing(false);
-  }, [editedLabel, id, setNodes]);
+  }, [editedLabel, id, setNodes, measureTextSize]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       handleSave();
     } else if (e.key === "Escape") {
       setEditedLabel(label);
@@ -202,7 +277,8 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
     });
   }, [id, setNodes]);
 
-  const handleNodeResize = useCallback(
+  // Corner resize: scales both box and font
+  const handleCornerResizeEnd = useCallback(
     (_event: unknown, params: ResizeParams) => {
       setNodes((nodes) =>
         nodes.map((node) =>
@@ -214,6 +290,33 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
                   width: params.width,
                   height: params.height,
                 },
+                data: {
+                  ...node.data,
+                  fontScaleWidth: params.width,
+                  manuallyResized: true,
+                },
+              }
+            : node,
+        ),
+      );
+    },
+    [id, setNodes],
+  );
+
+  // Edge resize: resizes box only, font stays the same
+  const handleEdgeResizeEnd = useCallback(
+    (_event: unknown, params: ResizeParams) => {
+      setNodes((nodes) =>
+        nodes.map((node) =>
+          node.id === id
+            ? {
+                ...node,
+                style: {
+                  ...node.style,
+                  width: params.width,
+                  height: params.height,
+                },
+                data: { ...node.data, manuallyResized: true },
               }
             : node,
         ),
@@ -239,23 +342,53 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
   // Collapsed view
   return (
     <>
-      <NodeResizer
-        minWidth={50}
-        minHeight={20}
-        isVisible={selected && !isLocked}
-        lineClassName="!border-transparent"
-        handleClassName="!w-2 !h-2"
-        handleStyle={{
-          backgroundColor: theme.colors.nodes.label.ring,
-          borderColor: theme.colors.nodes.label.ring,
-        }}
-        keepAspectRatio
-        onResizeEnd={handleNodeResize}
-      />
+      {/* Corner handles - always visible when selected */}
+      {selected &&
+        !isLocked &&
+        CORNER_POSITIONS.map((position) => (
+          <NodeResizeControl
+            key={position}
+            position={position}
+            variant={ResizeControlVariant.Handle}
+            minWidth={50}
+            minHeight={20}
+            keepAspectRatio
+            onResizeEnd={handleCornerResizeEnd}
+            style={{
+              width: 8,
+              height: 8,
+              backgroundColor: theme.colors.nodes.label.ring,
+              borderColor: theme.colors.nodes.label.ring,
+              borderRadius: "50%",
+            }}
+          />
+        ))}
+
+      {/* Edge handles - visible on hover only */}
+      {selected &&
+        !isLocked &&
+        EDGE_POSITIONS.map((position) => (
+          <NodeResizeControl
+            key={position}
+            position={position}
+            variant={ResizeControlVariant.Line}
+            minWidth={50}
+            minHeight={20}
+            onResizeEnd={handleEdgeResizeEnd}
+            style={{
+              opacity: isHovered ? 1 : 0,
+              borderColor: theme.colors.nodes.label.ring,
+              transition: "opacity 0.15s ease-in-out",
+            }}
+          />
+        ))}
+
       <div
         className="w-full h-full flex items-center cursor-default select-none"
         onDoubleClick={handleDoubleClick}
         onContextMenu={handleContextMenu}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         style={{
           fontSize: `${scaledFontSize}px`,
           fontFamily,
@@ -272,24 +405,24 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
         }}
       >
         {isEditing ? (
-          <input
+          <textarea
             ref={inputRef}
-            type="text"
             value={editedLabel}
             onChange={(e) => setEditedLabel(e.target.value)}
             onBlur={handleSave}
             onKeyDown={handleKeyDown}
             onClick={(e) => e.stopPropagation()}
-            className="w-full px-1 py-0.5 rounded text-center outline-none border nodrag"
+            className="w-full h-full px-1 py-0.5 rounded outline-none border nodrag resize-none"
             style={{
               fontSize: `${scaledFontSize}px`,
               color,
               backgroundColor: theme.colors.ui.background,
               borderColor: theme.colors.ui.border,
+              textAlign,
             }}
           />
         ) : (
-          <span className="whitespace-nowrap" style={{ color }}>
+          <span className="whitespace-pre-wrap break-words" style={{ color }}>
             {label}
           </span>
         )}
