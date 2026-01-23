@@ -692,3 +692,34 @@ class TestTransformCustomNodes:
 
         assert len(result) == 1
         assert result[0].name == "tools.processor"  # Falls back to unit_id
+
+    def test_builtin_flowunit_node(
+        self,
+        make_workflow_graph,
+    ):
+        """Should transform builtin FlowUnit nodes like monitor."""
+        data = {"config": {"url": "http://example.com"}, "tabId": "tab1"}
+        parsed = ParsedNode(
+            id="monitor-1",
+            type="monitor",
+            position=(0.0, 0.0),
+            data=data,
+        )
+        monitor_node = GraphNode(
+            id="monitor-1",
+            type="monitor",
+            name="Monitor Node",
+            tab_id="tab1",
+            data=data,
+            parsed_node=parsed,
+        )
+
+        graph = make_workflow_graph(nodes=[monitor_node], edges=[])
+
+        result = transform_custom_nodes(graph)
+
+        assert len(result) == 1
+        assert result[0].id == "monitor-1"
+        assert result[0].unit_id == "builtin.monitor"
+        assert result[0].name == "Monitor Node"
+        assert result[0].config == {"url": "http://example.com"}
