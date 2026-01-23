@@ -12,6 +12,7 @@ from adkflow_runner.compiler.node_transforms import (
     transform_context_aggregators,
     transform_custom_nodes,
     transform_user_inputs,
+    transform_variable_nodes,
 )
 from adkflow_runner.compiler.resolvers import (
     resolve_callbacks,
@@ -118,6 +119,17 @@ class IRTransformer:
         # Transform context aggregator nodes
         context_aggregators = transform_context_aggregators(graph)
 
+        # Transform variable nodes
+        variable_nodes, global_variables = transform_variable_nodes(graph)
+
+        # Populate context_vars on agents from connected variable nodes
+        for var_ir in variable_nodes:
+            if not var_ir.is_global:
+                for agent_id in var_ir.connected_agent_ids:
+                    if agent_id in all_agents:
+                        all_agents[agent_id].context_vars.update(var_ir.variables)
+                        all_agents[agent_id].context_var_sources.append(var_ir.id)
+
         # Detect flow control nodes (for topology visualization)
         has_start_node = any(n.type == "start" for n in graph.nodes.values())
         has_end_node = any(n.type == "end" for n in graph.nodes.values())
@@ -131,6 +143,8 @@ class IRTransformer:
             user_inputs=len(user_inputs),
             custom_nodes=len(custom_nodes),
             context_aggregators=len(context_aggregators),
+            variable_nodes=len(variable_nodes),
+            global_variables=len(global_variables),
         )
 
         _log.debug(
@@ -148,6 +162,8 @@ class IRTransformer:
             user_inputs=user_inputs,
             custom_nodes=custom_nodes,
             context_aggregators=context_aggregators,
+            variable_nodes=variable_nodes,
+            global_variables=global_variables,
             has_start_node=has_start_node,
             has_end_node=has_end_node,
             project_path=str(project.path),

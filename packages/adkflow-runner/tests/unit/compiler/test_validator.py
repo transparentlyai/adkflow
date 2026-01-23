@@ -603,3 +603,330 @@ class TestValidationResult:
         result.add_warning("Test warning")
         assert result.valid
         assert len(result.warnings) == 1
+
+
+class TestVariableConflicts:
+    """Tests for variable node conflict detection."""
+
+    def test_multiple_global_variables_same_key_error(
+        self, make_graph_node, minimal_project
+    ):
+        """Error when multiple global Variable nodes define the same key."""
+        loader = ProjectLoader()
+        project = loader.load(minimal_project)
+
+        start = make_graph_node("start", "start", "Start")
+        var1 = make_graph_node("var1", "variable", "Var1")
+        var1.data = {
+            "config": {
+                "name": "Var1",
+                "variables": [{"key": "api_key", "value": "value1"}],
+            }
+        }
+        var2 = make_graph_node("var2", "variable", "Var2")
+        var2.data = {
+            "config": {
+                "name": "Var2",
+                "variables": [{"key": "api_key", "value": "value2"}],
+            }
+        }
+
+        graph = WorkflowGraph(
+            nodes={"start": start, "var1": var1, "var2": var2},
+            edges=[],
+            teleporter_pairs=[],
+            entry_nodes=[],
+        )
+
+        validator = WorkflowValidator()
+        result = validator.validate_graph(graph, project)
+        assert not result.valid
+        assert any(
+            "multiple global variable" in str(e).lower()
+            and "api_key" in str(e).lower()
+            for e in result.errors
+        )
+
+    def test_multiple_connected_variables_same_key_same_agent_error(
+        self, make_graph_node, make_graph_edge, minimal_project
+    ):
+        """Error when multiple Variables connected to same agent define same key."""
+        loader = ProjectLoader()
+        project = loader.load(minimal_project)
+
+        start = make_graph_node("start", "start", "Start")
+        agent = make_graph_node("agent1", "agent", "Agent1")
+        agent.data = {
+            "config": {"name": "Agent1", "description": "Test agent"}
+        }
+        var1 = make_graph_node("var1", "variable", "Var1")
+        var1.data = {
+            "config": {
+                "name": "Var1",
+                "variables": [{"key": "db_url", "value": "url1"}],
+            }
+        }
+        var2 = make_graph_node("var2", "variable", "Var2")
+        var2.data = {
+            "config": {
+                "name": "Var2",
+                "variables": [{"key": "db_url", "value": "url2"}],
+            }
+        }
+
+        e1 = make_graph_edge(start, agent, EdgeSemantics.SEQUENTIAL)
+        e2 = make_graph_edge(var1, agent, EdgeSemantics.CONTEXT_VARS)
+        e3 = make_graph_edge(var2, agent, EdgeSemantics.CONTEXT_VARS)
+
+        graph = WorkflowGraph(
+            nodes={"start": start, "agent1": agent, "var1": var1, "var2": var2},
+            edges=[e1, e2, e3],
+            teleporter_pairs=[],
+            entry_nodes=[agent],
+        )
+
+        validator = WorkflowValidator()
+        result = validator.validate_graph(graph, project)
+        assert not result.valid
+        assert any(
+            "multiple variable" in str(e).lower()
+            and "db_url" in str(e).lower()
+            for e in result.errors
+        )
+
+    def test_connected_variable_overrides_global_warning(
+        self, make_graph_node, make_graph_edge, minimal_project
+    ):
+        """Warning when connected Variable overrides global variable key."""
+        loader = ProjectLoader()
+        project = loader.load(minimal_project)
+
+        start = make_graph_node("start", "start", "Start")
+        agent = make_graph_node("agent1", "agent", "Agent1")
+        agent.data = {
+            "config": {"name": "Agent1", "description": "Test agent"}
+        }
+        global_var = make_graph_node("global_var", "variable", "GlobalVar")
+        global_var.data = {
+            "config": {
+                "name": "GlobalVar",
+                "variables": [{"key": "env", "value": "production"}],
+            }
+        }
+        connected_var = make_graph_node("connected_var", "variable", "ConnectedVar")
+        connected_var.data = {
+            "config": {
+                "name": "ConnectedVar",
+                "variables": [{"key": "env", "value": "staging"}],
+            }
+        }
+
+        e1 = make_graph_edge(start, agent, EdgeSemantics.SEQUENTIAL)
+        e2 = make_graph_edge(connected_var, agent, EdgeSemantics.CONTEXT_VARS)
+
+        graph = WorkflowGraph(
+            nodes={
+                "start": start,
+                "agent1": agent,
+                "global_var": global_var,
+                "connected_var": connected_var,
+            },
+            edges=[e1, e2],
+            teleporter_pairs=[],
+            entry_nodes=[agent],
+        )
+
+        validator = WorkflowValidator()
+        result = validator.validate_graph(graph, project)
+        assert any(
+            "overrides global variable" in str(w).lower()
+            and "env" in str(w).lower()
+            for w in result.warnings
+        )
+
+    def test_variable_with_multiple_keys(
+        self, make_graph_node, make_graph_edge, minimal_project
+    ):
+        """Handle Variable node with multiple key-value pairs."""
+        loader = ProjectLoader()
+        project = loader.load(minimal_project)
+
+        start = make_graph_node("start", "start", "Start")
+        var1 = make_graph_node("var1", "variable", "Var1")
+        var1.data = {
+            "config": {
+                "name": "Var1",
+                "variables": [
+                    {"key": "key1", "value": "value1"},
+                    {"key": "key2", "value": "value2"},
+                ],
+            }
+        }
+        var2 = make_graph_node("var2", "variable", "Var2")
+        var2.data = {
+            "config": {
+                "name": "Var2",
+                "variables": [
+                    {"key": "key2", "value": "different"},
+                    {"key": "key3", "value": "value3"},
+                ],
+            }
+        }
+
+        graph = WorkflowGraph(
+            nodes={"start": start, "var1": var1, "var2": var2},
+            edges=[],
+            teleporter_pairs=[],
+            entry_nodes=[],
+        )
+
+        validator = WorkflowValidator()
+        result = validator.validate_graph(graph, project)
+        # Should error on key2 conflict
+        assert not result.valid
+        assert any(
+            "multiple global variable" in str(e).lower()
+            and "key2" in str(e).lower()
+            for e in result.errors
+        )
+
+    def test_old_format_variable_fallback(
+        self, make_graph_node, minimal_project
+    ):
+        """Handle old format Variable node with name field."""
+        loader = ProjectLoader()
+        project = loader.load(minimal_project)
+
+        start = make_graph_node("start", "start", "Start")
+        var1 = make_graph_node("var1", "variable", "Var1")
+        var1.data = {
+            "config": {
+                "name": "old_key",
+                "value": "old_value",
+            }
+        }
+        var2 = make_graph_node("var2", "variable", "Var2")
+        var2.data = {
+            "config": {
+                "name": "old_key",
+                "value": "different_value",
+            }
+        }
+
+        graph = WorkflowGraph(
+            nodes={"start": start, "var1": var1, "var2": var2},
+            edges=[],
+            teleporter_pairs=[],
+            entry_nodes=[],
+        )
+
+        validator = WorkflowValidator()
+        result = validator.validate_graph(graph, project)
+        # Should detect conflict using old format fallback
+        assert not result.valid
+        assert any(
+            "multiple global variable" in str(e).lower()
+            for e in result.errors
+        )
+
+    def test_no_conflict_with_different_keys(
+        self, make_graph_node, make_graph_edge, minimal_project
+    ):
+        """No conflict when global Variables have different keys."""
+        loader = ProjectLoader()
+        project = loader.load(minimal_project)
+
+        start = make_graph_node("start", "start", "Start")
+        var1 = make_graph_node("var1", "variable", "Var1")
+        var1.data = {
+            "config": {
+                "name": "Var1",
+                "variables": [{"key": "key1", "value": "value1"}],
+            }
+        }
+        var2 = make_graph_node("var2", "variable", "Var2")
+        var2.data = {
+            "config": {
+                "name": "Var2",
+                "variables": [{"key": "key2", "value": "value2"}],
+            }
+        }
+        agent = make_graph_node("agent1", "agent", "Agent1")
+        agent.data = {
+            "config": {"name": "Agent1", "description": "Test agent"}
+        }
+
+        e1 = make_graph_edge(start, agent, EdgeSemantics.SEQUENTIAL)
+
+        graph = WorkflowGraph(
+            nodes={"start": start, "var1": var1, "var2": var2, "agent1": agent},
+            edges=[e1],
+            teleporter_pairs=[],
+            entry_nodes=[agent],
+        )
+
+        validator = WorkflowValidator()
+        result = validator.validate_graph(graph, project)
+        # No errors about variable conflicts
+        assert not any(
+            "multiple global variable" in str(e).lower()
+            for e in result.errors
+        )
+
+    def test_connected_variables_to_different_agents_no_conflict(
+        self, make_graph_node, make_graph_edge, minimal_project
+    ):
+        """No conflict when same key connected to different agents."""
+        loader = ProjectLoader()
+        project = loader.load(minimal_project)
+
+        start = make_graph_node("start", "start", "Start")
+        agent1 = make_graph_node("agent1", "agent", "Agent1")
+        agent1.data = {
+            "config": {"name": "Agent1", "description": "Test agent 1"}
+        }
+        agent2 = make_graph_node("agent2", "agent", "Agent2")
+        agent2.data = {
+            "config": {"name": "Agent2", "description": "Test agent 2"}
+        }
+        var1 = make_graph_node("var1", "variable", "Var1")
+        var1.data = {
+            "config": {
+                "name": "Var1",
+                "variables": [{"key": "config", "value": "config1"}],
+            }
+        }
+        var2 = make_graph_node("var2", "variable", "Var2")
+        var2.data = {
+            "config": {
+                "name": "Var2",
+                "variables": [{"key": "config", "value": "config2"}],
+            }
+        }
+
+        e1 = make_graph_edge(start, agent1, EdgeSemantics.SEQUENTIAL)
+        e2 = make_graph_edge(start, agent2, EdgeSemantics.SEQUENTIAL)
+        e3 = make_graph_edge(var1, agent1, EdgeSemantics.CONTEXT_VARS)
+        e4 = make_graph_edge(var2, agent2, EdgeSemantics.CONTEXT_VARS)
+
+        graph = WorkflowGraph(
+            nodes={
+                "start": start,
+                "agent1": agent1,
+                "agent2": agent2,
+                "var1": var1,
+                "var2": var2,
+            },
+            edges=[e1, e2, e3, e4],
+            teleporter_pairs=[],
+            entry_nodes=[agent1, agent2],
+        )
+
+        validator = WorkflowValidator()
+        result = validator.validate_graph(graph, project)
+        # No conflict - same key to different agents is allowed
+        assert not any(
+            "multiple variable" in str(e).lower()
+            and "config" in str(e).lower()
+            for e in result.errors
+        )

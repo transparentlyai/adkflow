@@ -41,15 +41,30 @@ const PillLayout = memo(
     const executionState = nodeData.executionState;
 
     // Format display name
-    // Special case for VariableNode: show {name} with literal braces
     const isVariableNode = schema.unit_id === "builtin.variable";
-    const showWithBraces =
-      schema.ui.collapsed_display?.show_with_braces || isVariableNode;
+    const showWithBraces = schema.ui.collapsed_display?.show_with_braces;
 
     let displayText: string;
-    if (showWithBraces) {
-      // VariableNode: wrap name in literal braces {name}
+    let tooltipText: string | undefined;
+
+    if (isVariableNode) {
+      // VariableNode: show node name, tooltip shows variables
+      displayText = String(config.name || name);
+
+      const variables = config.variables as
+        | Array<{ id: string; key: string; value: string }>
+        | undefined;
+
+      if (variables && Array.isArray(variables) && variables.length > 0) {
+        // Tooltip shows all variables
+        tooltipText = variables.map((v) => `{${v.key}}: ${v.value}`).join("\n");
+      } else {
+        tooltipText = "Double-click to add variables";
+      }
+    } else if (showWithBraces) {
+      // Other nodes with braces
       displayText = `{${config.name || name}}`;
+      tooltipText = config.value ? String(config.value) : undefined;
     } else if (schema.ui.collapsed_display?.format) {
       displayText =
         formatCollapsedText(
@@ -91,7 +106,7 @@ const PillLayout = memo(
             minWidth: schema.ui.min_collapsed_width,
             ...getNodeStyle(),
           }}
-          title={String(config.value || "")}
+          title={tooltipText || String(config.value || "")}
         >
           <div className="font-medium text-xs whitespace-nowrap flex items-center gap-1 w-full">
             {nodeData.isNodeLocked && <Lock className="w-3 h-3 opacity-80" />}

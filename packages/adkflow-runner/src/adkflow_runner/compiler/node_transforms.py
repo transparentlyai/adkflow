@@ -14,6 +14,7 @@ from adkflow_runner.ir import (
     ContextAggregatorIR,
     CustomNodeIR,
     UserInputIR,
+    VariableIR,
 )
 
 
@@ -226,3 +227,74 @@ def transform_context_aggregators(graph: WorkflowGraph) -> list[ContextAggregato
             )
 
     return aggregators
+
+
+def transform_variable_nodes(
+    graph: WorkflowGraph,
+) -> tuple[list[VariableIR], dict[str, str]]:
+    """Transform variable nodes to IR.
+
+    Variable nodes can operate in two modes:
+    - Connected mode: Has outgoing connections, emits variables to connected agents
+    - Global mode: No outgoing connections, variables are substituted globally
+
+    Returns:
+        Tuple of (variable_nodes, global_variables):
+        - variable_nodes: List of VariableIR for all variable nodes
+        - global_variables: Merged dict of all global variables (unconnected nodes)
+    """
+    variable_nodes: list[VariableIR] = []
+    global_variables: dict[str, str] = {}
+
+    for node in graph.nodes.values():
+        if node.type != "variable":
+            continue
+
+        config = get_node_config(node.data)
+        name = config.get("name", node.name or f"variable_{node.id[:8]}")
+
+        # Extract variables - support both old and new format
+        variables: dict[str, str] = {}
+
+        # New format: variables array with [{id, key, value}, ...]
+        variables_array = config.get("variables", [])
+        if variables_array and isinstance(variables_array, list):
+            for var_item in variables_array:
+                if isinstance(var_item, dict):
+                    key = var_item.get("key", "")
+                    value = var_item.get("value", "")
+                    if key:
+                        variables[key] = value
+
+        # Old format: {name: "key", value: "val"} - migrate to new format
+        if not variables and config.get("name"):
+            old_key = config.get("name", "")
+            old_value = config.get("value", "")
+            if old_key:
+                variables[old_key] = old_value
+
+        # Determine if global (no outgoing connections)
+        is_global = len(node.outgoing) == 0
+
+        # Find connected agent IDs (for connected mode)
+        connected_agent_ids: list[str] = []
+        if not is_global:
+            for edge in node.outgoing:
+                target = graph.get_node(edge.target_id)
+                if target and target.type == "agent":
+                    connected_agent_ids.append(target.id)
+
+        variable_ir = VariableIR(
+            id=node.id,
+            name=name,
+            variables=variables,
+            is_global=is_global,
+            connected_agent_ids=connected_agent_ids,
+        )
+        variable_nodes.append(variable_ir)
+
+        # Collect global variables
+        if is_global:
+            global_variables.update(variables)
+
+    return variable_nodes, global_variables

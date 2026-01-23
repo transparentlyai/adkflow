@@ -93,6 +93,9 @@ class WorkflowValidator:
         # Check for potential context variable conflicts
         self._check_context_var_conflicts(graph, result)
 
+        # Check for variable node conflicts
+        self._check_variable_conflicts(graph, result)
+
         # Log validation results
         if result.valid:
             _log.info(
@@ -209,9 +212,18 @@ class WorkflowValidator:
         graph: WorkflowGraph,
         result: ValidationResult,
     ) -> None:
-        """Check for non-agent nodes with no connections."""
+        """Check for non-agent nodes with no connections.
+
+        Note: Variable nodes without outgoing connections are NOT orphans -
+        they operate in global mode where their variables are substituted
+        globally at build time.
+        """
         for node in graph.nodes.values():
-            if node.type in ("prompt", "tool", "context", "variable"):
+            # Variable nodes without outgoing connections are global, not orphans
+            if node.type == "variable":
+                continue
+
+            if node.type in ("prompt", "tool", "context"):
                 has_outgoing = len(node.outgoing) > 0
                 if not has_outgoing:
                     result.add_warning(
@@ -494,6 +506,106 @@ class WorkflowValidator:
                     f"{', '.join(source_names)}. Ensure variable names don't conflict.",
                     location=self._make_location(node),
                 )
+
+    def _check_variable_conflicts(
+        self,
+        graph: WorkflowGraph,
+        result: ValidationResult,
+    ) -> None:
+        """Check for variable node conflicts.
+
+        Validates:
+        - Error: Multiple global Variable Nodes defining the same key
+        - Error: Two connected Variables to the same agent with the same key
+        - Warning: Connected Variable overriding a global key
+        """
+        # Collect all variable nodes and their keys
+        global_vars: dict[str, list[GraphNode]] = {}  # key -> [nodes defining it]
+        connected_vars_by_agent: dict[
+            str, dict[str, list[GraphNode]]
+        ] = {}  # agent_id -> {key -> [nodes]}
+
+        for node in graph.nodes.values():
+            if node.type != "variable":
+                continue
+
+            config = get_node_config(node.data)
+
+            # Extract keys from both old and new format
+            keys: list[str] = []
+
+            # New format: variables array
+            variables_array = config.get("variables", [])
+            if variables_array and isinstance(variables_array, list):
+                for var_item in variables_array:
+                    if isinstance(var_item, dict):
+                        key = var_item.get("key", "")
+                        if key:
+                            keys.append(key)
+
+            # Old format fallback
+            if not keys and config.get("name"):
+                keys.append(config.get("name", ""))
+
+            is_global = len(node.outgoing) == 0
+
+            if is_global:
+                # Track global variable keys
+                for key in keys:
+                    if key not in global_vars:
+                        global_vars[key] = []
+                    global_vars[key].append(node)
+            else:
+                # Track connected variable keys by target agent
+                for edge in node.outgoing:
+                    target = graph.get_node(edge.target_id)
+                    if target and target.type == "agent":
+                        if target.id not in connected_vars_by_agent:
+                            connected_vars_by_agent[target.id] = {}
+                        for key in keys:
+                            if key not in connected_vars_by_agent[target.id]:
+                                connected_vars_by_agent[target.id][key] = []
+                            connected_vars_by_agent[target.id][key].append(node)
+
+        # Check for duplicate global keys
+        for key, nodes in global_vars.items():
+            if len(nodes) > 1:
+                node_names = [n.name for n in nodes]
+                result.add_error(
+                    ValidationError(
+                        f"Multiple global Variable nodes define key '{key}': "
+                        f"{', '.join(node_names)}",
+                        location=self._make_location(nodes[1]),
+                    )
+                )
+
+        # Check for duplicate connected keys to the same agent
+        for agent_id, keys_dict in connected_vars_by_agent.items():
+            agent_node = graph.get_node(agent_id)
+            agent_name = agent_node.name if agent_node else agent_id
+            for key, nodes in keys_dict.items():
+                if len(nodes) > 1:
+                    node_names = [n.name for n in nodes]
+                    result.add_error(
+                        ValidationError(
+                            f"Multiple Variable nodes connected to agent '{agent_name}' "
+                            f"define key '{key}': {', '.join(node_names)}",
+                            location=self._make_location(nodes[1]),
+                        )
+                    )
+
+        # Check for connected variables overriding global keys
+        global_keys = set(global_vars.keys())
+        for agent_id, keys_dict in connected_vars_by_agent.items():
+            agent_node = graph.get_node(agent_id)
+            agent_name = agent_node.name if agent_node else agent_id
+            for key, nodes in keys_dict.items():
+                if key in global_keys:
+                    result.add_warning(
+                        f"Variable node '{nodes[0].name}' connected to agent "
+                        f"'{agent_name}' overrides global variable '{key}'",
+                        location=self._make_location(nodes[0]),
+                    )
 
     def _validate_agent_ir(self, agent: AgentIR, result: ValidationResult) -> None:
         """Validate a single agent IR."""

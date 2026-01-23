@@ -15,16 +15,20 @@ import pytest
 from adkflow_runner.ir import (
     AgentIR,
     CallbackConfig,
+    CallbackSourceIR,
     CodeExecutorConfig,
     ConnectionSource,
+    ContextAggregatorIR,
     CustomNodeIR,
     HttpOptionsConfig,
     OutputFileIR,
     PlannerConfig,
     PromptIR,
+    SchemaSourceIR,
     TeleporterIR,
     ToolIR,
     UserInputIR,
+    VariableIR,
     WorkflowIR,
 )
 
@@ -468,3 +472,189 @@ class TestWorkflowIR:
         assert workflow.metadata["version"] == "1.0"
         assert workflow.project_path == "/path/to/project"
         assert len(workflow.tab_ids) == 2
+
+    def test_workflow_with_global_variables(self):
+        """Create workflow with global variables for substitution."""
+        root = AgentIR(id="root", name="Root", type="llm")
+        workflow = WorkflowIR(
+            root_agent=root,
+            all_agents={"root": root},
+            global_variables={"api_key": "secret", "env": "production"},
+        )
+        assert workflow.global_variables["api_key"] == "secret"
+        assert workflow.global_variables["env"] == "production"
+
+    def test_workflow_with_variable_nodes(self):
+        """Create workflow with Variable node IR."""
+        root = AgentIR(id="root", name="Root", type="llm")
+        var1 = VariableIR(
+            id="var1",
+            name="Config",
+            variables={"key1": "value1", "key2": "value2"},
+            is_global=True,
+        )
+        var2 = VariableIR(
+            id="var2",
+            name="AgentVars",
+            variables={"agent_key": "agent_value"},
+            is_global=False,
+            connected_agent_ids=["root"],
+        )
+        workflow = WorkflowIR(
+            root_agent=root,
+            all_agents={"root": root},
+            variable_nodes=[var1, var2],
+        )
+        assert len(workflow.variable_nodes) == 2
+        assert workflow.variable_nodes[0].is_global is True
+        assert workflow.variable_nodes[1].is_global is False
+
+
+class TestVariableIR:
+    """Tests for VariableIR dataclass."""
+
+    def test_global_variable_creation(self):
+        """Create a global Variable node (no connections)."""
+        var = VariableIR(
+            id="var1",
+            name="GlobalConfig",
+            variables={"api_key": "secret123", "env": "prod"},
+            is_global=True,
+        )
+        assert var.id == "var1"
+        assert var.name == "GlobalConfig"
+        assert var.variables["api_key"] == "secret123"
+        assert var.variables["env"] == "prod"
+        assert var.is_global is True
+        assert len(var.connected_agent_ids) == 0
+
+    def test_connected_variable_creation(self):
+        """Create a connected Variable node."""
+        var = VariableIR(
+            id="var2",
+            name="AgentVars",
+            variables={"db_url": "localhost:5432"},
+            is_global=False,
+            connected_agent_ids=["agent1", "agent2"],
+        )
+        assert var.is_global is False
+        assert len(var.connected_agent_ids) == 2
+        assert "agent1" in var.connected_agent_ids
+        assert "agent2" in var.connected_agent_ids
+
+    def test_variable_empty_dict(self):
+        """Create Variable with empty variables dict."""
+        var = VariableIR(
+            id="var3",
+            name="Empty",
+            variables={},
+            is_global=True,
+        )
+        assert len(var.variables) == 0
+        assert var.is_global is True
+
+
+class TestCallbackSourceIR:
+    """Tests for CallbackSourceIR dataclass."""
+
+    def test_callback_with_file_path(self):
+        """Create callback source with file path."""
+        callback = CallbackSourceIR(file_path="callbacks/before.py")
+        assert callback.file_path == "callbacks/before.py"
+        assert callback.code is None
+        assert callback.has_value() is True
+
+    def test_callback_with_inline_code(self):
+        """Create callback source with inline code."""
+        code = "def before_agent(ctx): pass"
+        callback = CallbackSourceIR(
+            code=code,
+            source_node_id="callback-1",
+            source_node_name="BeforeAgent",
+        )
+        assert callback.code == code
+        assert callback.file_path is None
+        assert callback.source_node_id == "callback-1"
+        assert callback.has_value() is True
+
+    def test_callback_empty(self):
+        """Empty callback source has no value."""
+        callback = CallbackSourceIR()
+        assert callback.has_value() is False
+
+    def test_callback_config_has_any(self):
+        """Test CallbackConfig.has_any() method."""
+        config = CallbackConfig(
+            before_agent=CallbackSourceIR(code="def before(): pass"),
+            after_model=CallbackSourceIR(file_path="after.py"),
+        )
+        assert config.has_any() is True
+
+    def test_callback_config_empty(self):
+        """Empty callback config has no callbacks."""
+        config = CallbackConfig()
+        assert config.has_any() is False
+
+
+class TestSchemaSourceIR:
+    """Tests for SchemaSourceIR dataclass."""
+
+    def test_schema_with_file_path(self):
+        """Create schema source with file path."""
+        schema = SchemaSourceIR(file_path="schemas/output.py")
+        assert schema.file_path == "schemas/output.py"
+        assert schema.code is None
+        assert schema.has_value() is True
+
+    def test_schema_with_inline_code(self):
+        """Create schema source with inline code."""
+        code = "class OutputSchema(BaseModel): pass"
+        schema = SchemaSourceIR(
+            code=code,
+            class_name="OutputSchema",
+            source_node_id="schema-1",
+            source_node_name="Output",
+        )
+        assert schema.code == code
+        assert schema.class_name == "OutputSchema"
+        assert schema.has_value() is True
+
+    def test_schema_empty(self):
+        """Empty schema source has no value."""
+        schema = SchemaSourceIR()
+        assert schema.has_value() is False
+
+
+class TestContextAggregatorIR:
+    """Tests for ContextAggregatorIR dataclass."""
+
+    def test_context_aggregator_creation(self):
+        """Create a context aggregator IR."""
+        agg = ContextAggregatorIR(
+            id="agg1",
+            name="DocumentAggregator",
+            config={
+                "aggregationMode": "concatenate",
+                "outputVariableName": "docs",
+                "separator": "\n\n---\n\n",
+            },
+        )
+        assert agg.id == "agg1"
+        assert agg.name == "DocumentAggregator"
+        assert agg.config["aggregationMode"] == "concatenate"
+        assert agg.config["outputVariableName"] == "docs"
+
+    def test_context_aggregator_with_connections(self):
+        """Create context aggregator with input connections."""
+        agg = ContextAggregatorIR(
+            id="agg2",
+            name="DataCollector",
+            config={"aggregationMode": "json"},
+            input_connections={
+                "input1": ["node1", "node2"],
+                "input2": ["node3"],
+            },
+        )
+        assert "input1" in agg.input_connections
+        assert len(agg.input_connections["input1"]) == 2
+        assert agg.input_connections["input2"][0] == "node3"

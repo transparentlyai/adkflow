@@ -15,6 +15,7 @@ from adkflow_runner.compiler.node_transforms import (
     sanitize_variable_name,
     transform_custom_nodes,
     transform_user_inputs,
+    transform_variable_nodes,
 )
 from adkflow_runner.compiler.parser import ParsedNode
 from adkflow_runner.config import EdgeSemantics
@@ -729,3 +730,349 @@ class TestTransformCustomNodes:
         assert result[0].unit_id == "builtin.monitor"
         assert result[0].name == "Monitor Node"
         assert result[0].config == {"url": "http://example.com"}
+
+
+# =============================================================================
+# Test transform_variable_nodes
+# =============================================================================
+
+
+class TestTransformVariableNodes:
+    """Tests for transform_variable_nodes function."""
+
+    def _make_variable_node(
+        self,
+        node_id: str,
+        name: str,
+        variables: dict[str, str] | None = None,
+        config: dict | None = None,
+    ) -> GraphNode:
+        """Helper to create a variable node."""
+        if config is None:
+            config = {}
+
+        if variables is not None:
+            # New format: variables array
+            config["variables"] = [
+                {"id": f"{key}_id", "key": key, "value": value}
+                for key, value in variables.items()
+            ]
+
+        data = {"config": config, "tabId": "tab1"}
+        parsed = ParsedNode(
+            id=node_id,
+            type="variable",
+            position=(0.0, 0.0),
+            data=data,
+        )
+        return GraphNode(
+            id=node_id,
+            type="variable",
+            name=name,
+            tab_id="tab1",
+            data=data,
+            parsed_node=parsed,
+        )
+
+    def test_transform_global_variable_node(
+        self,
+        make_workflow_graph,
+    ):
+        """Should transform unconnected variable node as global."""
+        var_node = self._make_variable_node(
+            "var-1",
+            "Global Config",
+            variables={"api_key": "secret123", "endpoint": "https://api.example.com"},
+        )
+
+        graph = make_workflow_graph(nodes=[var_node], edges=[])
+
+        variable_nodes, global_variables = transform_variable_nodes(graph)
+
+        assert len(variable_nodes) == 1
+        assert variable_nodes[0].id == "var-1"
+        assert variable_nodes[0].name == "Global Config"
+        assert variable_nodes[0].is_global is True
+        assert variable_nodes[0].variables == {
+            "api_key": "secret123",
+            "endpoint": "https://api.example.com",
+        }
+        assert variable_nodes[0].connected_agent_ids == []
+
+        # Global variables should be collected
+        assert global_variables == {
+            "api_key": "secret123",
+            "endpoint": "https://api.example.com",
+        }
+
+    def test_transform_connected_variable_node(
+        self,
+        make_graph_node,
+        make_graph_edge,
+        make_workflow_graph,
+    ):
+        """Should transform connected variable node as non-global."""
+        var_node = self._make_variable_node(
+            "var-1",
+            "Agent Config",
+            variables={"model": "gpt-4", "temperature": "0.7"},
+        )
+        agent = make_graph_node("agent-1", "agent", name="Agent1")
+
+        edge = make_graph_edge(var_node, agent, EdgeSemantics.SEQUENTIAL)
+        graph = make_workflow_graph(nodes=[var_node, agent], edges=[edge])
+
+        variable_nodes, global_variables = transform_variable_nodes(graph)
+
+        assert len(variable_nodes) == 1
+        assert variable_nodes[0].id == "var-1"
+        assert variable_nodes[0].is_global is False
+        assert variable_nodes[0].connected_agent_ids == ["agent-1"]
+        assert variable_nodes[0].variables == {"model": "gpt-4", "temperature": "0.7"}
+
+        # Connected variables should NOT be in global_variables
+        assert global_variables == {}
+
+    def test_transform_variable_node_multiple_connections(
+        self,
+        make_graph_node,
+        make_workflow_graph,
+    ):
+        """Should capture all connected agents."""
+        var_node = self._make_variable_node(
+            "var-1", "Config", variables={"setting": "value"}
+        )
+        agent1 = make_graph_node("agent-1", "agent", name="Agent1")
+        agent2 = make_graph_node("agent-2", "agent", name="Agent2")
+
+        # Create edges manually
+        edge1 = GraphEdge(
+            source_id=var_node.id,
+            target_id=agent1.id,
+            semantics=EdgeSemantics.SEQUENTIAL,
+        )
+        var_node.outgoing.append(edge1)
+        agent1.incoming.append(edge1)
+
+        edge2 = GraphEdge(
+            source_id=var_node.id,
+            target_id=agent2.id,
+            semantics=EdgeSemantics.SEQUENTIAL,
+        )
+        var_node.outgoing.append(edge2)
+        agent2.incoming.append(edge2)
+
+        graph = make_workflow_graph(
+            nodes=[var_node, agent1, agent2],
+            edges=[edge1, edge2],
+        )
+
+        variable_nodes, global_variables = transform_variable_nodes(graph)
+
+        assert len(variable_nodes) == 1
+        assert variable_nodes[0].is_global is False
+        assert set(variable_nodes[0].connected_agent_ids) == {"agent-1", "agent-2"}
+        assert global_variables == {}
+
+    def test_transform_variable_node_old_format(
+        self,
+        make_workflow_graph,
+    ):
+        """Should support old format with name and value in config."""
+        config = {"name": "old_key", "value": "old_value"}
+        var_node = self._make_variable_node("var-1", "Old Format", config=config)
+
+        graph = make_workflow_graph(nodes=[var_node], edges=[])
+
+        variable_nodes, global_variables = transform_variable_nodes(graph)
+
+        assert len(variable_nodes) == 1
+        assert variable_nodes[0].variables == {"old_key": "old_value"}
+        assert global_variables == {"old_key": "old_value"}
+
+    def test_transform_variable_node_empty_variables(
+        self,
+        make_workflow_graph,
+    ):
+        """Should handle variable node with no variables."""
+        var_node = self._make_variable_node("var-1", "Empty", variables={})
+
+        graph = make_workflow_graph(nodes=[var_node], edges=[])
+
+        variable_nodes, global_variables = transform_variable_nodes(graph)
+
+        assert len(variable_nodes) == 1
+        assert variable_nodes[0].variables == {}
+        assert global_variables == {}
+
+    def test_transform_multiple_global_variables(
+        self,
+        make_workflow_graph,
+    ):
+        """Should merge variables from multiple global variable nodes."""
+        var1 = self._make_variable_node("var-1", "Config1", variables={"a": "1", "b": "2"})
+        var2 = self._make_variable_node("var-2", "Config2", variables={"c": "3", "d": "4"})
+
+        graph = make_workflow_graph(nodes=[var1, var2], edges=[])
+
+        variable_nodes, global_variables = transform_variable_nodes(graph)
+
+        assert len(variable_nodes) == 2
+        assert all(v.is_global for v in variable_nodes)
+        assert global_variables == {"a": "1", "b": "2", "c": "3", "d": "4"}
+
+    def test_transform_mixed_global_and_connected(
+        self,
+        make_graph_node,
+        make_graph_edge,
+        make_workflow_graph,
+    ):
+        """Should handle mix of global and connected variable nodes."""
+        global_var = self._make_variable_node(
+            "var-global", "Global", variables={"global": "value"}
+        )
+        connected_var = self._make_variable_node(
+            "var-local", "Local", variables={"local": "value"}
+        )
+        agent = make_graph_node("agent-1", "agent", name="Agent1")
+
+        edge = make_graph_edge(connected_var, agent, EdgeSemantics.SEQUENTIAL)
+        graph = make_workflow_graph(
+            nodes=[global_var, connected_var, agent],
+            edges=[edge],
+        )
+
+        variable_nodes, global_variables = transform_variable_nodes(graph)
+
+        assert len(variable_nodes) == 2
+
+        global_node = next(v for v in variable_nodes if v.id == "var-global")
+        assert global_node.is_global is True
+        assert global_node.connected_agent_ids == []
+
+        connected_node = next(v for v in variable_nodes if v.id == "var-local")
+        assert connected_node.is_global is False
+        assert connected_node.connected_agent_ids == ["agent-1"]
+
+        # Only global variables in global_variables dict
+        assert global_variables == {"global": "value"}
+
+    def test_transform_variable_node_default_name(
+        self,
+        make_workflow_graph,
+    ):
+        """Should generate default name from node ID if not provided."""
+        config = {"variables": [{"id": "x", "key": "test", "value": "val"}]}
+        data = {"config": config, "tabId": "tab1"}
+        parsed = ParsedNode(
+            id="var-12345678-rest",
+            type="variable",
+            position=(0.0, 0.0),
+            data=data,
+        )
+        var_node = GraphNode(
+            id="var-12345678-rest",
+            type="variable",
+            name="",
+            tab_id="tab1",
+            data=data,
+            parsed_node=parsed,
+        )
+
+        graph = make_workflow_graph(nodes=[var_node], edges=[])
+
+        variable_nodes, _ = transform_variable_nodes(graph)
+
+        assert len(variable_nodes) == 1
+        assert variable_nodes[0].name == "variable_var-1234"
+
+    def test_transform_skip_non_variable_nodes(
+        self,
+        make_graph_node,
+        make_workflow_graph,
+    ):
+        """Should only process variable type nodes."""
+        agent = make_graph_node("agent-1", "agent", name="Agent1")
+        prompt = make_graph_node("prompt-1", "prompt", name="Prompt1")
+
+        graph = make_workflow_graph(nodes=[agent, prompt], edges=[])
+
+        variable_nodes, global_variables = transform_variable_nodes(graph)
+
+        assert len(variable_nodes) == 0
+        assert global_variables == {}
+
+    def test_transform_variable_node_ignores_non_agent_connections(
+        self,
+        make_graph_node,
+        make_workflow_graph,
+    ):
+        """Should only track connections to agent nodes."""
+        var_node = self._make_variable_node("var-1", "Config", variables={"k": "v"})
+        prompt = make_graph_node("prompt-1", "prompt", name="Prompt1")
+
+        # Connect to non-agent node
+        edge = GraphEdge(
+            source_id=var_node.id,
+            target_id=prompt.id,
+            semantics=EdgeSemantics.SEQUENTIAL,
+        )
+        var_node.outgoing.append(edge)
+        prompt.incoming.append(edge)
+
+        graph = make_workflow_graph(nodes=[var_node, prompt], edges=[edge])
+
+        variable_nodes, global_variables = transform_variable_nodes(graph)
+
+        assert len(variable_nodes) == 1
+        # Has outgoing edge, so not global
+        assert variable_nodes[0].is_global is False
+        # But no agent connections tracked
+        assert variable_nodes[0].connected_agent_ids == []
+        # Not global, so not in global_variables
+        assert global_variables == {}
+
+    def test_transform_variable_node_variables_array_with_empty_key(
+        self,
+        make_workflow_graph,
+    ):
+        """Should skip variables with empty keys."""
+        config = {
+            "variables": [
+                {"id": "1", "key": "valid", "value": "value1"},
+                {"id": "2", "key": "", "value": "value2"},  # Empty key
+                {"id": "3", "key": "another", "value": "value3"},
+            ]
+        }
+        var_node = self._make_variable_node("var-1", "Test", config=config)
+
+        graph = make_workflow_graph(nodes=[var_node], edges=[])
+
+        variable_nodes, global_variables = transform_variable_nodes(graph)
+
+        assert len(variable_nodes) == 1
+        # Should only include non-empty keys
+        assert variable_nodes[0].variables == {"valid": "value1", "another": "value3"}
+        assert global_variables == {"valid": "value1", "another": "value3"}
+
+    def test_transform_variable_node_new_format_takes_precedence(
+        self,
+        make_workflow_graph,
+    ):
+        """Should use new format if both old and new are present."""
+        config = {
+            "name": "old_key",  # Old format
+            "value": "old_value",
+            "variables": [  # New format
+                {"id": "1", "key": "new_key", "value": "new_value"}
+            ],
+        }
+        var_node = self._make_variable_node("var-1", "Test", config=config)
+
+        graph = make_workflow_graph(nodes=[var_node], edges=[])
+
+        variable_nodes, _ = transform_variable_nodes(graph)
+
+        assert len(variable_nodes) == 1
+        # New format takes precedence
+        assert variable_nodes[0].variables == {"new_key": "new_value"}

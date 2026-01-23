@@ -362,6 +362,26 @@ class ContextAggregatorIR:
 
 
 @dataclass
+class VariableIR:
+    """IR for Variable nodes.
+
+    Variable nodes store key-value pairs that can either:
+    1. Be emitted to connected agents as context_vars (connected mode)
+    2. Be substituted globally at build time in all string fields (global mode)
+
+    The mode is determined by whether the node has outgoing connections.
+    """
+
+    id: str  # Node ID
+    name: str  # Display name
+    variables: dict[str, str]  # key -> value mapping
+    is_global: bool  # True if no outgoing connections (global substitution mode)
+    connected_agent_ids: list[str] = field(
+        default_factory=list
+    )  # Agents receiving these variables
+
+
+@dataclass
 class WorkflowIR:
     """Complete intermediate representation for a workflow.
 
@@ -370,6 +390,7 @@ class WorkflowIR:
     - All agents (for lookup)
     - Output files (agent output destinations)
     - Teleporter connections (cross-tab)
+    - Variable nodes (connected and global)
     - Execution metadata
     """
 
@@ -380,7 +401,13 @@ class WorkflowIR:
     user_inputs: list[UserInputIR] = field(default_factory=list)
     custom_nodes: list[CustomNodeIR] = field(default_factory=list)
     context_aggregators: list[ContextAggregatorIR] = field(default_factory=list)
-    variables: dict[str, Any] = field(default_factory=dict)
+    variable_nodes: list[VariableIR] = field(default_factory=list)
+    global_variables: dict[str, str] = field(
+        default_factory=dict
+    )  # For build-time substitution
+    variables: dict[str, Any] = field(
+        default_factory=dict
+    )  # Legacy, kept for compatibility
     metadata: dict[str, Any] = field(default_factory=dict)
 
     # Flow control nodes (for topology visualization)

@@ -158,6 +158,20 @@ export function ExpandedNodeContentArea({
       );
     }
 
+    // KeyValueList widget renders full-width without label row (has its own header)
+    if (field.widget === "keyValueList" || field.widget === "key_value_list") {
+      return (
+        <div key={field.id}>
+          {renderWidget(
+            field,
+            config[field.id] ?? field.default,
+            (value) => onConfigChange(field.id, value),
+            { disabled: nodeData.isNodeLocked, theme, compact: true },
+          )}
+        </div>
+      );
+    }
+
     // If field is overridden by a connected node, show indicator
     if (isOverridden) {
       return (

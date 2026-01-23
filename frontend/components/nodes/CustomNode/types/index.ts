@@ -32,3 +32,6 @@ export {
   createDynamicInput,
   NAMING_PATTERN_VARIABLES,
 } from "./dynamicInputs";
+
+// KeyValue types for Variable nodes
+export type { KeyValueItem } from "./keyValue";

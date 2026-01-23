@@ -13,6 +13,8 @@ import JsonTreeWidget from "@/components/nodes/widgets/JsonTreeWidget";
 import ChatLogWidget from "@/components/nodes/widgets/ChatLogWidget";
 import RadioGroupWidget from "@/components/nodes/widgets/RadioGroupWidget";
 import FilePickerWidget from "@/components/nodes/widgets/FilePickerWidget";
+import KeyValueListWidget from "@/components/nodes/widgets/KeyValueListWidget";
+import type { KeyValueItem } from "@/components/nodes/CustomNode/types/keyValue";
 
 /**
  * Widget type identifiers for form field rendering.
@@ -38,7 +40,9 @@ export type WidgetType =
   | "radio_group"
   | "monaco_editor"
   | "file_display"
-  | "variable_display";
+  | "variable_display"
+  | "keyValueList"
+  | "key_value_list";
 
 /**
  * Option for select widgets.
@@ -131,6 +135,17 @@ export function renderWidget(
         value={value}
         onChange={onChange}
         options={options}
+      />
+    );
+  }
+
+  // Handle keyValueList widget (different props interface)
+  if (field.widget === "keyValueList" || field.widget === "key_value_list") {
+    return (
+      <KeyValueListWidget
+        value={(value as KeyValueItem[]) ?? []}
+        onChange={onChange}
+        disabled={options.disabled}
       />
     );
   }

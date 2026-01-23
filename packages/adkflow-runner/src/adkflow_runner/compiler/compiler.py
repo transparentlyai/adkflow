@@ -7,7 +7,9 @@ from pathlib import Path
 
 from adkflow_runner.compiler.graph import GraphBuilder, WorkflowGraph
 from adkflow_runner.compiler.loader import LoadedProject, ProjectLoader
+from adkflow_runner.compiler.node_transforms import transform_variable_nodes
 from adkflow_runner.compiler.parser import FlowParser, ParsedProject
+from adkflow_runner.compiler.substitution import substitute_global_variables
 from adkflow_runner.compiler.transformer import IRTransformer
 from adkflow_runner.compiler.validator import WorkflowValidator
 from adkflow_runner.config import ExecutionConfig, get_default_config
@@ -68,6 +70,11 @@ class Compiler:
 
         # Build graph
         graph = self.build_graph(parsed)
+
+        # Extract and substitute global variables (before validation)
+        _, global_vars = transform_variable_nodes(graph)
+        if global_vars:
+            graph = substitute_global_variables(graph, global_vars)
 
         # Validate
         if validate:

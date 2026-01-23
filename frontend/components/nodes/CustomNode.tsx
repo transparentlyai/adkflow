@@ -56,6 +56,8 @@ export type {
   CustomNodeData,
 } from "@/components/nodes/CustomNode/types";
 
+export type { KeyValueItem } from "@/components/nodes/CustomNode/types/keyValue";
+
 // Re-export dynamic input types
 export type {
   DynamicInputConfig,
