@@ -39,6 +39,7 @@ All built-in nodes are now **schema-driven** using CustomNodeSchema definitions 
 | `ContextAggregator` | `builtinNodeSchemas/contextAggregatorNodeSchema.ts` | Multi-source content aggregation |
 | `Tool` | `builtinNodeSchemas/toolNodeSchema.ts` | Agent tools |
 | `AgentTool` | `builtinNodeSchemas/agentToolNodeSchema.ts` | Tool wrapper for agents |
+| `ShellTool` | `builtinNodeSchemas/shellToolNodeSchema.ts` | Secure shell command execution |
 | `Process` | `builtinNodeSchemas/processNodeSchema.ts` | Custom Python processing |
 | `Variable` | `builtinNodeSchemas/variableNodeSchema.ts` | Variables |
 | `UserInput` | `builtinNodeSchemas/userInputNodeSchema.ts` | Runtime user input |
