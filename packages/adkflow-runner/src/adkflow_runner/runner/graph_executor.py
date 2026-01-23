@@ -147,6 +147,7 @@ class GraphExecutor:
         project_path: Path,
         session_id: str = "",
         run_id: str = "",
+        external_results: dict[str, dict[str, Any]] | None = None,
     ) -> dict[str, dict[str, Any]]:
         """Execute graph in topological order with parallel execution.
 
@@ -156,6 +157,9 @@ class GraphExecutor:
             project_path: Path to the project directory
             session_id: Current session ID
             run_id: Current run ID
+            external_results: Pre-populated results for external dependencies
+                (e.g., agent outputs). These are used to satisfy dependencies
+                on nodes not in the graph.
 
         Returns:
             Dict mapping node IDs to their output values
@@ -184,7 +188,8 @@ class GraphExecutor:
                 return {}  # Skip execution entirely
 
         # 4. Execute layer by layer
-        results: dict[str, dict[str, Any]] = {}
+        # Initialize results with external results (e.g., agent outputs)
+        results: dict[str, dict[str, Any]] = dict(external_results or {})
 
         for layer_idx, layer in enumerate(layers):
             # Invoke before_layer_execute hook

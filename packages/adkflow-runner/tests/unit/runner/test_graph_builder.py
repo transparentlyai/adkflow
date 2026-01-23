@@ -1,9 +1,17 @@
-"""Tests for GraphBuilder - builds ExecutionGraph from WorkflowIR."""
+"""Tests for GraphBuilder - builds ExecutionGraph from WorkflowIR.
+
+Note: GraphBuilder only includes custom nodes in the execution graph.
+Agents are executed separately by the workflow runner, not by the GraphExecutor.
+"""
 
 import pytest
 
 from adkflow_runner.ir import AgentIR, CustomNodeIR, WorkflowIR
-from adkflow_runner.runner.graph_builder import GraphBuilder
+from adkflow_runner.runner.graph_builder import (
+    GraphBuilder,
+    partition_custom_nodes,
+    build_execution_graph,
+)
 from adkflow_runner.runner.graph_executor import ExecutionGraph
 
 
@@ -26,7 +34,7 @@ def simple_ir():
 
 @pytest.fixture
 def ir_with_custom_nodes():
-    """Create IR with custom nodes."""
+    """Create IR with custom nodes that depend on an agent."""
     root = AgentIR(
         id="agent_1",
         name="TestAgent",
@@ -39,7 +47,33 @@ def ir_with_custom_nodes():
         name="Custom Node",
         source_node_id="custom_1_src",
         config={"value": 42},
-        input_connections={"input": ["agent_1"]},
+        input_connections={"input": ["agent_1"]},  # Depends on agent
+        output_connections={},
+    )
+    return WorkflowIR(
+        project_path="/test",
+        root_agent=root,
+        all_agents={"agent_1": root},
+        custom_nodes=[custom],
+    )
+
+
+@pytest.fixture
+def ir_with_independent_custom_nodes():
+    """Create IR with custom nodes that don't depend on agents."""
+    root = AgentIR(
+        id="agent_1",
+        name="TestAgent",
+        type="llm",
+        model="gemini-2.0-flash",
+    )
+    custom = CustomNodeIR(
+        id="custom_1",
+        unit_id="my_unit",
+        name="Custom Node",
+        source_node_id="custom_1_src",
+        config={"value": 42},
+        input_connections={},  # No agent dependency
         output_connections={},
     )
     return WorkflowIR(
@@ -59,35 +93,32 @@ class TestGraphBuilder:
         graph = builder.build(simple_ir)
         assert isinstance(graph, ExecutionGraph)
 
-    def test_build_includes_agents_as_nodes(self, simple_ir):
-        """Agents are added as nodes in the graph."""
+    def test_build_excludes_agents(self, simple_ir):
+        """Agents are NOT included in the execution graph."""
         builder = GraphBuilder()
         graph = builder.build(simple_ir)
-        assert "agent_1" in graph.nodes
-        assert graph.nodes["agent_1"].node_type == "agent"
+        # Graph should be empty - only agents, no custom nodes
+        assert "agent_1" not in graph.nodes
+        assert len(graph.nodes) == 0
 
-    def test_build_includes_custom_nodes(self, ir_with_custom_nodes):
+    def test_build_includes_custom_nodes(self, ir_with_independent_custom_nodes):
         """Custom nodes are added to the graph."""
         builder = GraphBuilder()
-        graph = builder.build(ir_with_custom_nodes)
+        graph = builder.build(ir_with_independent_custom_nodes)
         assert "custom_1" in graph.nodes
         assert graph.nodes["custom_1"].node_type == "custom"
 
-    def test_build_creates_edges_from_connections(self, ir_with_custom_nodes):
-        """Edges are created from input/output connections."""
+    def test_build_skips_edges_from_agents(self, ir_with_custom_nodes):
+        """Edges from agents are skipped (agents are external dependencies)."""
         builder = GraphBuilder()
         graph = builder.build(ir_with_custom_nodes)
-        # Should have edge from agent_1 to custom_1
-        assert len(graph.edges) >= 1
-        edge = next(
-            (e for e in graph.edges if e.target_id == "custom_1"),
-            None,
-        )
-        assert edge is not None
-        assert edge.source_id == "agent_1"
+        # Custom node should be in graph
+        assert "custom_1" in graph.nodes
+        # But no edges from the agent (agent is external)
+        assert len(graph.edges) == 0
 
-    def test_build_empty_ir(self):
-        """Build with minimal IR."""
+    def test_build_empty_custom_nodes(self):
+        """Build with no custom nodes returns empty graph."""
         root = AgentIR(
             id="root",
             name="Root",
@@ -102,31 +133,45 @@ class TestGraphBuilder:
         )
         builder = GraphBuilder()
         graph = builder.build(ir)
-        assert len(graph.nodes) == 1
+        assert len(graph.nodes) == 0
 
-
-class TestGraphBuilderEdgeCases:
-    """Edge case tests for GraphBuilder."""
-
-    def test_multiple_agents(self):
-        """Build with multiple agents."""
-        agent1 = AgentIR(id="a1", name="Agent1", type="llm", model="gemini-2.0-flash")
-        agent2 = AgentIR(id="a2", name="Agent2", type="llm", model="gemini-2.0-flash")
-        root = AgentIR(
-            id="seq",
-            name="Seq",
-            type="sequential",
-            subagents=[agent1, agent2],
+    def test_build_with_custom_node_filter(self):
+        """Build can filter to specific custom node IDs."""
+        root = AgentIR(id="root", name="Root", type="llm", model="gemini-2.0-flash")
+        custom1 = CustomNodeIR(
+            id="c1",
+            unit_id="unit1",
+            name="Custom1",
+            source_node_id="c1_src",
+            config={},
+            input_connections={},
+            output_connections={},
+        )
+        custom2 = CustomNodeIR(
+            id="c2",
+            unit_id="unit2",
+            name="Custom2",
+            source_node_id="c2_src",
+            config={},
+            input_connections={},
+            output_connections={},
         )
         ir = WorkflowIR(
             project_path="/test",
             root_agent=root,
-            all_agents={"seq": root, "a1": agent1, "a2": agent2},
-            custom_nodes=[],
+            all_agents={"root": root},
+            custom_nodes=[custom1, custom2],
         )
         builder = GraphBuilder()
-        graph = builder.build(ir)
-        assert len(graph.nodes) == 3
+
+        # Build with only c1
+        graph = builder.build(ir, custom_node_ids={"c1"})
+        assert "c1" in graph.nodes
+        assert "c2" not in graph.nodes
+
+
+class TestGraphBuilderEdgeCases:
+    """Edge case tests for GraphBuilder."""
 
     def test_multiple_custom_nodes(self):
         """Build with multiple custom nodes."""
@@ -160,12 +205,53 @@ class TestGraphBuilderEdgeCases:
         assert "c1" in graph.nodes
         assert "c2" in graph.nodes
 
+    def test_custom_node_chain(self):
+        """Build with custom nodes connected to each other."""
+        root = AgentIR(id="root", name="Root", type="llm", model="gemini-2.0-flash")
+        custom1 = CustomNodeIR(
+            id="c1",
+            unit_id="unit1",
+            name="Custom1",
+            source_node_id="c1_src",
+            config={},
+            input_connections={},
+            output_connections={"output": ["c2"]},
+        )
+        custom2 = CustomNodeIR(
+            id="c2",
+            unit_id="unit2",
+            name="Custom2",
+            source_node_id="c2_src",
+            config={},
+            input_connections={"input": ["c1"]},
+            output_connections={},
+        )
+        ir = WorkflowIR(
+            project_path="/test",
+            root_agent=root,
+            all_agents={"root": root},
+            custom_nodes=[custom1, custom2],
+        )
+        builder = GraphBuilder()
+        graph = builder.build(ir)
+
+        # Both nodes should be in graph
+        assert "c1" in graph.nodes
+        assert "c2" in graph.nodes
+
+        # Edge from c1 to c2
+        edge = next(
+            (e for e in graph.edges if e.source_id == "c1" and e.target_id == "c2"),
+            None,
+        )
+        assert edge is not None
+
 
 class TestGraphBuilderPortResolution:
     """Tests for port resolution methods."""
 
-    def test_find_source_port_for_agent(self):
-        """Find source port for agent returns 'output'."""
+    def test_find_source_port_default(self):
+        """Find source port returns 'output' by default."""
         builder = GraphBuilder()
         root = AgentIR(id="root", name="Root", type="llm", model="gemini-2.0-flash")
         ir = WorkflowIR(
@@ -174,7 +260,7 @@ class TestGraphBuilderPortResolution:
             all_agents={"root": root},
             custom_nodes=[],
         )
-        port = builder._find_source_port("root", ir)
+        port = builder._find_source_port("unknown", ir)
         assert port == "output"
 
     def test_find_source_port_for_custom_node(self):
@@ -199,8 +285,8 @@ class TestGraphBuilderPortResolution:
         port = builder._find_source_port("c1", ir)
         assert port == "output"  # Default when no schema
 
-    def test_find_target_port_for_agent(self):
-        """Find target port for agent returns 'instruction'."""
+    def test_find_target_port_default(self):
+        """Find target port returns 'input' by default."""
         builder = GraphBuilder()
         root = AgentIR(id="root", name="Root", type="llm", model="gemini-2.0-flash")
         ir = WorkflowIR(
@@ -209,8 +295,8 @@ class TestGraphBuilderPortResolution:
             all_agents={"root": root},
             custom_nodes=[],
         )
-        port = builder._find_target_port("root", ir)
-        assert port == "instruction"
+        port = builder._find_target_port("unknown", ir)
+        assert port == "input"
 
     def test_find_target_port_for_custom_node(self):
         """Find target port for custom node."""
@@ -234,9 +320,12 @@ class TestGraphBuilderPortResolution:
         port = builder._find_target_port("c1", ir)
         assert port == "input"  # Default when no schema
 
-    def test_find_target_port_unknown_node(self):
-        """Find target port for unknown node returns 'input'."""
-        builder = GraphBuilder()
+
+class TestPartitionCustomNodes:
+    """Tests for partition_custom_nodes function."""
+
+    def test_partition_no_custom_nodes(self):
+        """Empty partition when no custom nodes."""
         root = AgentIR(id="root", name="Root", type="llm", model="gemini-2.0-flash")
         ir = WorkflowIR(
             project_path="/test",
@@ -244,94 +333,117 @@ class TestGraphBuilderPortResolution:
             all_agents={"root": root},
             custom_nodes=[],
         )
-        port = builder._find_target_port("unknown_id", ir)
-        assert port == "input"
+        pre, post = partition_custom_nodes(ir)
+        assert pre == set()
+        assert post == set()
 
-
-class TestGraphBuilderAgentEdges:
-    """Tests for agent edge building."""
-
-    def test_sequential_agent_edges(self):
-        """Sequential agents have edges between them."""
-        builder = GraphBuilder()
-        agent1 = AgentIR(id="a1", name="Agent1", type="llm", model="gemini-2.0-flash")
-        agent2 = AgentIR(id="a2", name="Agent2", type="llm", model="gemini-2.0-flash")
-        seq = AgentIR(
-            id="seq",
-            name="Sequential",
-            type="sequential",
-            subagents=[agent1, agent2],
+    def test_partition_independent_nodes(self):
+        """Nodes without agent dependencies are pre-agent."""
+        root = AgentIR(id="root", name="Root", type="llm", model="gemini-2.0-flash")
+        custom = CustomNodeIR(
+            id="c1",
+            unit_id="unit1",
+            name="Custom1",
+            source_node_id="c1_src",
+            config={},
+            input_connections={},  # No dependencies
+            output_connections={},
         )
         ir = WorkflowIR(
             project_path="/test",
-            root_agent=seq,
-            all_agents={"seq": seq, "a1": agent1, "a2": agent2},
-            custom_nodes=[],
+            root_agent=root,
+            all_agents={"root": root},
+            custom_nodes=[custom],
         )
+        pre, post = partition_custom_nodes(ir)
+        assert pre == {"c1"}
+        assert post == set()
 
-        edges = builder._build_agent_edges(ir)
-
-        assert len(edges) >= 1
-        edge = next(
-            (e for e in edges if e.source_id == "a1" and e.target_id == "a2"), None
-        )
-        assert edge is not None
-        assert edge.source_port == "output"
-        assert edge.target_port == "input"
-
-    def test_loop_agent_edges(self):
-        """Loop agents have edges from loop to subagents."""
-        builder = GraphBuilder()
-        agent1 = AgentIR(id="a1", name="Agent1", type="llm", model="gemini-2.0-flash")
-        loop = AgentIR(
-            id="loop",
-            name="Loop",
-            type="loop",
-            subagents=[agent1],
+    def test_partition_agent_dependent_nodes(self):
+        """Nodes with agent dependencies are post-agent."""
+        root = AgentIR(id="agent_1", name="Root", type="llm", model="gemini-2.0-flash")
+        custom = CustomNodeIR(
+            id="c1",
+            unit_id="unit1",
+            name="Custom1",
+            source_node_id="c1_src",
+            config={},
+            input_connections={"input": ["agent_1"]},  # Depends on agent
+            output_connections={},
         )
         ir = WorkflowIR(
             project_path="/test",
-            root_agent=loop,
-            all_agents={"loop": loop, "a1": agent1},
-            custom_nodes=[],
+            root_agent=root,
+            all_agents={"agent_1": root},
+            custom_nodes=[custom],
         )
+        pre, post = partition_custom_nodes(ir)
+        assert pre == set()
+        assert post == {"c1"}
 
-        edges = builder._build_agent_edges(ir)
-
-        assert len(edges) >= 1
-        edge = next(
-            (e for e in edges if e.source_id == "loop" and e.target_id == "a1"), None
+    def test_partition_transitive_dependencies(self):
+        """Transitive dependencies are correctly classified."""
+        root = AgentIR(id="agent_1", name="Root", type="llm", model="gemini-2.0-flash")
+        # c1 depends on agent, c2 depends on c1
+        custom1 = CustomNodeIR(
+            id="c1",
+            unit_id="unit1",
+            name="Custom1",
+            source_node_id="c1_src",
+            config={},
+            input_connections={"input": ["agent_1"]},
+            output_connections={"output": ["c2"]},
         )
-        assert edge is not None
-        assert edge.source_port == "loop_control"
-
-    def test_parallel_agent_no_inter_edges(self):
-        """Parallel agents have no edges between subagents."""
-        builder = GraphBuilder()
-        agent1 = AgentIR(id="a1", name="Agent1", type="llm", model="gemini-2.0-flash")
-        agent2 = AgentIR(id="a2", name="Agent2", type="llm", model="gemini-2.0-flash")
-        parallel = AgentIR(
-            id="par",
-            name="Parallel",
-            type="parallel",
-            subagents=[agent1, agent2],
+        custom2 = CustomNodeIR(
+            id="c2",
+            unit_id="unit2",
+            name="Custom2",
+            source_node_id="c2_src",
+            config={},
+            input_connections={"input": ["c1"]},  # Depends on c1 (transitively on agent)
+            output_connections={},
         )
         ir = WorkflowIR(
             project_path="/test",
-            root_agent=parallel,
-            all_agents={"par": parallel, "a1": agent1, "a2": agent2},
-            custom_nodes=[],
+            root_agent=root,
+            all_agents={"agent_1": root},
+            custom_nodes=[custom1, custom2],
         )
+        pre, post = partition_custom_nodes(ir)
+        assert pre == set()
+        assert post == {"c1", "c2"}  # Both are post-agent
 
-        edges = builder._build_agent_edges(ir)
-
-        # No direct edges between a1 and a2
-        inter_edges = [
-            e
-            for e in edges
-            if (e.source_id in ("a1", "a2") and e.target_id in ("a1", "a2"))
-        ]
-        assert len(inter_edges) == 0
+    def test_partition_mixed(self):
+        """Mixed pre-agent and post-agent nodes."""
+        root = AgentIR(id="agent_1", name="Root", type="llm", model="gemini-2.0-flash")
+        # c1 is independent, c2 depends on agent
+        custom1 = CustomNodeIR(
+            id="c1",
+            unit_id="unit1",
+            name="Custom1",
+            source_node_id="c1_src",
+            config={},
+            input_connections={},  # Independent
+            output_connections={},
+        )
+        custom2 = CustomNodeIR(
+            id="c2",
+            unit_id="unit2",
+            name="Custom2",
+            source_node_id="c2_src",
+            config={},
+            input_connections={"input": ["agent_1"]},  # Depends on agent
+            output_connections={},
+        )
+        ir = WorkflowIR(
+            project_path="/test",
+            root_agent=root,
+            all_agents={"agent_1": root},
+            custom_nodes=[custom1, custom2],
+        )
+        pre, post = partition_custom_nodes(ir)
+        assert pre == {"c1"}
+        assert post == {"c2"}
 
 
 class TestBuildExecutionGraphFunction:
@@ -339,26 +451,105 @@ class TestBuildExecutionGraphFunction:
 
     def test_build_execution_graph(self):
         """Convenience function builds graph."""
-        from adkflow_runner.runner.graph_builder import build_execution_graph
-
         root = AgentIR(id="root", name="Root", type="llm", model="gemini-2.0-flash")
+        custom = CustomNodeIR(
+            id="c1",
+            unit_id="unit1",
+            name="Custom1",
+            source_node_id="c1_src",
+            config={},
+            input_connections={},
+            output_connections={},
+        )
         ir = WorkflowIR(
             project_path="/test",
             root_agent=root,
             all_agents={"root": root},
-            custom_nodes=[],
+            custom_nodes=[custom],
         )
 
         graph = build_execution_graph(ir)
         assert isinstance(graph, ExecutionGraph)
-        assert "root" in graph.nodes
+        assert "c1" in graph.nodes
+
+    def test_build_execution_graph_with_filter(self):
+        """Convenience function accepts custom_node_ids filter."""
+        root = AgentIR(id="root", name="Root", type="llm", model="gemini-2.0-flash")
+        custom1 = CustomNodeIR(
+            id="c1",
+            unit_id="unit1",
+            name="Custom1",
+            source_node_id="c1_src",
+            config={},
+            input_connections={},
+            output_connections={},
+        )
+        custom2 = CustomNodeIR(
+            id="c2",
+            unit_id="unit2",
+            name="Custom2",
+            source_node_id="c2_src",
+            config={},
+            input_connections={},
+            output_connections={},
+        )
+        ir = WorkflowIR(
+            project_path="/test",
+            root_agent=root,
+            all_agents={"root": root},
+            custom_nodes=[custom1, custom2],
+        )
+
+        graph = build_execution_graph(ir, custom_node_ids={"c2"})
+        assert "c1" not in graph.nodes
+        assert "c2" in graph.nodes
 
 
-class TestGraphBuilderOutputConnections:
-    """Tests for output connection edge building."""
+class TestGraphBuilderCustomNodeEdges:
+    """Tests for custom node edge building."""
 
-    def test_output_connections_create_edges(self):
-        """Output connections create edges to target nodes."""
+    def test_edges_between_custom_nodes(self):
+        """Edges are created between custom nodes."""
+        builder = GraphBuilder()
+        root = AgentIR(id="root", name="Root", type="llm", model="gemini-2.0-flash")
+        custom1 = CustomNodeIR(
+            id="c1",
+            unit_id="test_unit",
+            name="Custom1",
+            source_node_id="c1_src",
+            config={},
+            input_connections={},
+            output_connections={"output": ["c2"]},
+        )
+        custom2 = CustomNodeIR(
+            id="c2",
+            unit_id="test_unit",
+            name="Custom2",
+            source_node_id="c2_src",
+            config={},
+            input_connections={"input": ["c1"]},
+            output_connections={},
+        )
+        ir = WorkflowIR(
+            project_path="/test",
+            root_agent=root,
+            all_agents={"root": root},
+            custom_nodes=[custom1, custom2],
+        )
+
+        graph = builder.build(ir)
+
+        # Should have edge from c1 to c2
+        edge = next(
+            (e for e in graph.edges if e.source_id == "c1" and e.target_id == "c2"),
+            None,
+        )
+        assert edge is not None
+        assert edge.source_port == "output"
+        assert edge.target_port == "input"
+
+    def test_edges_to_agents_are_skipped(self):
+        """Edges from custom nodes to agents are skipped."""
         builder = GraphBuilder()
         root = AgentIR(id="root", name="Root", type="llm", model="gemini-2.0-flash")
         agent1 = AgentIR(id="a1", name="Agent1", type="llm", model="gemini-2.0-flash")
@@ -369,7 +560,7 @@ class TestGraphBuilderOutputConnections:
             source_node_id="c1_src",
             config={},
             input_connections={},
-            output_connections={"output": ["a1"]},
+            output_connections={"output": ["a1"]},  # Output to agent
         )
         ir = WorkflowIR(
             project_path="/test",
@@ -380,10 +571,7 @@ class TestGraphBuilderOutputConnections:
 
         graph = builder.build(ir)
 
-        # Should have edge from c1 to a1
-        edge = next(
-            (e for e in graph.edges if e.source_id == "c1" and e.target_id == "a1"),
-            None,
-        )
-        assert edge is not None
-        assert edge.source_port == "output"
+        # Custom node should be in graph
+        assert "c1" in graph.nodes
+        # But no edges to agent (agent is not in graph)
+        assert len(graph.edges) == 0

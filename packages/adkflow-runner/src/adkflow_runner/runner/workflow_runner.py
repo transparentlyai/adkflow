@@ -51,6 +51,7 @@ from adkflow_runner.runner.execution_engine import (
     process_adk_event,
     merge_context_vars,
 )
+from adkflow_runner.runner.graph_builder import partition_custom_nodes
 from adkflow_runner.hooks import (
     HookAction,
     HookAbortError,
@@ -355,9 +356,13 @@ class WorkflowRunner:
             if user_response is not None:
                 accumulated_outputs[user_input.variable_name] = user_response
 
-        # Execute custom nodes using graph-based execution if any exist
+        # Partition custom nodes into pre-agent (no agent dependencies) and
+        # post-agent (depend on agent outputs)
+        pre_agent_nodes, post_agent_nodes = partition_custom_nodes(ir)
+
+        # Execute pre-agent custom nodes (those without agent dependencies)
         custom_node_outputs: dict[str, dict[str, Any]] = {}
-        if ir.custom_nodes:
+        if pre_agent_nodes:
             custom_node_outputs = await execute_custom_nodes_graph(
                 ir=ir,
                 config=config,
@@ -367,6 +372,7 @@ class WorkflowRunner:
                 enable_cache=self._enable_cache,
                 cache_dir=self._cache_dir,
                 hooks=hooks,
+                custom_node_ids=pre_agent_nodes,
             )
 
         # Execute context aggregators (built-in nodes)
@@ -545,6 +551,32 @@ class WorkflowRunner:
             raise RuntimeError(friendly_error) from e
 
         output = "\n".join(output_parts)
+
+        # Execute post-agent custom nodes (those that depend on agent outputs)
+        if post_agent_nodes:
+            # Build external results from agent outputs
+            # All output is passed to monitors (including intermediate steps)
+            agent_outputs: dict[str, dict[str, Any]] = {}
+            for agent_id in ir.all_agents:
+                agent_outputs[agent_id] = {"output": output}
+
+            # Merge pre-agent custom node outputs with agent outputs
+            external_results = {**custom_node_outputs, **agent_outputs}
+
+            post_agent_outputs = await execute_custom_nodes_graph(
+                ir=ir,
+                config=config,
+                emit=emit,
+                session_state=session_state,
+                run_id=run_id,
+                enable_cache=self._enable_cache,
+                cache_dir=self._cache_dir,
+                hooks=hooks,
+                custom_node_ids=post_agent_nodes,
+                external_results=external_results,
+            )
+            # Merge post-agent outputs into custom_node_outputs
+            custom_node_outputs.update(post_agent_outputs)
 
         # Handle pause user inputs (those with incoming connections)
         # These are processed after the first segment of agents completes

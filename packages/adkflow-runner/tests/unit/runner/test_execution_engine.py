@@ -157,7 +157,10 @@ class TestExecuteCustomNodesGraph:
                 run_id="test-run",
             )
 
-            mock_builder.return_value.build.assert_called_once_with(ir)
+            # Verify build was called with correct IR and optional custom_node_ids
+            mock_builder.return_value.build.assert_called_once()
+            call_args = mock_builder.return_value.build.call_args
+            assert call_args[0][0] == ir  # First positional arg is the IR
             mock_executor.execute.assert_called_once()
             assert result == {"custom_1": {"output": "result"}}
 

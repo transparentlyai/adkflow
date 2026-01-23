@@ -150,6 +150,8 @@ async def execute_custom_nodes_graph(
     enable_cache: bool = True,
     cache_dir: Path | None = None,
     hooks: HooksIntegration | None = None,
+    custom_node_ids: set[str] | None = None,
+    external_results: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Execute custom nodes using graph-based execution with topological sort.
 
@@ -164,6 +166,11 @@ async def execute_custom_nodes_graph(
         run_id: Current run ID
         enable_cache: Whether to enable caching
         cache_dir: Cache directory path
+        hooks: Hooks integration for execution events
+        custom_node_ids: Optional set of custom node IDs to execute.
+            If None, all custom nodes are executed.
+        external_results: Pre-populated results from external sources
+            (e.g., agent outputs) to satisfy dependencies.
 
     Returns:
         Dict mapping node IDs to their output values
@@ -171,8 +178,17 @@ async def execute_custom_nodes_graph(
     if not ir.custom_nodes:
         return {}
 
+    # Filter by custom_node_ids if provided
+    if custom_node_ids is not None and not custom_node_ids:
+        return {}  # Empty set means no nodes to execute
+
     # Create emit wrapper that converts graph executor events to RunEvents
-    async def graph_emit(event: dict[str, Any]) -> None:
+    async def graph_emit(event: dict[str, Any] | RunEvent) -> None:
+        # If already a RunEvent, pass it through directly
+        if isinstance(event, RunEvent):
+            await emit(event)
+            return
+
         event_type_str = event.get("type", "")
         event_type_map = {
             "custom_node_start": EventType.CUSTOM_NODE_START,
@@ -195,9 +211,13 @@ async def execute_custom_nodes_graph(
                 )
             )
 
-    # Build execution graph from IR
+    # Build execution graph from IR (only for specified custom nodes)
     graph_builder = GraphBuilder()
-    execution_graph = graph_builder.build(ir)
+    execution_graph = graph_builder.build(ir, custom_node_ids=custom_node_ids)
+
+    # If no nodes in graph, return empty results
+    if not execution_graph.nodes:
+        return {}
 
     # Create graph executor
     actual_cache_dir = cache_dir or (config.project_path / ".cache" / "custom_nodes")
@@ -211,13 +231,14 @@ async def execute_custom_nodes_graph(
     # Generate session_id
     session_id = str(uuid.uuid4())[:8]
 
-    # Execute the graph
+    # Execute the graph with external results (e.g., agent outputs)
     results = await executor.execute(
         graph=execution_graph,
         session_state=session_state,
         project_path=config.project_path,
         session_id=session_id,
         run_id=run_id,
+        external_results=external_results,
     )
 
     return results

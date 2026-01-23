@@ -108,6 +108,8 @@ def transform_custom_nodes(graph: WorkflowGraph) -> list[CustomNodeIR]:
     # Mapping from builtin node types to their unit IDs
     # These are FlowUnit nodes defined in the frontend with short types
     # but need to be executed as FlowUnits with their full unit_id
+    # Note: shellTool is NOT here - it's handled like a regular tool node
+    # via resolve_tools() at compile time
     builtin_flowunit_types: dict[str, str] = {
         "monitor": "builtin.monitor",
     }
