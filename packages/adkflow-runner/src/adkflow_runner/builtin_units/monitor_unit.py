@@ -38,8 +38,7 @@ def detect_value_type(value: Any) -> str:
     if isinstance(value, str):
         # Check for markdown indicators
         if any(
-            pattern in value
-            for pattern in ["# ", "## ", "**", "- ", "[", "](", "```"]
+            pattern in value for pattern in ["# ", "## ", "**", "- ", "[", "](", "```"]
         ):
             return "markdown"
 

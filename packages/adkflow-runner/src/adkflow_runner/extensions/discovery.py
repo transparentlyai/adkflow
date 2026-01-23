@@ -182,5 +182,7 @@ def init_builtin_units() -> int:
     exec_count = registry.register_execution_only_units(EXECUTION_ONLY_UNITS)
 
     total = schema_count + exec_count
-    print(f"[ExtensionRegistry] Registered {total} builtin unit(s) ({exec_count} execution-only)")
+    print(
+        f"[ExtensionRegistry] Registered {total} builtin unit(s) ({exec_count} execution-only)"
+    )
     return total
