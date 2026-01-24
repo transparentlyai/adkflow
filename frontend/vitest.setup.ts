@@ -129,6 +129,13 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
   disconnect: vi.fn(),
 }));
 
+// Mock HTMLCanvasElement.getContext for text measurement in jsdom
+HTMLCanvasElement.prototype.getContext = vi.fn().mockImplementation(() => ({
+  measureText: vi.fn().mockReturnValue({ width: 100 }),
+  fillText: vi.fn(),
+  font: "",
+})) as any;
+
 // Mock IntersectionObserver
 global.IntersectionObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),

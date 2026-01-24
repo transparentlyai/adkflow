@@ -50,10 +50,10 @@ class TestCreateSession:
         assert session["config"]["model"] == "gemini-1.5-pro"
 
     @pytest.mark.asyncio
-    async def test_create_session_with_system_prompt_adds_message(
+    async def test_create_session_with_system_prompt_stores_in_config(
         self, client: AsyncClient
     ):
-        """Create session with system prompt adds system message."""
+        """Create session with system prompt stores it in config (not messages)."""
         request = {
             "sessionId": "session-1",
             "config": {"systemPrompt": "You are helpful"},
@@ -63,10 +63,9 @@ class TestCreateSession:
 
         assert response.status_code == 200
         data = response.json()
-        messages = data["session"]["messages"]
-        assert len(messages) == 1
-        assert messages[0]["role"] == "system"
-        assert messages[0]["content"] == "You are helpful"
+        # System prompt stays in config, not in messages
+        assert data["session"]["messages"] == []
+        assert data["session"]["config"]["systemPrompt"] == "You are helpful"
 
     @pytest.mark.asyncio
     async def test_create_session_with_context(self, client: AsyncClient):
@@ -126,8 +125,8 @@ class TestGetSession:
         assert data["session"]["id"] == "session-1"
 
     @pytest.mark.asyncio
-    async def test_get_session_with_messages(self, client: AsyncClient):
-        """Get session returns message history."""
+    async def test_get_session_with_config(self, client: AsyncClient):
+        """Get session returns config with system prompt."""
         # Create session with system prompt
         create_request = {
             "sessionId": "session-1",
@@ -140,9 +139,9 @@ class TestGetSession:
 
         assert response.status_code == 200
         data = response.json()
-        messages = data["session"]["messages"]
-        assert len(messages) == 1
-        assert messages[0]["role"] == "system"
+        # System prompt stays in config, messages start empty
+        assert data["session"]["messages"] == []
+        assert data["session"]["config"]["systemPrompt"] == "You are helpful"
 
     @pytest.mark.asyncio
     async def test_get_nonexistent_session(self, client: AsyncClient):
@@ -359,10 +358,14 @@ class TestSessionLifecycle:
         )
         assert create_response.status_code == 200
 
-        # Get session
+        # Get session - system prompt in config, messages empty
         get_response = await client.get("/api/chat/sessions/lifecycle-1")
         assert get_response.status_code == 200
-        assert len(get_response.json()["session"]["messages"]) == 1
+        assert get_response.json()["session"]["messages"] == []
+        assert (
+            get_response.json()["session"]["config"]["systemPrompt"]
+            == "You are helpful"
+        )
 
         # Delete session
         delete_response = await client.delete("/api/chat/sessions/lifecycle-1")
@@ -392,9 +395,13 @@ class TestSessionLifecycle:
         assert response1.status_code == 200
         assert response2.status_code == 200
 
-        # Verify independence
-        assert len(response1.json()["session"]["messages"]) == 0
-        assert len(response2.json()["session"]["messages"]) == 1
+        # Verify independence - both have empty messages, config differs
+        assert response1.json()["session"]["messages"] == []
+        assert response2.json()["session"]["messages"] == []
+        assert response1.json()["session"]["config"]["systemPrompt"] is None
+        assert (
+            response2.json()["session"]["config"]["systemPrompt"] == "Different prompt"
+        )
 
         # Delete one session
         await client.delete("/api/chat/sessions/session-1")

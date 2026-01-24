@@ -109,7 +109,7 @@ describe("PillLayout", () => {
   });
 
   describe("Variable node rendering", () => {
-    it("should render variable node with braces", () => {
+    it("should render variable node name", () => {
       render(
         <PillLayout
           id="var-1"
@@ -126,7 +126,8 @@ describe("PillLayout", () => {
       );
 
       expect(screen.getByTestId("draggable-handle")).toBeInTheDocument();
-      expect(screen.getByText("{myVar}")).toBeInTheDocument();
+      // Variable nodes show name without braces in pill (braces shown in tooltip for variables)
+      expect(screen.getByText("myVar")).toBeInTheDocument();
     });
 
     it("should render with selected state", () => {
