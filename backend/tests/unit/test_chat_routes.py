@@ -6,7 +6,7 @@ Tests FastAPI endpoints for chat session management and message streaming.
 from __future__ import annotations
 
 import json
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
@@ -73,9 +73,7 @@ class TestCreateSession:
         """Create session with arbitrary context."""
         request = {
             "sessionId": "session-1",
-            "config": {
-                "context": {"user_id": "123", "preferences": {"theme": "dark"}}
-            },
+            "config": {"context": {"user_id": "123", "preferences": {"theme": "dark"}}},
         }
 
         response = await client.post("/api/chat/sessions", json=request)
@@ -225,7 +223,9 @@ class TestSendMessage:
             yield ChatStreamEvent(type="content", content=" world")
             yield ChatStreamEvent(type="done")
 
-        mock_send_message.side_effect = lambda *args, **kwargs: mock_stream(*args, **kwargs)
+        mock_send_message.side_effect = lambda *args, **kwargs: mock_stream(
+            *args, **kwargs
+        )
 
         # Create session
         await client.post("/api/chat/sessions", json={"sessionId": "session-1"})
@@ -298,7 +298,9 @@ class TestSendMessage:
 
     @pytest.mark.asyncio
     @patch("backend.src.services.chat_service.ChatService.send_message")
-    async def test_send_message_error_event(self, mock_send_message, client: AsyncClient):
+    async def test_send_message_error_event(
+        self, mock_send_message, client: AsyncClient
+    ):
         """Send message handles error events."""
 
         # Mock error stream

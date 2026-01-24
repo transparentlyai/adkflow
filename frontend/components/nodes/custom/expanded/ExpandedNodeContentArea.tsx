@@ -65,7 +65,7 @@ export function ExpandedNodeContentArea({
 
   // Track collapsed sections (Safety collapsed by default)
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
-    new Set(["Safety"])
+    new Set(["Safety"]),
   );
 
   const toggleSection = useCallback((sectionName: string) => {
@@ -83,7 +83,7 @@ export function ExpandedNodeContentArea({
   // Get additional handles (used to filter outputs rendered inside vs at edge)
   const additionalHandles = useMemo(
     () => schema.ui.handle_layout?.additional_handles || [],
-    [schema.ui.handle_layout?.additional_handles]
+    [schema.ui.handle_layout?.additional_handles],
   );
 
   // Fields handled by DynamicInputEditor (excluded from normal rendering)
@@ -97,7 +97,7 @@ export function ExpandedNodeContentArea({
             "includeMetadata",
           ])
         : new Set<string>(),
-    [schema.ui.dynamic_inputs]
+    [schema.ui.dynamic_inputs],
   );
 
   // Get elements for a specific tab
@@ -121,7 +121,7 @@ export function ExpandedNodeContentArea({
         outputs: schema.ui.outputs.filter(tabFilter),
       };
     },
-    [schema, isFieldVisible, dynamicInputEditorFields]
+    [schema, isFieldVisible, dynamicInputEditorFields],
   );
 
   // Get handle position for an input/output from additional_handles
@@ -136,7 +136,7 @@ export function ExpandedNodeContentArea({
       }
       return undefined;
     },
-    [additionalHandles]
+    [additionalHandles],
   );
 
   // Render input port
@@ -194,7 +194,9 @@ export function ExpandedNodeContentArea({
             theme={theme}
             headerColor={headerColor}
           >
-            {inputs.map((input) => renderInput(input, globalMaxInputLabelWidth))}
+            {inputs.map((input) =>
+              renderInput(input, globalMaxInputLabelWidth),
+            )}
           </CollapsibleSection>
         );
       })}
@@ -329,7 +331,7 @@ export function ExpandedNodeContentArea({
 // Helper hooks for parent component
 export function useCodeEditorInfo(
   schema: CustomNodeSchema,
-  config: Record<string, unknown>
+  config: Record<string, unknown>,
 ) {
   const hasEditor = useMemo(() => hasCodeEditorWidget(schema), [schema]);
   const codeEditorField = useMemo(() => getCodeEditorField(schema), [schema]);

@@ -28,7 +28,9 @@ class TraceSpan(BaseModel):
     end_time: str | None = Field(None, description="End timestamp (ISO format)")
     duration_ms: float | None = Field(None, description="Duration in milliseconds")
     status: str = Field("UNSET", description="Status: OK, ERROR, or UNSET")
-    attributes: dict[str, Any] = Field(default_factory=dict, description="Span attributes")
+    attributes: dict[str, Any] = Field(
+        default_factory=dict, description="Span attributes"
+    )
     children: list["TraceSpan"] = Field(default_factory=list, description="Child spans")
 
 
@@ -58,8 +60,12 @@ class TraceDetailResponse(BaseModel):
     """Response for getting a single trace with full span tree."""
 
     trace_id: str = Field(..., description="Trace identifier")
-    spans: list[TraceSpan] = Field(default_factory=list, description="Root-level spans with children")
-    flat_spans: list[TraceSpan] = Field(default_factory=list, description="All spans flattened")
+    spans: list[TraceSpan] = Field(
+        default_factory=list, description="Root-level spans with children"
+    )
+    flat_spans: list[TraceSpan] = Field(
+        default_factory=list, description="All spans flattened"
+    )
     span_count: int = Field(..., description="Total span count")
     duration_ms: float | None = Field(None, description="Total trace duration")
     start_time: str | None = Field(None, description="Trace start time")
@@ -71,9 +77,15 @@ class TraceStats(BaseModel):
 
     total_traces: int = Field(..., description="Total number of traces")
     total_spans: int = Field(..., description="Total number of spans")
-    span_name_counts: dict[str, int] = Field(default_factory=dict, description="Count per span name")
-    status_counts: dict[str, int] = Field(default_factory=dict, description="Count per status")
-    time_range: dict[str, str | None] = Field(default_factory=dict, description="Time range")
+    span_name_counts: dict[str, int] = Field(
+        default_factory=dict, description="Count per span name"
+    )
+    status_counts: dict[str, int] = Field(
+        default_factory=dict, description="Count per status"
+    )
+    time_range: dict[str, str | None] = Field(
+        default_factory=dict, description="Time range"
+    )
     file_size_bytes: int = Field(..., description="File size in bytes")
 
 
@@ -160,7 +172,9 @@ def _read_all_spans(file_path: Path) -> list[dict[str, Any]]:
     return spans
 
 
-def _group_spans_by_trace(spans: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+def _group_spans_by_trace(
+    spans: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
     """Group spans by trace_id."""
     traces: dict[str, list[dict[str, Any]]] = {}
     for span in spans:
@@ -177,8 +191,12 @@ async def list_traces(
     file_name: str = Query("traces.jsonl", description="Trace file name"),
     offset: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(50, ge=1, le=200, description="Maximum traces to return"),
-    start_time: datetime | None = Query(None, description="Filter: traces after this time"),
-    end_time: datetime | None = Query(None, description="Filter: traces before this time"),
+    start_time: datetime | None = Query(
+        None, description="Filter: traces after this time"
+    ),
+    end_time: datetime | None = Query(
+        None, description="Filter: traces before this time"
+    ),
 ) -> TraceListResponse:
     """List traces from the trace file.
 
@@ -240,7 +258,9 @@ async def list_traces(
 
         # Find root span name
         root_spans = [s for s in spans if not s.get("parent_span_id")]
-        root_span_name = root_spans[0].get("name", "unknown") if root_spans else "unknown"
+        root_span_name = (
+            root_spans[0].get("name", "unknown") if root_spans else "unknown"
+        )
 
         # Check for errors
         has_errors = any(s.get("status") == "ERROR" for s in spans)

@@ -193,7 +193,7 @@ def project_with_prompt(tmp_path: Path) -> Path:
                     "config": {
                         "name": "TestPrompt",
                         "file_path": "test.prompt.md",
-                    }
+                    },
                 },
             }
         ],
@@ -202,7 +202,9 @@ def project_with_prompt(tmp_path: Path) -> Path:
     }
     (tmp_path / "manifest.json").write_text(json.dumps(manifest, indent=2))
     (tmp_path / "prompts").mkdir()
-    (tmp_path / "prompts" / "test.prompt.md").write_text("# Test Prompt\n\nHello, {name}!")
+    (tmp_path / "prompts" / "test.prompt.md").write_text(
+        "# Test Prompt\n\nHello, {name}!"
+    )
     return tmp_path
 
 
@@ -223,7 +225,7 @@ def project_with_tool(tmp_path: Path) -> Path:
                     "config": {
                         "name": "TestTool",
                         "file_path": "test_tool.py",
-                    }
+                    },
                 },
             }
         ],

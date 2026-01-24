@@ -642,8 +642,7 @@ class TestVariableConflicts:
         result = validator.validate_graph(graph, project)
         assert not result.valid
         assert any(
-            "multiple global variable" in str(e).lower()
-            and "api_key" in str(e).lower()
+            "multiple global variable" in str(e).lower() and "api_key" in str(e).lower()
             for e in result.errors
         )
 
@@ -656,9 +655,7 @@ class TestVariableConflicts:
 
         start = make_graph_node("start", "start", "Start")
         agent = make_graph_node("agent1", "agent", "Agent1")
-        agent.data = {
-            "config": {"name": "Agent1", "description": "Test agent"}
-        }
+        agent.data = {"config": {"name": "Agent1", "description": "Test agent"}}
         var1 = make_graph_node("var1", "variable", "Var1")
         var1.data = {
             "config": {
@@ -689,8 +686,7 @@ class TestVariableConflicts:
         result = validator.validate_graph(graph, project)
         assert not result.valid
         assert any(
-            "multiple variable" in str(e).lower()
-            and "db_url" in str(e).lower()
+            "multiple variable" in str(e).lower() and "db_url" in str(e).lower()
             for e in result.errors
         )
 
@@ -703,9 +699,7 @@ class TestVariableConflicts:
 
         start = make_graph_node("start", "start", "Start")
         agent = make_graph_node("agent1", "agent", "Agent1")
-        agent.data = {
-            "config": {"name": "Agent1", "description": "Test agent"}
-        }
+        agent.data = {"config": {"name": "Agent1", "description": "Test agent"}}
         global_var = make_graph_node("global_var", "variable", "GlobalVar")
         global_var.data = {
             "config": {
@@ -739,8 +733,7 @@ class TestVariableConflicts:
         validator = WorkflowValidator()
         result = validator.validate_graph(graph, project)
         assert any(
-            "overrides global variable" in str(w).lower()
-            and "env" in str(w).lower()
+            "overrides global variable" in str(w).lower() and "env" in str(w).lower()
             for w in result.warnings
         )
 
@@ -785,14 +778,11 @@ class TestVariableConflicts:
         # Should error on key2 conflict
         assert not result.valid
         assert any(
-            "multiple global variable" in str(e).lower()
-            and "key2" in str(e).lower()
+            "multiple global variable" in str(e).lower() and "key2" in str(e).lower()
             for e in result.errors
         )
 
-    def test_old_format_variable_fallback(
-        self, make_graph_node, minimal_project
-    ):
+    def test_old_format_variable_fallback(self, make_graph_node, minimal_project):
         """Handle old format Variable node with name field."""
         loader = ProjectLoader()
         project = loader.load(minimal_project)
@@ -824,10 +814,7 @@ class TestVariableConflicts:
         result = validator.validate_graph(graph, project)
         # Should detect conflict using old format fallback
         assert not result.valid
-        assert any(
-            "multiple global variable" in str(e).lower()
-            for e in result.errors
-        )
+        assert any("multiple global variable" in str(e).lower() for e in result.errors)
 
     def test_no_conflict_with_different_keys(
         self, make_graph_node, make_graph_edge, minimal_project
@@ -852,9 +839,7 @@ class TestVariableConflicts:
             }
         }
         agent = make_graph_node("agent1", "agent", "Agent1")
-        agent.data = {
-            "config": {"name": "Agent1", "description": "Test agent"}
-        }
+        agent.data = {"config": {"name": "Agent1", "description": "Test agent"}}
 
         e1 = make_graph_edge(start, agent, EdgeSemantics.SEQUENTIAL)
 
@@ -869,8 +854,7 @@ class TestVariableConflicts:
         result = validator.validate_graph(graph, project)
         # No errors about variable conflicts
         assert not any(
-            "multiple global variable" in str(e).lower()
-            for e in result.errors
+            "multiple global variable" in str(e).lower() for e in result.errors
         )
 
     def test_connected_variables_to_different_agents_no_conflict(
@@ -882,13 +866,9 @@ class TestVariableConflicts:
 
         start = make_graph_node("start", "start", "Start")
         agent1 = make_graph_node("agent1", "agent", "Agent1")
-        agent1.data = {
-            "config": {"name": "Agent1", "description": "Test agent 1"}
-        }
+        agent1.data = {"config": {"name": "Agent1", "description": "Test agent 1"}}
         agent2 = make_graph_node("agent2", "agent", "Agent2")
-        agent2.data = {
-            "config": {"name": "Agent2", "description": "Test agent 2"}
-        }
+        agent2.data = {"config": {"name": "Agent2", "description": "Test agent 2"}}
         var1 = make_graph_node("var1", "variable", "Var1")
         var1.data = {
             "config": {
@@ -926,7 +906,6 @@ class TestVariableConflicts:
         result = validator.validate_graph(graph, project)
         # No conflict - same key to different agents is allowed
         assert not any(
-            "multiple variable" in str(e).lower()
-            and "config" in str(e).lower()
+            "multiple variable" in str(e).lower() and "config" in str(e).lower()
             for e in result.errors
         )

@@ -435,7 +435,11 @@ class TestBuiltinUnits:
 
     def test_register_builtin_units(self, tmp_path):
         """Register builtin units from list."""
-        from adkflow_runner.extensions.flow_unit import FlowUnit, UISchema, PortDefinition
+        from adkflow_runner.extensions.flow_unit import (
+            FlowUnit,
+            UISchema,
+            PortDefinition,
+        )
 
         # Create a proper FlowUnit subclass
         class TestBuiltinUnit(FlowUnit):
@@ -446,8 +450,19 @@ class TestBuiltinUnits:
             @classmethod
             def setup_interface(cls):
                 return UISchema(
-                    inputs=[PortDefinition(id="in", label="In", source_type="*", data_type="str")],
-                    outputs=[PortDefinition(id="out", label="Out", source_type="builtin", data_type="str")],
+                    inputs=[
+                        PortDefinition(
+                            id="in", label="In", source_type="*", data_type="str"
+                        )
+                    ],
+                    outputs=[
+                        PortDefinition(
+                            id="out",
+                            label="Out",
+                            source_type="builtin",
+                            data_type="str",
+                        )
+                    ],
                 )
 
             async def run_process(self, inputs, config, context):
@@ -467,7 +482,11 @@ class TestBuiltinUnits:
 
     def test_register_execution_only_units(self, tmp_path):
         """Register execution-only units (no schema exposure)."""
-        from adkflow_runner.extensions.flow_unit import FlowUnit, UISchema, PortDefinition
+        from adkflow_runner.extensions.flow_unit import (
+            FlowUnit,
+            UISchema,
+            PortDefinition,
+        )
 
         # Create a proper FlowUnit subclass
         class TestExecOnlyUnit(FlowUnit):
@@ -478,8 +497,19 @@ class TestBuiltinUnits:
             @classmethod
             def setup_interface(cls):
                 return UISchema(
-                    inputs=[PortDefinition(id="in", label="In", source_type="*", data_type="str")],
-                    outputs=[PortDefinition(id="out", label="Out", source_type="builtin", data_type="str")],
+                    inputs=[
+                        PortDefinition(
+                            id="in", label="In", source_type="*", data_type="str"
+                        )
+                    ],
+                    outputs=[
+                        PortDefinition(
+                            id="out",
+                            label="Out",
+                            source_type="builtin",
+                            data_type="str",
+                        )
+                    ],
                 )
 
             async def run_process(self, inputs, config, context):
@@ -496,7 +526,9 @@ class TestBuiltinUnits:
 
         # But schema should NOT be exposed
         assert registry.get_schema("builtin.exec_only") is None
-        assert "builtin.exec_only" not in [s["unit_id"] for s in registry.get_all_schemas()]
+        assert "builtin.exec_only" not in [
+            s["unit_id"] for s in registry.get_all_schemas()
+        ]
 
     def test_register_execution_only_units_empty_list(self):
         """Register empty list of execution-only units."""

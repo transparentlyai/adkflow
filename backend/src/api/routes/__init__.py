@@ -14,7 +14,9 @@ from backend.src.api.routes.file_routes import router as file_router
 from backend.src.api.routes.filesystem_routes import router as filesystem_router
 from backend.src.api.routes.tab_routes import router as tab_router
 from backend.src.api.routes.settings_routes import router as settings_router
-from backend.src.api.routes.context_preview_routes import router as context_preview_router
+from backend.src.api.routes.context_preview_routes import (
+    router as context_preview_router,
+)
 
 # Re-export all models for backwards compatibility
 from backend.src.api.routes.models import (

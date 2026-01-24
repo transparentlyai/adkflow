@@ -107,16 +107,22 @@ export function DirectoryPreviewWidget({
         <div className="flex items-center gap-2 mb-3">
           <div
             className="w-8 h-8 rounded"
-            style={{ backgroundColor: theme.colors.nodes.common.footer.background }}
+            style={{
+              backgroundColor: theme.colors.nodes.common.footer.background,
+            }}
           />
           <div className="flex-1">
             <div
               className="h-4 w-40 rounded mb-1"
-              style={{ backgroundColor: theme.colors.nodes.common.footer.background }}
+              style={{
+                backgroundColor: theme.colors.nodes.common.footer.background,
+              }}
             />
             <div
               className="h-3 w-24 rounded"
-              style={{ backgroundColor: theme.colors.nodes.common.footer.background }}
+              style={{
+                backgroundColor: theme.colors.nodes.common.footer.background,
+              }}
             />
           </div>
         </div>
@@ -125,7 +131,9 @@ export function DirectoryPreviewWidget({
             <div
               key={i}
               className="h-8 rounded"
-              style={{ backgroundColor: theme.colors.nodes.common.footer.background }}
+              style={{
+                backgroundColor: theme.colors.nodes.common.footer.background,
+              }}
             />
           ))}
         </div>
@@ -249,7 +257,10 @@ export function DirectoryPreviewWidget({
       {/* File list */}
       <div className="max-h-64 overflow-y-auto">
         {dirPreview?.files && dirPreview.files.length > 0 ? (
-          <div className="divide-y" style={{ borderColor: theme.colors.nodes.common.container.border }}>
+          <div
+            className="divide-y"
+            style={{ borderColor: theme.colors.nodes.common.container.border }}
+          >
             {dirPreview.files.map((file) => {
               const isExpanded = expandedFiles.has(file.path);
               const language = detectLanguage(file.path);
@@ -287,7 +298,9 @@ export function DirectoryPreviewWidget({
                   {isExpanded && (
                     <div
                       className="border-t"
-                      style={{ borderColor: theme.colors.nodes.common.container.border }}
+                      style={{
+                        borderColor: theme.colors.nodes.common.container.border,
+                      }}
                     >
                       {file.error ? (
                         <div
@@ -301,7 +314,8 @@ export function DirectoryPreviewWidget({
                           <div
                             className="flex justify-end px-2 py-1"
                             style={{
-                              backgroundColor: theme.colors.nodes.common.footer.background,
+                              backgroundColor:
+                                theme.colors.nodes.common.footer.background,
                             }}
                           >
                             <button
@@ -318,7 +332,9 @@ export function DirectoryPreviewWidget({
                               ) : (
                                 <Copy
                                   className="w-3 h-3"
-                                  style={{ color: theme.colors.nodes.common.text.muted }}
+                                  style={{
+                                    color: theme.colors.nodes.common.text.muted,
+                                  }}
                                 />
                               )}
                             </button>

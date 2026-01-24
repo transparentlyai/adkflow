@@ -64,6 +64,7 @@ export interface FieldDefinition {
   min_value?: number;
   max_value?: number;
   step?: number;
+  rows?: number;
   placeholder?: string;
   help_text?: string;
   show_if?: Record<string, unknown>;

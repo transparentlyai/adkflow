@@ -95,22 +95,30 @@ export function FilePreviewWidget({
         <div className="flex items-center gap-2 mb-3">
           <div
             className="w-8 h-8 rounded"
-            style={{ backgroundColor: theme.colors.nodes.common.footer.background }}
+            style={{
+              backgroundColor: theme.colors.nodes.common.footer.background,
+            }}
           />
           <div className="flex-1">
             <div
               className="h-4 w-32 rounded mb-1"
-              style={{ backgroundColor: theme.colors.nodes.common.footer.background }}
+              style={{
+                backgroundColor: theme.colors.nodes.common.footer.background,
+              }}
             />
             <div
               className="h-3 w-24 rounded"
-              style={{ backgroundColor: theme.colors.nodes.common.footer.background }}
+              style={{
+                backgroundColor: theme.colors.nodes.common.footer.background,
+              }}
             />
           </div>
         </div>
         <div
           className="h-32 rounded"
-          style={{ backgroundColor: theme.colors.nodes.common.footer.background }}
+          style={{
+            backgroundColor: theme.colors.nodes.common.footer.background,
+          }}
         />
       </div>
     );
@@ -209,14 +217,19 @@ export function FilePreviewWidget({
           }}
         >
           {preview.metadata.file_size && (
-            <span>Size: {formatSize(parseInt(preview.metadata.file_size, 10))}</span>
+            <span>
+              Size: {formatSize(parseInt(preview.metadata.file_size, 10))}
+            </span>
           )}
           {preview.metadata.modified_time && (
             <span>
-              Modified: {new Date(preview.metadata.modified_time).toLocaleDateString()}
+              Modified:{" "}
+              {new Date(preview.metadata.modified_time).toLocaleDateString()}
             </span>
           )}
-          {preview.metadata.file_ext && <span>Type: .{preview.metadata.file_ext}</span>}
+          {preview.metadata.file_ext && (
+            <span>Type: .{preview.metadata.file_ext}</span>
+          )}
         </div>
       )}
 

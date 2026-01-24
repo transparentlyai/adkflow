@@ -84,13 +84,16 @@ export function GenericPropertyDisplay({ input }: GenericPropertyDisplayProps) {
               <tr
                 key={key}
                 className="border-b last:border-b-0"
-                style={{ borderColor: theme.colors.nodes.common.container.border }}
+                style={{
+                  borderColor: theme.colors.nodes.common.container.border,
+                }}
               >
                 <td
                   className="px-3 py-1.5 font-medium whitespace-nowrap"
                   style={{
                     color: theme.colors.nodes.common.text.secondary,
-                    backgroundColor: theme.colors.nodes.common.footer.background,
+                    backgroundColor:
+                      theme.colors.nodes.common.footer.background,
                     width: "30%",
                   }}
                 >

@@ -29,7 +29,10 @@ import type {
 } from "./ReactFlowCanvas.types";
 
 // Re-export types for external consumers
-export type { ReactFlowCanvasProps, ReactFlowCanvasRef } from "./ReactFlowCanvas.types";
+export type {
+  ReactFlowCanvasProps,
+  ReactFlowCanvasRef,
+} from "./ReactFlowCanvas.types";
 
 /**
  * ReactFlowCanvas Component (Inner)
@@ -72,7 +75,8 @@ const ReactFlowCanvasInner = forwardRef<
       defaultModel,
     });
 
-    const { theme, nodeTypes, defaultEdgeOptions, snapGridValue } = canvas.config;
+    const { theme, nodeTypes, defaultEdgeOptions, snapGridValue } =
+      canvas.config;
 
     // Expose methods to parent via ref
     useCanvasImperativeHandle({
@@ -85,7 +89,8 @@ const ReactFlowCanvasInner = forwardRef<
     });
 
     const { nodes, edges, contextMenu } = canvas;
-    const { handleCopy, handleCut, handlePaste, hasClipboard } = canvas.clipboard;
+    const { handleCopy, handleCut, handlePaste, hasClipboard } =
+      canvas.clipboard;
     const conn = canvas.connectionHandlers;
     const ctxMenu = canvas.contextMenuHandlers;
     const del = canvas.deleteHandlers;
@@ -153,7 +158,9 @@ const ReactFlowCanvasInner = forwardRef<
               isLocked={isLocked}
               onToggleLock={onToggleLock}
               snapToGrid={canvas.snapToGrid}
-              onToggleSnapToGrid={() => canvas.setSnapToGrid(!canvas.snapToGrid)}
+              onToggleSnapToGrid={() =>
+                canvas.setSnapToGrid(!canvas.snapToGrid)
+              }
               theme={theme}
             />
           </ReactFlow>

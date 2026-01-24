@@ -166,7 +166,7 @@ function convertSpan(span: {
     durationMs: span.duration_ms,
     status: span.status,
     attributes: span.attributes,
-    children: (span.children as typeof span[]).map(convertSpan),
+    children: (span.children as (typeof span)[]).map(convertSpan),
   };
 }
 

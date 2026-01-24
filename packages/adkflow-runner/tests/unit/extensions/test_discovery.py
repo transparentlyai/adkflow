@@ -1,7 +1,7 @@
 """Tests for extension discovery and initialization."""
 
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 
 from adkflow_runner.extensions.discovery import (
@@ -13,7 +13,6 @@ from adkflow_runner.extensions.discovery import (
     init_builtin_units,
     clear_project_extensions,
     GLOBAL_EXTENSIONS_PATH,
-    SHIPPED_EXTENSIONS_PATH,
 )
 from adkflow_runner.extensions.registry import ExtensionRegistry
 from adkflow_runner.extensions.types import ExtensionScope
@@ -116,7 +115,9 @@ class TestInitProjectExtensions:
         ext_path = tmp_path / "adkflow_extensions"
         ext_path.mkdir()
         registry = get_registry()
-        with patch.object(registry, "discover_project", return_value=1) as mock_discover:
+        with patch.object(
+            registry, "discover_project", return_value=1
+        ) as mock_discover:
             init_project_extensions(tmp_path, watch=False)
             mock_discover.assert_called_once_with(ext_path)
 
@@ -154,7 +155,9 @@ class TestInitShippedExtensions:
             test_path,
         )
         registry = get_registry()
-        with patch.object(registry, "discover_shipped", return_value=2) as mock_discover:
+        with patch.object(
+            registry, "discover_shipped", return_value=2
+        ) as mock_discover:
             result = init_shipped_extensions()
             mock_discover.assert_called_once_with(test_path)
             assert isinstance(result, ExtensionRegistry)
@@ -176,7 +179,9 @@ class TestInitBuiltinUnits:
     def test_init_builtin_units(self):
         """Register builtin units."""
         registry = get_registry()
-        with patch.object(registry, "register_builtin_units", return_value=3) as mock_register:
+        with patch.object(
+            registry, "register_builtin_units", return_value=3
+        ) as mock_register:
             with patch.object(
                 registry, "register_execution_only_units", return_value=2
             ) as mock_exec_register:

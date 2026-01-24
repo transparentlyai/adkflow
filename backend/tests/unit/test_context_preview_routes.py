@@ -15,7 +15,6 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
-import pytest
 from httpx import AsyncClient
 
 from backend.src.api.routes.context_preview_service import (
@@ -43,9 +42,7 @@ class TestParseEnvFile:
         """Parse basic key=value pairs from .env file."""
         env_file = tmp_path / ".env"
         env_file.write_text(
-            "API_KEY=test123\n"
-            "PROJECT_ID=myproject\n"
-            "REGION=us-central1\n"
+            "API_KEY=test123\nPROJECT_ID=myproject\nREGION=us-central1\n"
         )
 
         result = _parse_env_file(env_file)
@@ -60,9 +57,7 @@ class TestParseEnvFile:
         """Strip quotes from values."""
         env_file = tmp_path / ".env"
         env_file.write_text(
-            'API_KEY="test123"\n'
-            "PROJECT_ID='myproject'\n"
-            'REGION="us-central1"\n'
+            'API_KEY="test123"\nPROJECT_ID=\'myproject\'\nREGION="us-central1"\n'
         )
 
         result = _parse_env_file(env_file)
@@ -93,12 +88,7 @@ class TestParseEnvFile:
     def test_parse_env_skips_empty_lines(self, tmp_path: Path):
         """Ignore blank lines."""
         env_file = tmp_path / ".env"
-        env_file.write_text(
-            "API_KEY=test123\n"
-            "\n"
-            "PROJECT_ID=myproject\n"
-            "\n\n"
-        )
+        env_file.write_text("API_KEY=test123\n\nPROJECT_ID=myproject\n\n\n")
 
         result = _parse_env_file(env_file)
 
@@ -118,11 +108,7 @@ class TestParseEnvFile:
     def test_parse_env_invalid_lines(self, tmp_path: Path):
         """Skip lines that don't match key=value pattern."""
         env_file = tmp_path / ".env"
-        env_file.write_text(
-            "API_KEY=test123\n"
-            "INVALID LINE\n"
-            "PROJECT_ID=myproject\n"
-        )
+        env_file.write_text("API_KEY=test123\nINVALID LINE\nPROJECT_ID=myproject\n")
 
         result = _parse_env_file(env_file)
 
@@ -219,12 +205,15 @@ class TestCountTokens:
         mock_counter = MagicMock()
         mock_counter.count_tokens_async = AsyncMock(return_value=42)
 
-        with patch(
-            "backend.src.api.routes.context_preview_service.GEMTOKEN_AVAILABLE",
-            True,
-        ), patch(
-            "backend.src.api.routes.context_preview_service._TokenCounter",
-            return_value=mock_counter,
+        with (
+            patch(
+                "backend.src.api.routes.context_preview_service.GEMTOKEN_AVAILABLE",
+                True,
+            ),
+            patch(
+                "backend.src.api.routes.context_preview_service._TokenCounter",
+                return_value=mock_counter,
+            ),
         ):
             token_count, error = await _count_tokens("test content", tmp_path)
 
@@ -239,12 +228,15 @@ class TestCountTokens:
         }
         (tmp_path / "manifest.json").write_text(json.dumps(manifest))
 
-        with patch(
-            "backend.src.api.routes.context_preview_service.GEMTOKEN_AVAILABLE",
-            True,
-        ), patch(
-            "backend.src.api.routes.context_preview_service._TokenCounter",
-            MagicMock(),
+        with (
+            patch(
+                "backend.src.api.routes.context_preview_service.GEMTOKEN_AVAILABLE",
+                True,
+            ),
+            patch(
+                "backend.src.api.routes.context_preview_service._TokenCounter",
+                MagicMock(),
+            ),
         ):
             token_count, error = await _count_tokens("test content", tmp_path)
 
@@ -269,12 +261,15 @@ class TestCountTokens:
         mock_counter = MagicMock()
         mock_counter.count_tokens_async = AsyncMock(return_value=100)
 
-        with patch(
-            "backend.src.api.routes.context_preview_service.GEMTOKEN_AVAILABLE",
-            True,
-        ), patch(
-            "backend.src.api.routes.context_preview_service._TokenCounter",
-            return_value=mock_counter,
+        with (
+            patch(
+                "backend.src.api.routes.context_preview_service.GEMTOKEN_AVAILABLE",
+                True,
+            ),
+            patch(
+                "backend.src.api.routes.context_preview_service._TokenCounter",
+                return_value=mock_counter,
+            ),
         ):
             token_count, error = await _count_tokens("test content", tmp_path)
 
@@ -292,12 +287,15 @@ class TestCountTokens:
         }
         (tmp_path / "manifest.json").write_text(json.dumps(manifest))
 
-        with patch(
-            "backend.src.api.routes.context_preview_service.GEMTOKEN_AVAILABLE",
-            True,
-        ), patch(
-            "backend.src.api.routes.context_preview_service._TokenCounter",
-            MagicMock(),
+        with (
+            patch(
+                "backend.src.api.routes.context_preview_service.GEMTOKEN_AVAILABLE",
+                True,
+            ),
+            patch(
+                "backend.src.api.routes.context_preview_service._TokenCounter",
+                MagicMock(),
+            ),
         ):
             token_count, error = await _count_tokens("test content", tmp_path)
 
@@ -316,16 +314,17 @@ class TestCountTokens:
         (tmp_path / "manifest.json").write_text(json.dumps(manifest))
 
         mock_counter = MagicMock()
-        mock_counter.count_tokens_async = AsyncMock(
-            side_effect=Exception("API error")
-        )
+        mock_counter.count_tokens_async = AsyncMock(side_effect=Exception("API error"))
 
-        with patch(
-            "backend.src.api.routes.context_preview_service.GEMTOKEN_AVAILABLE",
-            True,
-        ), patch(
-            "backend.src.api.routes.context_preview_service._TokenCounter",
-            return_value=mock_counter,
+        with (
+            patch(
+                "backend.src.api.routes.context_preview_service.GEMTOKEN_AVAILABLE",
+                True,
+            ),
+            patch(
+                "backend.src.api.routes.context_preview_service._TokenCounter",
+                return_value=mock_counter,
+            ),
         ):
             token_count, error = await _count_tokens("test content", tmp_path)
 
@@ -385,7 +384,10 @@ class TestHelperFunctions:
 
         result = _format_frontmatter(metadata)
 
-        assert result == "---\nsource_path: test.txt\nsource_name: test\nfile_size: 1024\n---\n"
+        assert (
+            result
+            == "---\nsource_path: test.txt\nsource_name: test\nfile_size: 1024\n---\n"
+        )
 
     def test_format_frontmatter_skips_empty_values(self):
         """Skip empty values in front matter."""
@@ -473,7 +475,9 @@ class TestHelperFunctions:
         file_path = tmp_path / "src" / "test.txt"
         file_path.parent.mkdir(parents=True)
 
-        result = _matches_exclude_pattern(file_path, tmp_path, ["node_modules", "*.pyc"])
+        result = _matches_exclude_pattern(
+            file_path, tmp_path, ["node_modules", "*.pyc"]
+        )
 
         assert result is False
 

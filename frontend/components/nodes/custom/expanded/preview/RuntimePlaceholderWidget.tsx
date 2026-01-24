@@ -63,7 +63,8 @@ export function RuntimePlaceholderWidget({
             color: theme.colors.nodes.common.text.secondary,
           }}
         >
-          Connected to: <span className="font-medium">{connectedSourceName}</span>
+          Connected to:{" "}
+          <span className="font-medium">{connectedSourceName}</span>
         </div>
       )}
 

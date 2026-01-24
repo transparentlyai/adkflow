@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -88,7 +88,14 @@ class TestVerifyFrontendDeps:
 
     def test_returns_false_when_critical_file_missing(self, frontend_dir: Path):
         """Verify returns False when a critical Next.js file is missing."""
-        critical_file = frontend_dir / "node_modules" / "next" / "dist" / "server" / "require-hook.js"
+        critical_file = (
+            frontend_dir
+            / "node_modules"
+            / "next"
+            / "dist"
+            / "server"
+            / "require-hook.js"
+        )
         critical_file.unlink()
 
         result = verify_frontend_deps(frontend_dir)
@@ -249,7 +256,9 @@ class TestRepairFrontendDeps:
 
                 assert result is False
 
-    def test_returns_false_when_verification_fails_after_repair(self, frontend_dir: Path):
+    def test_returns_false_when_verification_fails_after_repair(
+        self, frontend_dir: Path
+    ):
         """Repair returns False when verification fails after reinstall."""
         with patch("cli.health.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
@@ -269,8 +278,7 @@ class TestRepairFrontendDeps:
 
                     # Check that subprocess was called with absolute path
                     npm_call = [
-                        c for c in mock_run.call_args_list
-                        if "npm" in str(c[0][0])
+                        c for c in mock_run.call_args_list if "npm" in str(c[0][0])
                     ][0]
                     assert "cwd" in npm_call[1]
                     assert str(frontend_dir.resolve()) in str(npm_call[1]["cwd"])
@@ -285,8 +293,7 @@ class TestRepairFrontendDeps:
 
                     # Check npm install has a timeout
                     npm_call = [
-                        c for c in mock_run.call_args_list
-                        if "npm" in str(c[0][0])
+                        c for c in mock_run.call_args_list if "npm" in str(c[0][0])
                     ][0]
                     assert "timeout" in npm_call[1]
                     # Timeout should be at least 60 seconds but not too long
@@ -319,7 +326,9 @@ class TestEnsureFrontendDeps:
     def test_repairs_when_verification_fails(self, frontend_dir: Path):
         """Ensure attempts repair when verification fails."""
         with patch("cli.health.verify_frontend_deps", return_value=False):
-            with patch("cli.health.repair_frontend_deps", return_value=True) as mock_repair:
+            with patch(
+                "cli.health.repair_frontend_deps", return_value=True
+            ) as mock_repair:
                 with patch("cli.health.print_msg"):
                     result = ensure_frontend_deps(frontend_dir)
 

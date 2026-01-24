@@ -99,12 +99,21 @@ interface HomeDialogsProps {
   onRunComplete: (status: RunStatus) => void;
   onAgentStateChange: (agentName: string, state: NodeExecutionState) => void;
   onToolStateChange: (toolName: string, state: NodeExecutionState) => void;
-  onCallbackStateChange: (callbackName: string, state: NodeExecutionState) => void;
+  onCallbackStateChange: (
+    callbackName: string,
+    state: NodeExecutionState,
+  ) => void;
   onUserInputStateChange: (nodeId: string, isWaiting: boolean) => void;
   onClearExecutionState: () => void;
-  onMonitorUpdate: (nodeId: string, value: string, valueType: string, timestamp: string) => void;
+  onMonitorUpdate: (
+    nodeId: string,
+    value: string,
+    valueType: string,
+    timestamp: string,
+  ) => void;
   onEventsChange: React.Dispatch<React.SetStateAction<DisplayEvent[]>>;
   onStatusChange: React.Dispatch<React.SetStateAction<RunStatus>>;
+  onClearAllMonitors?: () => void;
 
   // Project settings dialog
   isProjectSettingsOpen: boolean;
@@ -174,6 +183,7 @@ export function HomeDialogs({
   onMonitorUpdate,
   onEventsChange,
   onStatusChange,
+  onClearAllMonitors,
   isProjectSettingsOpen,
   onProjectSettingsOpenChange,
   onProjectSettingsSaved,
@@ -330,6 +340,7 @@ export function HomeDialogs({
           onUserInputStateChange={onUserInputStateChange}
           onClearExecutionState={onClearExecutionState}
           onMonitorUpdate={onMonitorUpdate}
+          onClearAllMonitors={onClearAllMonitors}
           events={runEvents}
           onEventsChange={onEventsChange}
           lastRunStatus={lastRunStatus}

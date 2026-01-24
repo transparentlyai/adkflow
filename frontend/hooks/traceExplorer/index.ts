@@ -99,9 +99,7 @@ export function useTraceExplorer(
         setHasMore(response.hasMore);
         setOffset(currentOffset + response.traces.length);
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to fetch traces",
-        );
+        setError(err instanceof Error ? err.message : "Failed to fetch traces");
       } finally {
         setIsLoading(false);
         setIsLoadingMore(false);

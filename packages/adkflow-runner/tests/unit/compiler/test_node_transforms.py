@@ -910,8 +910,12 @@ class TestTransformVariableNodes:
         make_workflow_graph,
     ):
         """Should merge variables from multiple global variable nodes."""
-        var1 = self._make_variable_node("var-1", "Config1", variables={"a": "1", "b": "2"})
-        var2 = self._make_variable_node("var-2", "Config2", variables={"c": "3", "d": "4"})
+        var1 = self._make_variable_node(
+            "var-1", "Config1", variables={"a": "1", "b": "2"}
+        )
+        var2 = self._make_variable_node(
+            "var-2", "Config2", variables={"c": "3", "d": "4"}
+        )
 
         graph = make_workflow_graph(nodes=[var1, var2], edges=[])
 

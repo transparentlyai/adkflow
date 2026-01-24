@@ -433,7 +433,10 @@ export function applyTheme(theme: Theme): void {
   root.style.setProperty("--agentprism-background", ap.background);
   root.style.setProperty("--agentprism-foreground", ap.foreground);
   root.style.setProperty("--agentprism-primary", ap.primary);
-  root.style.setProperty("--agentprism-primary-foreground", ap.primaryForeground);
+  root.style.setProperty(
+    "--agentprism-primary-foreground",
+    ap.primaryForeground,
+  );
   root.style.setProperty("--agentprism-secondary", ap.secondary);
   root.style.setProperty(
     "--agentprism-secondary-foreground",

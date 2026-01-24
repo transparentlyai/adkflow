@@ -89,22 +89,30 @@ export function URLPreviewWidget({
         <div className="flex items-center gap-2 mb-3">
           <div
             className="w-8 h-8 rounded"
-            style={{ backgroundColor: theme.colors.nodes.common.footer.background }}
+            style={{
+              backgroundColor: theme.colors.nodes.common.footer.background,
+            }}
           />
           <div className="flex-1">
             <div
               className="h-4 w-48 rounded mb-1"
-              style={{ backgroundColor: theme.colors.nodes.common.footer.background }}
+              style={{
+                backgroundColor: theme.colors.nodes.common.footer.background,
+              }}
             />
             <div
               className="h-3 w-24 rounded"
-              style={{ backgroundColor: theme.colors.nodes.common.footer.background }}
+              style={{
+                backgroundColor: theme.colors.nodes.common.footer.background,
+              }}
             />
           </div>
         </div>
         <div
           className="h-32 rounded"
-          style={{ backgroundColor: theme.colors.nodes.common.footer.background }}
+          style={{
+            backgroundColor: theme.colors.nodes.common.footer.background,
+          }}
         />
       </div>
     );
@@ -234,7 +242,9 @@ export function URLPreviewWidget({
             <span>{preview.metadata.content_type.split(";")[0]}</span>
           )}
           {preview.metadata.content_length && (
-            <span>Size: {formatSize(parseInt(preview.metadata.content_length, 10))}</span>
+            <span>
+              Size: {formatSize(parseInt(preview.metadata.content_length, 10))}
+            </span>
           )}
         </div>
       )}

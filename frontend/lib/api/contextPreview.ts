@@ -7,7 +7,10 @@
 
 import axios from "axios";
 import { apiClient } from "./client";
-import type { DynamicInputConfig, NodeAggregationMode } from "@/components/nodes/CustomNode/types/dynamicInputs";
+import type {
+  DynamicInputConfig,
+  NodeAggregationMode,
+} from "@/components/nodes/CustomNode/types/dynamicInputs";
 
 /**
  * File info for directory previews.

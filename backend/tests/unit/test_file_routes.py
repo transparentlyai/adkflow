@@ -6,7 +6,6 @@ Tests prompt, context, tool creation and file reading endpoints.
 from __future__ import annotations
 
 import asyncio
-import json
 from pathlib import Path
 
 from httpx import AsyncClient

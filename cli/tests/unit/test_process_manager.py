@@ -191,8 +191,14 @@ class TestProcessManager:
             manager.setup_signal_handlers()
 
             assert mock_signal.call_count == 2
-            mock_signal.assert_any_call(signal.SIGINT, pytest.approx(mock_signal.call_args_list[0][0][1], rel=1e-9))
-            mock_signal.assert_any_call(signal.SIGTERM, pytest.approx(mock_signal.call_args_list[1][0][1], rel=1e-9))
+            mock_signal.assert_any_call(
+                signal.SIGINT,
+                pytest.approx(mock_signal.call_args_list[0][0][1], rel=1e-9),
+            )
+            mock_signal.assert_any_call(
+                signal.SIGTERM,
+                pytest.approx(mock_signal.call_args_list[1][0][1], rel=1e-9),
+            )
 
     def test_setup_signal_handlers_idempotent(self):
         """Test signal handlers only set up once."""

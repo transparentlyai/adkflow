@@ -6,9 +6,8 @@ using global variables (unconnected Variable nodes).
 
 from __future__ import annotations
 
-import pytest
 
-from adkflow_runner.compiler.graph import GraphNode, WorkflowGraph
+from adkflow_runner.compiler.graph import WorkflowGraph
 from adkflow_runner.compiler.substitution import (
     substitute_global_variables,
     _substitute_in_dict,

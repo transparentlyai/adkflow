@@ -8,9 +8,7 @@ from __future__ import annotations
 import asyncio
 import time
 from pathlib import Path
-from unittest.mock import MagicMock
 
-import pytest
 
 from backend.src.api.file_watcher import (
     FileChangeEvent,

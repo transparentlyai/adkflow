@@ -21,7 +21,6 @@ from adkflow_runner.compiler.resolvers import (
 )
 from adkflow_runner.config import EdgeSemantics
 from adkflow_runner.errors import CompilationError
-from adkflow_runner.ir import CallbackSourceIR, SchemaSourceIR, ToolIR
 
 
 # =============================================================================
@@ -400,7 +399,7 @@ class TestResolveSchemas:
             "schema1",
             "schema",
             name="OutputSchema",
-            code='class OutputSchema(BaseModel): pass',
+            code="class OutputSchema(BaseModel): pass",
             schema_class="OutputSchema",
         )
 
@@ -417,7 +416,7 @@ class TestResolveSchemas:
         input_schema, output_schema = resolve_schemas(agent, graph, agent_data)
 
         assert output_schema is not None
-        assert output_schema.code == 'class OutputSchema(BaseModel): pass'
+        assert output_schema.code == "class OutputSchema(BaseModel): pass"
         assert output_schema.class_name == "OutputSchema"
         assert output_schema.source_node_id == "schema1"
 

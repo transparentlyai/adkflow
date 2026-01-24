@@ -144,7 +144,10 @@ export function ContextPreviewPanel({
           </SheetDescription>
         </SheetHeader>
 
-        <Tabs defaultValue="inputs" className="flex-1 flex flex-col mt-4 min-h-0 overflow-hidden">
+        <Tabs
+          defaultValue="inputs"
+          className="flex-1 flex flex-col mt-4 min-h-0 overflow-hidden"
+        >
           <TabsList
             className="flex-shrink-0 h-8"
             style={{
@@ -161,95 +164,103 @@ export function ContextPreviewPanel({
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="inputs" className="flex-1 mt-2 min-h-0 overflow-auto -mx-6 px-6">
-              {/* Global error */}
-              {error && (
-                <div
-                  className="flex items-center gap-2 px-3 py-2 rounded mb-4 text-sm"
-                  style={{
-                    backgroundColor: "rgba(239, 68, 68, 0.1)",
-                    color: "#ef4444",
-                  }}
-                >
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
+          <TabsContent
+            value="inputs"
+            className="flex-1 mt-2 min-h-0 overflow-auto -mx-6 px-6"
+          >
+            {/* Global error */}
+            {error && (
+              <div
+                className="flex items-center gap-2 px-3 py-2 rounded mb-4 text-sm"
+                style={{
+                  backgroundColor: "rgba(239, 68, 68, 0.1)",
+                  color: "#ef4444",
+                }}
+              >
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
 
-              {/* Preview errors from API */}
-              {previewData?.errors && previewData.errors.length > 0 && (
-                <div className="mb-4 space-y-2">
-                  {previewData.errors.map((err, i) => (
+            {/* Preview errors from API */}
+            {previewData?.errors && previewData.errors.length > 0 && (
+              <div className="mb-4 space-y-2">
+                {previewData.errors.map((err, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-2 px-3 py-2 rounded text-sm"
+                    style={{
+                      backgroundColor: "rgba(239, 68, 68, 0.1)",
+                      color: "#ef4444",
+                    }}
+                  >
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{err}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Input previews */}
+            <div className="space-y-4 pb-4 pt-2">
+              {inputs.map((input) => {
+                const Widget = getPreviewWidget(input.inputType);
+                const preview = getPreviewResult(input.id);
+                const connectedSourceName = connectedInputs[input.id]?.[0];
+
+                return (
+                  <div key={input.id}>
+                    {/* Input header */}
                     <div
-                      key={i}
-                      className="flex items-center gap-2 px-3 py-2 rounded text-sm"
+                      className="text-xs font-medium mb-2 flex items-center gap-2"
                       style={{
-                        backgroundColor: "rgba(239, 68, 68, 0.1)",
-                        color: "#ef4444",
+                        color: theme.colors.nodes.common.text.secondary,
                       }}
                     >
-                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                      <span>{err}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Input previews */}
-              <div className="space-y-4 pb-4 pt-2">
-                {inputs.map((input) => {
-                  const Widget = getPreviewWidget(input.inputType);
-                  const preview = getPreviewResult(input.id);
-                  const connectedSourceName = connectedInputs[input.id]?.[0];
-
-                  return (
-                    <div key={input.id}>
-                      {/* Input header */}
-                      <div
-                        className="text-xs font-medium mb-2 flex items-center gap-2"
-                        style={{ color: theme.colors.nodes.common.text.secondary }}
+                      <span className="uppercase tracking-wide">
+                        {input.label}
+                      </span>
+                      <span
+                        className="px-1.5 py-0.5 rounded text-[10px]"
+                        style={{
+                          backgroundColor:
+                            theme.colors.nodes.common.footer.background,
+                          color: theme.colors.nodes.common.text.muted,
+                        }}
                       >
-                        <span className="uppercase tracking-wide">
-                          {input.label}
-                        </span>
-                        <span
-                          className="px-1.5 py-0.5 rounded text-[10px]"
-                          style={{
-                            backgroundColor:
-                              theme.colors.nodes.common.footer.background,
-                            color: theme.colors.nodes.common.text.muted,
-                          }}
-                        >
-                          {input.inputType}
-                        </span>
-                      </div>
-
-                      {/* Preview widget */}
-                      <Widget
-                        input={input}
-                        preview={preview}
-                        isLoading={isLoading}
-                        error={preview?.error || null}
-                        includeMetadata={includeMetadata}
-                        connectedSourceName={connectedSourceName}
-                      />
+                        {input.inputType}
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
 
-              {/* Empty state */}
-              {inputs.length === 0 && !isLoading && (
-                <div
-                  className="text-center py-8 text-sm"
-                  style={{ color: theme.colors.nodes.common.text.muted }}
-                >
-                  No inputs configured
-                </div>
-              )}
+                    {/* Preview widget */}
+                    <Widget
+                      input={input}
+                      preview={preview}
+                      isLoading={isLoading}
+                      error={preview?.error || null}
+                      includeMetadata={includeMetadata}
+                      connectedSourceName={connectedSourceName}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Empty state */}
+            {inputs.length === 0 && !isLoading && (
+              <div
+                className="text-center py-8 text-sm"
+                style={{ color: theme.colors.nodes.common.text.muted }}
+              >
+                No inputs configured
+              </div>
+            )}
           </TabsContent>
 
-          <TabsContent value="output" className="flex-1 mt-2 min-h-0 overflow-hidden">
+          <TabsContent
+            value="output"
+            className="flex-1 mt-2 min-h-0 overflow-hidden"
+          >
             <OutputPreviewTab
               computedOutput={previewData?.computedOutput || null}
               isLoading={isLoading}
