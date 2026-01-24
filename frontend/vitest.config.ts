@@ -14,7 +14,7 @@ export default defineConfig({
     poolOptions: {
       forks: {
         minForks: 1,
-        maxForks: 16,
+        maxForks: 10,
       },
     },
     coverage: {
