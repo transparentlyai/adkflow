@@ -1,7 +1,7 @@
 "use client";
 
-import { memo, useCallback, useRef } from "react";
-import { Handle, Position, useStore } from "@xyflow/react";
+import { memo } from "react";
+import { Handle, Position } from "@xyflow/react";
 import { useTheme } from "@/contexts/ThemeContext";
 import DraggableHandle from "@/components/DraggableHandle";
 import ValidationIndicator from "@/components/nodes/ValidationIndicator";
@@ -12,9 +12,13 @@ import {
   getThemeColors,
   getExecutionStyle,
   getDuplicateNameStyle,
-  arraysEqual,
   ExecutionAnimations,
 } from "./collapsedLayoutUtils";
+import {
+  useConnectedPromptName,
+  useConnectedToolNames,
+} from "./fullCollapsedLayoutHooks";
+import FullCollapsedLayoutBody from "./FullCollapsedLayoutBody";
 
 /**
  * FullCollapsedLayout - Header + body + footer
@@ -56,68 +60,9 @@ const FullCollapsedLayout = memo(
     // Get additional handles from handle_layout
     const additionalHandles = schema.ui.handle_layout?.additional_handles || [];
 
-    // Ref for stable array comparison for connected tool names
-    const connectedToolNamesRef = useRef<string[]>([]);
-
-    // Optimized selector: compute connected prompt name directly
-    // Only re-renders when the actual prompt name changes
-    const connectedPromptName = useStore(
-      useCallback(
-        (state) => {
-          for (const edge of state.edges) {
-            if (
-              edge.target === id &&
-              (edge.targetHandle === "prompt-input" ||
-                edge.targetHandle === "input")
-            ) {
-              const sourceNode = state.nodes.find((n) => n.id === edge.source);
-              if (sourceNode && sourceNode.id.startsWith("prompt_")) {
-                const promptData = sourceNode.data as {
-                  prompt?: { name?: string };
-                };
-                return promptData?.prompt?.name || "Prompt";
-              }
-            }
-          }
-          return undefined;
-        },
-        [id],
-      ),
-    );
-
-    // Optimized selector: compute connected tool names directly
-    const connectedToolNames = useStore(
-      useCallback(
-        (state) => {
-          const toolNames: string[] = [];
-          for (const edge of state.edges) {
-            if (
-              edge.target === id &&
-              (edge.targetHandle === "tools-input" ||
-                edge.targetHandle === "input")
-            ) {
-              const sourceNode = state.nodes.find((n) => n.id === edge.source);
-              if (sourceNode) {
-                if (sourceNode.id.startsWith("tool_")) {
-                  const toolData = sourceNode.data as { name?: string };
-                  toolNames.push(toolData?.name || "Tool");
-                } else if (sourceNode.id.startsWith("agentTool_")) {
-                  const agentToolData = sourceNode.data as { name?: string };
-                  toolNames.push(agentToolData?.name || "AgentTool");
-                }
-              }
-            }
-          }
-          // Only return new array if content changed (shallow comparison)
-          if (arraysEqual(connectedToolNamesRef.current, toolNames)) {
-            return connectedToolNamesRef.current;
-          }
-          connectedToolNamesRef.current = toolNames;
-          return toolNames;
-        },
-        [id],
-      ),
-    );
+    // Use extracted hooks for connected nodes
+    const connectedPromptName = useConnectedPromptName(id);
+    const connectedToolNames = useConnectedToolNames(id);
 
     const handleStyle = {
       width: 10,
@@ -292,67 +237,13 @@ const FullCollapsedLayout = memo(
           </div>
 
           {/* Body */}
-          <div className="p-3 text-sm space-y-1.5">
-            {/* Model field - hardcoded "Model:" label like old AgentNode */}
-            <div className="flex items-center gap-2">
-              <span
-                className="text-xs"
-                style={{ color: theme.colors.nodes.common.text.secondary }}
-              >
-                Model:
-              </span>
-              <span
-                className="text-xs font-medium"
-                style={{ color: theme.colors.nodes.common.text.primary }}
-              >
-                {String(config.model || "Not set")}
-              </span>
-            </div>
-
-            {/* Connected prompt - uses port icon or falls back to document icon */}
-            {connectedPromptName && (
-              <div className="flex items-center gap-2">
-                <NodeIcon
-                  icon={
-                    schema.ui.inputs.find((i) => i.id === "prompt-input")
-                      ?.icon || "document"
-                  }
-                  className="w-3.5 h-3.5"
-                  style={{
-                    color: theme.colors.nodes.prompt?.header || "#8b5cf6",
-                  }}
-                />
-                <span
-                  className="text-xs truncate"
-                  style={{ color: theme.colors.nodes.common.text.secondary }}
-                >
-                  {connectedPromptName}
-                </span>
-              </div>
-            )}
-
-            {/* Connected tools - uses port icon or falls back to gear icon */}
-            {connectedToolNames.length > 0 && (
-              <div className="flex items-center gap-2">
-                <NodeIcon
-                  icon={
-                    schema.ui.inputs.find((i) => i.id === "tools-input")
-                      ?.icon || "gear"
-                  }
-                  className="w-3.5 h-3.5"
-                  style={{
-                    color: theme.colors.nodes.tool?.header || "#f97316",
-                  }}
-                />
-                <span
-                  className="text-xs truncate"
-                  style={{ color: theme.colors.nodes.common.text.secondary }}
-                >
-                  {connectedToolNames.join(", ")}
-                </span>
-              </div>
-            )}
-          </div>
+          <FullCollapsedLayoutBody
+            schema={schema}
+            config={config}
+            theme={theme}
+            connectedPromptName={connectedPromptName}
+            connectedToolNames={connectedToolNames}
+          />
 
           {/* Footer - "Agent" on left, no type badge (all agents are LLM now) */}
           <div

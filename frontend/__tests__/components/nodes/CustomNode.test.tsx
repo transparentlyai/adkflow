@@ -38,6 +38,33 @@ vi.mock("@/components/nodes/custom", () => ({
     handleChangeFile: vi.fn(),
   })),
   useModelFieldSync: vi.fn(),
+  useNodeContextMenuActions: vi.fn(() => ({
+    handleToggleNodeLock: vi.fn(),
+    handleDetach: vi.fn(),
+    handleCopy: vi.fn(),
+    handleCut: vi.fn(),
+    handlePaste: vi.fn(),
+    handleDelete: vi.fn(),
+    canvasActions: mockCanvasActions,
+  })),
+  useNodeExpand: vi.fn(({ initialExpanded }) => ({
+    isExpanded: initialExpanded,
+    toggleExpand: vi.fn(),
+  })),
+  useNodeResize: vi.fn(() => ({
+    handleResize: vi.fn(),
+  })),
+  useNodeThemeColor: vi.fn(() => ({
+    headerColor: "#4f46e5",
+  })),
+  useNodeStateSync: vi.fn(),
+  useConfigChange: vi.fn(() => ({
+    handleConfigChange: vi.fn(),
+    baseConfigChange: vi.fn(),
+  })),
+  useAiAssist: vi.fn(() => ({
+    handleAiAssist: vi.fn(),
+  })),
   CustomNodeCollapsed: ({
     name,
     schema,

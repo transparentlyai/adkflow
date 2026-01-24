@@ -1,5 +1,5 @@
 import type { TraceSpan } from "@evilmartians/agent-prism-types";
-import type { FC, KeyboardEvent, MouseEvent } from "react";
+import type { FC } from "react";
 
 import {
   formatDuration,
@@ -11,32 +11,26 @@ import { useCallback } from "react";
 
 import type { AvatarProps } from "../Avatar";
 import type { SpanCardConnectorType } from "./SpanCardConnector";
+import type { SpanCardState, SpanCardViewOptions } from "./SpanCardLayout";
 
 import { Avatar } from "../Avatar";
-import { BrandLogo } from "../BrandLogo";
 import { SpanCategoryAvatar } from "../SpanCategoryAvatar";
 import { SpanStatus } from "../SpanStatus";
 import { SpanCardBadges } from "./SpanCardBadges";
+import { SpanCardChildren } from "./SpanCardChildren";
 import { SpanCardConnector } from "./SpanCardConnector";
+import {
+  DEFAULT_VIEW_OPTIONS,
+  getConnectorsLayout,
+  getContentPadding,
+  getContentWidth,
+  getGridTemplateColumns,
+} from "./SpanCardLayout";
 import { SpanCardTimeline } from "./SpanCardTimeline";
 import { SpanCardToggle } from "./SpanCardToggle";
+import { useSpanCardEventHandlers } from "./useSpanCardEventHandlers";
 
-const LAYOUT_CONSTANTS = {
-  CONNECTOR_WIDTH: 20,
-  CONTENT_BASE_WIDTH: 320,
-} as const;
-
-type ExpandButtonPlacement = "inside" | "outside";
-
-export type SpanCardViewOptions = {
-  withStatus?: boolean;
-  expandButton?: ExpandButtonPlacement;
-};
-
-const DEFAULT_VIEW_OPTIONS: Required<SpanCardViewOptions> = {
-  withStatus: true,
-  expandButton: "inside",
-};
+export type { SpanCardViewOptions } from "./SpanCardLayout";
 
 interface SpanCardProps {
   data: TraceSpan;
@@ -52,222 +46,6 @@ interface SpanCardProps {
   onExpandSpansIdsChange: (ids: string[]) => void;
   viewOptions?: SpanCardViewOptions;
 }
-
-interface SpanCardState {
-  isExpanded: boolean;
-  hasChildren: boolean;
-  isSelected: boolean;
-}
-
-const getContentWidth = ({
-  level,
-  hasExpandButton,
-  contentPadding,
-  expandButton,
-}: {
-  level: number;
-  hasExpandButton: boolean;
-  contentPadding: number;
-  expandButton: ExpandButtonPlacement;
-}) => {
-  let width =
-    LAYOUT_CONSTANTS.CONTENT_BASE_WIDTH -
-    level * LAYOUT_CONSTANTS.CONNECTOR_WIDTH;
-
-  if (hasExpandButton && expandButton === "inside") {
-    width -= LAYOUT_CONSTANTS.CONNECTOR_WIDTH;
-  }
-
-  if (expandButton === "outside" && level === 0) {
-    width -= LAYOUT_CONSTANTS.CONNECTOR_WIDTH;
-  }
-
-  return width - contentPadding;
-};
-
-const getGridTemplateColumns = ({
-  connectorsColumnWidth,
-  expandButton,
-}: {
-  connectorsColumnWidth: number;
-  expandButton: ExpandButtonPlacement;
-}) => {
-  if (expandButton === "inside") {
-    return `${connectorsColumnWidth}px 1fr`;
-  }
-
-  return `${connectorsColumnWidth}px 1fr ${LAYOUT_CONSTANTS.CONNECTOR_WIDTH}px`;
-};
-
-const getContentPadding = ({
-  level,
-  hasExpandButton,
-}: {
-  level: number;
-  hasExpandButton: boolean;
-}) => {
-  if (level === 0) return 0;
-
-  if (hasExpandButton) return 4;
-
-  return 8;
-};
-
-const getConnectorsLayout = ({
-  level,
-  hasExpandButton,
-  isLastChild,
-  prevConnectors,
-  expandButton,
-}: {
-  hasExpandButton: boolean;
-  isLastChild: boolean;
-  level: number;
-  prevConnectors: SpanCardConnectorType[];
-  expandButton: ExpandButtonPlacement;
-}): {
-  connectors: SpanCardConnectorType[];
-  connectorsColumnWidth: number;
-} => {
-  const connectors: SpanCardConnectorType[] = [];
-
-  if (level === 0) {
-    return {
-      connectors: expandButton === "inside" ? [] : ["vertical"],
-      connectorsColumnWidth: 20,
-    };
-  }
-
-  for (let i = 0; i < level - 1; i++) {
-    connectors.push("vertical");
-  }
-
-  if (!isLastChild) {
-    connectors.push("t-right");
-  }
-
-  if (isLastChild) {
-    connectors.push("corner-top-right");
-  }
-
-  let connectorsColumnWidth =
-    connectors.length * LAYOUT_CONSTANTS.CONNECTOR_WIDTH;
-
-  if (hasExpandButton) {
-    connectorsColumnWidth += LAYOUT_CONSTANTS.CONNECTOR_WIDTH;
-  }
-
-  for (let i = 0; i < prevConnectors.length; i++) {
-    if (
-      prevConnectors[i] === "empty" ||
-      prevConnectors[i] === "corner-top-right"
-    ) {
-      connectors[i] = "empty";
-    }
-  }
-
-  return {
-    connectors,
-    connectorsColumnWidth,
-  };
-};
-
-const useSpanCardEventHandlers = (
-  data: TraceSpan,
-  onSpanSelect?: (span: TraceSpan) => void,
-) => {
-  const handleCardClick = useCallback((): void => {
-    onSpanSelect?.(data);
-  }, [data, onSpanSelect]);
-
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent): void => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        handleCardClick();
-      }
-    },
-    [handleCardClick],
-  );
-
-  const handleToggleClick = useCallback(
-    (e: MouseEvent | KeyboardEvent): void => {
-      e.stopPropagation();
-    },
-    [],
-  );
-
-  return {
-    handleCardClick,
-    handleKeyDown,
-    handleToggleClick,
-  };
-};
-
-const SpanCardChildren: FC<{
-  data: TraceSpan;
-  level: number;
-  selectedSpan?: TraceSpan;
-  onSpanSelect?: (span: TraceSpan) => void;
-  minStart: number;
-  maxEnd: number;
-  prevLevelConnectors: SpanCardConnectorType[];
-  expandedSpansIds: string[];
-  onExpandSpansIdsChange: (ids: string[]) => void;
-  viewOptions?: SpanCardViewOptions;
-}> = ({
-  data,
-  level,
-  selectedSpan,
-  onSpanSelect,
-  minStart,
-  maxEnd,
-  prevLevelConnectors,
-  expandedSpansIds,
-  onExpandSpansIdsChange,
-  viewOptions = DEFAULT_VIEW_OPTIONS,
-}) => {
-  if (!data.children?.length) return null;
-
-  return (
-    <div className="relative">
-      <Collapsible.Content>
-        <ul role="group">
-          {data.children.map((child, idx) => {
-            const brand = child.metadata?.brand as { type: string } | undefined;
-
-            return (
-              <SpanCard
-                viewOptions={viewOptions}
-                key={child.id}
-                data={child}
-                minStart={minStart}
-                maxEnd={maxEnd}
-                level={level + 1}
-                selectedSpan={selectedSpan}
-                onSpanSelect={onSpanSelect}
-                isLastChild={idx === (data.children || []).length - 1}
-                prevLevelConnectors={prevLevelConnectors}
-                expandedSpansIds={expandedSpansIds}
-                onExpandSpansIdsChange={onExpandSpansIdsChange}
-                avatar={
-                  brand
-                    ? {
-                        children: <BrandLogo brand={brand.type} />,
-                        size: "4",
-                        rounded: "sm",
-                        category: child.type,
-                      }
-                    : undefined
-                }
-              />
-            );
-          })}
-        </ul>
-      </Collapsible.Content>
-    </div>
-  );
-};
 
 export const SpanCard: FC<SpanCardProps> = ({
   data,

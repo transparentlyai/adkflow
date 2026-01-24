@@ -1,13 +1,11 @@
 "use client";
 
-import { useImperativeHandle, forwardRef, useEffect } from "react";
+import { forwardRef } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
   Background,
   SelectionMode,
-  type Node,
-  type Edge,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
@@ -15,103 +13,23 @@ import { CanvasActionsProvider } from "@/contexts/CanvasActionsContext";
 import { ConnectionProvider } from "@/contexts/ConnectionContext";
 import { useProject } from "@/contexts/ProjectContext";
 
-import type { CustomNodeSchema } from "@/components/nodes/CustomNode";
-import { builtinNodeSchemas } from "@/lib/builtinNodeHelpers";
-import { getExtensionNodes } from "@/lib/api";
 import CanvasContextMenu from "./CanvasContextMenu";
 import { ReactFlowDialogs } from "./ReactFlowDialogs";
 import { ReactFlowControls } from "./ReactFlowControls";
-import type { NodeExecutionState } from "@/lib/types";
 
 import {
-  useCanvasState,
-  useCanvasConfig,
-  useConnectionHandlers,
-  useCanvasHistory,
-  useDeleteHandlers,
-  useClipboardOperations,
-  useKeyboardShortcuts,
-  useNodeCreation,
-  useContextMenu,
-  useCanvasOperations,
-  useExecutionState,
-  useValidation,
-  useEdgeHighlight,
-  useEdgeTabOpacity,
-  useAltClickZoom,
+  useCanvasSetup,
+  useCanvasImperativeHandle,
   getCanvasStyles,
 } from "./hooks/canvas";
 
-interface ReactFlowCanvasProps {
-  onWorkflowChange?: (data: { nodes: Node[]; edges: Edge[] }) => void;
-  onRequestPromptCreation?: (position: { x: number; y: number }) => void;
-  onRequestContextCreation?: (position: { x: number; y: number }) => void;
-  onRequestToolCreation?: (position: { x: number; y: number }) => void;
-  onRequestProcessCreation?: (position: { x: number; y: number }) => void;
-  onRequestOutputFileCreation?: (position: { x: number; y: number }) => void;
-  isLocked?: boolean;
-  onToggleLock?: () => void;
-  activeTabId?: string;
-  onSave?: () => void;
-}
+import type {
+  ReactFlowCanvasProps,
+  ReactFlowCanvasRef,
+} from "./ReactFlowCanvas.types";
 
-export interface ReactFlowCanvasRef {
-  // Layout nodes (non-schema-driven)
-  addGroupNode: (position?: { x: number; y: number }) => void;
-  addLabelNode: (position?: { x: number; y: number }) => void;
-  // Schema-driven node creation
-  addCustomNode: (
-    schema: CustomNodeSchema,
-    position?: { x: number; y: number },
-  ) => string;
-  addBuiltinSchemaNode: (
-    nodeType: string,
-    position?: { x: number; y: number },
-    configOverrides?: Record<string, unknown>,
-    parentGroupId?: string,
-  ) => string | null;
-  customNodeSchemas: CustomNodeSchema[];
-  builtinNodeSchemas: readonly CustomNodeSchema[];
-  clearCanvas: () => void;
-  saveFlow: () => {
-    nodes: Node[];
-    edges: Edge[];
-    viewport: { x: number; y: number; zoom: number };
-  } | null;
-  restoreFlow: (flow: {
-    nodes: Node[];
-    edges: Edge[];
-    viewport: { x: number; y: number; zoom: number };
-  }) => void;
-  zoomIn: () => void;
-  zoomOut: () => void;
-  fitView: () => void;
-  focusNode: (nodeId: string) => void;
-  updateNodeExecutionState: (
-    agentName: string,
-    state: NodeExecutionState,
-  ) => void;
-  updateToolExecutionState: (
-    toolName: string,
-    state: NodeExecutionState,
-  ) => void;
-  updateCallbackExecutionState: (
-    callbackName: string,
-    state: NodeExecutionState,
-  ) => void;
-  updateUserInputWaitingState: (nodeId: string, isWaiting: boolean) => void;
-  clearExecutionState: () => void;
-  highlightErrorNodes: (nodeErrors: Record<string, string[]>) => void;
-  highlightWarningNodes: (nodeWarnings: Record<string, string[]>) => void;
-  clearErrorHighlights: () => void;
-  updateMonitorValue: (
-    nodeId: string,
-    value: string,
-    valueType: string,
-    timestamp: string,
-  ) => void;
-  clearAllMonitors: () => void;
-}
+// Re-export types for external consumers
+export type { ReactFlowCanvasProps, ReactFlowCanvasRef } from "./ReactFlowCanvas.types";
 
 /**
  * ReactFlowCanvas Component (Inner)
@@ -138,295 +56,39 @@ const ReactFlowCanvasInner = forwardRef<
     },
     ref,
   ) => {
-    // Get project context for default model
     const { defaultModel } = useProject();
 
-    // Core canvas state
-    const state = useCanvasState();
-    const {
-      nodes,
-      setNodes,
-      edges,
-      setEdges,
-      rfInstance,
-      setRfInstance,
-      customNodeSchemas,
-      setCustomNodeSchemas,
-      contextMenu,
-      setContextMenu,
-      deleteConfirm,
-      setDeleteConfirm,
-      groupDeleteConfirm,
-      setGroupDeleteConfirm,
-      mousePosition,
-      setMousePosition,
-      snapToGrid,
-      setSnapToGrid,
-      teleportNamePrompt,
-      setTeleportNamePrompt,
-      teleportNameInput,
-      setTeleportNameInput,
-      undoStackRef,
-      redoStackRef,
-      maxHistorySize,
-      prevContentRef,
-      duplicateErrorNodesRef,
-      resetPositions,
-    } = state;
-
-    // Load custom node schemas from backend
-    useEffect(() => {
-      async function loadCustomNodes() {
-        try {
-          const data = await getExtensionNodes();
-          setCustomNodeSchemas(data.nodes as CustomNodeSchema[]);
-        } catch (error) {
-          console.log("[ReactFlowCanvas] No custom nodes available");
-        }
-      }
-      loadCustomNodes();
-    }, [setCustomNodeSchemas]);
-
-    // Canvas configuration
-    const {
-      nodeTypes,
-      defaultEdgeOptions,
-      snapGridValue,
-      handleTypeRegistry,
-      theme,
-    } = useCanvasConfig(nodes, customNodeSchemas);
-
-    // History management
-    const { saveSnapshot, handleUndo, handleRedo } = useCanvasHistory({
-      nodes,
-      edges,
-      setNodes,
-      setEdges,
-      undoStackRef,
-      redoStackRef,
-      maxHistorySize,
-      prevContentRef,
+    // Set up all canvas functionality
+    const canvas = useCanvasSetup({
       onWorkflowChange,
-    });
-
-    // Connection handlers
-    const {
-      onConnectStart,
-      onConnectEnd,
-      isValidConnection,
-      onNodesChange,
-      onEdgesChange,
-      onConnect,
-      onNodeDragStop,
-    } = useConnectionHandlers({
-      nodes,
-      edges,
-      setNodes,
-      setEdges,
-      handleTypeRegistry,
-      isLocked,
-      linkEdgeColor: theme.colors.edges.link,
-      callbackEdgeColor: theme.colors.edges.callback,
-    });
-
-    // Edge highlight based on node selection
-    useEdgeHighlight(nodes, setEdges, {
-      default: theme.colors.edges.default,
-      connected: theme.colors.edges.connected,
-    });
-
-    // Edge opacity for handles on inactive tabs
-    useEdgeTabOpacity(nodes, edges, setEdges);
-
-    // Delete handlers
-    const {
-      handleDeleteConfirm,
-      handleDeleteCancel,
-      handleGroupDeleteGroupOnly,
-      handleGroupDeleteAll,
-      handleGroupDeleteCancel,
-      handleDelete,
-    } = useDeleteHandlers({
-      nodes,
-      edges,
-      setNodes,
-      setEdges,
-      deleteConfirm,
-      setDeleteConfirm,
-      groupDeleteConfirm,
-      setGroupDeleteConfirm,
-      saveSnapshot,
-      isLocked,
-    });
-
-    // Clipboard operations
-    const { handleCopy, handleCut, handlePaste, hasClipboard } =
-      useClipboardOperations({
-        nodes,
-        edges,
-        setNodes,
-        setEdges,
-        activeTabId,
-        isLocked,
-        mousePosition,
-        saveSnapshot,
-      });
-
-    // Keyboard shortcuts
-    useKeyboardShortcuts({
-      isLocked,
-      handleCopy,
-      handleCut,
-      handlePaste,
-      handleDelete,
-      handleUndo,
-      handleRedo,
-      onSave,
-    });
-
-    // Node creation
-    const nodeCreation = useNodeCreation({
-      nodes,
-      setNodes,
-      rfInstance,
-      activeTabId: activeTabId ?? null,
-      groupPosition: state.groupPosition,
-      setGroupPosition: state.setGroupPosition,
-      agentPosition: state.agentPosition,
-      setAgentPosition: state.setAgentPosition,
-      promptPosition: state.promptPosition,
-      setPromptPosition: state.setPromptPosition,
-      contextPosition: state.contextPosition,
-      setContextPosition: state.setContextPosition,
-      inputProbePosition: state.inputProbePosition,
-      setInputProbePosition: state.setInputProbePosition,
-      outputProbePosition: state.outputProbePosition,
-      setOutputProbePosition: state.setOutputProbePosition,
-      logProbePosition: state.logProbePosition,
-      setLogProbePosition: state.setLogProbePosition,
-      outputFilePosition: state.outputFilePosition,
-      setOutputFilePosition: state.setOutputFilePosition,
-      toolPosition: state.toolPosition,
-      setToolPosition: state.setToolPosition,
-      agentToolPosition: state.agentToolPosition,
-      setAgentToolPosition: state.setAgentToolPosition,
-      variablePosition: state.variablePosition,
-      setVariablePosition: state.setVariablePosition,
-      processPosition: state.processPosition,
-      setProcessPosition: state.setProcessPosition,
-      labelPosition: state.labelPosition,
-      setLabelPosition: state.setLabelPosition,
-      teleportOutPosition: state.teleportOutPosition,
-      setTeleportOutPosition: state.setTeleportOutPosition,
-      teleportInPosition: state.teleportInPosition,
-      setTeleportInPosition: state.setTeleportInPosition,
-      userInputPosition: state.userInputPosition,
-      setUserInputPosition: state.setUserInputPosition,
-    });
-
-    // Context menu
-    const {
-      onPaneContextMenu,
-      onNodeContextMenu,
-      onSelectionContextMenu,
-      onMouseMove,
-      onContextMenuSelect,
-      closeContextMenu,
-      handleTeleportNameSubmit,
-      handleTeleportNameCancel,
-      handleTeleportNameKeyDown,
-      handleSelectCustomNode,
-    } = useContextMenu({
-      setNodes,
-      contextMenu,
-      setContextMenu,
-      teleportNamePrompt,
-      setTeleportNamePrompt,
-      teleportNameInput,
-      setTeleportNameInput,
-      setMousePosition,
-      isLocked,
-      addGroupNode: nodeCreation.addGroupNode,
-      addLabelNode: nodeCreation.addLabelNode,
-      addBuiltinSchemaNode: nodeCreation.addBuiltinSchemaNode,
-      addCustomNode: nodeCreation.addCustomNode,
       onRequestPromptCreation,
       onRequestContextCreation,
       onRequestToolCreation,
       onRequestProcessCreation,
       onRequestOutputFileCreation,
+      isLocked,
+      activeTabId,
+      onSave,
       defaultModel,
     });
 
-    // Canvas operations
-    const {
-      clearCanvas,
-      saveFlow,
-      restoreFlow,
-      zoomIn,
-      zoomOut,
-      fitViewHandler,
-      focusNode,
-    } = useCanvasOperations({
-      nodes,
-      setNodes,
-      setEdges,
-      rfInstance,
-      resetPositions,
-      customNodeSchemas,
-    });
-
-    // Execution state
-    const {
-      updateNodeExecutionState,
-      updateToolExecutionState,
-      updateCallbackExecutionState,
-      clearExecutionState,
-      updateUserInputWaitingState,
-      updateMonitorValue,
-      clearAllMonitors,
-    } = useExecutionState({ setNodes });
-
-    // Validation
-    const { highlightErrorNodes, highlightWarningNodes, clearErrorHighlights } =
-      useValidation({
-        nodes,
-        setNodes,
-        duplicateErrorNodesRef,
-      });
-
-    // Alt+Click zoom shortcut
-    const { onNodeClick, onPaneClick } = useAltClickZoom();
+    const { theme, nodeTypes, defaultEdgeOptions, snapGridValue } = canvas.config;
 
     // Expose methods to parent via ref
-    useImperativeHandle(ref, () => ({
-      // Layout nodes (non-schema-driven)
-      addGroupNode: nodeCreation.addGroupNode,
-      addLabelNode: nodeCreation.addLabelNode,
-      // Schema-driven node creation
-      addCustomNode: nodeCreation.addCustomNode,
-      addBuiltinSchemaNode: nodeCreation.addBuiltinSchemaNode,
-      customNodeSchemas,
-      builtinNodeSchemas,
-      // Canvas operations
-      clearCanvas,
-      saveFlow,
-      restoreFlow,
-      zoomIn,
-      zoomOut,
-      fitView: fitViewHandler,
-      focusNode,
-      updateNodeExecutionState,
-      updateToolExecutionState,
-      updateCallbackExecutionState,
-      updateUserInputWaitingState,
-      clearExecutionState,
-      highlightErrorNodes,
-      highlightWarningNodes,
-      clearErrorHighlights,
-      updateMonitorValue,
-      clearAllMonitors,
-    }));
+    useCanvasImperativeHandle({
+      ref,
+      nodeCreation: canvas.nodeCreation,
+      canvasOperations: canvas.canvasOperations,
+      executionState: canvas.executionState,
+      validation: canvas.validation,
+      customNodeSchemas: canvas.customNodeSchemas,
+    });
+
+    const { nodes, edges, contextMenu } = canvas;
+    const { handleCopy, handleCut, handlePaste, hasClipboard } = canvas.clipboard;
+    const conn = canvas.connectionHandlers;
+    const ctxMenu = canvas.contextMenuHandlers;
+    const del = canvas.deleteHandlers;
 
     return (
       <div
@@ -446,20 +108,20 @@ const ReactFlowCanvasInner = forwardRef<
           <ReactFlow
             nodes={nodes}
             edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onConnectStart={onConnectStart}
-            onConnectEnd={onConnectEnd}
-            isValidConnection={isValidConnection}
-            onNodeDragStop={onNodeDragStop}
-            onInit={setRfInstance}
-            onPaneContextMenu={onPaneContextMenu}
-            onNodeContextMenu={onNodeContextMenu}
-            onSelectionContextMenu={onSelectionContextMenu}
-            onNodeClick={onNodeClick}
-            onPaneClick={onPaneClick}
-            onMouseMove={onMouseMove}
+            onNodesChange={conn.onNodesChange}
+            onEdgesChange={conn.onEdgesChange}
+            onConnect={conn.onConnect}
+            onConnectStart={conn.onConnectStart}
+            onConnectEnd={conn.onConnectEnd}
+            isValidConnection={conn.isValidConnection}
+            onNodeDragStop={conn.onNodeDragStop}
+            onInit={canvas.setRfInstance}
+            onPaneContextMenu={ctxMenu.onPaneContextMenu}
+            onNodeContextMenu={ctxMenu.onNodeContextMenu}
+            onSelectionContextMenu={ctxMenu.onSelectionContextMenu}
+            onNodeClick={canvas.altClickZoom.onNodeClick}
+            onPaneClick={canvas.altClickZoom.onPaneClick}
+            onMouseMove={ctxMenu.onMouseMove}
             nodeTypes={nodeTypes}
             fitView
             proOptions={{ hideAttribution: true }}
@@ -476,7 +138,7 @@ const ReactFlowCanvasInner = forwardRef<
             nodesConnectable={!isLocked}
             elementsSelectable={!isLocked}
             selectionMode={SelectionMode.Partial}
-            snapToGrid={snapToGrid}
+            snapToGrid={canvas.snapToGrid}
             snapGrid={snapGridValue}
             deleteKeyCode={null}
             onlyRenderVisibleElements={true}
@@ -484,14 +146,14 @@ const ReactFlowCanvasInner = forwardRef<
             autoPanOnConnect={true}
             autoPanSpeed={15}
           >
-            {snapToGrid && (
+            {canvas.snapToGrid && (
               <Background color={theme.colors.canvas.grid} gap={16} />
             )}
             <ReactFlowControls
               isLocked={isLocked}
               onToggleLock={onToggleLock}
-              snapToGrid={snapToGrid}
-              onToggleSnapToGrid={() => setSnapToGrid(!snapToGrid)}
+              snapToGrid={canvas.snapToGrid}
+              onToggleSnapToGrid={() => canvas.setSnapToGrid(!canvas.snapToGrid)}
               theme={theme}
             />
           </ReactFlow>
@@ -500,8 +162,8 @@ const ReactFlowCanvasInner = forwardRef<
           <CanvasContextMenu
             x={contextMenu.x}
             y={contextMenu.y}
-            onSelect={onContextMenuSelect}
-            onClose={closeContextMenu}
+            onSelect={ctxMenu.onContextMenuSelect}
+            onClose={ctxMenu.closeContextMenu}
             insideGroup={!!contextMenu.parentGroupId}
             isLocked={isLocked}
             onToggleLock={onToggleLock}
@@ -512,24 +174,24 @@ const ReactFlowCanvasInner = forwardRef<
             onCopy={handleCopy}
             onCut={handleCut}
             onPaste={() => handlePaste(contextMenu.flowPosition)}
-            onDelete={handleDelete}
-            customNodeSchemas={customNodeSchemas}
-            onSelectCustom={handleSelectCustomNode}
+            onDelete={del.handleDelete}
+            customNodeSchemas={canvas.customNodeSchemas}
+            onSelectCustom={ctxMenu.handleSelectCustomNode}
           />
         )}
         <ReactFlowDialogs
-          deleteConfirm={deleteConfirm}
-          onDeleteConfirm={handleDeleteConfirm}
-          onDeleteCancel={handleDeleteCancel}
-          groupDeleteConfirm={groupDeleteConfirm}
-          onGroupDeleteGroupOnly={handleGroupDeleteGroupOnly}
-          onGroupDeleteAll={handleGroupDeleteAll}
-          onGroupDeleteCancel={handleGroupDeleteCancel}
-          teleportNamePrompt={teleportNamePrompt}
-          teleportNameInput={teleportNameInput}
-          onTeleportNameChange={setTeleportNameInput}
-          onTeleportNameSubmit={handleTeleportNameSubmit}
-          onTeleportNameCancel={handleTeleportNameCancel}
+          deleteConfirm={canvas.deleteConfirm}
+          onDeleteConfirm={del.handleDeleteConfirm}
+          onDeleteCancel={del.handleDeleteCancel}
+          groupDeleteConfirm={canvas.groupDeleteConfirm}
+          onGroupDeleteGroupOnly={del.handleGroupDeleteGroupOnly}
+          onGroupDeleteAll={del.handleGroupDeleteAll}
+          onGroupDeleteCancel={del.handleGroupDeleteCancel}
+          teleportNamePrompt={canvas.teleportNamePrompt}
+          teleportNameInput={canvas.teleportNameInput}
+          onTeleportNameChange={canvas.setTeleportNameInput}
+          onTeleportNameSubmit={ctxMenu.handleTeleportNameSubmit}
+          onTeleportNameCancel={ctxMenu.handleTeleportNameCancel}
           theme={theme}
         />
       </div>

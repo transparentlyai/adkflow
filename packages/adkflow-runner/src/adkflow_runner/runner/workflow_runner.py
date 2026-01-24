@@ -5,7 +5,6 @@ Executes compiled workflows using ADK agents with callback support.
 
 import asyncio
 import os
-import re
 import time
 import traceback
 import uuid
@@ -14,7 +13,6 @@ from typing import Any, AsyncIterator
 
 from dotenv import load_dotenv
 from google.adk.agents.invocation_context import LlmCallsLimitExceededError
-from google.adk.agents.run_config import RunConfig as AdkRunConfig, StreamingMode
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
@@ -53,6 +51,9 @@ from adkflow_runner.runner.execution_engine import (
     merge_context_vars,
 )
 from adkflow_runner.runner.graph_builder import partition_custom_nodes
+from adkflow_runner.runner.session_utils import collect_context_vars_for_session
+from adkflow_runner.runner.adk_config import build_adk_run_config
+from adkflow_runner.runner.streaming import run_workflow_generator
 from adkflow_runner.hooks import (
     HookAction,
     HookAbortError,
@@ -61,92 +62,6 @@ from adkflow_runner.hooks import (
 
 # Get workflow logger
 _log = get_logger("runner.workflow")
-
-
-def _escape_adk_variables(value: str) -> str:
-    """Escape {word} patterns so ADK doesn't interpret them as variables.
-
-    ADK's regex matches {word} patterns and tries to substitute them from
-    session state. We insert a zero-width space (U+200B) after { to break
-    the isidentifier() check while keeping the text visually identical.
-
-    Args:
-        value: String that may contain {word} patterns
-
-    Returns:
-        String with {word} patterns escaped as {\u200bword}
-    """
-    return re.sub(r"\{(\w+)\}", "{\u200b\\1}", value)
-
-
-def collect_context_vars_for_session(ir: WorkflowIR) -> dict[str, Any]:
-    """Collect all context_vars from agents and global variables for session state.
-
-    This function gathers:
-    1. context_vars from all agents (from connected Variable nodes/Context Aggregators)
-    2. global_variables from the workflow (from unconnected Variable nodes)
-
-    It validates for conflicts where the same variable name has different values
-    across different sources. The collected variables are used to pre-populate
-    ADK's session state, allowing native variable substitution at runtime.
-
-    Args:
-        ir: The workflow IR containing all agents and global variables
-
-    Returns:
-        Dict of variable names to values for session state
-
-    Raises:
-        ExecutionError: If variable name conflicts are detected (same name,
-            different values from different sources)
-    """
-    # Track variable sources for conflict detection: {var_name: [(source_name, value), ...]}
-    var_sources: dict[str, list[tuple[str, Any]]] = {}
-
-    # Collect global variables first (from unconnected Variable nodes)
-    for key, value in ir.global_variables.items():
-        if key not in var_sources:
-            var_sources[key] = []
-        var_sources[key].append(("global", value))
-
-    # Collect context_vars from each agent (from connected Variable nodes/Context Aggregators)
-    for agent_ir in ir.all_agents.values():
-        for key, value in agent_ir.context_vars.items():
-            if key not in var_sources:
-                var_sources[key] = []
-            var_sources[key].append((agent_ir.name, value))
-
-    # Check for conflicts (same name, different values)
-    conflicts: list[str] = []
-    initial_state: dict[str, Any] = {}
-
-    for var_name, sources in var_sources.items():
-        # Get unique values (compare as strings for consistency)
-        unique_values = set(str(v) for _, v in sources)
-
-        if len(unique_values) > 1:
-            # Conflict detected - same variable name with different values
-            source_details = ", ".join(
-                f"'{agent}' provides '{value}'" for agent, value in sources
-            )
-            conflicts.append(f"  - '{var_name}': {source_details}")
-        else:
-            # No conflict - use the value, escaping any {word} patterns
-            raw_value = sources[0][1]
-            if isinstance(raw_value, str):
-                initial_state[var_name] = _escape_adk_variables(raw_value)
-            else:
-                initial_state[var_name] = raw_value
-
-    if conflicts:
-        raise ExecutionError(
-            "Context variable conflicts detected. The same variable name is "
-            "defined with different values by multiple sources:\n"
-            + "\n".join(conflicts)
-            + "\n\nUse unique variable names or ensure all sources provide the same value."
-        )
-
-    return initial_state
 
 
 class WorkflowRunner:
@@ -488,72 +403,9 @@ class WorkflowRunner:
 
         # Resolve context variables for agents from context aggregator and custom node outputs
         if context_aggregator_outputs or custom_node_outputs:
-            for agent_ir in ir.all_agents.values():
-                if agent_ir.context_var_sources:
-                    # Collect outputs from all context var sources
-                    source_dicts: list[dict[str, Any]] = []
-                    source_names: list[str] = []
-                    for source_id in agent_ir.context_var_sources:
-                        # Check context aggregator outputs first
-                        if source_id in context_aggregator_outputs:
-                            node_output = context_aggregator_outputs[source_id]
-                            if "output" in node_output:
-                                output_value = node_output["output"]
-                                if isinstance(output_value, dict):
-                                    source_dicts.append(output_value)
-                                    # Get name from IR
-                                    aggregator = next(
-                                        (
-                                            a
-                                            for a in ir.context_aggregators
-                                            if a.id == source_id
-                                        ),
-                                        None,
-                                    )
-                                    source_names.append(
-                                        aggregator.name if aggregator else source_id
-                                    )
-                        # Then check custom node outputs
-                        elif source_id in custom_node_outputs:
-                            # Get the "output" port which contains the variables dict
-                            node_output = custom_node_outputs[source_id]
-                            if "output" in node_output:
-                                output_value = node_output["output"]
-                                if isinstance(output_value, dict):
-                                    source_dicts.append(output_value)
-                                    # Get source name for error messages
-                                    source_node = next(
-                                        (
-                                            n
-                                            for n in ir.custom_nodes
-                                            if n.id == source_id
-                                        ),
-                                        None,
-                                    )
-                                    source_names.append(
-                                        source_node.name if source_node else source_id
-                                    )
-
-                    # Merge and validate context vars
-                    if source_dicts:
-                        merged_vars = merge_context_vars(source_dicts, source_names)
-
-                        # Check for conflicts with upstream_output_keys
-                        upstream_keys = set(agent_ir.upstream_output_keys)
-                        conflicts = upstream_keys & set(merged_vars.keys())
-                        if conflicts:
-                            raise ExecutionError(
-                                f"Context variable conflict in agent '{agent_ir.name}': "
-                                f"'{', '.join(conflicts)}' defined in both context "
-                                f"aggregator and upstream agent output_key. "
-                                f"Use unique variable names."
-                            )
-
-                        # Merge with existing context_vars instead of overwriting
-                        agent_ir.context_vars = {
-                            **agent_ir.context_vars,
-                            **merged_vars,
-                        }
+            self._resolve_agent_context_vars(
+                ir, context_aggregator_outputs, custom_node_outputs
+            )
 
         factory = AgentFactory(config.project_path)
         root_agent = factory.create_from_workflow(ir, emit=emit, hooks=hooks)
@@ -605,7 +457,7 @@ class WorkflowRunner:
         )
 
         # Build ADK RunConfig from our settings
-        adk_run_config = self._build_adk_run_config(config)
+        adk_run_config = build_adk_run_config(config)
 
         output_parts: list[str] = []
         last_author: str | None = None
@@ -712,39 +564,75 @@ class WorkflowRunner:
 
         return output
 
-    def _build_adk_run_config(self, config: RunConfig) -> AdkRunConfig:
-        """Build ADK RunConfig from our RunConfig settings.
+    def _resolve_agent_context_vars(
+        self,
+        ir: WorkflowIR,
+        context_aggregator_outputs: dict[str, dict[str, Any]],
+        custom_node_outputs: dict[str, dict[str, Any]],
+    ) -> None:
+        """Resolve context variables for agents from context aggregator and custom node outputs."""
+        for agent_ir in ir.all_agents.values():
+            if agent_ir.context_var_sources:
+                # Collect outputs from all context var sources
+                source_dicts: list[dict[str, Any]] = []
+                source_names: list[str] = []
+                for source_id in agent_ir.context_var_sources:
+                    # Check context aggregator outputs first
+                    if source_id in context_aggregator_outputs:
+                        node_output = context_aggregator_outputs[source_id]
+                        if "output" in node_output:
+                            output_value = node_output["output"]
+                            if isinstance(output_value, dict):
+                                source_dicts.append(output_value)
+                                # Get name from IR
+                                aggregator = next(
+                                    (
+                                        a
+                                        for a in ir.context_aggregators
+                                        if a.id == source_id
+                                    ),
+                                    None,
+                                )
+                                source_names.append(
+                                    aggregator.name if aggregator else source_id
+                                )
+                    # Then check custom node outputs
+                    elif source_id in custom_node_outputs:
+                        # Get the "output" port which contains the variables dict
+                        node_output = custom_node_outputs[source_id]
+                        if "output" in node_output:
+                            output_value = node_output["output"]
+                            if isinstance(output_value, dict):
+                                source_dicts.append(output_value)
+                                # Get source name for error messages
+                                source_node = next(
+                                    (n for n in ir.custom_nodes if n.id == source_id),
+                                    None,
+                                )
+                                source_names.append(
+                                    source_node.name if source_node else source_id
+                                )
 
-        Args:
-            config: Our RunConfig with ADK settings
+                # Merge and validate context vars
+                if source_dicts:
+                    merged_vars = merge_context_vars(source_dicts, source_names)
 
-        Returns:
-            ADK RunConfig for runner.run_async()
-        """
-        # Map streaming mode string to ADK enum
-        streaming_mode_map = {
-            "none": StreamingMode.NONE,
-            "sse": StreamingMode.SSE,
-            "bidi": StreamingMode.BIDI,
-        }
-        streaming_mode = streaming_mode_map.get(
-            config.streaming_mode, StreamingMode.NONE
-        )
+                    # Check for conflicts with upstream_output_keys
+                    upstream_keys = set(agent_ir.upstream_output_keys)
+                    conflicts = upstream_keys & set(merged_vars.keys())
+                    if conflicts:
+                        raise ExecutionError(
+                            f"Context variable conflict in agent '{agent_ir.name}': "
+                            f"'{', '.join(conflicts)}' defined in both context "
+                            f"aggregator and upstream agent output_key. "
+                            f"Use unique variable names."
+                        )
 
-        # Build base ADK RunConfig
-        # Note: max_llm_calls=0 means use default (500), positive values set the limit
-        adk_config = AdkRunConfig(
-            max_llm_calls=config.max_llm_calls if config.max_llm_calls > 0 else 500,
-            streaming_mode=streaming_mode,
-        )
-
-        # Enable context window compression if requested
-        if config.context_window_compression:
-            adk_config.context_window_compression = (
-                types.ContextWindowCompressionConfig()
-            )
-
-        return adk_config
+                    # Merge with existing context_vars instead of overwriting
+                    agent_ir.context_vars = {
+                        **agent_ir.context_vars,
+                        **merged_vars,
+                    }
 
     async def run_async_generator(
         self,
@@ -758,55 +646,8 @@ class WorkflowRunner:
         Yields:
             RunEvent objects as execution progresses, RunResult at end
         """
-        event_queue: asyncio.Queue[RunEvent | None] = asyncio.Queue()
-
-        class QueueCallbacks:
-            async def on_event(self, event: RunEvent) -> None:
-                await event_queue.put(event)
-
-        config_with_callbacks = RunConfig(
-            project_path=config.project_path,
-            tab_id=config.tab_id,
-            input_data=config.input_data,
-            callbacks=QueueCallbacks(),
-            timeout_seconds=config.timeout_seconds,
-            validate=config.validate,
-            user_input_provider=config.user_input_provider,
-            max_llm_calls=config.max_llm_calls,
-            context_window_compression=config.context_window_compression,
-            streaming_mode=config.streaming_mode,
-        )
-
-        # Start run in background
-        run_task = asyncio.create_task(self.run(config_with_callbacks))
-
-        try:
-            while True:
-                # Wait for event or task completion
-                done, _ = await asyncio.wait(
-                    [
-                        asyncio.create_task(event_queue.get()),
-                        run_task,
-                    ],
-                    return_when=asyncio.FIRST_COMPLETED,
-                )
-
-                for task in done:
-                    if task == run_task:
-                        # Drain remaining events
-                        while not event_queue.empty():
-                            event = await event_queue.get()
-                            if event:
-                                yield event
-                        return
-                    else:
-                        event = task.result()
-                        if event:
-                            yield event
-
-        except asyncio.CancelledError:
-            run_task.cancel()
-            raise
+        async for item in run_workflow_generator(self, config):
+            yield item
 
 
 # Convenience function

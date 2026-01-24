@@ -25,6 +25,37 @@ export {
   type FieldChange,
 } from "@/components/nodes/custom/hooks/useModelChangeConfirmation";
 export { ModelChangeConfirmDialog } from "@/components/nodes/custom/ModelChangeConfirmDialog";
+export {
+  useNodeContextMenuActions,
+  type UseNodeContextMenuActionsOptions,
+  type UseNodeContextMenuActionsResult,
+} from "@/components/nodes/custom/hooks/useNodeContextMenuActions";
+export {
+  useNodeExpand,
+  type UseNodeExpandOptions,
+  type UseNodeExpandResult,
+} from "@/components/nodes/custom/hooks/useNodeExpand";
+export {
+  useNodeResize,
+  type UseNodeResizeOptions,
+  type UseNodeResizeResult,
+} from "@/components/nodes/custom/hooks/useNodeResize";
+export {
+  useNodeThemeColor,
+  type UseNodeThemeColorOptions,
+  type UseNodeThemeColorResult,
+} from "@/components/nodes/custom/hooks/useNodeThemeColor";
+export { useNodeStateSync } from "@/components/nodes/custom/hooks/useNodeStateSync";
+export {
+  useConfigChange,
+  type UseConfigChangeOptions,
+  type UseConfigChangeResult,
+} from "@/components/nodes/custom/hooks/useConfigChange";
+export {
+  useAiAssist,
+  type UseAiAssistOptions,
+  type UseAiAssistResult,
+} from "@/components/nodes/custom/hooks/useAiAssist";
 
 // Components
 export {

@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { renderHook } from "@testing-library/react";
 import { useRunWorkflow } from "@/hooks/home/useRunWorkflow";
 import type { TabState } from "@/lib/types";
 
-// Mock the helper hooks
+// Define mock handlers inline to ensure proper hoisting
 const mockExecutionHandlers = {
   handleRunWorkflow: vi.fn(),
   handleRunConfirmSaveAndRun: vi.fn(),
@@ -31,6 +31,7 @@ const mockStateHandlers = {
   handleCloseRunPanel: vi.fn(),
 };
 
+// Mock the helper hooks
 vi.mock("@/hooks/home/helpers/useWorkflowExecution", () => ({
   useWorkflowExecution: vi.fn(() => mockExecutionHandlers),
 }));
@@ -180,186 +181,6 @@ describe("useRunWorkflow", () => {
         setIsRunPanelOpen: mockSetIsRunPanelOpen,
         setCurrentRunId: mockSetCurrentRunId,
       });
-    });
-  });
-
-  describe("execution handlers", () => {
-    it("should return handleRunWorkflow from execution handlers", () => {
-      const { result } = renderHook(() => useRunWorkflow(defaultProps));
-
-      expect(result.current.handleRunWorkflow).toBe(
-        mockExecutionHandlers.handleRunWorkflow,
-      );
-    });
-
-    it("should return handleRunConfirmSaveAndRun from execution handlers", () => {
-      const { result } = renderHook(() => useRunWorkflow(defaultProps));
-
-      expect(result.current.handleRunConfirmSaveAndRun).toBe(
-        mockExecutionHandlers.handleRunConfirmSaveAndRun,
-      );
-    });
-
-    it("should return handleRunConfirmCancel from execution handlers", () => {
-      const { result } = renderHook(() => useRunWorkflow(defaultProps));
-
-      expect(result.current.handleRunConfirmCancel).toBe(
-        mockExecutionHandlers.handleRunConfirmCancel,
-      );
-    });
-
-    it("should call handleRunWorkflow when invoked", () => {
-      const { result } = renderHook(() => useRunWorkflow(defaultProps));
-
-      act(() => {
-        result.current.handleRunWorkflow();
-      });
-
-      expect(mockExecutionHandlers.handleRunWorkflow).toHaveBeenCalled();
-    });
-  });
-
-  describe("validation handlers", () => {
-    it("should return handleValidateWorkflow from validation handlers", () => {
-      const { result } = renderHook(() => useRunWorkflow(defaultProps));
-
-      expect(result.current.handleValidateWorkflow).toBe(
-        mockValidationHandlers.handleValidateWorkflow,
-      );
-    });
-
-    it("should return handleValidationSaveAndValidate from validation handlers", () => {
-      const { result } = renderHook(() => useRunWorkflow(defaultProps));
-
-      expect(result.current.handleValidationSaveAndValidate).toBe(
-        mockValidationHandlers.handleValidationSaveAndValidate,
-      );
-    });
-
-    it("should return handleValidationSaveCancel from validation handlers", () => {
-      const { result } = renderHook(() => useRunWorkflow(defaultProps));
-
-      expect(result.current.handleValidationSaveCancel).toBe(
-        mockValidationHandlers.handleValidationSaveCancel,
-      );
-    });
-
-    it("should call handleValidateWorkflow when invoked", () => {
-      const { result } = renderHook(() => useRunWorkflow(defaultProps));
-
-      act(() => {
-        result.current.handleValidateWorkflow();
-      });
-
-      expect(mockValidationHandlers.handleValidateWorkflow).toHaveBeenCalled();
-    });
-  });
-
-  describe("topology handlers", () => {
-    it("should return handleShowTopology from topology handlers", () => {
-      const { result } = renderHook(() => useRunWorkflow(defaultProps));
-
-      expect(result.current.handleShowTopology).toBe(
-        mockTopologyHandlers.handleShowTopology,
-      );
-    });
-
-    it("should return handleTopologySaveAndShow from topology handlers", () => {
-      const { result } = renderHook(() => useRunWorkflow(defaultProps));
-
-      expect(result.current.handleTopologySaveAndShow).toBe(
-        mockTopologyHandlers.handleTopologySaveAndShow,
-      );
-    });
-
-    it("should return handleTopologySaveCancel from topology handlers", () => {
-      const { result } = renderHook(() => useRunWorkflow(defaultProps));
-
-      expect(result.current.handleTopologySaveCancel).toBe(
-        mockTopologyHandlers.handleTopologySaveCancel,
-      );
-    });
-
-    it("should call handleShowTopology when invoked", () => {
-      const { result } = renderHook(() => useRunWorkflow(defaultProps));
-
-      act(() => {
-        result.current.handleShowTopology();
-      });
-
-      expect(mockTopologyHandlers.handleShowTopology).toHaveBeenCalled();
-    });
-  });
-
-  describe("state handlers", () => {
-    it("should return handleRunComplete from state handlers", () => {
-      const { result } = renderHook(() => useRunWorkflow(defaultProps));
-
-      expect(result.current.handleRunComplete).toBe(
-        mockStateHandlers.handleRunComplete,
-      );
-    });
-
-    it("should return handleAgentStateChange from state handlers", () => {
-      const { result } = renderHook(() => useRunWorkflow(defaultProps));
-
-      expect(result.current.handleAgentStateChange).toBe(
-        mockStateHandlers.handleAgentStateChange,
-      );
-    });
-
-    it("should return handleToolStateChange from state handlers", () => {
-      const { result } = renderHook(() => useRunWorkflow(defaultProps));
-
-      expect(result.current.handleToolStateChange).toBe(
-        mockStateHandlers.handleToolStateChange,
-      );
-    });
-
-    it("should return handleUserInputStateChange from state handlers", () => {
-      const { result } = renderHook(() => useRunWorkflow(defaultProps));
-
-      expect(result.current.handleUserInputStateChange).toBe(
-        mockStateHandlers.handleUserInputStateChange,
-      );
-    });
-
-    it("should return handleClearExecutionState from state handlers", () => {
-      const { result } = renderHook(() => useRunWorkflow(defaultProps));
-
-      expect(result.current.handleClearExecutionState).toBe(
-        mockStateHandlers.handleClearExecutionState,
-      );
-    });
-
-    it("should return handleCloseRunPanel from state handlers", () => {
-      const { result } = renderHook(() => useRunWorkflow(defaultProps));
-
-      expect(result.current.handleCloseRunPanel).toBe(
-        mockStateHandlers.handleCloseRunPanel,
-      );
-    });
-
-    it("should call handleRunComplete when invoked", () => {
-      const { result } = renderHook(() => useRunWorkflow(defaultProps));
-
-      act(() => {
-        result.current.handleRunComplete("success");
-      });
-
-      expect(mockStateHandlers.handleRunComplete).toHaveBeenCalledWith(
-        "success",
-      );
-    });
-
-    it("should call handleClearExecutionState when invoked", () => {
-      const { result } = renderHook(() => useRunWorkflow(defaultProps));
-
-      act(() => {
-        result.current.handleClearExecutionState();
-      });
-
-      expect(mockStateHandlers.handleClearExecutionState).toHaveBeenCalled();
     });
   });
 

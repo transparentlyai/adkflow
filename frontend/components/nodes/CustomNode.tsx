@@ -1,18 +1,9 @@
 "use client";
 
-import { memo, useState, useCallback, useMemo, useEffect } from "react";
-import { type NodeProps, useReactFlow, useStore } from "@xyflow/react";
-import { useTheme } from "@/contexts/ThemeContext";
-import { useCanvasActions } from "@/contexts/CanvasActionsContext";
-import { useConnection } from "@/contexts/ConnectionContext";
-import { useAiChat } from "@/components/AiChat";
+import { memo, useState, useCallback, useMemo } from "react";
+import { type NodeProps, useStore } from "@xyflow/react";
 import NodeContextMenu from "@/components/NodeContextMenu";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import {
-  PROMPT_CREATOR_SYSTEM_PROMPT,
-  PROMPT_FIXER_SYSTEM_PROMPT,
-} from "@/lib/aiPrompts";
-import type { AiAssistOption } from "@/components/nodes/custom/AiAssistButton";
 
 // Import types from dedicated types file
 import type {
@@ -82,11 +73,18 @@ import {
   useConnectedInputs,
   useCustomNodeName,
   useFileOperations,
+  useNodeContextMenuActions,
+  useNodeExpand,
+  useNodeResize,
+  useNodeThemeColor,
+  useNodeStateSync,
+  useAiAssist,
   CustomNodeCollapsed,
   CustomNodeExpanded,
 } from "@/components/nodes/custom";
 import { useModelChangeConfirmation } from "@/components/nodes/custom/hooks/useModelChangeConfirmation";
 import { ModelChangeConfirmDialog } from "@/components/nodes/custom/ModelChangeConfirmDialog";
+import { useConfigChange } from "@/components/nodes/custom/hooks/useConfigChange";
 import { getModelSchema } from "@/lib/constants/modelSchemas";
 
 // Re-export utility function for backwards compatibility
@@ -103,12 +101,6 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
   } = nodeData;
 
   const name = (config.name as string) || schema.label;
-  const { setNodes } = useReactFlow();
-  const { theme } = useTheme();
-  const canvasActions = useCanvasActions();
-  const { nodeToExpand, clearExpansionRequest } = useConnection();
-  const { openChat } = useAiChat();
-  const [isExpanded, setIsExpanded] = useState(dataIsExpanded ?? false);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -122,15 +114,41 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
     ),
   );
 
-  // Context menu handlers
+  // Context menu state handler
   const handleHeaderContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setContextMenu({ x: e.clientX, y: e.clientY });
   }, []);
 
+  // Theme color
+  const { headerColor } = useNodeThemeColor({ schema });
+
+  // Expand/collapse
+  const { isExpanded, toggleExpand } = useNodeExpand({
+    nodeId: id,
+    schema,
+    initialExpanded: dataIsExpanded ?? false,
+  });
+
+  // Resize handler
+  const { handleResize } = useNodeResize({ nodeId: id, schema });
+
+  // Context menu actions
+  const {
+    handleToggleNodeLock,
+    handleDetach,
+    handleCopy,
+    handleCut,
+    handlePaste,
+    handleDelete,
+    canvasActions,
+  } = useNodeContextMenuActions({
+    nodeId: id,
+    isNodeLocked: !!isNodeLocked,
+  });
+
   // Model change confirmation (Agent nodes only)
-  // Must be defined before handleConfigChange which uses requestModelChange
   const {
     isDialogOpen: isModelChangeDialogOpen,
     pendingModel,
@@ -147,135 +165,21 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
     unitId: schema.unit_id,
   });
 
-  // Base config change handler - directly updates config
-  // IMPORTANT: We use node.data.config from the setNodes callback parameter,
-  // NOT the config prop from the closure. This ensures we always have the
-  // latest config even if there are concurrent setNodes updates (e.g., from
-  // file sync subscription).
-  const baseConfigChange = useCallback(
-    (fieldId: string, value: unknown) => {
-      setNodes((nodes) =>
-        nodes.map((node) =>
-          node.id === id
-            ? {
-                ...node,
-                data: {
-                  ...node.data,
-                  config: {
-                    ...((node.data as unknown as CustomNodeData).config || {}),
-                    [fieldId]: value,
-                  },
-                },
-              }
-            : node,
-        ),
-      );
-    },
-    [id, setNodes],
-  );
+  // Config change handler with model change interception
+  const { handleConfigChange } = useConfigChange({
+    nodeId: id,
+    unitId: schema.unit_id,
+    requestModelChange,
+  });
 
-  // Config change handler - intercepts model changes for confirmation
-  const handleConfigChange = useCallback(
-    (fieldId: string, value: unknown) => {
-      // Intercept model changes for Agent nodes
-      if (fieldId === "model" && schema.unit_id === "builtin.agent") {
-        const dialogShown = requestModelChange(value as string);
-        if (dialogShown) {
-          // Dialog will handle the change
-          return;
-        }
-      }
-      // For all other fields, apply directly
-      baseConfigChange(fieldId, value);
-    },
-    [schema.unit_id, requestModelChange, baseConfigChange],
-  );
-
-  // AI assist handler for prompt nodes
-  const handleAiAssist = useCallback(
-    (option: AiAssistOption) => {
-      const content = (config.content as string) || "";
-      const systemPrompt =
-        option === "create"
-          ? PROMPT_CREATOR_SYSTEM_PROMPT.replace("{content}", content)
-          : PROMPT_FIXER_SYSTEM_PROMPT.replace("{content}", content);
-
-      // Initial message to trigger assistant response
-      const initialMessage =
-        option === "create"
-          ? "Hi! I need help creating a prompt."
-          : "Hi! I need help fixing my prompt.";
-
-      openChat({
-        sessionId: `prompt-${id}-${option}`,
-        systemPrompt,
-        context: {
-          nodeId: id,
-          nodeName: name,
-          nodeType: "prompt",
-          assistType: option,
-        },
-        initialMessage,
-        // Handle returned content from chat
-        onContentReturn: (newContent: string) => {
-          handleConfigChange("content", newContent);
-        },
-      });
-    },
-    [id, name, config.content, openChat, handleConfigChange],
-  );
-
-  // Only show AI assist for prompt nodes
+  // AI assist for prompt nodes
   const showAiAssist = schema.ui.theme_key === "prompt";
-
-  const handleToggleNodeLock = useCallback(() => {
-    setNodes((nodes) =>
-      nodes.map((node) =>
-        node.id === id
-          ? { ...node, data: { ...node.data, isNodeLocked: !isNodeLocked } }
-          : node,
-      ),
-    );
-  }, [id, isNodeLocked, setNodes]);
-
-  const handleDetach = useCallback(() => {
-    setNodes((nodes) => {
-      const currentNode = nodes.find((n) => n.id === id);
-      const parentNode = nodes.find((n) => n.id === currentNode?.parentId);
-      if (!currentNode || !parentNode) return nodes;
-
-      return nodes.map((node) =>
-        node.id === id
-          ? {
-              ...node,
-              parentId: undefined,
-              position: {
-                x: currentNode.position.x + parentNode.position.x,
-                y: currentNode.position.y + parentNode.position.y,
-              },
-            }
-          : node,
-      );
-    });
-  }, [id, setNodes]);
-
-  const handleCopy = useCallback(() => {
-    setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
-    setTimeout(() => canvasActions?.copySelectedNodes(), 0);
-  }, [id, setNodes, canvasActions]);
-
-  const handleCut = useCallback(() => {
-    setNodes((nodes) => nodes.map((n) => ({ ...n, selected: n.id === id })));
-    setTimeout(() => canvasActions?.cutSelectedNodes(), 0);
-  }, [id, setNodes, canvasActions]);
-
-  const handlePaste = useCallback(() => {
-    canvasActions?.pasteNodes();
-  }, [canvasActions]);
-
-  const handleDelete = useCallback(() => {
-    setNodes((nodes) => nodes.filter((n) => n.id !== id));
-  }, [id, setNodes]);
+  const { handleAiAssist } = useAiAssist({
+    nodeId: id,
+    nodeName: name,
+    content: (config.content as string) || "",
+    onConfigChange: handleConfigChange,
+  });
 
   // Extract dynamic inputs from config (for nodes that support dynamic inputs)
   const dynamicInputs = useMemo(() => {
@@ -299,36 +203,15 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
     return getModelSchema(currentModel).label;
   }, [config.model]);
 
-  // Sync handleTypes to node.data for the connection registry
-  // This ensures stale saved handleTypes are updated when schema changes
-  useEffect(() => {
-    const currentHandleTypes = nodeData.handleTypes;
-    const handleTypesChanged =
-      JSON.stringify(currentHandleTypes) !== JSON.stringify(handleTypes);
-    if (handleTypesChanged) {
-      setNodes((nodes) =>
-        nodes.map((node) =>
-          node.id === id
-            ? { ...node, data: { ...node.data, handleTypes } }
-            : node,
-        ),
-      );
-    }
-  }, [id, handleTypes, nodeData.handleTypes, setNodes]);
+  // Sync handleTypes and activeTab to node.data
+  useNodeStateSync({
+    nodeId: id,
+    handleTypes,
+    activeTab,
+    currentHandleTypes: nodeData.handleTypes,
+    currentActiveTab: nodeData.activeTab,
+  });
 
-  // Sync activeTab to node.data for edge opacity calculation
-  // This allows the useEdgeTabOpacity hook to know which tab is active
-  useEffect(() => {
-    if (nodeData.activeTab !== activeTab) {
-      setNodes((nodes) =>
-        nodes.map((node) =>
-          node.id === id
-            ? { ...node, data: { ...node.data, activeTab } }
-            : node,
-        ),
-      );
-    }
-  }, [id, activeTab, nodeData.activeTab, setNodes]);
   const {
     isEditing,
     editedName,
@@ -362,118 +245,6 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
     );
   }, [schema]);
 
-  const toggleExpand = useCallback(() => {
-    const newExpanded = !isExpanded;
-
-    setNodes((nodes) =>
-      nodes.map((node) => {
-        if (node.id !== id) return node;
-
-        const nodeData = node.data as unknown as CustomNodeData;
-        const currentPosition = node.position;
-
-        if (newExpanded) {
-          // Expanding: save current as contractedPosition, restore expandedPosition
-          return {
-            ...node,
-            position: nodeData.expandedPosition ?? currentPosition,
-            data: {
-              ...node.data,
-              contractedPosition: currentPosition,
-              isExpanded: true,
-            },
-          };
-        } else {
-          // Collapsing: save current as expandedPosition, restore contractedPosition
-          return {
-            ...node,
-            position: nodeData.contractedPosition ?? currentPosition,
-            data: {
-              ...node.data,
-              expandedPosition: currentPosition,
-              isExpanded: false,
-            },
-          };
-        }
-      }),
-    );
-
-    setIsExpanded(newExpanded);
-  }, [id, isExpanded, setNodes]);
-
-  // Auto-expand when requested by ConnectionContext (edge drag from universal handle)
-  useEffect(() => {
-    if (
-      nodeToExpand === id &&
-      !isExpanded &&
-      schema.ui.expandable &&
-      // Only expand if node has multiple outputs (single output auto-routes)
-      schema.ui.outputs.filter(
-        (o) =>
-          !schema.ui.handle_layout?.additional_handles?.some(
-            (h) => h.id === o.id,
-          ),
-      ).length > 1
-    ) {
-      toggleExpand();
-      clearExpansionRequest();
-      // Cancel the edge drag by dispatching mouseup after expansion
-      // This allows user to pick the specific output handle they want
-      requestAnimationFrame(() => {
-        document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
-      });
-    } else if (nodeToExpand === id) {
-      // Clear even if we didn't expand (single output, already expanded, or not expandable)
-      clearExpansionRequest();
-    }
-  }, [
-    nodeToExpand,
-    id,
-    isExpanded,
-    schema.ui.expandable,
-    schema.ui.outputs,
-    schema.ui.handle_layout?.additional_handles,
-    toggleExpand,
-    clearExpansionRequest,
-  ]);
-
-  // Resize handler for resizable nodes
-  const handleResize = useCallback(
-    (deltaWidth: number, deltaHeight: number) => {
-      const minWidth = schema.ui.min_width ?? 200;
-      const minHeight = schema.ui.min_height ?? 150;
-
-      setNodes((nodes) =>
-        nodes.map((node) => {
-          if (node.id !== id) return node;
-          const currentSize = (node.data as unknown as CustomNodeData)
-            .expandedSize ?? {
-            width: schema.ui.default_width,
-            height: schema.ui.default_height,
-          };
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              expandedSize: {
-                width: Math.max(minWidth, currentSize.width + deltaWidth),
-                height: Math.max(minHeight, currentSize.height + deltaHeight),
-              },
-            },
-          };
-        }),
-      );
-    },
-    [
-      id,
-      schema.ui.default_width,
-      schema.ui.default_height,
-      schema.ui.min_width,
-      schema.ui.min_height,
-      setNodes,
-    ],
-  );
-
   const isFieldVisible = useCallback(
     (field: FieldDefinition) => {
       if (!field.show_if) return true;
@@ -484,23 +255,6 @@ const CustomNode = memo(({ data, id, selected }: NodeProps) => {
     [config],
   );
 
-  // Get header color from theme using theme_key, fallback to schema.ui.color
-  const getThemeHeaderColor = () => {
-    if (schema.ui.theme_key) {
-      const nodesRecord = theme.colors.nodes as unknown as Record<
-        string,
-        unknown
-      >;
-      const nodeColors = nodesRecord[schema.ui.theme_key] as
-        | { header?: string }
-        | undefined;
-      if (nodeColors?.header) {
-        return nodeColors.header;
-      }
-    }
-    return schema.ui.color || theme.colors.nodes.agent.header;
-  };
-  const headerColor = getThemeHeaderColor();
   const width = nodeData.expandedSize?.width || schema.ui.default_width;
 
   // Collapsed view (or non-expandable nodes like pills, circles, etc.)

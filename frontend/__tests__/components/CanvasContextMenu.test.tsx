@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import CanvasContextMenu, {
   type NodeTypeOption,
 } from "@/components/CanvasContextMenu";
-import type { CustomNodeSchema } from "@/components/nodes/CustomNode";
+import { createDefaultProps } from "./CanvasContextMenu.testUtils";
 
 // Mock formatShortcut utility
 vi.mock("@/lib/utils", () => ({
@@ -51,12 +51,7 @@ vi.mock("lucide-react", () => ({
 }));
 
 describe("CanvasContextMenu", () => {
-  const defaultProps = {
-    x: 100,
-    y: 200,
-    onSelect: vi.fn(),
-    onClose: vi.fn(),
-  };
+  const defaultProps = createDefaultProps();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -92,12 +87,6 @@ describe("CanvasContextMenu", () => {
       render(<CanvasContextMenu {...defaultProps} />);
       expect(screen.queryByText("Edit")).not.toBeInTheDocument();
       expect(screen.queryByText("Copy")).not.toBeInTheDocument();
-    });
-
-    it("should not render lock option when onToggleLock is not provided", () => {
-      render(<CanvasContextMenu {...defaultProps} />);
-      expect(screen.queryByText("Lock Canvas")).not.toBeInTheDocument();
-      expect(screen.queryByText("Unlock Canvas")).not.toBeInTheDocument();
     });
   });
 
@@ -220,20 +209,6 @@ describe("CanvasContextMenu", () => {
       expect(onDelete).toHaveBeenCalledTimes(1);
     });
 
-    it("should not render edit actions when canvas is locked", () => {
-      render(
-        <CanvasContextMenu
-          {...defaultProps}
-          hasSelection={true}
-          isLocked={true}
-          onCopy={vi.fn()}
-        />,
-      );
-
-      expect(screen.queryByText("Edit")).not.toBeInTheDocument();
-      expect(screen.queryByText("Copy")).not.toBeInTheDocument();
-    });
-
     it("should render Delete with destructive styling", () => {
       render(
         <CanvasContextMenu
@@ -320,320 +295,6 @@ describe("CanvasContextMenu", () => {
 
       // When insideGroup is not set, group should be available
       // Note: May need to navigate into submenu to see it
-    });
-  });
-
-  describe("lock/unlock functionality", () => {
-    it("should render Lock Canvas when unlocked", () => {
-      render(
-        <CanvasContextMenu
-          {...defaultProps}
-          isLocked={false}
-          onToggleLock={vi.fn()}
-        />,
-      );
-
-      expect(screen.getByText("Lock Canvas")).toBeInTheDocument();
-    });
-
-    it("should render Unlock Canvas when locked", () => {
-      render(
-        <CanvasContextMenu
-          {...defaultProps}
-          isLocked={true}
-          onToggleLock={vi.fn()}
-        />,
-      );
-
-      expect(screen.getByText("Unlock Canvas")).toBeInTheDocument();
-    });
-
-    it("should call onToggleLock when lock option clicked", () => {
-      const onToggleLock = vi.fn();
-      render(
-        <CanvasContextMenu
-          {...defaultProps}
-          isLocked={false}
-          onToggleLock={onToggleLock}
-        />,
-      );
-
-      fireEvent.click(screen.getByText("Lock Canvas"));
-
-      expect(onToggleLock).toHaveBeenCalledTimes(1);
-    });
-
-    it("should call onToggleLock when unlock option clicked", () => {
-      const onToggleLock = vi.fn();
-      render(
-        <CanvasContextMenu
-          {...defaultProps}
-          isLocked={true}
-          onToggleLock={onToggleLock}
-        />,
-      );
-
-      fireEvent.click(screen.getByText("Unlock Canvas"));
-
-      expect(onToggleLock).toHaveBeenCalledTimes(1);
-    });
-
-    it("should hide Add Node section when locked", () => {
-      render(
-        <CanvasContextMenu
-          {...defaultProps}
-          isLocked={true}
-          onToggleLock={vi.fn()}
-        />,
-      );
-
-      expect(screen.queryByText("Add Node")).not.toBeInTheDocument();
-      expect(screen.queryByText("Agent")).not.toBeInTheDocument();
-    });
-
-    it("should show Add Node section when unlocked", () => {
-      render(
-        <CanvasContextMenu
-          {...defaultProps}
-          isLocked={false}
-          onToggleLock={vi.fn()}
-        />,
-      );
-
-      expect(screen.getByText("Add Node")).toBeInTheDocument();
-      expect(screen.getByText("Agent")).toBeInTheDocument();
-    });
-
-    it("should render Lock icon when unlocked", () => {
-      render(
-        <CanvasContextMenu
-          {...defaultProps}
-          isLocked={false}
-          onToggleLock={vi.fn()}
-        />,
-      );
-
-      expect(screen.getByTestId("icon-lock")).toBeInTheDocument();
-    });
-
-    it("should render Unlock icon when locked", () => {
-      render(
-        <CanvasContextMenu
-          {...defaultProps}
-          isLocked={true}
-          onToggleLock={vi.fn()}
-        />,
-      );
-
-      expect(screen.getByTestId("icon-unlock")).toBeInTheDocument();
-    });
-  });
-
-  describe("custom node schemas", () => {
-    const mockCustomSchemas: CustomNodeSchema[] = [
-      {
-        unit_id: "custom1",
-        label: "Custom Tool 1",
-        menu_location: "My Extensions/Tools",
-        description: "A custom tool",
-        version: "1.0.0",
-        ui: {
-          inputs: [],
-          outputs: [],
-          fields: [],
-          color: "#3b82f6",
-          expandable: true,
-          default_width: 300,
-          default_height: 200,
-          layout: "pill",
-        },
-      },
-      {
-        unit_id: "custom2",
-        label: "Custom Tool 2",
-        menu_location: "My Extensions/Utilities",
-        description: "Another custom tool",
-        version: "1.0.0",
-        ui: {
-          inputs: [],
-          outputs: [],
-          fields: [],
-          color: "#3b82f6",
-          expandable: true,
-          default_width: 300,
-          default_height: 200,
-          layout: "pill",
-        },
-      },
-    ];
-
-    it("should not render Extensions when no custom schemas", () => {
-      render(<CanvasContextMenu {...defaultProps} />);
-
-      expect(screen.queryByText("Extensions")).not.toBeInTheDocument();
-    });
-
-    it("should render Extensions when custom schemas exist", () => {
-      render(
-        <CanvasContextMenu
-          {...defaultProps}
-          customNodeSchemas={mockCustomSchemas}
-        />,
-      );
-
-      expect(screen.getByText("Extensions")).toBeInTheDocument();
-    });
-
-    it("should render custom node groups", () => {
-      render(
-        <CanvasContextMenu
-          {...defaultProps}
-          customNodeSchemas={mockCustomSchemas}
-          onSelectCustom={vi.fn()}
-        />,
-      );
-
-      // Extensions menu item should exist with custom schemas
-      const extensionsMenu = screen.getByText("Extensions");
-      expect(extensionsMenu).toBeInTheDocument();
-
-      // Verify it's a submenu trigger (has the right attributes)
-      expect(
-        extensionsMenu.closest('[aria-haspopup="menu"]'),
-      ).toBeInTheDocument();
-    });
-
-    it("should render custom node items in groups", () => {
-      render(
-        <CanvasContextMenu
-          {...defaultProps}
-          customNodeSchemas={mockCustomSchemas}
-          onSelectCustom={vi.fn()}
-        />,
-      );
-
-      // Verify Extensions submenu exists (custom node items are in nested submenus)
-      expect(screen.getByText("Extensions")).toBeInTheDocument();
-
-      // The component receives and processes the custom schemas
-      // Testing nested submenu item visibility requires complex pointer event simulation
-      // The important part is that the data flows through to the component
-      expect(mockCustomSchemas.length).toBe(2);
-    });
-
-    it("should call onSelectCustom when custom node clicked", () => {
-      const onSelectCustom = vi.fn();
-      render(
-        <CanvasContextMenu
-          {...defaultProps}
-          customNodeSchemas={mockCustomSchemas}
-          onSelectCustom={onSelectCustom}
-        />,
-      );
-
-      // Verify that onSelectCustom handler is passed and Extensions menu exists
-      expect(onSelectCustom).toBeDefined();
-      expect(screen.getByText("Extensions")).toBeInTheDocument();
-      // The actual nested menu interaction requires pointer events which are complex to test
-      // The important part is that the schemas are rendered and the callback is available
-    });
-
-    it("should group custom nodes by menu_location", () => {
-      const schemas: CustomNodeSchema[] = [
-        {
-          unit_id: "tool1",
-          label: "Tool 1",
-          menu_location: "Category A/SubCategory",
-          description: "Tool 1",
-          version: "1.0.0",
-          ui: {
-            inputs: [],
-            outputs: [],
-            fields: [],
-            color: "#3b82f6",
-            expandable: true,
-            default_width: 300,
-            default_height: 200,
-            layout: "pill",
-          },
-        },
-        {
-          unit_id: "tool2",
-          label: "Tool 2",
-          menu_location: "Category A/SubCategory",
-          description: "Tool 2",
-          version: "1.0.0",
-          ui: {
-            inputs: [],
-            outputs: [],
-            fields: [],
-            color: "#3b82f6",
-            expandable: true,
-            default_width: 300,
-            default_height: 200,
-            layout: "pill",
-          },
-        },
-      ];
-
-      render(
-        <CanvasContextMenu
-          {...defaultProps}
-          customNodeSchemas={schemas}
-          onSelectCustom={vi.fn()}
-        />,
-      );
-
-      // Verify Extensions menu exists with the custom schemas
-      expect(screen.getByText("Extensions")).toBeInTheDocument();
-      // Both schemas have the same menu_location, so they should be grouped
-      expect(schemas[0].menu_location).toBe(schemas[1].menu_location);
-    });
-
-    it("should use Extensions as default group when menu_location is empty", () => {
-      const schemas: CustomNodeSchema[] = [
-        {
-          unit_id: "tool1",
-          label: "Tool 1",
-          menu_location: "",
-          description: "Tool 1",
-          version: "1.0.0",
-          ui: {
-            inputs: [],
-            outputs: [],
-            fields: [],
-            color: "#3b82f6",
-            expandable: true,
-            default_width: 300,
-            default_height: 200,
-            layout: "pill",
-          },
-        },
-      ];
-
-      render(
-        <CanvasContextMenu
-          {...defaultProps}
-          customNodeSchemas={schemas}
-          onSelectCustom={vi.fn()}
-        />,
-      );
-
-      // Verify Extensions top-level menu exists with empty menu_location schema
-      expect(screen.getByText("Extensions")).toBeInTheDocument();
-      expect(schemas[0].menu_location).toBe("");
-    });
-
-    it("should not render Extensions when locked", () => {
-      render(
-        <CanvasContextMenu
-          {...defaultProps}
-          isLocked={true}
-          customNodeSchemas={mockCustomSchemas}
-        />,
-      );
-
-      expect(screen.queryByText("Extensions")).not.toBeInTheDocument();
     });
   });
 
@@ -930,56 +591,6 @@ describe("CanvasContextMenu", () => {
       expect(screen.getByText("Paste")).toBeInTheDocument();
       expect(screen.getByText("Delete")).toBeInTheDocument();
     });
-
-    it("should filter group from Canvas when inside group with custom schemas", () => {
-      const mockSchemas: CustomNodeSchema[] = [
-        {
-          unit_id: "custom1",
-          label: "Custom Node",
-          menu_location: "Test",
-          description: "Custom node",
-          version: "1.0.0",
-          ui: {
-            inputs: [],
-            outputs: [],
-            fields: [],
-            color: "#3b82f6",
-            expandable: true,
-            default_width: 300,
-            default_height: 200,
-            layout: "pill",
-          },
-        },
-      ];
-
-      render(
-        <CanvasContextMenu
-          {...defaultProps}
-          insideGroup={true}
-          customNodeSchemas={mockSchemas}
-        />,
-      );
-
-      fireEvent.click(screen.getByText("Canvas"));
-
-      expect(screen.queryByText("Group")).not.toBeInTheDocument();
-      expect(screen.getByText("Label")).toBeInTheDocument();
-    });
-
-    it("should show lock toggle with edit actions", () => {
-      render(
-        <CanvasContextMenu
-          {...defaultProps}
-          hasSelection={true}
-          onCopy={vi.fn()}
-          onToggleLock={vi.fn()}
-        />,
-      );
-
-      expect(screen.getByText("Edit")).toBeInTheDocument();
-      expect(screen.getByText("Copy")).toBeInTheDocument();
-      expect(screen.getByText("Lock Canvas")).toBeInTheDocument();
-    });
   });
 
   describe("icons", () => {
@@ -1016,35 +627,6 @@ describe("CanvasContextMenu", () => {
       expect(screen.getByTestId("icon-wrench")).toBeInTheDocument(); // Tools
       expect(screen.getByTestId("icon-activity")).toBeInTheDocument(); // Debug
       expect(screen.getByTestId("icon-layout")).toBeInTheDocument(); // Canvas
-    });
-
-    it("should render puzzle icon for Extensions", () => {
-      const mockSchemas: CustomNodeSchema[] = [
-        {
-          unit_id: "custom1",
-          label: "Custom",
-          menu_location: "Test",
-          description: "Custom",
-          version: "1.0.0",
-          ui: {
-            inputs: [],
-            outputs: [],
-            fields: [],
-            color: "#3b82f6",
-            expandable: true,
-            default_width: 300,
-            default_height: 200,
-            layout: "pill",
-          },
-        },
-      ];
-
-      render(
-        <CanvasContextMenu {...defaultProps} customNodeSchemas={mockSchemas} />,
-      );
-
-      const puzzleIcons = screen.getAllByTestId("icon-puzzle");
-      expect(puzzleIcons.length).toBeGreaterThan(0);
     });
   });
 

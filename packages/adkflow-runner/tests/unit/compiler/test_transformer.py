@@ -5,148 +5,19 @@ Tests the transformation of workflow graphs into Intermediate Representation (IR
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any
 from unittest.mock import patch
 
 import pytest
 
 from adkflow_runner.compiler.graph import (
     GraphEdge,
-    GraphNode,
     TeleporterPair,
-    WorkflowGraph,
 )
-from adkflow_runner.compiler.loader import LoadedProject, LoadedTab
-from adkflow_runner.compiler.parser import ParsedNode
+from adkflow_runner.compiler.loader import LoadedProject
 from adkflow_runner.compiler.transformer import IRTransformer
 from adkflow_runner.config import EdgeSemantics, ExecutionConfig
 from adkflow_runner.errors import CompilationError
 from adkflow_runner.ir import AgentIR
-
-
-# =============================================================================
-# Test Fixtures
-# =============================================================================
-
-
-@pytest.fixture
-def transformer() -> IRTransformer:
-    """Create a default transformer instance."""
-    return IRTransformer()
-
-
-@pytest.fixture
-def mock_project(tmp_path: Path) -> LoadedProject:
-    """Create a mock loaded project."""
-    return LoadedProject(
-        path=tmp_path,
-        name="test-project",
-        version="3.0",
-        tabs=[
-            LoadedTab(
-                id="tab1",
-                name="Main",
-                order=0,
-                flow_data={"nodes": [], "edges": []},
-            )
-        ],
-    )
-
-
-@pytest.fixture
-def make_graph_node():
-    """Factory to create GraphNode instances for testing.
-
-    Note: Node configuration is stored in data.config, not data.agent.
-    """
-
-    def _make(
-        node_id: str,
-        node_type: str = "agent",
-        name: str | None = None,
-        tab_id: str = "tab1",
-        **config_kwargs: Any,
-    ) -> GraphNode:
-        name = name or node_id.upper()
-
-        # Build config dict - all node configs go in data.config
-        config: dict[str, Any] = {"name": name}
-        if node_type == "agent":
-            config["type"] = "llm"
-        config.update(config_kwargs)
-
-        data: dict[str, Any] = {"config": config, "tabId": tab_id}
-
-        parsed = ParsedNode(
-            id=node_id,
-            type=node_type,
-            position=(0.0, 0.0),
-            data=data,
-        )
-
-        return GraphNode(
-            id=node_id,
-            type=node_type,
-            name=name,
-            tab_id=tab_id,
-            data=data,
-            parsed_node=parsed,
-        )
-
-    return _make
-
-
-@pytest.fixture
-def make_graph_edge():
-    """Factory to create GraphEdge instances for testing."""
-
-    def _make(
-        source: GraphNode,
-        target: GraphNode,
-        semantics: EdgeSemantics = EdgeSemantics.SEQUENTIAL,
-    ) -> GraphEdge:
-        edge = GraphEdge(
-            source_id=source.id,
-            target_id=target.id,
-            semantics=semantics,
-        )
-        source.outgoing.append(edge)
-        target.incoming.append(edge)
-        return edge
-
-    return _make
-
-
-@pytest.fixture
-def make_workflow_graph():
-    """Factory to create WorkflowGraph instances for testing."""
-
-    def _make(
-        nodes: list[GraphNode],
-        edges: list[GraphEdge],
-        teleporter_pairs: list[TeleporterPair] | None = None,
-    ) -> WorkflowGraph:
-        nodes_dict = {n.id: n for n in nodes}
-
-        # Find entry nodes (agents with no incoming sequential edges)
-        entry_nodes = []
-        for node in nodes:
-            if node.type == "agent":
-                has_sequential = any(
-                    e.semantics == EdgeSemantics.SEQUENTIAL for e in node.incoming
-                )
-                if not has_sequential:
-                    entry_nodes.append(node)
-
-        return WorkflowGraph(
-            nodes=nodes_dict,
-            edges=edges,
-            teleporter_pairs=teleporter_pairs or [],
-            entry_nodes=entry_nodes,
-        )
-
-    return _make
 
 
 # =============================================================================
@@ -176,10 +47,10 @@ class TestTransform:
         self,
         transformer: IRTransformer,
         mock_project: LoadedProject,
-        make_workflow_graph,
+        make_workflow_graph_for_transformer,
     ):
         """Should raise error for graph with no agents."""
-        graph = make_workflow_graph(nodes=[], edges=[])
+        graph = make_workflow_graph_for_transformer(nodes=[], edges=[])
 
         with pytest.raises(CompilationError, match="No root agent found"):
             transformer.transform(graph, mock_project)
@@ -188,15 +59,15 @@ class TestTransform:
         self,
         transformer: IRTransformer,
         mock_project: LoadedProject,
-        make_graph_node,
-        make_workflow_graph,
+        make_graph_node_with_config,
+        make_workflow_graph_for_transformer,
     ):
         """Should transform a single agent graph."""
-        agent = make_graph_node(
+        agent = make_graph_node_with_config(
             "agent-1", "agent", name="TestAgent", model="gemini-2.0-flash"
         )
 
-        graph = make_workflow_graph(nodes=[agent], edges=[])
+        graph = make_workflow_graph_for_transformer(nodes=[agent], edges=[])
 
         with (
             patch(
@@ -238,16 +109,18 @@ class TestTransform:
         self,
         transformer: IRTransformer,
         mock_project: LoadedProject,
-        make_graph_node,
-        make_graph_edge,
-        make_workflow_graph,
+        make_graph_node_with_config,
+        make_graph_edge_connected,
+        make_workflow_graph_for_transformer,
     ):
         """Should transform a sequential chain of agents."""
-        agent1 = make_graph_node("agent-1", "agent", name="Agent1")
-        agent2 = make_graph_node("agent-2", "agent", name="Agent2")
+        agent1 = make_graph_node_with_config("agent-1", "agent", name="Agent1")
+        agent2 = make_graph_node_with_config("agent-2", "agent", name="Agent2")
 
-        edge = make_graph_edge(agent1, agent2, EdgeSemantics.SEQUENTIAL)
-        graph = make_workflow_graph(nodes=[agent1, agent2], edges=[edge])
+        edge = make_graph_edge_connected(agent1, agent2, EdgeSemantics.SEQUENTIAL)
+        graph = make_workflow_graph_for_transformer(
+            nodes=[agent1, agent2], edges=[edge]
+        )
 
         with (
             patch(
@@ -289,22 +162,28 @@ class TestTransform:
         self,
         transformer: IRTransformer,
         mock_project: LoadedProject,
-        make_graph_node,
-        make_graph_edge,
-        make_workflow_graph,
+        make_graph_node_with_config,
+        make_graph_edge_connected,
+        make_workflow_graph_for_transformer,
     ):
         """Should transform graph with teleporter connections."""
-        agent1 = make_graph_node("agent-1", "agent", name="Agent1")
+        agent1 = make_graph_node_with_config("agent-1", "agent", name="Agent1")
 
-        teleport_out = make_graph_node("teleport-out", "teleportOut", name="CrossTab")
-        teleport_in = make_graph_node(
+        teleport_out = make_graph_node_with_config(
+            "teleport-out", "teleportOut", name="CrossTab"
+        )
+        teleport_in = make_graph_node_with_config(
             "teleport-in", "teleportIn", name="CrossTab", tab_id="tab2"
         )
 
-        agent2 = make_graph_node("agent-2", "agent", name="Agent2", tab_id="tab2")
+        agent2 = make_graph_node_with_config(
+            "agent-2", "agent", name="Agent2", tab_id="tab2"
+        )
 
-        edge1 = make_graph_edge(agent1, teleport_out, EdgeSemantics.SEQUENTIAL)
-        edge2 = make_graph_edge(teleport_in, agent2, EdgeSemantics.SEQUENTIAL)
+        edge1 = make_graph_edge_connected(
+            agent1, teleport_out, EdgeSemantics.SEQUENTIAL
+        )
+        edge2 = make_graph_edge_connected(teleport_in, agent2, EdgeSemantics.SEQUENTIAL)
 
         teleporter_pair = TeleporterPair(
             name="CrossTab",
@@ -312,7 +191,7 @@ class TestTransform:
             input_node=teleport_in,
         )
 
-        graph = make_workflow_graph(
+        graph = make_workflow_graph_for_transformer(
             nodes=[agent1, teleport_out, teleport_in, agent2],
             edges=[edge1, edge2],
             teleporter_pairs=[teleporter_pair],
@@ -357,16 +236,16 @@ class TestTransform:
         self,
         transformer: IRTransformer,
         mock_project: LoadedProject,
-        make_graph_node,
-        make_graph_edge,
-        make_workflow_graph,
+        make_graph_node_with_config,
+        make_graph_edge_connected,
+        make_workflow_graph_for_transformer,
     ):
         """Should detect start node in graph."""
-        start = make_graph_node("start-1", "start", name="Start")
-        agent = make_graph_node("agent-1", "agent", name="Agent1")
+        start = make_graph_node_with_config("start-1", "start", name="Start")
+        agent = make_graph_node_with_config("agent-1", "agent", name="Agent1")
 
-        edge = make_graph_edge(start, agent, EdgeSemantics.SEQUENTIAL)
-        graph = make_workflow_graph(nodes=[start, agent], edges=[edge])
+        edge = make_graph_edge_connected(start, agent, EdgeSemantics.SEQUENTIAL)
+        graph = make_workflow_graph_for_transformer(nodes=[start, agent], edges=[edge])
 
         with (
             patch(
@@ -405,16 +284,16 @@ class TestTransform:
         self,
         transformer: IRTransformer,
         mock_project: LoadedProject,
-        make_graph_node,
-        make_graph_edge,
-        make_workflow_graph,
+        make_graph_node_with_config,
+        make_graph_edge_connected,
+        make_workflow_graph_for_transformer,
     ):
         """Should detect end node in graph."""
-        agent = make_graph_node("agent-1", "agent", name="Agent1")
-        end = make_graph_node("end-1", "end", name="End")
+        agent = make_graph_node_with_config("agent-1", "agent", name="Agent1")
+        end = make_graph_node_with_config("end-1", "end", name="End")
 
-        edge = make_graph_edge(agent, end, EdgeSemantics.SEQUENTIAL)
-        graph = make_workflow_graph(nodes=[agent, end], edges=[edge])
+        edge = make_graph_edge_connected(agent, end, EdgeSemantics.SEQUENTIAL)
+        graph = make_workflow_graph_for_transformer(nodes=[agent, end], edges=[edge])
 
         with (
             patch(
@@ -453,13 +332,13 @@ class TestTransform:
         self,
         transformer: IRTransformer,
         mock_project: LoadedProject,
-        make_graph_node,
-        make_workflow_graph,
+        make_graph_node_with_config,
+        make_workflow_graph_for_transformer,
     ):
         """Should include project metadata in result."""
-        agent = make_graph_node("agent-1", "agent", name="Agent1")
+        agent = make_graph_node_with_config("agent-1", "agent", name="Agent1")
 
-        graph = make_workflow_graph(nodes=[agent], edges=[])
+        graph = make_workflow_graph_for_transformer(nodes=[agent], edges=[])
 
         with (
             patch(
@@ -498,482 +377,28 @@ class TestTransform:
         assert "tab1" in result.tab_ids
 
 
-class TestTransformAgent:
-    """Tests for the _transform_agent method."""
-
-    def test_transform_basic_llm_agent(
-        self,
-        transformer: IRTransformer,
-        mock_project: LoadedProject,
-        make_graph_node,
-        make_workflow_graph,
-    ):
-        """Should transform a basic LLM agent."""
-        agent = make_graph_node(
-            "agent-1",
-            "agent",
-            name="TestAgent",
-            type="llm",
-            model="gemini-2.0-flash",
-            temperature=0.5,
-        )
-
-        graph = make_workflow_graph(nodes=[agent], edges=[])
-
-        with (
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_instruction"
-            ) as mock_instr,
-            patch("adkflow_runner.compiler.transformer.resolve_tools") as mock_tools,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_context_var_sources"
-            ) as mock_ctx,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_upstream_output_keys"
-            ) as mock_keys,
-        ):
-            mock_instr.return_value = "You are a helpful assistant."
-            mock_tools.return_value = []
-            mock_ctx.return_value = []
-            mock_keys.return_value = []
-
-            agent_ir = transformer._transform_agent(agent, graph, mock_project)
-
-        assert agent_ir.id == "agent-1"
-        assert agent_ir.name == "TestAgent"
-        assert agent_ir.type == "llm"
-        assert agent_ir.model == "gemini-2.0-flash"
-        assert agent_ir.temperature == 0.5
-        assert agent_ir.instruction == "You are a helpful assistant."
-
-    def test_transform_agent_with_planner(
-        self,
-        transformer: IRTransformer,
-        mock_project: LoadedProject,
-        make_graph_node,
-        make_workflow_graph,
-    ):
-        """Should transform agent with planner config."""
-        agent = make_graph_node(
-            "agent-1",
-            "agent",
-            name="PlannerAgent",
-            planner_type="react",
-            thinking_budget=100,
-            include_thoughts=True,
-        )
-
-        graph = make_workflow_graph(nodes=[agent], edges=[])
-
-        with (
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_instruction"
-            ) as mock_instr,
-            patch("adkflow_runner.compiler.transformer.resolve_tools") as mock_tools,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_context_var_sources"
-            ) as mock_ctx,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_upstream_output_keys"
-            ) as mock_keys,
-        ):
-            mock_instr.return_value = None
-            mock_tools.return_value = []
-            mock_ctx.return_value = []
-            mock_keys.return_value = []
-
-            agent_ir = transformer._transform_agent(agent, graph, mock_project)
-
-        assert agent_ir.planner.type == "react"
-        assert agent_ir.planner.thinking_budget == 100
-        assert agent_ir.planner.include_thoughts is True
-
-    def test_transform_agent_with_nested_planner(
-        self,
-        transformer: IRTransformer,
-        mock_project: LoadedProject,
-        make_graph_node,
-        make_workflow_graph,
-    ):
-        """Should transform agent with nested planner config."""
-        agent = make_graph_node(
-            "agent-1",
-            "agent",
-            name="PlannerAgent",
-            planner={
-                "type": "builtin",
-                "thinking_budget": 50,
-                "include_thoughts": False,
-            },
-        )
-
-        graph = make_workflow_graph(nodes=[agent], edges=[])
-
-        with (
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_instruction"
-            ) as mock_instr,
-            patch("adkflow_runner.compiler.transformer.resolve_tools") as mock_tools,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_context_var_sources"
-            ) as mock_ctx,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_upstream_output_keys"
-            ) as mock_keys,
-        ):
-            mock_instr.return_value = None
-            mock_tools.return_value = []
-            mock_ctx.return_value = []
-            mock_keys.return_value = []
-
-            agent_ir = transformer._transform_agent(agent, graph, mock_project)
-
-        assert agent_ir.planner.type == "builtin"
-        assert agent_ir.planner.thinking_budget == 50
-        assert agent_ir.planner.include_thoughts is False
-
-    def test_transform_agent_with_code_executor(
-        self,
-        transformer: IRTransformer,
-        mock_project: LoadedProject,
-        make_graph_node,
-        make_workflow_graph,
-    ):
-        """Should transform agent with code executor config."""
-        agent = make_graph_node(
-            "agent-1",
-            "agent",
-            name="CodeAgent",
-            code_executor_enabled=True,
-            code_executor_stateful=True,
-            code_executor_error_retry=5,
-        )
-
-        graph = make_workflow_graph(nodes=[agent], edges=[])
-
-        with (
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_instruction"
-            ) as mock_instr,
-            patch("adkflow_runner.compiler.transformer.resolve_tools") as mock_tools,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_context_var_sources"
-            ) as mock_ctx,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_upstream_output_keys"
-            ) as mock_keys,
-        ):
-            mock_instr.return_value = None
-            mock_tools.return_value = []
-            mock_ctx.return_value = []
-            mock_keys.return_value = []
-
-            agent_ir = transformer._transform_agent(agent, graph, mock_project)
-
-        assert agent_ir.code_executor.enabled is True
-        assert agent_ir.code_executor.stateful is True
-        assert agent_ir.code_executor.error_retry_attempts == 5
-
-    def test_transform_agent_with_http_options(
-        self,
-        transformer: IRTransformer,
-        mock_project: LoadedProject,
-        make_graph_node,
-        make_workflow_graph,
-    ):
-        """Should transform agent with HTTP options config."""
-        agent = make_graph_node(
-            "agent-1",
-            "agent",
-            name="HttpAgent",
-            http_timeout=60000,
-            http_max_retries=5,
-            http_retry_delay=2000,
-            http_backoff_multiplier=3.0,
-        )
-
-        graph = make_workflow_graph(nodes=[agent], edges=[])
-
-        with (
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_instruction"
-            ) as mock_instr,
-            patch("adkflow_runner.compiler.transformer.resolve_tools") as mock_tools,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_context_var_sources"
-            ) as mock_ctx,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_upstream_output_keys"
-            ) as mock_keys,
-        ):
-            mock_instr.return_value = None
-            mock_tools.return_value = []
-            mock_ctx.return_value = []
-            mock_keys.return_value = []
-
-            agent_ir = transformer._transform_agent(agent, graph, mock_project)
-
-        assert agent_ir.http_options.timeout == 60000
-        assert agent_ir.http_options.max_retries == 5
-        assert agent_ir.http_options.retry_delay == 2000
-        assert agent_ir.http_options.retry_backoff_multiplier == 3.0
-
-    def test_transform_agent_with_callbacks(
-        self,
-        transformer: IRTransformer,
-        mock_project: LoadedProject,
-        make_graph_node,
-        make_workflow_graph,
-    ):
-        """Should transform agent with callback config."""
-        agent = make_graph_node(
-            "agent-1",
-            "agent",
-            name="CallbackAgent",
-            before_model_callback="callbacks/before_model.py",
-            after_model_callback="callbacks/after_model.py",
-            before_tool_callback="callbacks/before_tool.py",
-            after_tool_callback="callbacks/after_tool.py",
-        )
-
-        graph = make_workflow_graph(nodes=[agent], edges=[])
-
-        with (
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_instruction"
-            ) as mock_instr,
-            patch("adkflow_runner.compiler.transformer.resolve_tools") as mock_tools,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_context_var_sources"
-            ) as mock_ctx,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_upstream_output_keys"
-            ) as mock_keys,
-        ):
-            mock_instr.return_value = None
-            mock_tools.return_value = []
-            mock_ctx.return_value = []
-            mock_keys.return_value = []
-
-            agent_ir = transformer._transform_agent(agent, graph, mock_project)
-
-        # Callbacks are now wrapped in CallbackSourceIR
-        assert agent_ir.callbacks.before_model is not None
-        assert agent_ir.callbacks.before_model.file_path == "callbacks/before_model.py"
-        assert agent_ir.callbacks.after_model is not None
-        assert agent_ir.callbacks.after_model.file_path == "callbacks/after_model.py"
-        assert agent_ir.callbacks.before_tool is not None
-        assert agent_ir.callbacks.before_tool.file_path == "callbacks/before_tool.py"
-        assert agent_ir.callbacks.after_tool is not None
-        assert agent_ir.callbacks.after_tool.file_path == "callbacks/after_tool.py"
-
-    def test_transform_agent_with_output_config(
-        self,
-        transformer: IRTransformer,
-        mock_project: LoadedProject,
-        make_graph_node,
-        make_workflow_graph,
-    ):
-        """Should transform agent with output config."""
-        agent = make_graph_node(
-            "agent-1",
-            "agent",
-            name="OutputAgent",
-            output_key="response",
-            output_schema='{"type": "object"}',
-            input_schema='{"type": "string"}',
-        )
-
-        graph = make_workflow_graph(nodes=[agent], edges=[])
-
-        with (
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_instruction"
-            ) as mock_instr,
-            patch("adkflow_runner.compiler.transformer.resolve_tools") as mock_tools,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_context_var_sources"
-            ) as mock_ctx,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_upstream_output_keys"
-            ) as mock_keys,
-        ):
-            mock_instr.return_value = None
-            mock_tools.return_value = []
-            mock_ctx.return_value = []
-            mock_keys.return_value = []
-
-            agent_ir = transformer._transform_agent(agent, graph, mock_project)
-
-        assert agent_ir.output_key == "response"
-        assert agent_ir.output_schema == '{"type": "object"}'
-        assert agent_ir.input_schema == '{"type": "string"}'
-
-    def test_transform_sequential_agent(
-        self,
-        transformer: IRTransformer,
-        mock_project: LoadedProject,
-        make_graph_node,
-        make_workflow_graph,
-    ):
-        """Should transform sequential agent type."""
-        agent = make_graph_node("agent-1", "agent", name="SeqAgent", type="sequential")
-
-        graph = make_workflow_graph(nodes=[agent], edges=[])
-
-        with (
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_instruction"
-            ) as mock_instr,
-            patch("adkflow_runner.compiler.transformer.resolve_tools") as mock_tools,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_context_var_sources"
-            ) as mock_ctx,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_upstream_output_keys"
-            ) as mock_keys,
-        ):
-            mock_instr.return_value = None
-            mock_tools.return_value = []
-            mock_ctx.return_value = []
-            mock_keys.return_value = []
-
-            agent_ir = transformer._transform_agent(agent, graph, mock_project)
-
-        assert agent_ir.type == "sequential"
-
-    def test_transform_parallel_agent(
-        self,
-        transformer: IRTransformer,
-        mock_project: LoadedProject,
-        make_graph_node,
-        make_workflow_graph,
-    ):
-        """Should transform parallel agent type."""
-        agent = make_graph_node("agent-1", "agent", name="ParAgent", type="parallel")
-
-        graph = make_workflow_graph(nodes=[agent], edges=[])
-
-        with (
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_instruction"
-            ) as mock_instr,
-            patch("adkflow_runner.compiler.transformer.resolve_tools") as mock_tools,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_context_var_sources"
-            ) as mock_ctx,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_upstream_output_keys"
-            ) as mock_keys,
-        ):
-            mock_instr.return_value = None
-            mock_tools.return_value = []
-            mock_ctx.return_value = []
-            mock_keys.return_value = []
-
-            agent_ir = transformer._transform_agent(agent, graph, mock_project)
-
-        assert agent_ir.type == "parallel"
-
-    def test_transform_loop_agent(
-        self,
-        transformer: IRTransformer,
-        mock_project: LoadedProject,
-        make_graph_node,
-        make_workflow_graph,
-    ):
-        """Should transform loop agent type."""
-        agent = make_graph_node(
-            "agent-1", "agent", name="LoopAgent", type="loop", max_iterations=10
-        )
-
-        graph = make_workflow_graph(nodes=[agent], edges=[])
-
-        with (
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_instruction"
-            ) as mock_instr,
-            patch("adkflow_runner.compiler.transformer.resolve_tools") as mock_tools,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_context_var_sources"
-            ) as mock_ctx,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_upstream_output_keys"
-            ) as mock_keys,
-        ):
-            mock_instr.return_value = None
-            mock_tools.return_value = []
-            mock_ctx.return_value = []
-            mock_keys.return_value = []
-
-            agent_ir = transformer._transform_agent(agent, graph, mock_project)
-
-        assert agent_ir.type == "loop"
-        assert agent_ir.max_iterations == 10
-
-    def test_transform_agent_with_transfer_controls(
-        self,
-        transformer: IRTransformer,
-        mock_project: LoadedProject,
-        make_graph_node,
-        make_workflow_graph,
-    ):
-        """Should transform agent with transfer controls."""
-        agent = make_graph_node(
-            "agent-1",
-            "agent",
-            name="TransferAgent",
-            disallow_transfer_to_parent=True,
-            disallow_transfer_to_peers=True,
-        )
-
-        graph = make_workflow_graph(nodes=[agent], edges=[])
-
-        with (
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_instruction"
-            ) as mock_instr,
-            patch("adkflow_runner.compiler.transformer.resolve_tools") as mock_tools,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_context_var_sources"
-            ) as mock_ctx,
-            patch(
-                "adkflow_runner.compiler.transformer.resolve_upstream_output_keys"
-            ) as mock_keys,
-        ):
-            mock_instr.return_value = None
-            mock_tools.return_value = []
-            mock_ctx.return_value = []
-            mock_keys.return_value = []
-
-            agent_ir = transformer._transform_agent(agent, graph, mock_project)
-
-        assert agent_ir.disallow_transfer_to_parent is True
-        assert agent_ir.disallow_transfer_to_peers is True
-
-
 class TestBuildAgentHierarchy:
     """Tests for _build_agent_hierarchy method."""
 
     def test_build_sequential_agent_subagents(
         self,
         transformer: IRTransformer,
-        make_graph_node,
-        make_graph_edge,
-        make_workflow_graph,
+        make_graph_node_with_config,
+        make_graph_edge_connected,
+        make_workflow_graph_for_transformer,
     ):
         """Should build subagents list for sequential agents."""
-        seq_agent = make_graph_node(
+        seq_agent = make_graph_node_with_config(
             "seq-1", "agent", name="SeqAgent", type="sequential"
         )
-        sub1 = make_graph_node("sub-1", "agent", name="Sub1")
-        sub2 = make_graph_node("sub-2", "agent", name="Sub2")
+        sub1 = make_graph_node_with_config("sub-1", "agent", name="Sub1")
+        sub2 = make_graph_node_with_config("sub-2", "agent", name="Sub2")
 
         # Connect seq_agent to sub1 to sub2
-        edge1 = make_graph_edge(seq_agent, sub1, EdgeSemantics.SEQUENTIAL)
-        edge2 = make_graph_edge(sub1, sub2, EdgeSemantics.SEQUENTIAL)
+        edge1 = make_graph_edge_connected(seq_agent, sub1, EdgeSemantics.SEQUENTIAL)
+        edge2 = make_graph_edge_connected(sub1, sub2, EdgeSemantics.SEQUENTIAL)
 
-        graph = make_workflow_graph(
+        graph = make_workflow_graph_for_transformer(
             nodes=[seq_agent, sub1, sub2],
             edges=[edge1, edge2],
         )
@@ -993,20 +418,22 @@ class TestBuildAgentHierarchy:
     def test_build_parallel_agent_subagents(
         self,
         transformer: IRTransformer,
-        make_graph_node,
-        make_graph_edge,
-        make_workflow_graph,
+        make_graph_node_with_config,
+        make_graph_edge_connected,
+        make_workflow_graph_for_transformer,
     ):
         """Should build subagents list for parallel agents."""
-        par_agent = make_graph_node("par-1", "agent", name="ParAgent", type="parallel")
-        branch1 = make_graph_node("branch-1", "agent", name="Branch1")
-        branch2 = make_graph_node("branch-2", "agent", name="Branch2")
+        par_agent = make_graph_node_with_config(
+            "par-1", "agent", name="ParAgent", type="parallel"
+        )
+        branch1 = make_graph_node_with_config("branch-1", "agent", name="Branch1")
+        branch2 = make_graph_node_with_config("branch-2", "agent", name="Branch2")
 
         # Connect par_agent to branches with PARALLEL semantics
-        edge1 = make_graph_edge(par_agent, branch1, EdgeSemantics.PARALLEL)
-        edge2 = make_graph_edge(par_agent, branch2, EdgeSemantics.PARALLEL)
+        edge1 = make_graph_edge_connected(par_agent, branch1, EdgeSemantics.PARALLEL)
+        edge2 = make_graph_edge_connected(par_agent, branch2, EdgeSemantics.PARALLEL)
 
-        graph = make_workflow_graph(
+        graph = make_workflow_graph_for_transformer(
             nodes=[par_agent, branch1, branch2],
             edges=[edge1, edge2],
         )
@@ -1027,12 +454,12 @@ class TestBuildAgentHierarchy:
     def test_build_hierarchy_with_missing_node(
         self,
         transformer: IRTransformer,
-        make_graph_node,  # noqa: ARG002
-        make_workflow_graph,
+        make_graph_node_with_config,  # noqa: ARG002
+        make_workflow_graph_for_transformer,
     ):
         """Should handle missing nodes gracefully."""
         # Create graph without the sequential agent node
-        graph = make_workflow_graph(nodes=[], edges=[])
+        graph = make_workflow_graph_for_transformer(nodes=[], edges=[])
 
         all_agents = {
             "seq-1": AgentIR(id="seq-1", name="SeqAgent", type="sequential"),
@@ -1049,12 +476,12 @@ class TestFindSequentialChain:
     def test_find_empty_chain(
         self,
         transformer: IRTransformer,
-        make_graph_node,
-        make_workflow_graph,
+        make_graph_node_with_config,
+        make_workflow_graph_for_transformer,
     ):
         """Should return empty list when no outgoing sequential edges."""
-        agent = make_graph_node("agent-1", "agent", name="Agent1")
-        graph = make_workflow_graph(nodes=[agent], edges=[])
+        agent = make_graph_node_with_config("agent-1", "agent", name="Agent1")
+        graph = make_workflow_graph_for_transformer(nodes=[agent], edges=[])
 
         all_agents = {
             "agent-1": AgentIR(id="agent-1", name="Agent1", type="sequential"),
@@ -1066,19 +493,19 @@ class TestFindSequentialChain:
     def test_find_linear_chain(
         self,
         transformer: IRTransformer,
-        make_graph_node,
-        make_graph_edge,
-        make_workflow_graph,
+        make_graph_node_with_config,
+        make_graph_edge_connected,
+        make_workflow_graph_for_transformer,
     ):
         """Should find agents in a linear chain."""
-        start = make_graph_node("start", "agent", name="Start")
-        mid = make_graph_node("mid", "agent", name="Mid")
-        end = make_graph_node("end", "agent", name="End")
+        start = make_graph_node_with_config("start", "agent", name="Start")
+        mid = make_graph_node_with_config("mid", "agent", name="Mid")
+        end = make_graph_node_with_config("end", "agent", name="End")
 
-        edge1 = make_graph_edge(start, mid, EdgeSemantics.SEQUENTIAL)
-        edge2 = make_graph_edge(mid, end, EdgeSemantics.SEQUENTIAL)
+        edge1 = make_graph_edge_connected(start, mid, EdgeSemantics.SEQUENTIAL)
+        edge2 = make_graph_edge_connected(mid, end, EdgeSemantics.SEQUENTIAL)
 
-        graph = make_workflow_graph(
+        graph = make_workflow_graph_for_transformer(
             nodes=[start, mid, end],
             edges=[edge1, edge2],
         )
@@ -1097,20 +524,24 @@ class TestFindSequentialChain:
     def test_find_chain_skips_non_sequential(
         self,
         transformer: IRTransformer,
-        make_graph_node,
-        make_graph_edge,
-        make_workflow_graph,
+        make_graph_node_with_config,
+        make_graph_edge_connected,
+        make_workflow_graph_for_transformer,
     ):
         """Should only follow SEQUENTIAL edges."""
-        start = make_graph_node("start", "agent", name="Start")
-        parallel_target = make_graph_node("par", "agent", name="Par")
-        seq_target = make_graph_node("seq", "agent", name="Seq")
+        start = make_graph_node_with_config("start", "agent", name="Start")
+        parallel_target = make_graph_node_with_config("par", "agent", name="Par")
+        seq_target = make_graph_node_with_config("seq", "agent", name="Seq")
 
         # Mix of edge types
-        par_edge = make_graph_edge(start, parallel_target, EdgeSemantics.PARALLEL)
-        seq_edge = make_graph_edge(start, seq_target, EdgeSemantics.SEQUENTIAL)
+        par_edge = make_graph_edge_connected(
+            start, parallel_target, EdgeSemantics.PARALLEL
+        )
+        seq_edge = make_graph_edge_connected(
+            start, seq_target, EdgeSemantics.SEQUENTIAL
+        )
 
-        graph = make_workflow_graph(
+        graph = make_workflow_graph_for_transformer(
             nodes=[start, parallel_target, seq_target],
             edges=[par_edge, seq_edge],
         )
@@ -1128,16 +559,16 @@ class TestFindSequentialChain:
     def test_find_chain_handles_cycles(
         self,
         transformer: IRTransformer,
-        make_graph_node,
-        make_graph_edge,
-        make_workflow_graph,
+        make_graph_node_with_config,
+        make_graph_edge_connected,
+        make_workflow_graph_for_transformer,
     ):
         """Should handle cycles without infinite loop."""
-        a = make_graph_node("a", "agent", name="A")
-        b = make_graph_node("b", "agent", name="B")
+        a = make_graph_node_with_config("a", "agent", name="A")
+        b = make_graph_node_with_config("b", "agent", name="B")
 
         # Create cycle: A -> B -> A
-        edge1 = make_graph_edge(a, b, EdgeSemantics.SEQUENTIAL)
+        edge1 = make_graph_edge_connected(a, b, EdgeSemantics.SEQUENTIAL)
         # Manually create back edge to avoid helper function
         back_edge = GraphEdge(
             source_id=b.id,
@@ -1147,7 +578,7 @@ class TestFindSequentialChain:
         b.outgoing.append(back_edge)
         a.incoming.append(back_edge)
 
-        graph = make_workflow_graph(
+        graph = make_workflow_graph_for_transformer(
             nodes=[a, b],
             edges=[edge1, back_edge],
         )
@@ -1168,12 +599,12 @@ class TestFindParallelAgents:
     def test_find_no_parallel(
         self,
         transformer: IRTransformer,
-        make_graph_node,
-        make_workflow_graph,
+        make_graph_node_with_config,
+        make_workflow_graph_for_transformer,
     ):
         """Should return empty when no parallel edges."""
-        agent = make_graph_node("agent-1", "agent", name="Agent1")
-        graph = make_workflow_graph(nodes=[agent], edges=[])
+        agent = make_graph_node_with_config("agent-1", "agent", name="Agent1")
+        graph = make_workflow_graph_for_transformer(nodes=[agent], edges=[])
 
         all_agents = {
             "agent-1": AgentIR(id="agent-1", name="Agent1", type="parallel"),
@@ -1185,21 +616,21 @@ class TestFindParallelAgents:
     def test_find_multiple_parallel(
         self,
         transformer: IRTransformer,
-        make_graph_node,
-        make_graph_edge,
-        make_workflow_graph,
+        make_graph_node_with_config,
+        make_graph_edge_connected,
+        make_workflow_graph_for_transformer,
     ):
         """Should find all parallel-connected agents."""
-        root = make_graph_node("root", "agent", name="Root")
-        branch1 = make_graph_node("b1", "agent", name="Branch1")
-        branch2 = make_graph_node("b2", "agent", name="Branch2")
-        branch3 = make_graph_node("b3", "agent", name="Branch3")
+        root = make_graph_node_with_config("root", "agent", name="Root")
+        branch1 = make_graph_node_with_config("b1", "agent", name="Branch1")
+        branch2 = make_graph_node_with_config("b2", "agent", name="Branch2")
+        branch3 = make_graph_node_with_config("b3", "agent", name="Branch3")
 
-        edge1 = make_graph_edge(root, branch1, EdgeSemantics.PARALLEL)
-        edge2 = make_graph_edge(root, branch2, EdgeSemantics.PARALLEL)
-        edge3 = make_graph_edge(root, branch3, EdgeSemantics.PARALLEL)
+        edge1 = make_graph_edge_connected(root, branch1, EdgeSemantics.PARALLEL)
+        edge2 = make_graph_edge_connected(root, branch2, EdgeSemantics.PARALLEL)
+        edge3 = make_graph_edge_connected(root, branch3, EdgeSemantics.PARALLEL)
 
-        graph = make_workflow_graph(
+        graph = make_workflow_graph_for_transformer(
             nodes=[root, branch1, branch2, branch3],
             edges=[edge1, edge2, edge3],
         )
@@ -1221,19 +652,21 @@ class TestFindParallelAgents:
     def test_find_parallel_ignores_sequential(
         self,
         transformer: IRTransformer,
-        make_graph_node,
-        make_graph_edge,
-        make_workflow_graph,
+        make_graph_node_with_config,
+        make_graph_edge_connected,
+        make_workflow_graph_for_transformer,
     ):
         """Should only return PARALLEL-connected agents."""
-        root = make_graph_node("root", "agent", name="Root")
-        parallel_target = make_graph_node("par", "agent", name="Par")
-        seq_target = make_graph_node("seq", "agent", name="Seq")
+        root = make_graph_node_with_config("root", "agent", name="Root")
+        parallel_target = make_graph_node_with_config("par", "agent", name="Par")
+        seq_target = make_graph_node_with_config("seq", "agent", name="Seq")
 
-        par_edge = make_graph_edge(root, parallel_target, EdgeSemantics.PARALLEL)
-        seq_edge = make_graph_edge(root, seq_target, EdgeSemantics.SEQUENTIAL)
+        par_edge = make_graph_edge_connected(
+            root, parallel_target, EdgeSemantics.PARALLEL
+        )
+        seq_edge = make_graph_edge_connected(root, seq_target, EdgeSemantics.SEQUENTIAL)
 
-        graph = make_workflow_graph(
+        graph = make_workflow_graph_for_transformer(
             nodes=[root, parallel_target, seq_target],
             edges=[par_edge, seq_edge],
         )
@@ -1255,12 +688,12 @@ class TestBuildSequentialChainFromRoot:
     def test_build_single_agent_chain(
         self,
         transformer: IRTransformer,
-        make_graph_node,
-        make_workflow_graph,
+        make_graph_node_with_config,
+        make_workflow_graph_for_transformer,
     ):
         """Should build chain with single agent."""
-        root = make_graph_node("root", "agent", name="Root")
-        graph = make_workflow_graph(nodes=[root], edges=[])
+        root = make_graph_node_with_config("root", "agent", name="Root")
+        graph = make_workflow_graph_for_transformer(nodes=[root], edges=[])
 
         all_agents = {
             "root": AgentIR(id="root", name="Root", type="llm"),
@@ -1273,19 +706,19 @@ class TestBuildSequentialChainFromRoot:
     def test_build_multi_agent_chain(
         self,
         transformer: IRTransformer,
-        make_graph_node,
-        make_graph_edge,
-        make_workflow_graph,
+        make_graph_node_with_config,
+        make_graph_edge_connected,
+        make_workflow_graph_for_transformer,
     ):
         """Should build chain following sequential edges."""
-        a = make_graph_node("a", "agent", name="A")
-        b = make_graph_node("b", "agent", name="B")
-        c = make_graph_node("c", "agent", name="C")
+        a = make_graph_node_with_config("a", "agent", name="A")
+        b = make_graph_node_with_config("b", "agent", name="B")
+        c = make_graph_node_with_config("c", "agent", name="C")
 
-        edge1 = make_graph_edge(a, b, EdgeSemantics.SEQUENTIAL)
-        edge2 = make_graph_edge(b, c, EdgeSemantics.SEQUENTIAL)
+        edge1 = make_graph_edge_connected(a, b, EdgeSemantics.SEQUENTIAL)
+        edge2 = make_graph_edge_connected(b, c, EdgeSemantics.SEQUENTIAL)
 
-        graph = make_workflow_graph(
+        graph = make_workflow_graph_for_transformer(
             nodes=[a, b, c],
             edges=[edge1, edge2],
         )
@@ -1305,17 +738,17 @@ class TestBuildSequentialChainFromRoot:
     def test_build_chain_stops_at_non_agent(
         self,
         transformer: IRTransformer,
-        make_graph_node,
-        make_graph_edge,
-        make_workflow_graph,
+        make_graph_node_with_config,
+        make_graph_edge_connected,
+        make_workflow_graph_for_transformer,
     ):
         """Should stop at non-agent nodes."""
-        agent = make_graph_node("agent", "agent", name="Agent")
-        end_node = make_graph_node("end", "end", name="End")
+        agent = make_graph_node_with_config("agent", "agent", name="Agent")
+        end_node = make_graph_node_with_config("end", "end", name="End")
 
-        edge = make_graph_edge(agent, end_node, EdgeSemantics.SEQUENTIAL)
+        edge = make_graph_edge_connected(agent, end_node, EdgeSemantics.SEQUENTIAL)
 
-        graph = make_workflow_graph(
+        graph = make_workflow_graph_for_transformer(
             nodes=[agent, end_node],
             edges=[edge],
         )
@@ -1331,15 +764,15 @@ class TestBuildSequentialChainFromRoot:
     def test_build_chain_handles_cycle(
         self,
         transformer: IRTransformer,
-        make_graph_node,
-        make_graph_edge,
-        make_workflow_graph,
+        make_graph_node_with_config,
+        make_graph_edge_connected,
+        make_workflow_graph_for_transformer,
     ):
         """Should handle cycles by tracking visited nodes."""
-        a = make_graph_node("a", "agent", name="A")
-        b = make_graph_node("b", "agent", name="B")
+        a = make_graph_node_with_config("a", "agent", name="A")
+        b = make_graph_node_with_config("b", "agent", name="B")
 
-        edge1 = make_graph_edge(a, b, EdgeSemantics.SEQUENTIAL)
+        edge1 = make_graph_edge_connected(a, b, EdgeSemantics.SEQUENTIAL)
         # Create back edge manually
         back_edge = GraphEdge(
             source_id=b.id,
@@ -1349,7 +782,7 @@ class TestBuildSequentialChainFromRoot:
         b.outgoing.append(back_edge)
         a.incoming.append(back_edge)
 
-        graph = make_workflow_graph(
+        graph = make_workflow_graph_for_transformer(
             nodes=[a, b],
             edges=[edge1, back_edge],
         )
@@ -1366,20 +799,20 @@ class TestBuildSequentialChainFromRoot:
     def test_build_chain_takes_first_sequential(
         self,
         transformer: IRTransformer,
-        make_graph_node,
-        make_graph_edge,
-        make_workflow_graph,
+        make_graph_node_with_config,
+        make_graph_edge_connected,
+        make_workflow_graph_for_transformer,
     ):
         """When multiple sequential edges, should take first valid one."""
-        a = make_graph_node("a", "agent", name="A")
-        b = make_graph_node("b", "agent", name="B")
-        c = make_graph_node("c", "agent", name="C")
+        a = make_graph_node_with_config("a", "agent", name="A")
+        b = make_graph_node_with_config("b", "agent", name="B")
+        c = make_graph_node_with_config("c", "agent", name="C")
 
         # A has two sequential outgoing edges
-        edge1 = make_graph_edge(a, b, EdgeSemantics.SEQUENTIAL)
-        edge2 = make_graph_edge(a, c, EdgeSemantics.SEQUENTIAL)
+        edge1 = make_graph_edge_connected(a, b, EdgeSemantics.SEQUENTIAL)
+        edge2 = make_graph_edge_connected(a, c, EdgeSemantics.SEQUENTIAL)
 
-        graph = make_workflow_graph(
+        graph = make_workflow_graph_for_transformer(
             nodes=[a, b, c],
             edges=[edge1, edge2],
         )

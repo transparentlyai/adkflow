@@ -3,18 +3,17 @@
  */
 
 import React, { useCallback, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Info } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import CustomNodeInput from "@/components/nodes/custom/CustomNodeInput";
 import CustomNodeOutput from "@/components/nodes/custom/CustomNodeOutput";
-import MonacoEditorWidget from "@/components/nodes/widgets/MonacoEditorWidget";
-import { renderWidget } from "@/components/nodes/widgets/WidgetRenderer";
 import {
   groupBySection,
   hasCodeEditorWidget,
   getCodeEditorField,
 } from "@/components/nodes/custom/expandedNodeUtils";
 import { DynamicInputEditor } from "@/components/nodes/custom/expanded/DynamicInputEditor";
+import { FieldRenderer } from "@/components/nodes/custom/expanded/FieldRenderer";
+import { CollapsibleSection } from "@/components/nodes/custom/expanded/CollapsibleSection";
 import type {
   CustomNodeSchema,
   CustomNodeData,
@@ -66,7 +65,7 @@ export function ExpandedNodeContentArea({
 
   // Track collapsed sections (Safety collapsed by default)
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
-    new Set(["Safety"]),
+    new Set(["Safety"])
   );
 
   const toggleSection = useCallback((sectionName: string) => {
@@ -84,7 +83,7 @@ export function ExpandedNodeContentArea({
   // Get additional handles (used to filter outputs rendered inside vs at edge)
   const additionalHandles = useMemo(
     () => schema.ui.handle_layout?.additional_handles || [],
-    [schema.ui.handle_layout?.additional_handles],
+    [schema.ui.handle_layout?.additional_handles]
   );
 
   // Fields handled by DynamicInputEditor (excluded from normal rendering)
@@ -98,7 +97,7 @@ export function ExpandedNodeContentArea({
             "includeMetadata",
           ])
         : new Set<string>(),
-    [schema.ui.dynamic_inputs],
+    [schema.ui.dynamic_inputs]
   );
 
   // Get elements for a specific tab
@@ -122,159 +121,8 @@ export function ExpandedNodeContentArea({
         outputs: schema.ui.outputs.filter(tabFilter),
       };
     },
-    [schema, isFieldVisible, dynamicInputEditorFields],
+    [schema, isFieldVisible, dynamicInputEditorFields]
   );
-
-  // Render config field with optional label width for alignment
-  const renderField = (field: FieldDefinition, labelWidth?: number) => {
-    // Check if this field has a corresponding connected input (e.g., callback handles)
-    const connectedSources = connectedInputs[field.id];
-    const isOverridden = connectedSources && connectedSources.length > 0;
-
-    if (field.widget === "code_editor" || field.widget === "monaco_editor") {
-      const editorHeight = nodeData.expandedSize?.height
-        ? nodeData.expandedSize.height - 150
-        : 200;
-
-      return (
-        <div key={field.id} className="space-y-1">
-          <MonacoEditorWidget
-            value={
-              (config[field.id] as string) ?? (field.default as string) ?? ""
-            }
-            onChange={(value) => onConfigChange(field.id, value)}
-            language={field.language || "python"}
-            readOnly={nodeData.isNodeLocked}
-            height={Math.max(150, editorHeight)}
-            showMenuBar={!!onSave && !!filePath}
-            filePath={filePath}
-            onSave={onSave}
-            onChangeFile={onChangeFile}
-            isDirty={isDirty}
-            isSaving={isSaving}
-            hideGutter={field.hide_gutter}
-          />
-        </div>
-      );
-    }
-
-    // KeyValueList widget renders full-width without label row (has its own header)
-    if (field.widget === "keyValueList" || field.widget === "key_value_list") {
-      return (
-        <div key={field.id}>
-          {renderWidget(
-            field,
-            config[field.id] ?? field.default,
-            (value) => onConfigChange(field.id, value),
-            { disabled: nodeData.isNodeLocked, theme, compact: true },
-          )}
-        </div>
-      );
-    }
-
-    // If field is overridden by a connected node, show indicator
-    if (isOverridden) {
-      return (
-        <div key={field.id} className="flex items-center gap-1">
-          <label
-            className="text-[10px] font-medium flex-shrink-0"
-            style={{
-              color: theme.colors.nodes.common.text.muted,
-              minWidth: labelWidth ? `${labelWidth}ch` : undefined,
-            }}
-          >
-            {field.label}
-          </label>
-          <div
-            className="flex-1 min-w-0 flex items-center gap-1.5 px-1.5 py-0.5 rounded text-[11px]"
-            style={{
-              backgroundColor: `${theme.colors.nodes.common.container.border}40`,
-              color: theme.colors.nodes.common.text.muted,
-            }}
-            title={`Overridden by connected node: ${connectedSources.join(", ")}`}
-          >
-            <Info className="w-3 h-3 flex-shrink-0" />
-            <span className="truncate">
-              Connected: {connectedSources.join(", ")}
-            </span>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div key={field.id} className="flex items-center gap-1">
-        <label
-          className="text-[10px] font-medium flex-shrink-0"
-          style={{
-            color: theme.colors.nodes.common.text.secondary,
-            minWidth: labelWidth ? `${labelWidth}ch` : undefined,
-            cursor: field.help_text ? "help" : undefined,
-          }}
-          title={field.help_text}
-        >
-          {field.label}
-          {field.required && <span className="text-red-500 ml-0.5">*</span>}
-        </label>
-        <div className="flex-1 min-w-0">
-          {renderWidget(
-            field,
-            config[field.id] ?? field.default,
-            (value) => onConfigChange(field.id, value),
-            { disabled: nodeData.isNodeLocked, theme, compact: true },
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // Render section with header and separator (collapsible when named)
-  const renderSection = (
-    sectionName: string | null,
-    content: React.ReactNode,
-    isFirst: boolean = false,
-    compact: boolean = false,
-  ) => {
-    const isCollapsed = sectionName
-      ? collapsedSections.has(sectionName)
-      : false;
-    const isCollapsible = !!sectionName;
-
-    return (
-      <div
-        key={sectionName || "default"}
-        className={isFirst ? "" : "mt-2 pt-2 border-t"}
-        style={
-          isFirst
-            ? undefined
-            : { borderColor: theme.colors.nodes.common.container.border }
-        }
-      >
-        {sectionName && (
-          <button
-            type="button"
-            onClick={() => toggleSection(sectionName)}
-            className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide mb-1 pl-1 border-l-2 w-full text-left hover:opacity-80 transition-opacity"
-            style={{
-              color: theme.colors.nodes.common.text.muted,
-              borderColor: headerColor,
-            }}
-          >
-            {isCollapsible &&
-              (isCollapsed ? (
-                <ChevronRight className="w-3 h-3" />
-              ) : (
-                <ChevronDown className="w-3 h-3" />
-              ))}
-            {sectionName}
-          </button>
-        )}
-        {!isCollapsed && (
-          <div className={compact ? "" : "space-y-1"}>{content}</div>
-        )}
-      </div>
-    );
-  };
 
   // Get handle position for an input/output from additional_handles
   const getHandlePosition = useCallback(
@@ -288,7 +136,7 @@ export function ExpandedNodeContentArea({
       }
       return undefined;
     },
-    [additionalHandles],
+    [additionalHandles]
   );
 
   // Render input port
@@ -334,20 +182,56 @@ export function ExpandedNodeContentArea({
     <div className="p-2 nodrag nowheel" style={{ overflow: "visible" }}>
       {/* Inputs grouped by section - use global label width for grid alignment */}
       {Array.from(inputSections.entries()).map(([section, inputs]) => {
-        return renderSection(
-          section,
-          inputs.map((input) => renderInput(input, globalMaxInputLabelWidth)),
-          sectionIndex++ === 0,
-          true,
+        const isFirst = sectionIndex++ === 0;
+        return (
+          <CollapsibleSection
+            key={section || "default-inputs"}
+            sectionName={section}
+            isFirst={isFirst}
+            compact={true}
+            isCollapsed={section ? collapsedSections.has(section) : false}
+            onToggle={toggleSection}
+            theme={theme}
+            headerColor={headerColor}
+          >
+            {inputs.map((input) => renderInput(input, globalMaxInputLabelWidth))}
+          </CollapsibleSection>
         );
       })}
 
       {/* Fields grouped by section - use global label width for grid alignment */}
       {Array.from(fieldSections.entries()).map(([section, fields]) => {
-        return renderSection(
-          section,
-          fields.map((field) => renderField(field, globalMaxFieldLabelWidth)),
-          sectionIndex++ === 0,
+        const isFirst = sectionIndex++ === 0;
+        return (
+          <CollapsibleSection
+            key={section || "default-fields"}
+            sectionName={section}
+            isFirst={isFirst}
+            compact={false}
+            isCollapsed={section ? collapsedSections.has(section) : false}
+            onToggle={toggleSection}
+            theme={theme}
+            headerColor={headerColor}
+          >
+            {fields.map((field) => (
+              <FieldRenderer
+                key={field.id}
+                field={field}
+                config={config}
+                connectedInputs={connectedInputs}
+                theme={theme}
+                labelWidth={globalMaxFieldLabelWidth}
+                isNodeLocked={nodeData.isNodeLocked}
+                expandedHeight={nodeData.expandedSize?.height}
+                filePath={filePath}
+                onSave={onSave}
+                onChangeFile={onChangeFile}
+                isSaving={isSaving}
+                isDirty={isDirty}
+                onConfigChange={onConfigChange}
+              />
+            ))}
+          </CollapsibleSection>
         );
       })}
 
@@ -445,7 +329,7 @@ export function ExpandedNodeContentArea({
 // Helper hooks for parent component
 export function useCodeEditorInfo(
   schema: CustomNodeSchema,
-  config: Record<string, unknown>,
+  config: Record<string, unknown>
 ) {
   const hasEditor = useMemo(() => hasCodeEditorWidget(schema), [schema]);
   const codeEditorField = useMemo(() => getCodeEditorField(schema), [schema]);

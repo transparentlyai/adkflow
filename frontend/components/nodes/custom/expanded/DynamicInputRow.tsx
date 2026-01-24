@@ -2,8 +2,6 @@
 
 import { useCallback } from "react";
 import {
-  FolderOpen,
-  Link2,
   Trash2,
   ChevronRight,
   ChevronDown,
@@ -18,9 +16,13 @@ import { useProject } from "@/contexts/ProjectContext";
 import type {
   DynamicInputConfig,
   DynamicInputType,
-  DirectoryAggregationMode,
-  NamingPatternType,
 } from "@/components/nodes/CustomNode";
+import {
+  FileInputConfig,
+  DirectoryInputConfig,
+  UrlInputConfig,
+  NodeInputConfig,
+} from "./inputs";
 
 interface DynamicInputRowProps {
   input: DynamicInputConfig;
@@ -41,20 +43,6 @@ const INPUT_TYPE_ICONS: Record<DynamicInputType, React.ReactNode> = {
   url: <Globe className="w-3 h-3" />,
   node: <Cable className="w-3 h-3" />,
 };
-
-const DIR_AGGREGATION_OPTIONS: {
-  value: DirectoryAggregationMode;
-  label: string;
-}[] = [
-  { value: "concatenate", label: "Concatenate" },
-  { value: "pass", label: "Pass (separate vars)" },
-];
-
-const NAMING_PATTERN_OPTIONS: { value: NamingPatternType; label: string }[] = [
-  { value: "file_name", label: "{base}_{file_name}" },
-  { value: "number", label: "{base}_{number}" },
-  { value: "custom", label: "Custom pattern" },
-];
 
 export function DynamicInputRow({
   input,
@@ -113,7 +101,6 @@ export function DynamicInputRow({
     color: theme.colors.nodes.common.text.secondary,
   };
 
-  // Get a short summary for collapsed state
   const getCollapsedSummary = () => {
     switch (input.inputType) {
       case "file":
@@ -142,7 +129,7 @@ export function DynamicInputRow({
         overflow: "visible",
       }}
     >
-      {/* Input handle - visible for all input types */}
+      {/* Input handle */}
       <Handle
         type="target"
         position={Position.Left}
@@ -162,7 +149,7 @@ export function DynamicInputRow({
         }}
       />
 
-      {/* Collapsed header - always visible, clickable to expand */}
+      {/* Collapsed header */}
       <div
         className="flex items-center gap-1.5 px-2 py-1.5 cursor-pointer hover:bg-accent/30 transition-colors"
         onClick={onToggleExpand}
@@ -219,7 +206,7 @@ export function DynamicInputRow({
           className="px-2 pb-2 pt-1 space-y-1.5 border-t"
           style={{ borderColor: theme.colors.nodes.common.container.border }}
         >
-          {/* Header row: label input, type selector */}
+          {/* Label input */}
           <div className="flex items-center gap-1">
             <label
               className="text-[10px] flex-shrink-0 w-16"
@@ -238,7 +225,7 @@ export function DynamicInputRow({
             />
           </div>
 
-          {/* Variable name row */}
+          {/* Variable name */}
           <div className="flex items-center gap-1">
             <label
               className="text-[10px] flex-shrink-0 w-16"
@@ -259,322 +246,49 @@ export function DynamicInputRow({
 
           {/* Type-specific configuration */}
           {input.inputType === "file" && (
-            <div className="flex items-center gap-1">
-              <label
-                className="text-[10px] flex-shrink-0 w-16"
-                style={labelStyle}
-              >
-                File
-              </label>
-              <input
-                type="text"
-                value={input.filePath || ""}
-                onChange={(e) => updateField("filePath", e.target.value)}
-                placeholder="path/to/file.txt"
-                disabled={isNodeLocked}
-                className="flex-1 min-w-0 px-1.5 py-0.5 rounded text-[11px] border"
-                style={inputStyle}
-              />
-              <button
-                type="button"
-                onClick={handleFileBrowse}
-                disabled={isNodeLocked || !onRequestFilePicker}
-                className="px-1.5 py-0.5 rounded border flex items-center gap-0.5 text-[10px] hover:bg-accent transition-colors disabled:opacity-50"
-                style={{
-                  borderColor: theme.colors.nodes.common.container.border,
-                  color: theme.colors.nodes.common.text.primary,
-                }}
-              >
-                <FolderOpen className="w-3 h-3" />
-              </button>
-            </div>
+            <FileInputConfig
+              input={input}
+              onUpdateField={updateField}
+              onFileBrowse={handleFileBrowse}
+              isNodeLocked={isNodeLocked}
+              canBrowse={!!onRequestFilePicker}
+              inputStyle={inputStyle}
+              labelStyle={labelStyle}
+              theme={theme}
+            />
           )}
 
           {input.inputType === "directory" && (
-            <>
-              <div className="flex items-center gap-1">
-                <label
-                  className="text-[10px] flex-shrink-0 w-16"
-                  style={labelStyle}
-                >
-                  Directory
-                </label>
-                <input
-                  type="text"
-                  value={input.directoryPath || ""}
-                  onChange={(e) => updateField("directoryPath", e.target.value)}
-                  placeholder="path/to/directory"
-                  disabled={isNodeLocked}
-                  className="flex-1 min-w-0 px-1.5 py-0.5 rounded text-[11px] border"
-                  style={inputStyle}
-                />
-                <button
-                  type="button"
-                  onClick={handleDirBrowse}
-                  disabled={isNodeLocked || !onRequestFilePicker}
-                  className="px-1.5 py-0.5 rounded border flex items-center gap-0.5 text-[10px] hover:bg-accent transition-colors disabled:opacity-50"
-                  style={{
-                    borderColor: theme.colors.nodes.common.container.border,
-                    color: theme.colors.nodes.common.text.primary,
-                  }}
-                >
-                  <FolderOpen className="w-3 h-3" />
-                </button>
-              </div>
-              <div className="flex items-center gap-1">
-                <label
-                  className="text-[10px] flex-shrink-0 w-16"
-                  style={labelStyle}
-                >
-                  Glob
-                </label>
-                <input
-                  type="text"
-                  value={input.globPattern || "*"}
-                  onChange={(e) => updateField("globPattern", e.target.value)}
-                  placeholder="**/*.md"
-                  disabled={isNodeLocked}
-                  className="flex-1 min-w-0 px-1.5 py-0.5 rounded text-[11px] border font-mono"
-                  style={inputStyle}
-                />
-              </div>
-              {/* Recursive toggle */}
-              <div className="flex items-center gap-1">
-                <label
-                  className="text-[10px] flex-shrink-0 w-16"
-                  style={labelStyle}
-                >
-                  Recursive
-                </label>
-                <input
-                  type="checkbox"
-                  checked={input.recursive || false}
-                  onChange={(e) => updateField("recursive", e.target.checked)}
-                  disabled={isNodeLocked}
-                  className="w-3.5 h-3.5"
-                />
-                <span
-                  className="text-[9px]"
-                  style={{ color: theme.colors.nodes.common.text.muted }}
-                >
-                  Scan subdirectories
-                </span>
-              </div>
-              {/* Exclude patterns - shown when recursive */}
-              {input.recursive && (
-                <div className="flex items-center gap-1">
-                  <label
-                    className="text-[10px] flex-shrink-0 w-16"
-                    style={labelStyle}
-                  >
-                    Exclude
-                  </label>
-                  <input
-                    type="text"
-                    value={(input.excludePatterns || []).join(", ")}
-                    onChange={(e) =>
-                      updateField(
-                        "excludePatterns",
-                        e.target.value
-                          .split(",")
-                          .map((p) => p.trim())
-                          .filter(Boolean),
-                      )
-                    }
-                    placeholder=".git, node_modules, __pycache__"
-                    disabled={isNodeLocked}
-                    className="flex-1 min-w-0 px-1.5 py-0.5 rounded text-[11px] border font-mono"
-                    style={inputStyle}
-                  />
-                </div>
-              )}
-              {/* Limits row */}
-              <div className="flex items-center gap-1">
-                <label
-                  className="text-[10px] flex-shrink-0 w-16"
-                  style={labelStyle}
-                >
-                  Limits
-                </label>
-                <div className="flex-1 flex items-center gap-1.5">
-                  <input
-                    type="number"
-                    value={input.maxFiles ?? 100}
-                    onChange={(e) =>
-                      updateField("maxFiles", parseInt(e.target.value) || 100)
-                    }
-                    disabled={isNodeLocked}
-                    className="w-14 px-1 py-0.5 rounded text-[10px] border text-center"
-                    style={inputStyle}
-                    min={1}
-                    max={1000}
-                  />
-                  <span
-                    className="text-[9px]"
-                    style={{ color: theme.colors.nodes.common.text.muted }}
-                  >
-                    files,
-                  </span>
-                  <input
-                    type="number"
-                    value={Math.round((input.maxFileSize ?? 1048576) / 1024)}
-                    onChange={(e) =>
-                      updateField(
-                        "maxFileSize",
-                        (parseInt(e.target.value) || 1024) * 1024,
-                      )
-                    }
-                    disabled={isNodeLocked}
-                    className="w-14 px-1 py-0.5 rounded text-[10px] border text-center"
-                    style={inputStyle}
-                    min={1}
-                    max={10240}
-                  />
-                  <span
-                    className="text-[9px]"
-                    style={{ color: theme.colors.nodes.common.text.muted }}
-                  >
-                    KB each
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <label
-                  className="text-[10px] flex-shrink-0 w-16"
-                  style={labelStyle}
-                >
-                  Aggregation
-                </label>
-                <select
-                  value={input.directoryAggregation || "concatenate"}
-                  onChange={(e) =>
-                    updateField(
-                      "directoryAggregation",
-                      e.target.value as DirectoryAggregationMode,
-                    )
-                  }
-                  disabled={isNodeLocked}
-                  className="flex-1 px-1.5 py-0.5 rounded text-[11px] border bg-transparent"
-                  style={inputStyle}
-                >
-                  {DIR_AGGREGATION_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {input.directoryAggregation === "concatenate" && (
-                <div className="flex items-center gap-1">
-                  <label
-                    className="text-[10px] flex-shrink-0 w-16"
-                    style={labelStyle}
-                  >
-                    Separator
-                  </label>
-                  <input
-                    type="text"
-                    value={input.directorySeparator || "\\n\\n---"}
-                    onChange={(e) =>
-                      updateField("directorySeparator", e.target.value)
-                    }
-                    placeholder={
-                      includeMetadata
-                        ? "\\n--- {source_name} ---\\n"
-                        : "\\n\\n---"
-                    }
-                    disabled={isNodeLocked}
-                    className="flex-1 min-w-0 px-1.5 py-0.5 rounded text-[11px] border font-mono"
-                    style={inputStyle}
-                  />
-                </div>
-              )}
-              {input.directoryAggregation === "pass" && (
-                <>
-                  <div className="flex items-center gap-1">
-                    <label
-                      className="text-[10px] flex-shrink-0 w-16"
-                      style={labelStyle}
-                    >
-                      Naming
-                    </label>
-                    <select
-                      value={input.namingPattern || "file_name"}
-                      onChange={(e) =>
-                        updateField(
-                          "namingPattern",
-                          e.target.value as NamingPatternType,
-                        )
-                      }
-                      disabled={isNodeLocked}
-                      className="flex-1 px-1.5 py-0.5 rounded text-[11px] border bg-transparent"
-                      style={inputStyle}
-                    >
-                      {NAMING_PATTERN_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {input.namingPattern === "custom" && (
-                    <div className="flex items-center gap-1">
-                      <label
-                        className="text-[10px] flex-shrink-0 w-16"
-                        style={labelStyle}
-                      >
-                        Pattern
-                      </label>
-                      <input
-                        type="text"
-                        value={input.customPattern || "{base}_{file_name}"}
-                        onChange={(e) =>
-                          updateField("customPattern", e.target.value)
-                        }
-                        placeholder="{base}_{file_name}"
-                        disabled={isNodeLocked}
-                        className="flex-1 min-w-0 px-1.5 py-0.5 rounded text-[11px] border font-mono"
-                        style={inputStyle}
-                      />
-                    </div>
-                  )}
-                </>
-              )}
-            </>
+            <DirectoryInputConfig
+              input={input}
+              onUpdateField={updateField}
+              onDirBrowse={handleDirBrowse}
+              isNodeLocked={isNodeLocked}
+              canBrowse={!!onRequestFilePicker}
+              includeMetadata={includeMetadata}
+              inputStyle={inputStyle}
+              labelStyle={labelStyle}
+              theme={theme}
+            />
           )}
 
           {input.inputType === "url" && (
-            <div className="flex items-center gap-1">
-              <label
-                className="text-[10px] flex-shrink-0 w-16"
-                style={labelStyle}
-              >
-                URL
-              </label>
-              <input
-                type="text"
-                value={input.url || ""}
-                onChange={(e) => updateField("url", e.target.value)}
-                placeholder="https://example.com/data.json"
-                disabled={isNodeLocked}
-                className="flex-1 min-w-0 px-1.5 py-0.5 rounded text-[11px] border"
-                style={inputStyle}
-              />
-            </div>
+            <UrlInputConfig
+              input={input}
+              onUpdateField={updateField}
+              isNodeLocked={isNodeLocked}
+              inputStyle={inputStyle}
+              labelStyle={labelStyle}
+            />
           )}
 
           {input.inputType === "node" && (
-            <div className="flex items-center gap-1">
-              <Link2
-                className="w-3 h-3 flex-shrink-0"
-                style={{ color: theme.colors.nodes.common.text.muted }}
-              />
-              <span className="text-[10px]" style={labelStyle}>
-                {isConnected
-                  ? `Connected: ${connectedSourceName}`
-                  : "Connect a node output to the left handle"}
-              </span>
-            </div>
+            <NodeInputConfig
+              isConnected={isConnected}
+              connectedSourceName={connectedSourceName}
+              labelStyle={labelStyle}
+              theme={theme}
+            />
           )}
         </div>
       )}

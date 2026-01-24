@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, File, Folder, Globe, Cable, Eye } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useProject } from "@/contexts/ProjectContext";
 import { DynamicInputRow } from "./DynamicInputRow";
 import { ContextPreviewPanel } from "./preview";
+import { AggregationSettingsPanel } from "./AggregationSettingsPanel";
+import { InputListHeader } from "./InputListHeader";
 import type {
   DynamicInputConfig,
   DynamicInputType,
@@ -13,21 +14,6 @@ import type {
   FieldDefinition,
 } from "@/components/nodes/CustomNode";
 import { createDynamicInput } from "@/components/nodes/CustomNode";
-
-const INPUT_TYPE_OPTIONS: {
-  value: DynamicInputType;
-  label: string;
-  icon: React.ReactNode;
-}[] = [
-  { value: "file", label: "File", icon: <File className="w-3 h-3" /> },
-  {
-    value: "directory",
-    label: "Directory",
-    icon: <Folder className="w-3 h-3" />,
-  },
-  { value: "url", label: "URL", icon: <Globe className="w-3 h-3" /> },
-  { value: "node", label: "Node Input", icon: <Cable className="w-3 h-3" /> },
-];
 
 interface DynamicInputEditorProps {
   inputs: DynamicInputConfig[];
@@ -45,14 +31,6 @@ interface DynamicInputEditorProps {
   isNodeLocked?: boolean;
   headerColor: string;
 }
-
-const AGGREGATION_MODE_OPTIONS: {
-  value: NodeAggregationMode;
-  label: string;
-}[] = [
-  { value: "pass", label: "Pass (each input → own variable)" },
-  { value: "concatenate", label: "Concatenate (all → single variable)" },
-];
 
 export function DynamicInputEditor({
   inputs,
@@ -75,28 +53,8 @@ export function DynamicInputEditor({
 
   // Track which input is expanded (accordion - only one at a time)
   const [expandedInputId, setExpandedInputId] = useState<string | null>(null);
-  // Track add input dropdown state
-  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   // Track preview panel state
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const addMenuRef = useRef<HTMLDivElement>(null);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        addMenuRef.current &&
-        !addMenuRef.current.contains(e.target as Node)
-      ) {
-        setIsAddMenuOpen(false);
-      }
-    };
-    if (isAddMenuOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [isAddMenuOpen]);
 
   // Helper to get help_text from schema fields
   const getHelpText = useMemo(() => {
@@ -155,7 +113,6 @@ export function DynamicInputEditor({
       });
       onInputsChange([...inputs, newInput]);
       setExpandedInputId(newInput.id);
-      setIsAddMenuOpen(false);
     },
     [inputs, onInputsChange, getNextNumber],
   );
@@ -181,203 +138,30 @@ export function DynamicInputEditor({
     [inputs, onInputsChange],
   );
 
-  const inputStyle = {
-    backgroundColor: "transparent",
-    borderColor: theme.colors.nodes.common.container.border,
-    color: theme.colors.nodes.common.text.primary,
-  };
-
-  const labelStyle = {
-    color: theme.colors.nodes.common.text.secondary,
-  };
-
   return (
     <div className="space-y-2" style={{ overflow: "visible" }}>
       {/* Node-level aggregation settings */}
-      <div
-        className="p-2 rounded border space-y-1.5"
-        style={{
-          borderColor: theme.colors.nodes.common.container.border,
-          backgroundColor: theme.colors.nodes.common.footer.background,
-        }}
-      >
-        <div className="flex items-center gap-1">
-          <label
-            className="text-[10px] flex-shrink-0 w-20"
-            style={{
-              ...labelStyle,
-              cursor: getHelpText("aggregationMode") ? "help" : undefined,
-            }}
-            title={getHelpText("aggregationMode")}
-          >
-            Aggregation
-          </label>
-          <select
-            value={aggregationMode}
-            onChange={(e) =>
-              onAggregationModeChange(e.target.value as NodeAggregationMode)
-            }
-            disabled={isNodeLocked}
-            className="flex-1 px-1.5 py-0.5 rounded text-[11px] border bg-transparent"
-            style={inputStyle}
-          >
-            {AGGREGATION_MODE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {aggregationMode === "concatenate" && (
-          <>
-            <div className="flex items-center gap-1">
-              <label
-                className="text-[10px] flex-shrink-0 w-20"
-                style={{
-                  ...labelStyle,
-                  cursor: getHelpText("outputVariableName")
-                    ? "help"
-                    : undefined,
-                }}
-                title={getHelpText("outputVariableName")}
-              >
-                Output Variable
-              </label>
-              <input
-                type="text"
-                value={outputVariableName}
-                onChange={(e) => onOutputVariableNameChange(e.target.value)}
-                placeholder="context"
-                disabled={isNodeLocked}
-                className="flex-1 min-w-0 px-1.5 py-0.5 rounded text-[11px] border font-mono"
-                style={inputStyle}
-              />
-            </div>
-            <div className="flex items-center gap-1">
-              <label
-                className="text-[10px] flex-shrink-0 w-20"
-                style={{
-                  ...labelStyle,
-                  cursor: "help",
-                }}
-                title={
-                  includeMetadata
-                    ? "Available variables: {source_path} {source_name} {file_ext} {file_size} {modified_time}"
-                    : getHelpText("separator")
-                }
-              >
-                Separator
-              </label>
-              <input
-                type="text"
-                value={separator}
-                onChange={(e) => onSeparatorChange(e.target.value)}
-                placeholder={
-                  includeMetadata ? "\\n--- {source_name} ---\\n" : "\\n\\n---"
-                }
-                disabled={isNodeLocked}
-                className="flex-1 min-w-0 px-1.5 py-0.5 rounded text-[11px] border font-mono"
-                style={inputStyle}
-              />
-            </div>
-          </>
-        )}
-
-        <div className="flex items-center gap-1">
-          <label
-            className="text-[10px] flex-shrink-0 w-20"
-            style={{
-              ...labelStyle,
-              cursor: getHelpText("includeMetadata") ? "help" : undefined,
-            }}
-            title={getHelpText("includeMetadata")}
-          >
-            Metadata
-          </label>
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={includeMetadata}
-              onChange={(e) => onIncludeMetadataChange(e.target.checked)}
-              disabled={isNodeLocked}
-              className="rounded w-3 h-3"
-              style={{
-                borderColor: theme.colors.nodes.common.container.border,
-              }}
-            />
-            <span className="text-[10px]" style={labelStyle}>
-              Include source metadata
-            </span>
-          </label>
-        </div>
-      </div>
+      <AggregationSettingsPanel
+        aggregationMode={aggregationMode}
+        separator={separator}
+        outputVariableName={outputVariableName}
+        includeMetadata={includeMetadata}
+        isNodeLocked={isNodeLocked}
+        onAggregationModeChange={onAggregationModeChange}
+        onSeparatorChange={onSeparatorChange}
+        onOutputVariableNameChange={onOutputVariableNameChange}
+        onIncludeMetadataChange={onIncludeMetadataChange}
+        getHelpText={getHelpText}
+      />
 
       {/* Dynamic inputs section header */}
-      <div className="flex items-center justify-between">
-        <span
-          className="text-[10px] font-semibold uppercase tracking-wide"
-          style={{ color: theme.colors.nodes.common.text.muted }}
-        >
-          Inputs ({inputs.length})
-        </span>
-        <div className="flex items-center gap-1">
-          {/* Preview button */}
-          <button
-            type="button"
-            onClick={() => setIsPreviewOpen(true)}
-            disabled={isNodeLocked || inputs.length === 0 || !projectPath}
-            className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] border hover:bg-accent transition-colors disabled:opacity-50"
-            style={{
-              borderColor: theme.colors.nodes.common.container.border,
-              color: theme.colors.nodes.common.text.primary,
-            }}
-            title="Preview aggregation results"
-          >
-            <Eye className="w-3 h-3" />
-            Preview
-          </button>
-
-          {/* Add Input dropdown */}
-          <div className="relative" ref={addMenuRef}>
-            <button
-              type="button"
-              onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
-              disabled={isNodeLocked}
-              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] border hover:bg-accent transition-colors disabled:opacity-50"
-              style={{
-                borderColor: theme.colors.nodes.common.container.border,
-                color: theme.colors.nodes.common.text.primary,
-              }}
-            >
-              Add Input
-              <ChevronDown className="w-3 h-3" />
-            </button>
-          {isAddMenuOpen && (
-            <div
-              className="absolute right-0 top-full mt-1 py-1 rounded border shadow-lg z-50 min-w-[120px]"
-              style={{
-                backgroundColor: theme.colors.nodes.common.container.background,
-                borderColor: theme.colors.nodes.common.container.border,
-              }}
-            >
-              {INPUT_TYPE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => handleAddInput(opt.value)}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-left hover:bg-accent transition-colors"
-                  style={{ color: theme.colors.nodes.common.text.primary }}
-                >
-                  {opt.icon}
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          )}
-          </div>
-        </div>
-      </div>
+      <InputListHeader
+        inputCount={inputs.length}
+        isNodeLocked={isNodeLocked}
+        canPreview={!isNodeLocked && inputs.length > 0 && !!projectPath}
+        onPreviewClick={() => setIsPreviewOpen(true)}
+        onAddInput={handleAddInput}
+      />
 
       {/* Dynamic inputs list */}
       {inputs.length === 0 ? (

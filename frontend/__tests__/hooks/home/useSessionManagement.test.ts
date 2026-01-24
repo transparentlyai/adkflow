@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import { useSessionManagement } from "@/hooks/home/useSessionManagement";
 
 // Mock sessionStorage
@@ -14,49 +14,32 @@ vi.mock("@/lib/recentProjects", () => ({
   addRecentProject: vi.fn(),
 }));
 
-import { loadSession, saveSession } from "@/lib/sessionStorage";
+import { loadSession } from "@/lib/sessionStorage";
 import { getRecentProjects, addRecentProject } from "@/lib/recentProjects";
+import {
+  createMockCanvasRef,
+  createMockSetters,
+  createDefaultProps,
+  createMockSession,
+  createMockFlow,
+  createMockTabResult,
+} from "./useSessionManagement.fixtures";
 
-describe("useSessionManagement", () => {
-  const mockCanvasRef = {
-    current: {
-      restoreFlow: vi.fn(),
-    },
-  };
-
+describe("useSessionManagement - session loading", () => {
+  const mockCanvasRef = createMockCanvasRef();
   const mockLoadedTabIdRef = { current: null as string | null };
-
-  const mockSetCurrentProjectPath = vi.fn();
-  const mockSetWorkflowName = vi.fn();
-  const mockSetIsProjectSaved = vi.fn();
-  const mockSetShowHomeScreen = vi.fn();
-  const mockSetRecentProjects = vi.fn();
-  const mockSetIsSessionLoaded = vi.fn();
-  const mockInitializeTabs = vi.fn();
-  const mockLoadTabFlow = vi.fn();
-  const mockSyncTeleportersForTab = vi.fn();
-
-  const defaultProps = {
-    canvasRef: mockCanvasRef as any,
-    loadedTabIdRef: mockLoadedTabIdRef as any,
-    isSessionLoaded: false,
-    currentProjectPath: null,
-    workflowName: "Untitled Workflow",
-    hasUnsavedChanges: false,
-    setCurrentProjectPath: mockSetCurrentProjectPath,
-    setWorkflowName: mockSetWorkflowName,
-    setIsProjectSaved: mockSetIsProjectSaved,
-    setShowHomeScreen: mockSetShowHomeScreen,
-    setRecentProjects: mockSetRecentProjects,
-    setIsSessionLoaded: mockSetIsSessionLoaded,
-    initializeTabs: mockInitializeTabs,
-    loadTabFlow: mockLoadTabFlow,
-    syncTeleportersForTab: mockSyncTeleportersForTab,
-  };
+  let setters: ReturnType<typeof createMockSetters>;
+  let defaultProps: ReturnType<typeof createDefaultProps>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockLoadedTabIdRef.current = null;
+    setters = createMockSetters();
+    defaultProps = createDefaultProps(
+      mockCanvasRef,
+      mockLoadedTabIdRef,
+      setters,
+    );
     vi.mocked(getRecentProjects).mockReturnValue([]);
     vi.mocked(loadSession).mockReturnValue(null);
   });
@@ -75,7 +58,7 @@ describe("useSessionManagement", () => {
       renderHook(() => useSessionManagement(defaultProps));
 
       expect(getRecentProjects).toHaveBeenCalled();
-      expect(mockSetRecentProjects).toHaveBeenCalledWith(recentProjects);
+      expect(setters.mockSetRecentProjects).toHaveBeenCalledWith(recentProjects);
     });
 
     it("should show home screen if no session", async () => {
@@ -84,88 +67,54 @@ describe("useSessionManagement", () => {
       renderHook(() => useSessionManagement(defaultProps));
 
       await waitFor(() => {
-        expect(mockSetShowHomeScreen).toHaveBeenCalledWith(true);
-        expect(mockSetIsSessionLoaded).toHaveBeenCalledWith(true);
+        expect(setters.mockSetShowHomeScreen).toHaveBeenCalledWith(true);
+        expect(setters.mockSetIsSessionLoaded).toHaveBeenCalledWith(true);
       });
     });
 
     it("should load project from session if available", async () => {
-      const session = {
-        currentProjectPath: "/path/to/project",
-        workflowName: "Test Workflow",
-        workflow: null,
-        hasUnsavedChanges: false,
-      };
+      const session = createMockSession();
       vi.mocked(loadSession).mockReturnValue(session);
-      mockInitializeTabs.mockResolvedValue({
-        projectName: "Test Workflow",
-        firstTab: { id: "tab-1", name: "Flow 1" },
-      });
-      mockLoadTabFlow.mockResolvedValue({
-        nodes: [{ id: "node-1", type: "agent" }],
-        edges: [],
-        viewport: { x: 0, y: 0, zoom: 1 },
-      });
+      setters.mockInitializeTabs.mockResolvedValue(createMockTabResult());
+      setters.mockLoadTabFlow.mockResolvedValue(
+        createMockFlow({ nodes: [{ id: "node-1", type: "agent" }] }),
+      );
 
       renderHook(() => useSessionManagement(defaultProps));
 
       await waitFor(() => {
-        expect(mockSetCurrentProjectPath).toHaveBeenCalledWith(
+        expect(setters.mockSetCurrentProjectPath).toHaveBeenCalledWith(
           "/path/to/project",
         );
-        expect(mockSetIsProjectSaved).toHaveBeenCalledWith(true);
-        expect(mockSetIsSessionLoaded).toHaveBeenCalledWith(true);
+        expect(setters.mockSetIsProjectSaved).toHaveBeenCalledWith(true);
+        expect(setters.mockSetIsSessionLoaded).toHaveBeenCalledWith(true);
       });
     });
 
     it("should initialize tabs when loading session", async () => {
-      const session = {
-        currentProjectPath: "/path/to/project",
-        workflowName: "Test Workflow",
-        workflow: null,
-        hasUnsavedChanges: false,
-      };
+      const session = createMockSession();
       vi.mocked(loadSession).mockReturnValue(session);
-      mockInitializeTabs.mockResolvedValue({
-        projectName: "Test Workflow",
-        firstTab: { id: "tab-1", name: "Flow 1" },
-      });
-      mockLoadTabFlow.mockResolvedValue({
-        nodes: [],
-        edges: [],
-        viewport: { x: 0, y: 0, zoom: 1 },
-      });
+      setters.mockInitializeTabs.mockResolvedValue(createMockTabResult());
+      setters.mockLoadTabFlow.mockResolvedValue(createMockFlow());
 
       renderHook(() => useSessionManagement(defaultProps));
 
       await waitFor(() => {
-        expect(mockInitializeTabs).toHaveBeenCalledWith("/path/to/project");
+        expect(setters.mockInitializeTabs).toHaveBeenCalledWith("/path/to/project");
       });
     });
 
     it("should load first tab flow and restore to canvas", async () => {
-      const session = {
-        currentProjectPath: "/path/to/project",
-        workflowName: "Test Workflow",
-        workflow: null,
-        hasUnsavedChanges: false,
-      };
+      const session = createMockSession();
       vi.mocked(loadSession).mockReturnValue(session);
-      mockInitializeTabs.mockResolvedValue({
-        projectName: "Test Workflow",
-        firstTab: { id: "tab-1", name: "Flow 1" },
-      });
-      const flow = {
-        nodes: [{ id: "node-1", type: "agent" }],
-        edges: [],
-        viewport: { x: 0, y: 0, zoom: 1 },
-      };
-      mockLoadTabFlow.mockResolvedValue(flow);
+      setters.mockInitializeTabs.mockResolvedValue(createMockTabResult());
+      const flow = createMockFlow({ nodes: [{ id: "node-1", type: "agent" }] });
+      setters.mockLoadTabFlow.mockResolvedValue(flow);
 
       renderHook(() => useSessionManagement(defaultProps));
 
       await waitFor(() => {
-        expect(mockLoadTabFlow).toHaveBeenCalledWith(
+        expect(setters.mockLoadTabFlow).toHaveBeenCalledWith(
           "/path/to/project",
           "tab-1",
         );
@@ -175,28 +124,16 @@ describe("useSessionManagement", () => {
     });
 
     it("should sync teleporters after loading first tab", async () => {
-      const session = {
-        currentProjectPath: "/path/to/project",
-        workflowName: "Test Workflow",
-        workflow: null,
-        hasUnsavedChanges: false,
-      };
+      const session = createMockSession();
       vi.mocked(loadSession).mockReturnValue(session);
-      mockInitializeTabs.mockResolvedValue({
-        projectName: "Test Workflow",
-        firstTab: { id: "tab-1", name: "Flow 1" },
-      });
-      const flow = {
-        nodes: [{ id: "node-1", type: "agent" }],
-        edges: [],
-        viewport: { x: 0, y: 0, zoom: 1 },
-      };
-      mockLoadTabFlow.mockResolvedValue(flow);
+      setters.mockInitializeTabs.mockResolvedValue(createMockTabResult());
+      const flow = createMockFlow({ nodes: [{ id: "node-1", type: "agent" }] });
+      setters.mockLoadTabFlow.mockResolvedValue(flow);
 
       renderHook(() => useSessionManagement(defaultProps));
 
       await waitFor(() => {
-        expect(mockSyncTeleportersForTab).toHaveBeenCalledWith(
+        expect(setters.mockSyncTeleportersForTab).toHaveBeenCalledWith(
           "tab-1",
           "Flow 1",
           flow.nodes,
@@ -205,47 +142,25 @@ describe("useSessionManagement", () => {
     });
 
     it("should set workflow name from project", async () => {
-      const session = {
-        currentProjectPath: "/path/to/project",
-        workflowName: "Old Name",
-        workflow: null,
-        hasUnsavedChanges: false,
-      };
+      const session = createMockSession({ workflowName: "Old Name" });
       vi.mocked(loadSession).mockReturnValue(session);
-      mockInitializeTabs.mockResolvedValue({
-        projectName: "New Project Name",
-        firstTab: { id: "tab-1", name: "Flow 1" },
-      });
-      mockLoadTabFlow.mockResolvedValue({
-        nodes: [],
-        edges: [],
-        viewport: { x: 0, y: 0, zoom: 1 },
-      });
+      setters.mockInitializeTabs.mockResolvedValue(
+        createMockTabResult({ projectName: "New Project Name" }),
+      );
+      setters.mockLoadTabFlow.mockResolvedValue(createMockFlow());
 
       renderHook(() => useSessionManagement(defaultProps));
 
       await waitFor(() => {
-        expect(mockSetWorkflowName).toHaveBeenCalledWith("New Project Name");
+        expect(setters.mockSetWorkflowName).toHaveBeenCalledWith("New Project Name");
       });
     });
 
     it("should add project to recent projects", async () => {
-      const session = {
-        currentProjectPath: "/path/to/project",
-        workflowName: "Test Workflow",
-        workflow: null,
-        hasUnsavedChanges: false,
-      };
+      const session = createMockSession();
       vi.mocked(loadSession).mockReturnValue(session);
-      mockInitializeTabs.mockResolvedValue({
-        projectName: "Test Workflow",
-        firstTab: { id: "tab-1", name: "Flow 1" },
-      });
-      mockLoadTabFlow.mockResolvedValue({
-        nodes: [],
-        edges: [],
-        viewport: { x: 0, y: 0, zoom: 1 },
-      });
+      setters.mockInitializeTabs.mockResolvedValue(createMockTabResult());
+      setters.mockLoadTabFlow.mockResolvedValue(createMockFlow());
 
       renderHook(() => useSessionManagement(defaultProps));
 
@@ -260,216 +175,34 @@ describe("useSessionManagement", () => {
     });
 
     it("should handle missing firstTab", async () => {
-      const session = {
-        currentProjectPath: "/path/to/project",
-        workflowName: "Test Workflow",
-        workflow: null,
-        hasUnsavedChanges: false,
-      };
+      const session = createMockSession();
       vi.mocked(loadSession).mockReturnValue(session);
-      mockInitializeTabs.mockResolvedValue({
-        projectName: "Test Workflow",
-        firstTab: null,
-      });
+      setters.mockInitializeTabs.mockResolvedValue(
+        createMockTabResult({ firstTab: null }),
+      );
 
       renderHook(() => useSessionManagement(defaultProps));
 
       await waitFor(() => {
-        expect(mockSetIsSessionLoaded).toHaveBeenCalledWith(true);
+        expect(setters.mockSetIsSessionLoaded).toHaveBeenCalledWith(true);
       });
 
-      expect(mockLoadTabFlow).not.toHaveBeenCalled();
+      expect(setters.mockLoadTabFlow).not.toHaveBeenCalled();
       expect(mockCanvasRef.current.restoreFlow).not.toHaveBeenCalled();
     });
 
     it("should handle initializeTabs returning null", async () => {
-      const session = {
-        currentProjectPath: "/path/to/project",
-        workflowName: "Test Workflow",
-        workflow: null,
-        hasUnsavedChanges: false,
-      };
+      const session = createMockSession();
       vi.mocked(loadSession).mockReturnValue(session);
-      mockInitializeTabs.mockResolvedValue(null);
+      setters.mockInitializeTabs.mockResolvedValue(null);
 
       renderHook(() => useSessionManagement(defaultProps));
 
       await waitFor(() => {
-        expect(mockSetIsSessionLoaded).toHaveBeenCalledWith(true);
+        expect(setters.mockSetIsSessionLoaded).toHaveBeenCalledWith(true);
       });
 
-      expect(mockSetWorkflowName).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("session saving effect", () => {
-    it("should save session when project path and session loaded are set", async () => {
-      const props = {
-        ...defaultProps,
-        isSessionLoaded: true,
-        currentProjectPath: "/path/to/project",
-        workflowName: "Test Workflow",
-        hasUnsavedChanges: false,
-      };
-
-      renderHook(() => useSessionManagement(props));
-
-      await waitFor(() => {
-        expect(saveSession).toHaveBeenCalledWith({
-          currentProjectPath: "/path/to/project",
-          workflowName: "Test Workflow",
-          workflow: null,
-          hasUnsavedChanges: false,
-        });
-      });
-    });
-
-    it("should not save session if not loaded yet", () => {
-      const props = {
-        ...defaultProps,
-        isSessionLoaded: false,
-        currentProjectPath: "/path/to/project",
-      };
-
-      renderHook(() => useSessionManagement(props));
-
-      // Should not save since isSessionLoaded is false
-      expect(saveSession).not.toHaveBeenCalled();
-    });
-
-    it("should not save session if no project path", async () => {
-      const props = {
-        ...defaultProps,
-        isSessionLoaded: true,
-        currentProjectPath: null,
-      };
-
-      renderHook(() => useSessionManagement(props));
-
-      // Wait a bit for any potential async calls
-      await new Promise((resolve) => setTimeout(resolve, 0));
-
-      expect(saveSession).not.toHaveBeenCalled();
-    });
-
-    it("should update saved session when workflow name changes", async () => {
-      const { rerender } = renderHook((props) => useSessionManagement(props), {
-        initialProps: {
-          ...defaultProps,
-          isSessionLoaded: true,
-          currentProjectPath: "/path/to/project",
-          workflowName: "Initial Name",
-        },
-      });
-
-      await waitFor(() => {
-        expect(saveSession).toHaveBeenCalledWith(
-          expect.objectContaining({ workflowName: "Initial Name" }),
-        );
-      });
-
-      vi.clearAllMocks();
-
-      rerender({
-        ...defaultProps,
-        isSessionLoaded: true,
-        currentProjectPath: "/path/to/project",
-        workflowName: "Updated Name",
-      });
-
-      await waitFor(() => {
-        expect(saveSession).toHaveBeenCalledWith(
-          expect.objectContaining({ workflowName: "Updated Name" }),
-        );
-      });
-    });
-
-    it("should update saved session when hasUnsavedChanges changes", async () => {
-      const { rerender } = renderHook((props) => useSessionManagement(props), {
-        initialProps: {
-          ...defaultProps,
-          isSessionLoaded: true,
-          currentProjectPath: "/path/to/project",
-          hasUnsavedChanges: false,
-        },
-      });
-
-      await waitFor(() => {
-        expect(saveSession).toHaveBeenCalledWith(
-          expect.objectContaining({ hasUnsavedChanges: false }),
-        );
-      });
-
-      vi.clearAllMocks();
-
-      rerender({
-        ...defaultProps,
-        isSessionLoaded: true,
-        currentProjectPath: "/path/to/project",
-        hasUnsavedChanges: true,
-      });
-
-      await waitFor(() => {
-        expect(saveSession).toHaveBeenCalledWith(
-          expect.objectContaining({ hasUnsavedChanges: true }),
-        );
-      });
-    });
-  });
-
-  describe("edge cases", () => {
-    it("should handle loadTabFlow returning null", async () => {
-      const session = {
-        currentProjectPath: "/path/to/project",
-        workflowName: "Test Workflow",
-        workflow: null,
-        hasUnsavedChanges: false,
-      };
-      vi.mocked(loadSession).mockReturnValue(session);
-      mockInitializeTabs.mockResolvedValue({
-        projectName: "Test Workflow",
-        firstTab: { id: "tab-1", name: "Flow 1" },
-      });
-      mockLoadTabFlow.mockResolvedValue(null);
-
-      renderHook(() => useSessionManagement(defaultProps));
-
-      await waitFor(() => {
-        expect(mockSetIsSessionLoaded).toHaveBeenCalledWith(true);
-      });
-
-      // restoreFlow should not be called if flow is null
-      expect(mockCanvasRef.current.restoreFlow).not.toHaveBeenCalled();
-    });
-
-    it("should handle null canvasRef.current", async () => {
-      const props = {
-        ...defaultProps,
-        canvasRef: { current: null },
-      };
-      const session = {
-        currentProjectPath: "/path/to/project",
-        workflowName: "Test Workflow",
-        workflow: null,
-        hasUnsavedChanges: false,
-      };
-      vi.mocked(loadSession).mockReturnValue(session);
-      mockInitializeTabs.mockResolvedValue({
-        projectName: "Test Workflow",
-        firstTab: { id: "tab-1", name: "Flow 1" },
-      });
-      mockLoadTabFlow.mockResolvedValue({
-        nodes: [],
-        edges: [],
-        viewport: { x: 0, y: 0, zoom: 1 },
-      });
-
-      // Should not throw
-      renderHook(() => useSessionManagement(props as any));
-
-      await waitFor(() => {
-        expect(mockSetIsSessionLoaded).toHaveBeenCalledWith(true);
-      });
+      expect(setters.mockSetWorkflowName).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,7 +1,5 @@
 """Extension registry for custom FlowUnit nodes."""
 
-import importlib.util
-import sys
 import threading
 from pathlib import Path
 from collections.abc import Sequence
@@ -11,7 +9,10 @@ from adkflow_runner.extensions.flow_unit import FlowUnit
 from adkflow_runner.extensions.types import ExtensionScope
 from adkflow_runner.extensions.schema_generator import generate_schema
 from adkflow_runner.extensions.file_watcher import FileWatcher
-from adkflow_runner.hooks.discovery import discover_hooks_from_module
+from adkflow_runner.extensions.module_loader import (
+    load_extension_package,
+    load_module_legacy,
+)
 from adkflow_runner.hooks.registry import HooksRegistry, get_hooks_registry
 
 
@@ -156,98 +157,18 @@ class ExtensionRegistry:
         Returns:
             Number of units registered from this package
         """
-        package_name = (
-            f"adkflow_ext_{package_dir.name}_{hash(str(package_dir)) & 0xFFFFFF:06x}"
+        return load_extension_package(
+            package_dir=package_dir,
+            scope=scope,
+            registrar=self,
+            hooks_registry=self._hooks_registry,
+            file_mtimes=self._file_mtimes,
+            source_files=self._source_files,
+            scopes=self._scopes,
+            units=self._units,
+            schemas=self._schemas,
+            lock=self._lock,
         )
-
-        with self._lock:
-            # Unregister existing units from this package
-            if package_name in sys.modules:
-                units_to_remove = [
-                    uid
-                    for uid, path in self._source_files.items()
-                    if path == package_dir
-                    or (
-                        hasattr(path, "is_relative_to")
-                        and path.is_relative_to(package_dir)
-                    )
-                ]
-                for uid in units_to_remove:
-                    self._units.pop(uid, None)
-                    self._schemas.pop(uid, None)
-                    self._source_files.pop(uid, None)
-                    self._scopes.pop(uid, None)
-
-                # Remove package and submodules from sys.modules
-                modules_to_remove = [
-                    name
-                    for name in list(sys.modules.keys())
-                    if name == package_name or name.startswith(f"{package_name}.")
-                ]
-                for name in modules_to_remove:
-                    del sys.modules[name]
-
-            try:
-                # Add parent to path so internal imports work
-                parent_path = str(package_dir.parent)
-                if parent_path not in sys.path:
-                    sys.path.insert(0, parent_path)
-
-                # Import the package
-                spec = importlib.util.spec_from_file_location(
-                    package_name,
-                    package_dir / "__init__.py",
-                    submodule_search_locations=[str(package_dir)],
-                )
-                if spec is None or spec.loader is None:
-                    return 0
-
-                module = importlib.util.module_from_spec(spec)
-                sys.modules[package_name] = module
-                spec.loader.exec_module(module)
-
-            except Exception as e:
-                print(
-                    f"[ExtensionRegistry] Failed to load package {package_dir.name}: {e}"
-                )
-                return 0
-
-            # Find FlowUnit subclasses in the module's namespace
-            count = 0
-            for attr_name in dir(module):
-                attr = getattr(module, attr_name)
-                if (
-                    isinstance(attr, type)
-                    and issubclass(attr, FlowUnit)
-                    and attr is not FlowUnit
-                    and hasattr(attr, "UNIT_ID")
-                    and hasattr(attr, "UI_LABEL")
-                    and hasattr(attr, "MENU_LOCATION")
-                ):
-                    if self._register_unit(attr, package_dir, scope):
-                        count += 1
-
-            # Discover and register hooks from the extension module
-            try:
-                hooks_count = discover_hooks_from_module(module, self._hooks_registry)
-                if hooks_count > 0:
-                    print(
-                        f"[ExtensionRegistry] Registered {hooks_count} hooks from {package_dir.name}"
-                    )
-            except Exception as e:
-                print(
-                    f"[ExtensionRegistry] Failed to discover hooks from {package_dir.name}: {e}"
-                )
-
-            # Track package mtime (use latest mtime from any .py file)
-            latest_mtime = 0.0
-            for py_file in package_dir.rglob("*.py"):
-                mtime = py_file.stat().st_mtime
-                if mtime > latest_mtime:
-                    latest_mtime = mtime
-            self._file_mtimes[str(package_dir)] = latest_mtime
-
-            return count
 
     def _load_module(
         self, file_path: Path, scope: ExtensionScope = ExtensionScope.PROJECT
@@ -261,57 +182,19 @@ class ExtensionRegistry:
         Returns:
             Number of units registered from this file
         """
-        module_name = (
-            f"adkflow_ext_{file_path.stem}_{hash(str(file_path)) & 0xFFFFFF:06x}"
+        return load_module_legacy(
+            file_path=file_path,
+            scope=scope,
+            registrar=self,
+            file_mtimes=self._file_mtimes,
+            source_files=self._source_files,
+            scopes=self._scopes,
+            units=self._units,
+            schemas=self._schemas,
+            lock=self._lock,
         )
 
-        with self._lock:
-            # Remove old module if reloading
-            if module_name in sys.modules:
-                # Unregister units from this file
-                units_to_remove = [
-                    uid for uid, path in self._source_files.items() if path == file_path
-                ]
-                for uid in units_to_remove:
-                    self._units.pop(uid, None)
-                    self._schemas.pop(uid, None)
-                    self._source_files.pop(uid, None)
-                    self._scopes.pop(uid, None)
-                del sys.modules[module_name]
-
-            try:
-                spec = importlib.util.spec_from_file_location(module_name, file_path)
-                if spec is None or spec.loader is None:
-                    return 0
-
-                module = importlib.util.module_from_spec(spec)
-                sys.modules[module_name] = module
-                spec.loader.exec_module(module)
-            except Exception as e:
-                print(f"[ExtensionRegistry] Failed to load {file_path}: {e}")
-                return 0
-
-            # Find FlowUnit subclasses
-            count = 0
-            for attr_name in dir(module):
-                attr = getattr(module, attr_name)
-                if (
-                    isinstance(attr, type)
-                    and issubclass(attr, FlowUnit)
-                    and attr is not FlowUnit
-                    and hasattr(attr, "UNIT_ID")
-                    and hasattr(attr, "UI_LABEL")
-                    and hasattr(attr, "MENU_LOCATION")
-                ):
-                    if self._register_unit(attr, file_path, scope):
-                        count += 1
-
-            # Track file mtime for hot-reload
-            self._file_mtimes[str(file_path)] = file_path.stat().st_mtime
-
-            return count
-
-    def _register_unit(
+    def register_unit(
         self, unit_cls: type[FlowUnit], file_path: Path, scope: ExtensionScope
     ) -> bool:
         """Register a FlowUnit and generate its schema.

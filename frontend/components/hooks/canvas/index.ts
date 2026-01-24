@@ -8,6 +8,9 @@ export type {
 } from "./useCanvasState";
 
 export { useCanvasConfig } from "./useCanvasConfig";
+export { useCustomNodeSchemasLoader } from "./useCustomNodeSchemasLoader";
+export { useCanvasImperativeHandle } from "./useCanvasImperativeHandle";
+export { useCanvasSetup } from "./useCanvasSetup";
 export { useConnectionHandlers } from "./useConnectionHandlers";
 export { useCanvasHistory } from "./useCanvasHistory";
 export { useDeleteHandlers } from "./useDeleteHandlers";

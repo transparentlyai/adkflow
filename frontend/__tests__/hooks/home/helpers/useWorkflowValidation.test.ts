@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useWorkflowValidation } from "@/hooks/home/helpers/useWorkflowValidation";
+import {
+  createMockCanvasRef,
+  createMockSetters,
+  createDefaultProps,
+  setupDefaultMocks,
+} from "./useWorkflowValidation.fixtures";
 
 vi.mock("@/lib/api", () => ({
   validateWorkflow: vi.fn(),
@@ -9,54 +15,13 @@ vi.mock("@/lib/api", () => ({
 import { validateWorkflow } from "@/lib/api";
 
 describe("useWorkflowValidation", () => {
-  const mockCanvasRef = {
-    current: {
-      clearErrorHighlights: vi.fn(),
-      highlightErrorNodes: vi.fn(),
-      highlightWarningNodes: vi.fn(),
-      saveFlow: vi.fn(),
-    },
-  };
-
-  const mockSetRunEvents = vi.fn();
-  const mockSetLastRunStatus = vi.fn();
-  const mockSetIsRunPanelOpen = vi.fn();
-  const mockSetIsValidationSaveDialogOpen = vi.fn();
-  const mockSetIsProjectSaved = vi.fn();
-  const mockSaveTabFlow = vi.fn();
-
-  const defaultProps = {
-    canvasRef: mockCanvasRef as any,
-    currentProjectPath: "/path/to/project",
-    activeTabId: "tab1",
-    activeTab: { id: "tab1", name: "Tab 1", hasUnsavedChanges: false },
-    workflowName: "Test Workflow",
-    isProjectSaved: true,
-    setRunEvents: mockSetRunEvents,
-    setLastRunStatus: mockSetLastRunStatus,
-    setIsRunPanelOpen: mockSetIsRunPanelOpen,
-    setIsValidationSaveDialogOpen: mockSetIsValidationSaveDialogOpen,
-    setIsProjectSaved: mockSetIsProjectSaved,
-    saveTabFlow: mockSaveTabFlow,
-  };
+  const mockCanvasRef = createMockCanvasRef();
+  const mockSetters = createMockSetters();
+  const defaultProps = createDefaultProps(mockCanvasRef, mockSetters);
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (validateWorkflow as any).mockResolvedValue({
-      valid: true,
-      errors: [],
-      warnings: [],
-      agent_count: 3,
-      tab_count: 1,
-      node_errors: {},
-      node_warnings: {},
-    });
-    mockSaveTabFlow.mockResolvedValue(true);
-    mockCanvasRef.current.saveFlow.mockReturnValue({
-      nodes: [],
-      edges: [],
-      viewport: { x: 0, y: 0, zoom: 1 },
-    });
+    setupDefaultMocks(validateWorkflow, mockCanvasRef, mockSetters);
   });
 
   describe("showErrorsInConsole", () => {
@@ -68,7 +33,7 @@ describe("useWorkflowValidation", () => {
       });
 
       expect(mockCanvasRef.current.clearErrorHighlights).toHaveBeenCalled();
-      expect(mockSetRunEvents).toHaveBeenCalledWith(
+      expect(mockSetters.mockSetRunEvents).toHaveBeenCalledWith(
         expect.arrayContaining([
           expect.objectContaining({
             type: "run_error",
@@ -80,8 +45,8 @@ describe("useWorkflowValidation", () => {
           }),
         ]),
       );
-      expect(mockSetLastRunStatus).toHaveBeenCalledWith("failed");
-      expect(mockSetIsRunPanelOpen).toHaveBeenCalledWith(true);
+      expect(mockSetters.mockSetLastRunStatus).toHaveBeenCalledWith("failed");
+      expect(mockSetters.mockSetIsRunPanelOpen).toHaveBeenCalledWith(true);
     });
 
     it("should highlight error nodes when nodeErrors provided", () => {
@@ -108,144 +73,6 @@ describe("useWorkflowValidation", () => {
     });
   });
 
-  describe("executeValidateWorkflow", () => {
-    it("should validate and show success for valid workflow", async () => {
-      const { result } = renderHook(() => useWorkflowValidation(defaultProps));
-
-      await act(async () => {
-        await result.current.executeValidateWorkflow();
-      });
-
-      expect(validateWorkflow).toHaveBeenCalledWith("/path/to/project");
-      expect(mockSetRunEvents).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.objectContaining({
-            type: "info",
-            content: expect.stringContaining("Validation passed"),
-          }),
-        ]),
-      );
-      expect(mockSetLastRunStatus).toHaveBeenCalledWith("completed");
-      expect(mockSetIsRunPanelOpen).toHaveBeenCalledWith(true);
-    });
-
-    it("should show errors and warnings", async () => {
-      (validateWorkflow as any).mockResolvedValue({
-        valid: false,
-        errors: ["Error 1"],
-        warnings: ["Warning 1"],
-        agent_count: 0,
-        tab_count: 0,
-        node_errors: {},
-        node_warnings: {},
-      });
-
-      const { result } = renderHook(() => useWorkflowValidation(defaultProps));
-
-      await act(async () => {
-        await result.current.executeValidateWorkflow();
-      });
-
-      expect(mockSetRunEvents).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.objectContaining({
-            type: "run_error",
-            content: "Error 1",
-          }),
-          expect.objectContaining({
-            type: "warning",
-            content: "Warning 1",
-          }),
-        ]),
-      );
-      expect(mockSetLastRunStatus).toHaveBeenCalledWith("failed");
-    });
-
-    it("should highlight error nodes", async () => {
-      const nodeErrors = { node1: ["error1"] };
-      (validateWorkflow as any).mockResolvedValue({
-        valid: false,
-        errors: [],
-        warnings: [],
-        agent_count: 0,
-        tab_count: 0,
-        node_errors: nodeErrors,
-        node_warnings: {},
-      });
-
-      const { result } = renderHook(() => useWorkflowValidation(defaultProps));
-
-      await act(async () => {
-        await result.current.executeValidateWorkflow();
-      });
-
-      expect(mockCanvasRef.current.highlightErrorNodes).toHaveBeenCalledWith(
-        nodeErrors,
-      );
-    });
-
-    it("should highlight warning nodes", async () => {
-      const nodeWarnings = { node1: ["warning1"] };
-      (validateWorkflow as any).mockResolvedValue({
-        valid: true,
-        errors: [],
-        warnings: [],
-        agent_count: 0,
-        tab_count: 0,
-        node_errors: {},
-        node_warnings: nodeWarnings,
-      });
-
-      const { result } = renderHook(() => useWorkflowValidation(defaultProps));
-
-      await act(async () => {
-        await result.current.executeValidateWorkflow();
-      });
-
-      expect(mockCanvasRef.current.highlightWarningNodes).toHaveBeenCalledWith(
-        nodeWarnings,
-      );
-    });
-
-    it("should not call API when project path is null", async () => {
-      const propsWithNullPath = {
-        ...defaultProps,
-        currentProjectPath: null,
-      };
-
-      const { result } = renderHook(() =>
-        useWorkflowValidation(propsWithNullPath),
-      );
-
-      await act(async () => {
-        await result.current.executeValidateWorkflow();
-      });
-
-      expect(validateWorkflow).not.toHaveBeenCalled();
-    });
-
-    it("should handle API error", async () => {
-      (validateWorkflow as any).mockRejectedValue(
-        new Error("Validation failed"),
-      );
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
-
-      const { result } = renderHook(() => useWorkflowValidation(defaultProps));
-
-      await act(async () => {
-        await result.current.executeValidateWorkflow();
-      });
-
-      expect(consoleSpy).toHaveBeenCalled();
-      expect(mockSetRunEvents).toHaveBeenCalled();
-      expect(mockSetLastRunStatus).toHaveBeenCalledWith("failed");
-
-      consoleSpy.mockRestore();
-    });
-  });
-
   describe("handleValidateWorkflow", () => {
     it("should open save dialog when there are unsaved changes", async () => {
       const propsWithUnsavedChanges = {
@@ -261,7 +88,7 @@ describe("useWorkflowValidation", () => {
         await result.current.handleValidateWorkflow();
       });
 
-      expect(mockSetIsValidationSaveDialogOpen).toHaveBeenCalledWith(true);
+      expect(mockSetters.mockSetIsValidationSaveDialogOpen).toHaveBeenCalledWith(true);
       expect(validateWorkflow).not.toHaveBeenCalled();
     });
 
@@ -279,7 +106,7 @@ describe("useWorkflowValidation", () => {
         await result.current.handleValidateWorkflow();
       });
 
-      expect(mockSetIsValidationSaveDialogOpen).toHaveBeenCalledWith(true);
+      expect(mockSetters.mockSetIsValidationSaveDialogOpen).toHaveBeenCalledWith(true);
       expect(validateWorkflow).not.toHaveBeenCalled();
     });
 
@@ -290,7 +117,7 @@ describe("useWorkflowValidation", () => {
         await result.current.handleValidateWorkflow();
       });
 
-      expect(mockSetIsValidationSaveDialogOpen).not.toHaveBeenCalled();
+      expect(mockSetters.mockSetIsValidationSaveDialogOpen).not.toHaveBeenCalled();
       expect(validateWorkflow).toHaveBeenCalledWith("/path/to/project");
     });
 
@@ -320,9 +147,9 @@ describe("useWorkflowValidation", () => {
         await result.current.handleValidationSaveAndValidate();
       });
 
-      expect(mockSetIsValidationSaveDialogOpen).toHaveBeenCalledWith(false);
-      expect(mockSaveTabFlow).toHaveBeenCalled();
-      expect(mockSetIsProjectSaved).toHaveBeenCalledWith(true);
+      expect(mockSetters.mockSetIsValidationSaveDialogOpen).toHaveBeenCalledWith(false);
+      expect(mockSetters.mockSaveTabFlow).toHaveBeenCalled();
+      expect(mockSetters.mockSetIsProjectSaved).toHaveBeenCalledWith(true);
       expect(validateWorkflow).toHaveBeenCalledWith("/path/to/project");
     });
 
@@ -340,8 +167,8 @@ describe("useWorkflowValidation", () => {
         await result.current.handleValidationSaveAndValidate();
       });
 
-      expect(mockSetIsValidationSaveDialogOpen).toHaveBeenCalledWith(false);
-      expect(mockSaveTabFlow).not.toHaveBeenCalled();
+      expect(mockSetters.mockSetIsValidationSaveDialogOpen).toHaveBeenCalledWith(false);
+      expect(mockSetters.mockSaveTabFlow).not.toHaveBeenCalled();
     });
 
     it("should not save when activeTabId is null", async () => {
@@ -358,11 +185,11 @@ describe("useWorkflowValidation", () => {
         await result.current.handleValidationSaveAndValidate();
       });
 
-      expect(mockSaveTabFlow).not.toHaveBeenCalled();
+      expect(mockSetters.mockSaveTabFlow).not.toHaveBeenCalled();
     });
 
     it("should not set saved when save fails", async () => {
-      mockSaveTabFlow.mockResolvedValue(false);
+      mockSetters.mockSaveTabFlow.mockResolvedValue(false);
 
       const { result } = renderHook(() => useWorkflowValidation(defaultProps));
 
@@ -370,7 +197,7 @@ describe("useWorkflowValidation", () => {
         await result.current.handleValidationSaveAndValidate();
       });
 
-      expect(mockSetIsProjectSaved).not.toHaveBeenCalled();
+      expect(mockSetters.mockSetIsProjectSaved).not.toHaveBeenCalled();
     });
   });
 
@@ -382,7 +209,7 @@ describe("useWorkflowValidation", () => {
         result.current.handleValidationSaveCancel();
       });
 
-      expect(mockSetIsValidationSaveDialogOpen).toHaveBeenCalledWith(false);
+      expect(mockSetters.mockSetIsValidationSaveDialogOpen).toHaveBeenCalledWith(false);
     });
   });
 

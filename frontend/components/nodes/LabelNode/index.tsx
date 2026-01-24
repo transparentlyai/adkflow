@@ -1,29 +1,15 @@
 "use client";
 
 import { memo, useState, useRef, useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
-import {
-  NodeResizeControl,
-  ResizeControlVariant,
-  type NodeProps,
-  useReactFlow,
-  useStore,
-  type ResizeParams,
-} from "@xyflow/react";
+import { type NodeProps, useReactFlow, type ResizeParams } from "@xyflow/react";
 import { useProject } from "@/contexts/ProjectContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { Settings, Unlink } from "lucide-react";
 import LabelNodeExpanded from "./LabelNodeExpanded";
+import LabelNodeContextMenu from "./LabelNodeContextMenu";
+import LabelNodeResizeHandles from "./LabelNodeResizeHandles";
+import { useLabelNodeStore } from "./useLabelNodeStore";
 import type { LabelNodeData } from "./types";
 import { DEFAULT_FONT_SIZE, DEFAULT_WIDTH, EXPANDED_SIZE } from "./types";
-
-const CORNER_POSITIONS = [
-  "top-left",
-  "top-right",
-  "bottom-left",
-  "bottom-right",
-] as const;
-const EDGE_POSITIONS = ["top", "right", "bottom", "left"] as const;
 
 const LabelNode = memo(({ data, id, selected }: NodeProps) => {
   const {
@@ -50,41 +36,7 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
   const [size, setSize] = useState(EXPANDED_SIZE);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const parentId = useStore(
-    useCallback(
-      (state) => state.nodes.find((n) => n.id === id)?.parentId,
-      [id],
-    ),
-  );
-  const nodeWidth = useStore(
-    useCallback(
-      (state) => {
-        const node = state.nodes.find((n) => n.id === id);
-        return (
-          node?.measured?.width ??
-          (node?.style?.width as number) ??
-          DEFAULT_WIDTH
-        );
-      },
-      [id],
-    ),
-  );
-  const fontScaleWidth = useStore(
-    useCallback(
-      (state) =>
-        (state.nodes.find((n) => n.id === id)?.data as LabelNodeData)
-          ?.fontScaleWidth,
-      [id],
-    ),
-  );
-  const manuallyResized = useStore(
-    useCallback(
-      (state) =>
-        (state.nodes.find((n) => n.id === id)?.data as LabelNodeData)
-          ?.manuallyResized,
-      [id],
-    ),
-  );
+  const { parentId, nodeWidth, fontScaleWidth } = useLabelNodeStore(id);
   const effectiveFontWidth = fontScaleWidth ?? nodeWidth;
   const scaledFontSize =
     (effectiveFontWidth / DEFAULT_WIDTH) * DEFAULT_FONT_SIZE;
@@ -342,46 +294,14 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
   // Collapsed view
   return (
     <>
-      {/* Corner handles - always visible when selected */}
-      {selected &&
-        !isLocked &&
-        CORNER_POSITIONS.map((position) => (
-          <NodeResizeControl
-            key={position}
-            position={position}
-            variant={ResizeControlVariant.Handle}
-            minWidth={50}
-            minHeight={20}
-            keepAspectRatio
-            onResizeEnd={handleCornerResizeEnd}
-            style={{
-              width: 8,
-              height: 8,
-              backgroundColor: theme.colors.nodes.label.ring,
-              borderColor: theme.colors.nodes.label.ring,
-              borderRadius: "50%",
-            }}
-          />
-        ))}
-
-      {/* Edge handles - visible on hover only */}
-      {selected &&
-        !isLocked &&
-        EDGE_POSITIONS.map((position) => (
-          <NodeResizeControl
-            key={position}
-            position={position}
-            variant={ResizeControlVariant.Line}
-            minWidth={50}
-            minHeight={20}
-            onResizeEnd={handleEdgeResizeEnd}
-            style={{
-              opacity: isHovered ? 1 : 0,
-              borderColor: theme.colors.nodes.label.ring,
-              transition: "opacity 0.15s ease-in-out",
-            }}
-          />
-        ))}
+      {selected && !isLocked && (
+        <LabelNodeResizeHandles
+          isHovered={isHovered}
+          ringColor={theme.colors.nodes.label.ring}
+          onCornerResizeEnd={handleCornerResizeEnd}
+          onEdgeResizeEnd={handleEdgeResizeEnd}
+        />
+      )}
 
       <div
         className="w-full h-full flex items-center cursor-default select-none"
@@ -428,55 +348,15 @@ const LabelNode = memo(({ data, id, selected }: NodeProps) => {
         )}
       </div>
 
-      {/* Context Menu */}
-      {contextMenu &&
-        createPortal(
-          <>
-            <div
-              className="fixed inset-0 z-50"
-              onClick={() => setContextMenu(null)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                setContextMenu(null);
-              }}
-            />
-            <div
-              className="fixed z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
-              style={{
-                left: Math.min(contextMenu.x, window.innerWidth - 160),
-                top: Math.min(contextMenu.y, window.innerHeight - 100),
-              }}
-            >
-              <button
-                onClick={() => {
-                  toggleExpand();
-                  setContextMenu(null);
-                }}
-                className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-              >
-                <span className="mr-2 text-muted-foreground">
-                  <Settings className="h-4 w-4" />
-                </span>
-                Settings
-              </button>
-              {parentId && (
-                <button
-                  onClick={() => {
-                    handleDetach();
-                    setContextMenu(null);
-                  }}
-                  className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                >
-                  <span className="mr-2 text-muted-foreground">
-                    <Unlink className="h-4 w-4" />
-                  </span>
-                  Detach from Group
-                </button>
-              )}
-            </div>
-          </>,
-          document.body,
-        )}
+      {contextMenu && (
+        <LabelNodeContextMenu
+          position={contextMenu}
+          parentId={parentId}
+          onClose={() => setContextMenu(null)}
+          onSettings={toggleExpand}
+          onDetach={handleDetach}
+        />
+      )}
     </>
   );
 });
