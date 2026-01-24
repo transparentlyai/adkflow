@@ -506,6 +506,7 @@ class WorkflowRunner:
                 agent_outputs[agent_id] = {
                     "output": output,
                     "finish-reason": factory.get_finish_reason(agent_id),
+                    "response": factory.get_response(agent_id),
                 }
 
             # Merge pre-agent custom node outputs with agent outputs
