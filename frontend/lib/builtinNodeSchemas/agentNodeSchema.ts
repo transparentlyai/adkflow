@@ -302,6 +302,16 @@ export const agentNodeSchema: CustomNodeSchema = {
         multiple: true,
         handle_color: "#f59e0b", // Amber - warning/status color
       },
+      // Response output - emits the final response from the agent
+      {
+        id: "response",
+        label: "Response",
+        source_type: "agent",
+        data_type: "str",
+        required: false,
+        multiple: true,
+        handle_color: "#10b981", // Emerald - success/output color
+      },
     ],
     // Tabs and fields are driven by the model schema
     tabs: baseModelSchema.tabs,

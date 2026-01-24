@@ -22,6 +22,7 @@ class EventType(Enum):
     RUN_START = "run_start"
     AGENT_START = "agent_start"
     AGENT_OUTPUT = "agent_output"
+    AGENT_RESPONSE = "agent_response"  # Final response from agent
     AGENT_END = "agent_end"
     TOOL_CALL = "tool_call"
     TOOL_RESULT = "tool_result"
