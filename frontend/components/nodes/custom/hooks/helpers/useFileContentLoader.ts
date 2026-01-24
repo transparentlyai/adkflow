@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useReactFlow } from "@xyflow/react";
 import { useProject } from "@/contexts/ProjectContext";
 import { readPrompt } from "@/lib/api";
@@ -74,6 +75,18 @@ export function useFileContentLoader({
       try {
         const response = await readPrompt(projectPath, filePathToLoad);
         processedFilePathRef.current = filePathToLoad;
+
+        // Use flushSync to force synchronous updates for ALL state changes.
+        // This ensures React processes the updates immediately and the component
+        // tree re-renders with the new content before we mark loading complete.
+        // Without this, the setNodes update might be batched and Monaco won't
+        // receive the new value until after it has already mounted with empty content.
+        flushSync(() => {
+          setSavedContent(response.content);
+          setIsContentLoaded(true);
+        });
+
+        // Update the node config with the loaded content
         setNodes((nodes) =>
           nodes.map((node) =>
             node.id === nodeId
@@ -90,8 +103,6 @@ export function useFileContentLoader({
               : node,
           ),
         );
-        setSavedContent(response.content);
-        setIsContentLoaded(true);
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
@@ -166,7 +177,9 @@ export function useFileContentLoader({
   // Load content from file when expanded, or initialize dirty tracking for nodes without file
   useEffect(() => {
     const loadContent = async () => {
-      if (!isExpanded || isContentLoaded || isLoadingRef.current) return;
+      if (!isExpanded || isContentLoaded || isLoadingRef.current) {
+        return;
+      }
       if (fileLoadConfirm) return; // Wait for confirmation
 
       // Case 1: Node with code editor AND file path - load from file
@@ -191,7 +204,9 @@ export function useFileContentLoader({
           return;
         }
 
-        // No confirmation needed - load directly
+        // Delay loading to give Monaco editor time to mount first
+        // This ensures the editor is ready to receive the content update
+        await new Promise((resolve) => setTimeout(resolve, 200));
         await loadFileContent(filePath);
       }
       // Case 2: Node with code editor but NO file path - track dirty against current content
@@ -205,9 +220,15 @@ export function useFileContentLoader({
         setSavedContent("");
         setIsContentLoaded(true);
       }
+      // Case 4: Code editor + file path but no projectPath - cannot load file
+      else if (codeEditorField && filePath && !projectPath) {
+        setSavedContent(codeContent || "");
+        setIsContentLoaded(true);
+      }
     };
     loadContent();
   }, [
+    nodeId,
     isExpanded,
     isContentLoaded,
     filePath,

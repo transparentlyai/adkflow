@@ -39,17 +39,24 @@ export default function MonacoEditorWidget({
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   // Track the last value we set programmatically to avoid loops
   const lastExternalValueRef = useRef<string>(value);
+  // Keep a ref to the latest value to avoid stale closures in callbacks
+  const valueRef = useRef<string>(value);
+  valueRef.current = value;
 
   // Sync external value changes to the editor
   // This handles updates from file sync (when another node modifies the same file)
+  // and initial content loading
   useEffect(() => {
     const editor = editorRef.current;
-    if (!editor) return;
 
     // Update if the value prop differs from what we last tracked
     // This means it's an external change (not from user typing)
     if (value !== lastExternalValueRef.current) {
       lastExternalValueRef.current = value;
+
+      // If editor is not ready yet, it will pick up the value when it mounts
+      // via handleEditorMount's sync logic
+      if (!editor) return;
 
       // Only call setValue if the editor doesn't already have this value
       const currentEditorValue = editor.getValue();
@@ -75,7 +82,33 @@ export default function MonacoEditorWidget({
   const handleEditorMount = useCallback(
     (editor: editor.IStandaloneCodeEditor, monaco: Monaco) => {
       editorRef.current = editor;
-      lastExternalValueRef.current = value;
+      // Use valueRef.current to get the latest value, avoiding stale closure issues
+      const latestValue = valueRef.current;
+      lastExternalValueRef.current = latestValue;
+
+      // Force sync the value in case it changed while Monaco was loading
+      // This handles the race condition where content loads before Monaco initializes
+      const currentEditorValue = editor.getValue();
+      if (currentEditorValue !== latestValue) {
+        editor.setValue(latestValue);
+      }
+
+      // Schedule checks after React has had a chance to re-render
+      // This handles the case where content loads right as Monaco mounts
+      const syncValue = () => {
+        const latestVal = valueRef.current;
+        const editorVal = editor.getValue();
+        if (editorVal !== latestVal) {
+          lastExternalValueRef.current = latestVal;
+          editor.setValue(latestVal);
+        }
+      };
+      requestAnimationFrame(syncValue);
+      // Check at multiple intervals to catch late-loading content
+      // Content loading has a 200ms delay + API call time
+      setTimeout(syncValue, 100);
+      setTimeout(syncValue, 300);
+      setTimeout(syncValue, 500);
 
       // Register Ctrl+S / Cmd+S keyboard shortcut for save
       if (onSave) {
@@ -84,7 +117,7 @@ export default function MonacoEditorWidget({
         );
       }
     },
-    [onSave, value],
+    [onSave],
   );
 
   const computedHeight = typeof height === "number" ? `${height}px` : height;

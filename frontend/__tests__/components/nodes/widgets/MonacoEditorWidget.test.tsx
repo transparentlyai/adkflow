@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import MonacoEditorWidget from "@/components/nodes/widgets/MonacoEditorWidget";
@@ -70,7 +70,7 @@ function MockMonacoEditor({
   theme?: string;
   height?: string | number;
   onMount?: (editor: unknown, monaco: unknown) => void;
-  options?: Record<string, unknown>;
+  options?: { readOnly?: boolean; minimap?: { enabled?: boolean } };
 }) {
   // Store callbacks for testing
   mockOnChangeCallback = onChange ?? null;
@@ -79,8 +79,16 @@ function MockMonacoEditor({
   // Simulate mount on render
   React.useEffect(() => {
     if (onMount) {
+      // Track internal value for getValue/setValue
+      let internalValue = value ?? "";
       const mockEditor = {
         addCommand: vi.fn(),
+        getValue: () => internalValue,
+        setValue: (val: string) => {
+          internalValue = val;
+        },
+        getPosition: () => ({ lineNumber: 1, column: 1 }),
+        setPosition: vi.fn(),
       };
       const mockMonaco = {
         KeyMod: { CtrlCmd: 2048 },
@@ -88,7 +96,7 @@ function MockMonacoEditor({
       };
       onMount(mockEditor, mockMonaco);
     }
-  }, [onMount]);
+  }, [onMount, value]);
 
   return (
     <textarea
