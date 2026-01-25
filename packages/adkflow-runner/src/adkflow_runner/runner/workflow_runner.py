@@ -415,6 +415,20 @@ class WorkflowRunner:
         # to handle variable substitution natively at runtime.
         initial_state = collect_context_vars_for_session(ir)
 
+        # DEBUG: Log session state and agent upstream_output_keys
+        _log.debug(
+            "Session state initialization",
+            initial_state_keys=list(initial_state.keys()),
+            root_agent=root_agent.name if root_agent else "None",
+        )
+        for agent_id, agent_ir in ir.all_agents.items():
+            if agent_ir.upstream_output_keys:
+                _log.debug(
+                    "Agent expects upstream output_keys",
+                    agent_name=agent_ir.name,
+                    upstream_output_keys=agent_ir.upstream_output_keys,
+                )
+
         session_service = InMemorySessionService()
         session = await session_service.create_session(
             app_name="adkflow",
@@ -506,6 +520,7 @@ class WorkflowRunner:
                 agent_outputs[agent_id] = {
                     "output": output,
                     "finish-reason": factory.get_finish_reason(agent_id),
+                    "response": factory.get_response(agent_id),
                 }
 
             # Merge pre-agent custom node outputs with agent outputs

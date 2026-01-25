@@ -228,6 +228,26 @@ class TestAdvancedAgentFeatures:
         mock_planner_cls.assert_called_once()
 
     @patch("adkflow_runner.runner.agent_factory.Agent")
+    @patch("adkflow_runner.runner.agent_factory.BuiltInPlanner")
+    def test_create_agent_with_planner_no_budget(self, mock_planner_cls, mock_agent_cls):
+        """Create agent with builtin planner but no thinking budget."""
+        mock_agent_cls.return_value = MagicMock()
+        mock_planner_cls.return_value = MagicMock()
+
+        factory = AgentFactory()
+        agent_ir = AgentIR(
+            id="agent_1",
+            name="TestAgent",
+            type="llm",
+            model="gemini-2.0-flash",
+        )
+        agent_ir.planner.type = "builtin"
+        agent_ir.planner.thinking_budget = None  # No budget specified
+
+        factory.create(agent_ir)
+        mock_planner_cls.assert_called_once()
+
+    @patch("adkflow_runner.runner.agent_factory.Agent")
     @patch("adkflow_runner.runner.agent_factory.BuiltInCodeExecutor")
     def test_create_agent_with_code_executor(self, mock_executor_cls, mock_agent_cls):
         """Create agent with code executor enabled."""
@@ -578,6 +598,21 @@ class TestSubstituteVariables:
         assert "director" in error_msg
         assert "topic" in error_msg
 
+    def test_error_with_no_available_vars(self):
+        """Error message when no variables are available."""
+        from adkflow_runner.errors import ExecutionError
+
+        factory = AgentFactory()
+        text = "Missing: {unknown}."
+        context_vars: dict[str, str] = {}
+
+        with pytest.raises(ExecutionError) as exc_info:
+            factory._substitute_variables(text, context_vars, "TestAgent")
+
+        error_msg = str(exc_info.value)
+        assert "unknown" in error_msg
+        assert "none" in error_msg.lower()
+
 
 class TestBuildSafetySettings:
     """Tests for _build_safety_settings method."""
@@ -777,3 +812,67 @@ class TestGetFinishReason:
         assert result == test_finish_reason
         assert result["name"] == "STOP"
         assert result["description"] == "Natural completion"
+
+
+class TestGetResponse:
+    """Tests for get_response method."""
+
+    @patch("adkflow_runner.runner.agent_factory.Agent")
+    def test_get_response_returns_none_when_not_available(self, mock_agent_cls):
+        """get_response returns None when handler has no response."""
+        mock_agent_cls.return_value = MagicMock()
+
+        factory = AgentFactory()
+        agent_ir = AgentIR(
+            id="agent_1",
+            name="TestAgent",
+            type="llm",
+            model="gemini-2.0-flash",
+        )
+
+        factory.create(agent_ir)
+
+        # Before any execution, response should be None
+        result = factory.get_response("agent_1")
+        assert result is None
+
+    @patch("adkflow_runner.runner.agent_factory.Agent")
+    def test_get_response_returns_none_for_unknown_agent(self, mock_agent_cls):
+        """get_response returns None for unknown agent ID."""
+        mock_agent_cls.return_value = MagicMock()
+
+        factory = AgentFactory()
+
+        # Query non-existent agent
+        result = factory.get_response("unknown_agent")
+        assert result is None
+
+    @patch("adkflow_runner.runner.agent_factory.Agent")
+    def test_get_response_returns_stored_value(self, mock_agent_cls):
+        """get_response returns stored response after execution."""
+        from unittest.mock import MagicMock
+
+        mock_agent_cls.return_value = MagicMock()
+
+        factory = AgentFactory()
+        agent_ir = AgentIR(
+            id="agent_1",
+            name="TestAgent",
+            type="llm",
+            model="gemini-2.0-flash",
+        )
+
+        factory.create(agent_ir)
+
+        # Simulate response being stored by handler
+        # The ResponseHandler should be in _response_handlers
+        assert "agent_1" in factory._response_handlers
+        handler = factory._response_handlers["agent_1"]
+
+        # Set a response (simulating what the handler would do during execution)
+        test_response = "This is the agent's response text."
+        handler._last_response = test_response
+
+        result = factory.get_response("agent_1")
+        assert result == test_response
+        assert result == "This is the agent's response text."

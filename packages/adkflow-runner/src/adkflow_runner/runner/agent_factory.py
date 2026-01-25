@@ -31,6 +31,7 @@ from adkflow_runner.runner.callbacks import (
     ExtensionHooksHandler,
     FinishReasonHandler,
     LoggingHandler,
+    ResponseHandler,
     StripContentsHandler,
     TracingHandler,
     UserCallbackHandler,
@@ -58,6 +59,7 @@ class AgentFactory:
         self.tool_loader = ToolLoader(project_path)
         self._agent_cache: dict[str, BaseAgent] = {}
         self._finish_reason_handlers: dict[str, FinishReasonHandler] = {}
+        self._response_handlers: dict[str, ResponseHandler] = {}
         self._global_variables: dict[str, str] = {}  # From unconnected Variable nodes
 
     def create_from_workflow(
@@ -368,6 +370,11 @@ class AgentFactory:
         # Priority 400: RunEvent emission for UI
         registry.register(EmitHandler(self.emit))
 
+        # Priority 450: Response capture for output handles
+        response_handler = ResponseHandler()
+        registry.register(response_handler)
+        self._response_handlers[agent_ir.id] = response_handler
+
         # Priority 500: Extension hooks bridge
         registry.register(ExtensionHooksHandler(self.hooks))
 
@@ -402,6 +409,20 @@ class AgentFactory:
         handler = self._finish_reason_handlers.get(agent_id)
         if handler:
             return handler.last_finish_reason
+        return None
+
+    def get_response(self, agent_id: str) -> str | None:
+        """Get the last response text for an agent after execution.
+
+        Args:
+            agent_id: The agent ID to get response for
+
+        Returns:
+            The last LLM response text, or None if not available.
+        """
+        handler = self._response_handlers.get(agent_id)
+        if handler:
+            return handler.last_response
         return None
 
     def _load_tools(self, agent_ir: AgentIR) -> list[Any]:
