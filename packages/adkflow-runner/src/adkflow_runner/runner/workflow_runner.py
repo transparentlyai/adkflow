@@ -49,6 +49,7 @@ from adkflow_runner.runner.execution_engine import (
     write_output_files,
     process_adk_event,
     merge_context_vars,
+    extract_agent_monitor_connections,
 )
 from adkflow_runner.runner.graph_builder import partition_custom_nodes
 from adkflow_runner.runner.session_utils import collect_context_vars_for_session
@@ -410,6 +411,17 @@ class WorkflowRunner:
         factory = AgentFactory(config.project_path)
         root_agent = factory.create_from_workflow(ir, emit=emit, hooks=hooks)
 
+        # Extract Monitor connections for real-time updates during ADK streaming
+        agent_monitors = extract_agent_monitor_connections(ir)
+        if agent_monitors:
+            _log.debug(
+                "Agent-Monitor connections for real-time updates",
+                connections={
+                    agent: [m.monitor_id for m in monitors]
+                    for agent, monitors in agent_monitors.items()
+                },
+            )
+
         # Collect and validate all context_vars for session state initialization.
         # This validates for conflicts BEFORE the workflow runs and allows ADK
         # to handle variable substitution natively at runtime.
@@ -483,7 +495,9 @@ class WorkflowRunner:
                 new_message=content,
                 run_config=adk_run_config,
             ):
-                last_author = await process_adk_event(event, emit, last_author)
+                last_author = await process_adk_event(
+                    event, emit, last_author, agent_monitors
+                )
 
                 if hasattr(event, "content") and event.content:
                     parts = event.content.parts

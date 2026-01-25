@@ -3,6 +3,7 @@
 import json
 import time
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -10,7 +11,8 @@ from google.adk.runners import Runner
 from google.genai import types
 
 from adkflow_runner.errors import ExecutionError
-from adkflow_runner.ir import WorkflowIR
+from adkflow_runner.ir import WorkflowIR, AgentIR
+from adkflow_runner.logging import get_logger
 from adkflow_runner.runner.types import (
     RunConfig,
     RunEvent,
@@ -19,6 +21,99 @@ from adkflow_runner.runner.types import (
 from adkflow_runner.runner.graph_builder import GraphBuilder
 from adkflow_runner.runner.graph_executor import GraphExecutor
 from adkflow_runner.hooks import HooksIntegration
+
+_log = get_logger("runner.execution_engine")
+
+
+@dataclass
+class MonitorConnection:
+    """Represents a Monitor node connected to an agent."""
+
+    monitor_id: str
+    monitor_name: str
+    source_handle: str  # e.g., "response", "output"
+
+
+def _collect_all_agents_recursive(
+    agent: "AgentIR", result: dict[str, "AgentIR"]
+) -> None:
+    """Recursively collect all agents including nested subagents."""
+    result[agent.id] = agent
+    for subagent in agent.subagents:
+        _collect_all_agents_recursive(subagent, result)
+
+
+def _normalize_agent_name_for_adk(name: str) -> str:
+    """Normalize agent name to match ADK's internal format.
+
+    ADK converts spaces to underscores in agent names.
+    """
+    return name.replace(" ", "_")
+
+
+def extract_agent_monitor_connections(
+    ir: WorkflowIR,
+) -> dict[str, list[MonitorConnection]]:
+    """Extract mapping of agent names to connected Monitor nodes.
+
+    Monitors connected to agent output handles will receive real-time updates
+    during the ADK streaming loop, not just at flow completion.
+
+    Args:
+        ir: The compiled workflow IR
+
+    Returns:
+        Dict mapping agent name -> list of MonitorConnection
+    """
+    # Collect ALL agents including nested subagents
+    # ir.all_agents may only contain top-level agents, so we need to
+    # recursively collect subagents from Sequential/Parallel/Loop agents
+    all_agents_flat: dict[str, AgentIR] = {}
+    for agent_ir in ir.all_agents.values():
+        _collect_all_agents_recursive(agent_ir, all_agents_flat)
+
+    # Also traverse from root_agent in case it's not in all_agents
+    _collect_all_agents_recursive(ir.root_agent, all_agents_flat)
+
+    # Map agent ID to normalized name (ADK uses underscores instead of spaces)
+    agent_id_to_name: dict[str, str] = {
+        agent_id: _normalize_agent_name_for_adk(agent_ir.name)
+        for agent_id, agent_ir in all_agents_flat.items()
+    }
+    agent_ids = set(all_agents_flat.keys())
+
+    _log.debug(
+        "Collected agents for monitor connections",
+        agent_count=len(all_agents_flat),
+        agent_names=list(agent_id_to_name.values()),
+        agent_ids=list(agent_ids),
+    )
+
+    # Find Monitor nodes and their connections to agents
+    agent_monitors: dict[str, list[MonitorConnection]] = {}
+
+    for custom_node in ir.custom_nodes:
+        if custom_node.unit_id != "builtin.monitor":
+            continue
+
+        monitor_name = custom_node.config.get("name", "Monitor")
+
+        # Check input connections for agent sources
+        for port_id, sources in custom_node.input_connections.items():
+            for source in sources:
+                if source.node_id in agent_ids:
+                    agent_name = agent_id_to_name[source.node_id]
+                    if agent_name not in agent_monitors:
+                        agent_monitors[agent_name] = []
+                    agent_monitors[agent_name].append(
+                        MonitorConnection(
+                            monitor_id=custom_node.id,
+                            monitor_name=monitor_name,
+                            source_handle=source.handle,
+                        )
+                    )
+
+    return agent_monitors
 
 
 def normalize_context_value(key: str, value: Any, source_name: str) -> str:
@@ -374,10 +469,21 @@ async def process_adk_event(
     event: Any,
     emit: Any,
     last_author: str | None = None,
+    agent_monitors: dict[str, list[MonitorConnection]] | None = None,
 ) -> str | None:
     """Process an ADK event and emit corresponding RunEvent.
 
-    Returns the current author for tracking agent changes.
+    Also emits MONITOR_UPDATE events for any Monitor nodes connected to the
+    agent, enabling real-time updates during execution (not just at flow end).
+
+    Args:
+        event: ADK streaming event
+        emit: Event emitter function
+        last_author: Previous author for tracking agent changes
+        agent_monitors: Mapping of agent name -> connected Monitor nodes
+
+    Returns:
+        Current author for tracking agent changes
     """
     author = getattr(event, "author", None)
 
@@ -406,6 +512,44 @@ async def process_adk_event(
                 )
             )
 
+            # Emit MONITOR_UPDATE for connected Monitor nodes (real-time updates)
+            if agent_monitors and author in agent_monitors:
+                timestamp_str = time.strftime("%Y-%m-%dT%H:%M:%S")
+                for monitor in agent_monitors[author]:
+                    # Only emit for monitors connected to "response" handle
+                    if monitor.source_handle == "response":
+                        await emit(
+                            RunEvent(
+                                type=EventType.MONITOR_UPDATE,
+                                timestamp=time.time(),
+                                agent_id=monitor.monitor_id,
+                                agent_name=monitor.monitor_name,
+                                data={
+                                    "node_id": monitor.monitor_id,
+                                    "value": text,
+                                    "value_type": _detect_value_type(text),
+                                    "timestamp": timestamp_str,
+                                },
+                            )
+                        )
+
     # Note: TOOL_CALL/TOOL_RESULT are emitted via ADK callbacks in agent_factory.py
 
     return author if author and author != "user" else last_author
+
+
+def _detect_value_type(value: str) -> str:
+    """Detect content type for syntax highlighting."""
+    # Check for JSON
+    if value.strip().startswith(("{", "[")):
+        try:
+            json.loads(value)
+            return "json"
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+    # Check for markdown indicators
+    if any(pattern in value for pattern in ["# ", "## ", "**", "- ", "[", "](", "```"]):
+        return "markdown"
+
+    return "plaintext"

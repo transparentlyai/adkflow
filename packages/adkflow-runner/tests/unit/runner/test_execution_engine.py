@@ -9,9 +9,17 @@ from adkflow_runner.runner.execution_engine import (
     execute_custom_nodes_graph,
     write_output_files,
     process_adk_event,
+    extract_agent_monitor_connections,
+    MonitorConnection,
 )
 from adkflow_runner.runner.types import EventType, RunConfig
-from adkflow_runner.ir import WorkflowIR, AgentIR, OutputFileIR
+from adkflow_runner.ir import (
+    WorkflowIR,
+    AgentIR,
+    OutputFileIR,
+    CustomNodeIR,
+    ConnectionSource,
+)
 
 
 class TestFormatError:
@@ -432,3 +440,229 @@ class TestProcessAdkEvent:
         call_args = emit.call_args[0][0]
         assert call_args.data["output"] == long_text
         assert len(call_args.data["output"]) == 3000
+
+
+class TestExtractAgentMonitorConnections:
+    """Tests for extract_agent_monitor_connections function."""
+
+    def test_extracts_monitor_connections(self):
+        """Test extracting monitor connections from IR."""
+        # Create a mock IR with an agent and a monitor connected to it
+        agent_ir = AgentIR(
+            id="agent-1",
+            name="TestAgent",
+            type="llm",
+        )
+
+        monitor_node = CustomNodeIR(
+            id="monitor-1",
+            unit_id="builtin.monitor",
+            name="Test Monitor",
+            config={"name": "My Monitor"},
+            source_node_id="monitor-1",
+            input_connections={
+                "input": [ConnectionSource(node_id="agent-1", handle="response")]
+            },
+        )
+
+        ir = WorkflowIR(
+            root_agent=agent_ir,
+            all_agents={"agent-1": agent_ir},
+            custom_nodes=[monitor_node],
+        )
+
+        result = extract_agent_monitor_connections(ir)
+
+        assert "TestAgent" in result
+        assert len(result["TestAgent"]) == 1
+        assert result["TestAgent"][0].monitor_id == "monitor-1"
+        assert result["TestAgent"][0].monitor_name == "My Monitor"
+        assert result["TestAgent"][0].source_handle == "response"
+
+    def test_returns_empty_when_no_monitors(self):
+        """Test that empty dict is returned when no monitors exist."""
+        agent_ir = AgentIR(
+            id="agent-1",
+            name="TestAgent",
+            type="llm",
+        )
+
+        ir = WorkflowIR(
+            root_agent=agent_ir,
+            all_agents={"agent-1": agent_ir},
+            custom_nodes=[],
+        )
+
+        result = extract_agent_monitor_connections(ir)
+        assert result == {}
+
+    def test_ignores_non_monitor_nodes(self):
+        """Test that non-monitor custom nodes are ignored."""
+        agent_ir = AgentIR(
+            id="agent-1",
+            name="TestAgent",
+            type="llm",
+        )
+
+        other_node = CustomNodeIR(
+            id="node-1",
+            unit_id="tools.some_tool",
+            name="Some Tool",
+            config={},
+            source_node_id="node-1",
+            input_connections={
+                "input": [ConnectionSource(node_id="agent-1", handle="response")]
+            },
+        )
+
+        ir = WorkflowIR(
+            root_agent=agent_ir,
+            all_agents={"agent-1": agent_ir},
+            custom_nodes=[other_node],
+        )
+
+        result = extract_agent_monitor_connections(ir)
+        assert result == {}
+
+    def test_normalizes_agent_names_for_adk(self):
+        """Test that agent names with spaces are normalized to underscores.
+
+        ADK internally uses underscores instead of spaces in agent names,
+        so we need to normalize to match the ADK event author names.
+        """
+        # Agent with space in name (as it appears in the IR)
+        agent_ir = AgentIR(
+            id="agent-1",
+            name="research Supervisor",  # Space in name
+            type="llm",
+        )
+
+        monitor_node = CustomNodeIR(
+            id="monitor-1",
+            unit_id="builtin.monitor",
+            name="Monitor",
+            config={"name": "Monitor 1"},
+            source_node_id="monitor-1",
+            input_connections={
+                "input": [ConnectionSource(node_id="agent-1", handle="response")]
+            },
+        )
+
+        ir = WorkflowIR(
+            root_agent=agent_ir,
+            all_agents={"agent-1": agent_ir},
+            custom_nodes=[monitor_node],
+        )
+
+        result = extract_agent_monitor_connections(ir)
+
+        # Key should be normalized (underscore instead of space)
+        assert "research_Supervisor" in result
+        assert "research Supervisor" not in result
+        assert len(result["research_Supervisor"]) == 1
+
+
+class TestProcessAdkEventWithMonitors:
+    """Tests for process_adk_event with monitor connections."""
+
+    @pytest.mark.asyncio
+    async def test_emits_monitor_update_for_connected_monitors(self):
+        """Test that MONITOR_UPDATE events are emitted for connected monitors."""
+        emit = AsyncMock()
+
+        mock_part = MagicMock()
+        mock_part.text = "Test output"
+
+        mock_content = MagicMock()
+        mock_content.parts = [mock_part]
+
+        mock_event = MagicMock()
+        mock_event.author = "TestAgent"
+        mock_event.content = mock_content
+        mock_event.partial = False
+        mock_event.is_final_response = MagicMock(return_value=True)
+
+        # Create monitor connection
+        agent_monitors = {
+            "TestAgent": [
+                MonitorConnection(
+                    monitor_id="monitor-1",
+                    monitor_name="My Monitor",
+                    source_handle="response",
+                )
+            ]
+        }
+
+        await process_adk_event(mock_event, emit, None, agent_monitors)
+
+        # Should emit both AGENT_OUTPUT and MONITOR_UPDATE
+        assert emit.call_count == 2
+
+        # First call should be AGENT_OUTPUT
+        first_call = emit.call_args_list[0][0][0]
+        assert first_call.type == EventType.AGENT_OUTPUT
+
+        # Second call should be MONITOR_UPDATE
+        second_call = emit.call_args_list[1][0][0]
+        assert second_call.type == EventType.MONITOR_UPDATE
+        assert second_call.data["node_id"] == "monitor-1"
+        assert second_call.data["value"] == "Test output"
+        assert second_call.data["value_type"] == "plaintext"
+
+    @pytest.mark.asyncio
+    async def test_skips_monitors_with_non_response_handle(self):
+        """Test that monitors connected to non-response handles are skipped."""
+        emit = AsyncMock()
+
+        mock_part = MagicMock()
+        mock_part.text = "Test output"
+
+        mock_content = MagicMock()
+        mock_content.parts = [mock_part]
+
+        mock_event = MagicMock()
+        mock_event.author = "TestAgent"
+        mock_event.content = mock_content
+        mock_event.partial = False
+        mock_event.is_final_response = MagicMock(return_value=True)
+
+        # Create monitor connection with different handle
+        agent_monitors = {
+            "TestAgent": [
+                MonitorConnection(
+                    monitor_id="monitor-1",
+                    monitor_name="My Monitor",
+                    source_handle="output",  # Not "response"
+                )
+            ]
+        }
+
+        await process_adk_event(mock_event, emit, None, agent_monitors)
+
+        # Should only emit AGENT_OUTPUT (not MONITOR_UPDATE)
+        assert emit.call_count == 1
+        assert emit.call_args_list[0][0][0].type == EventType.AGENT_OUTPUT
+
+    @pytest.mark.asyncio
+    async def test_works_without_agent_monitors(self):
+        """Test that function works when agent_monitors is None."""
+        emit = AsyncMock()
+
+        mock_part = MagicMock()
+        mock_part.text = "Test output"
+
+        mock_content = MagicMock()
+        mock_content.parts = [mock_part]
+
+        mock_event = MagicMock()
+        mock_event.author = "TestAgent"
+        mock_event.content = mock_content
+        mock_event.partial = False
+        mock_event.is_final_response = MagicMock(return_value=True)
+
+        # No agent_monitors passed (backwards compatibility)
+        await process_adk_event(mock_event, emit, None, None)
+
+        # Should only emit AGENT_OUTPUT
+        assert emit.call_count == 1
+        assert emit.call_args_list[0][0][0].type == EventType.AGENT_OUTPUT
