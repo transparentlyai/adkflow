@@ -31,7 +31,6 @@ from adkflow_runner.runner.callbacks import (
     ExtensionHooksHandler,
     FinishReasonHandler,
     LoggingHandler,
-    ResponseHandler,
     StripContentsHandler,
     TracingHandler,
     UserCallbackHandler,
@@ -59,7 +58,6 @@ class AgentFactory:
         self.tool_loader = ToolLoader(project_path)
         self._agent_cache: dict[str, BaseAgent] = {}
         self._finish_reason_handlers: dict[str, FinishReasonHandler] = {}
-        self._response_handlers: dict[str, ResponseHandler] = {}
         self._global_variables: dict[str, str] = {}  # From unconnected Variable nodes
 
     def create_from_workflow(
@@ -337,9 +335,7 @@ class AgentFactory:
         - 100: StripContentsHandler (optional, if strip_contents enabled)
         - 200: TracingHandler (OpenTelemetry span attributes)
         - 300: LoggingHandler (API/tool logging)
-        - 350: FinishReasonHandler (finish reason validation)
         - 400: EmitHandler (RunEvent emission to UI)
-        - 450: ResponseHandler (final response emission)
         - 500: ExtensionHooksHandler (bridge to global hooks)
         - 600: UserCallbackHandler (optional, if callbacks configured)
 
@@ -371,12 +367,6 @@ class AgentFactory:
 
         # Priority 400: RunEvent emission for UI
         registry.register(EmitHandler(self.emit))
-
-        # Priority 450: Final response emission
-        response_handler = ResponseHandler(self.emit)
-        registry.register(response_handler)
-        # Store handler for post-execution retrieval
-        self._response_handlers[agent_ir.id] = response_handler
 
         # Priority 500: Extension hooks bridge
         registry.register(ExtensionHooksHandler(self.hooks))
@@ -412,20 +402,6 @@ class AgentFactory:
         handler = self._finish_reason_handlers.get(agent_id)
         if handler:
             return handler.last_finish_reason
-        return None
-
-    def get_response(self, agent_id: str) -> str | None:
-        """Get the final response for an agent after execution.
-
-        Args:
-            agent_id: The agent ID to get response for
-
-        Returns:
-            The response text, or None if not available.
-        """
-        handler = self._response_handlers.get(agent_id)
-        if handler:
-            return handler.last_response
         return None
 
     def _load_tools(self, agent_ir: AgentIR) -> list[Any]:

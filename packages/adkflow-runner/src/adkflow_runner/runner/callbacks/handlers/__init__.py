@@ -6,7 +6,6 @@ Each handler has a default priority:
 - 300: LoggingHandler
 - 350: FinishReasonHandler
 - 400: EmitHandler
-- 450: ResponseHandler
 - 500: ExtensionHooksHandler
 - 600: UserCallbackHandler
 """
@@ -22,7 +21,6 @@ from adkflow_runner.runner.callbacks.handlers.finish_reason import (
     FinishReasonHandler,
 )
 from adkflow_runner.runner.callbacks.handlers.logging import LoggingHandler
-from adkflow_runner.runner.callbacks.handlers.response import ResponseHandler
 from adkflow_runner.runner.callbacks.handlers.strip_contents import StripContentsHandler
 from adkflow_runner.runner.callbacks.handlers.tracing import TracingHandler
 from adkflow_runner.runner.callbacks.handlers.user_callback import UserCallbackHandler
@@ -35,7 +33,6 @@ __all__ = [
     "FinishReasonError",
     "FinishReasonHandler",
     "LoggingHandler",
-    "ResponseHandler",
     "StripContentsHandler",
     "TracingHandler",
     "UserCallbackHandler",
