@@ -280,3 +280,152 @@ class TestAsyncExecution:
 
         assert result.action == FlowControl.CONTINUE  # Chain continues
         assert data == {"replaced": True}
+
+
+class TestSyncAsyncBoundaries:
+    """Tests for sync/async boundary enforcement."""
+
+    def test_sync_chain_rejects_awaitable(self):
+        """before_model/after_model raise TypeError if handler returns awaitable."""
+
+        class BadAsyncHandler(BaseHandler):
+            DEFAULT_PRIORITY = 100
+
+            def before_model(self, callback_context, llm_request, agent_name):
+                async def bad():
+                    pass
+
+                return bad()  # Returns coroutine
+
+        registry = CallbackRegistry("TestAgent")
+        registry.register(BadAsyncHandler())
+        executor = CallbackExecutor(registry)
+
+        with pytest.raises(TypeError, match="awaitable"):
+            executor._execute_sync_chain(
+                "before_model",
+                callback_context=None,
+                llm_request=None,
+            )
+
+    def test_agent_callback_ignores_awaitable(self):
+        """Agent callbacks warn and ignore awaitables."""
+
+        class AsyncAgentHandler(BaseHandler):
+            DEFAULT_PRIORITY = 100
+            calls = []
+
+            def before_agent(self, callback_context, agent_name):
+                AsyncAgentHandler.calls.append("before_agent")
+
+                async def bad():
+                    pass
+
+                return bad()
+
+        registry = CallbackRegistry("TestAgent")
+        registry.register(AsyncAgentHandler())
+        executor = CallbackExecutor(registry)
+
+        # Reset calls tracking
+        AsyncAgentHandler.calls = []
+
+        # Should not raise, should log warning
+        executor._execute_agent_callback("before_agent", callback_context=None)
+
+        # The method was called (returned awaitable which was ignored)
+        assert AsyncAgentHandler.calls == ["before_agent"]
+
+
+class TestHandlerCapabilities:
+    """Tests for handler capability caching."""
+
+    def test_capabilities_detected_correctly(self):
+        """Only overridden methods are detected as capabilities."""
+
+        class PartialHandler(BaseHandler):
+            DEFAULT_PRIORITY = 100
+
+            def before_model(self, callback_context, llm_request, agent_name):
+                pass  # Only implements before_model
+
+        registry = CallbackRegistry("TestAgent")
+        handler = PartialHandler()
+        registry.register(handler)
+
+        caps = registry._handler_capabilities[id(handler)]
+        assert "before_model" in caps
+        assert "after_model" not in caps
+        assert "before_agent" not in caps
+        assert "after_agent" not in caps
+        assert "before_tool" not in caps
+        assert "after_tool" not in caps
+
+    def test_get_handlers_for_filters(self):
+        """get_handlers_for returns only handlers implementing method."""
+
+        class OnlyBeforeModel(BaseHandler):
+            DEFAULT_PRIORITY = 100
+
+            def before_model(self, callback_context, llm_request, agent_name):
+                pass
+
+        class OnlyAfterModel(BaseHandler):
+            DEFAULT_PRIORITY = 200
+
+            def after_model(self, callback_context, llm_response, agent_name):
+                pass
+
+        registry = CallbackRegistry("TestAgent")
+        h1 = OnlyBeforeModel()
+        h2 = OnlyAfterModel()
+        registry.register(h1)
+        registry.register(h2)
+
+        assert registry.get_handlers_for("before_model") == [h1]
+        assert registry.get_handlers_for("after_model") == [h2]
+        assert registry.get_handlers_for("before_agent") == []
+
+    def test_get_handlers_for_preserves_priority_order(self):
+        """get_handlers_for returns handlers in priority order."""
+
+        class HighPriorityHandler(BaseHandler):
+            DEFAULT_PRIORITY = 50
+
+            def before_model(self, callback_context, llm_request, agent_name):
+                pass
+
+        class LowPriorityHandler(BaseHandler):
+            DEFAULT_PRIORITY = 200
+
+            def before_model(self, callback_context, llm_request, agent_name):
+                pass
+
+        registry = CallbackRegistry("TestAgent")
+        h_low = LowPriorityHandler()
+        h_high = HighPriorityHandler()
+        # Register in reverse priority order
+        registry.register(h_low)
+        registry.register(h_high)
+
+        handlers = registry.get_handlers_for("before_model")
+        assert handlers == [h_high, h_low]  # Sorted by priority
+
+    def test_unregister_cleans_capabilities_cache(self):
+        """Unregistering a handler removes its capabilities from cache."""
+
+        class SimpleHandler(BaseHandler):
+            DEFAULT_PRIORITY = 100
+
+            def before_model(self, callback_context, llm_request, agent_name):
+                pass
+
+        registry = CallbackRegistry("TestAgent")
+        handler = SimpleHandler()
+        registry.register(handler)
+
+        handler_id = id(handler)
+        assert handler_id in registry._handler_capabilities
+
+        registry.unregister(handler)
+        assert handler_id not in registry._handler_capabilities

@@ -81,6 +81,26 @@ class CallbackHandler(Protocol):
     Handlers implement methods for each callback type they want to handle.
     Methods not implemented are treated as no-ops.
 
+    SYNC/ASYNC CONTRACT:
+
+    STRICTLY SYNCHRONOUS (TypeError raised if awaitable returned):
+        - before_model(): ADK constraint - no async support
+        - after_model(): ADK constraint - no async support
+
+    STRICTLY SYNCHRONOUS (awaitables ignored with warning):
+        - before_agent(): Must be sync for sequential execution
+        - after_agent(): Must be sync for sequential execution
+
+    ASYNC ALLOWED (properly awaited):
+        - before_tool(): Can be sync or async
+        - after_tool(): Can be sync or async
+
+    FLOW CONTROL:
+        - Return None or HandlerResult.continue_(): proceed to next handler
+        - Return HandlerResult.skip(reason): stop chain, skip ADK operation
+        - Return HandlerResult.abort(error): stop chain, raise RuntimeError
+        - Return HandlerResult.replace(data): modify data, continue chain
+
     Attributes:
         priority: Execution order (lower = earlier). Auto-assigned if not set.
         on_error: Error handling policy ("continue" or "abort").

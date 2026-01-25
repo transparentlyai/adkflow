@@ -5,7 +5,6 @@ Priority 400: Emits events for real-time UI updates.
 
 from __future__ import annotations
 
-import asyncio
 import time
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
@@ -55,15 +54,12 @@ class EmitHandler(BaseHandler):
         if not self.emit:
             return
 
-        async def _do_emit() -> None:
-            if self.emit:
-                await self.emit(event)
+        from adkflow_runner.runner.callbacks.executor import _schedule_fire_and_forget
 
-        try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(_do_emit())
-        except RuntimeError:
-            pass
+        _schedule_fire_and_forget(
+            self.emit(event),
+            context=f"emit {event.type.value}",
+        )
 
     def before_agent(
         self,

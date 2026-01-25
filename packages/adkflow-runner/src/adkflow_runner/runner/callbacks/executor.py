@@ -17,9 +17,42 @@ from adkflow_runner.runner.callbacks.types import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable
+
     from adkflow_runner.runner.callbacks.registry import CallbackRegistry
 
 _log = get_logger("runner.callbacks")
+
+
+def _schedule_fire_and_forget(coro: "Awaitable[Any]", context: str = "") -> bool:
+    """Schedule coroutine as fire-and-forget with error handling.
+
+    Used for side-effect operations (emit, hooks) that don't affect flow control.
+
+    Args:
+        coro: Awaitable to schedule
+        context: Description for error logging
+
+    Returns:
+        True if scheduled, False if no running loop
+    """
+    try:
+        loop = asyncio.get_running_loop()
+
+        async def _safe_execute() -> None:
+            try:
+                await coro
+            except Exception as e:
+                _log.warning(
+                    f"Fire-and-forget task failed: {e}",
+                    context=context,
+                    exception=e,
+                )
+
+        loop.create_task(_safe_execute())
+        return True
+    except RuntimeError:
+        return False
 
 
 class CallbackExecutor:
@@ -64,8 +97,9 @@ class CallbackExecutor:
 
         Raises:
             RuntimeError: If a handler returns ABORT
+            TypeError: If a handler returns an awaitable in sync context
         """
-        handlers = self.registry.get_handlers()
+        handlers = self.registry.get_handlers_for(method_name)
 
         for handler in handlers:
             method = getattr(handler, method_name, None)
@@ -74,6 +108,20 @@ class CallbackExecutor:
 
             try:
                 result = method(agent_name=self.agent_name, **kwargs)
+
+                # CRITICAL: Reject awaitables in sync context
+                if inspect.isawaitable(result):
+                    _log.error(
+                        f"Handler {handler.__class__.__name__}.{method_name}() "
+                        f"returned awaitable in sync context",
+                        handler=handler.__class__.__name__,
+                        method=method_name,
+                    )
+                    raise TypeError(
+                        f"{handler.__class__.__name__}.{method_name}() returned "
+                        f"awaitable. Sync callbacks (before_model, after_model) "
+                        f"MUST be synchronous."
+                    )
 
                 # Handle None as CONTINUE
                 if result is None:
@@ -107,8 +155,8 @@ class CallbackExecutor:
 
                 # CONTINUE: proceed to next handler
 
-            except RuntimeError:
-                # Re-raise ABORT errors
+            except (RuntimeError, TypeError):
+                # Re-raise ABORT errors and programming errors (awaitable in sync)
                 raise
             except Exception as e:
                 if handler.on_error == ErrorPolicy.ABORT:
@@ -145,7 +193,7 @@ class CallbackExecutor:
         Raises:
             RuntimeError: If a handler returns ABORT
         """
-        handlers = self.registry.get_handlers()
+        handlers = self.registry.get_handlers_for(method_name)
         current_data = kwargs.get("args") or kwargs.get("tool_response")
 
         for handler in handlers:
@@ -220,14 +268,14 @@ class CallbackExecutor:
     ) -> None:
         """Execute agent callback chain (before_agent, after_agent).
 
-        Agent callbacks can return awaitables, but we fire-and-forget them
-        since their timing is less critical.
+        Agent callbacks MUST be synchronous to preserve sequential execution.
+        Awaitables are warned and ignored.
 
         Args:
             method_name: "before_agent" or "after_agent"
             callback_context: ADK CallbackContext
         """
-        handlers = self.registry.get_handlers()
+        handlers = self.registry.get_handlers_for(method_name)
 
         for handler in handlers:
             method = getattr(handler, method_name, None)
@@ -240,18 +288,16 @@ class CallbackExecutor:
                     agent_name=self.agent_name,
                 )
 
-                # Fire-and-forget awaitables
+                # Reject awaitables - they break sequential execution
                 if inspect.isawaitable(result):
-                    try:
-                        loop = asyncio.get_running_loop()
-
-                        async def _await_result(awaitable: Any) -> None:
-                            await awaitable
-
-                        loop.create_task(_await_result(result))
-                    except RuntimeError:
-                        pass
-                    continue
+                    _log.warning(
+                        f"Handler {handler.__class__.__name__}.{method_name}() "
+                        f"returned awaitable. Agent callbacks must be sync to "
+                        f"preserve sequential execution. Awaitable ignored.",
+                        handler=handler.__class__.__name__,
+                        method=method_name,
+                    )
+                    continue  # Skip, don't schedule
 
                 # Handle None as CONTINUE
                 if result is None:
