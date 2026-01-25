@@ -81,3 +81,4 @@ specs
 .last_reset
 progress.json
 status.json
+coverage.json
