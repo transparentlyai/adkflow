@@ -68,7 +68,7 @@ Uses Axios with base configuration:
 
 ```typescript
 const client = axios.create({
-  baseURL: 'http://localhost:8000',
+  baseURL: 'http://localhost:6000',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -142,7 +142,7 @@ export function subscribeToRunEvents(
   onEvent: (event: RunEvent) => void
 ): () => void {
   const eventSource = new EventSource(
-    `http://localhost:8000/api/execution/run/${runId}/events`
+    `http://localhost:6000/api/execution/run/${runId}/events`
   );
 
   eventSource.onmessage = (e) => {

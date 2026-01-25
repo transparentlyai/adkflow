@@ -11,7 +11,7 @@ cd adkflow
 ./adkflow start   # Start the app
 ```
 
-Open http://localhost:3000 and start building workflows.
+Open http://localhost:6006 and start building workflows.
 
 ---
 
@@ -109,11 +109,12 @@ Workflows are saved as JSON files:
 
 ```
 my-project/
-├── manifest.json          # Project metadata
+├── manifest.json          # All project data (tabs, nodes, edges, settings)
+├── .env                   # Credentials (API key, Vertex AI config)
 ├── prompts/               # Prompt markdown files
 │   └── analyze.prompt.md
-└── tabs/
-    └── main.flow.json     # Canvas state
+├── static/                # Context files
+└── tools/                 # Python tool files
 ```
 
 ---
@@ -176,7 +177,7 @@ Use the Debug Panel UI to configure logging at runtime. See [docs/technical/back
 ### Prerequisites
 
 - Node.js 18+ and npm
-- Python 3.11+ and [uv](https://docs.astral.sh/uv/)
+- Python 3.13+ and [uv](https://docs.astral.sh/uv/)
 
 ### Manual Setup
 
@@ -203,10 +204,10 @@ cd frontend && npm run dev                 # Terminal 2
 
 | Component | Technologies |
 |-----------|-------------|
-| **Frontend** | Next.js 15, TypeScript, ReactFlow, Tailwind, Radix UI, Monaco |
+| **Frontend** | Next.js 15, React 19, TypeScript, ReactFlow, Tailwind, Radix UI, Monaco |
 | **Backend** | FastAPI, Pydantic v2, uvicorn |
 
-API docs: http://localhost:8000/docs
+API docs: http://localhost:6000/docs
 
 ### Project Structure
 
@@ -218,6 +219,10 @@ adkflow/
 │   └── lib/           # Utilities and types
 ├── backend/           # FastAPI server
 │   └── src/api/       # REST endpoints
+├── packages/          # Workspace packages
+│   └── adkflow-runner/  # Standalone workflow runner
+├── extensions/        # Custom node extensions
+├── docs/              # Documentation
 └── cli/               # Dev server management
 ```
 

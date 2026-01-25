@@ -253,7 +253,7 @@ class ReloadHandler(FileSystemEventHandler):
 Extensions can be reloaded via API:
 
 ```bash
-curl -X POST "http://localhost:8000/api/extensions/reload?scope=all"
+curl -X POST "http://localhost:6000/api/extensions/reload?scope=all"
 ```
 
 ## Error Handling

@@ -92,11 +92,15 @@ useHomeState (orchestrator)
 ├── useDialogHandlers
 └── useRunWorkflow
 
-useCanvasState (orchestrator)
+useCanvasSetup (orchestrator)
+├── useCanvasState (core state)
 ├── useCanvasHistory
 ├── useConnectionHandlers
 ├── useDeleteHandlers
-└── useClipboardOperations
+├── useClipboardOperations
+├── useNodeCreation
+├── useContextMenu
+└── useValidation
 ```
 
 ### SSE Streaming

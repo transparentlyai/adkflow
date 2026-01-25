@@ -64,8 +64,8 @@ Command-line interface.
 
 | Component | Technology | Location |
 |-----------|------------|----------|
-| Frontend | Next.js 15, React 18, TypeScript | `/frontend/` |
-| Backend | FastAPI, Python 3.11+, Pydantic v2 | `/backend/` |
+| Frontend | Next.js 15, React 19, TypeScript | `/frontend/` |
+| Backend | FastAPI, Python 3.13+, Pydantic v2 | `/backend/` |
 | CLI | Python Click | `/cli/` |
 | Execution | adkflow-runner | `/packages/adkflow-runner/` |
 

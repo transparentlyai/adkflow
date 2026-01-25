@@ -157,7 +157,7 @@ See [Running Workflows](./running-workflows.md#debugging-dev-mode) for details.
 Modal windows for various actions:
 
 - **Project Dialog** - Create/open projects
-- **Project Switcher** - Quick project switch (Ctrl+O)
+- **Project Switcher** - Quick project switch
 - **Settings** - Preferences and configuration
 - **Topology View** - Visual workflow diagram
 - **Validation Results** - Errors and warnings

@@ -7,7 +7,7 @@ FastAPI backend architecture for ADKFlow.
 | Technology | Purpose |
 |------------|---------|
 | **FastAPI** | Async web framework |
-| **Python 3.11+** | Runtime |
+| **Python 3.13+** | Runtime |
 | **Pydantic v2** | Data validation |
 | **uvicorn** | ASGI server |
 | **sse_starlette** | Server-Sent Events |
@@ -112,15 +112,15 @@ python -m backend.src.main
 ### With uvicorn
 
 ```bash
-uvicorn backend.src.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn backend.src.main:app --reload --host 0.0.0.0 --port 6000
 ```
 
 ### API Documentation
 
 FastAPI auto-generates:
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-- **OpenAPI JSON**: http://localhost:8000/openapi.json
+- **Swagger UI**: http://localhost:6000/docs
+- **ReDoc**: http://localhost:6000/redoc
+- **OpenAPI JSON**: http://localhost:6000/openapi.json
 
 ## Key Patterns
 

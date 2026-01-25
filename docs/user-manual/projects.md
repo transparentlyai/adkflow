@@ -75,10 +75,10 @@ my-project/
 
 ### Project Switcher
 
-Press **Ctrl+O** (or **Cmd+O** on Mac) to open the quick switcher:
+Use the project switcher (available in the toolbar) to quickly switch between projects:
 - Shows recent projects
 - Type to filter
-- Enter to open
+- Click or press Enter to open
 
 ## Saving
 
@@ -115,7 +115,7 @@ ADKFlow doesn't have a delete option in the UI. To delete:
 
 ## Project Settings
 
-Configure project-level settings via **Project → Settings** (or **Ctrl+,** / **Cmd+,**).
+Configure project-level settings via **Project → Settings**.
 
 ### Authentication
 

@@ -42,9 +42,9 @@ pip install -e ./packages/adkflow-runner
 adkflow dev
 
 # Opens:
-#   Frontend: http://localhost:3000
-#   Backend:  http://localhost:8000
-#   API docs: http://localhost:8000/docs
+#   Frontend: http://localhost:6006
+#   Backend:  http://localhost:6000
+#   API docs: http://localhost:6000/docs
 ```
 
 ### Running Workflows
@@ -85,8 +85,8 @@ Commands for running and validating workflows:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `BACKEND_PORT` | `8000` | Backend server port |
-| `FRONTEND_PORT` | `3000` | Frontend server port |
+| `BACKEND_PORT` | `6000` | Backend server port |
+| `FRONTEND_PORT` | `6006` | Frontend server port |
 
 Load from `.env` file in project root:
 

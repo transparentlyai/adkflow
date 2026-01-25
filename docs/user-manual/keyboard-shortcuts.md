@@ -6,7 +6,6 @@ All keyboard shortcuts in ADKFlow.
 
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl+O` / `Cmd+O` | Open project switcher |
 | `Ctrl+S` / `Cmd+S` | Save current tab |
 | `Ctrl+Z` / `Cmd+Z` | Undo |
 | `Ctrl+Shift+Z` / `Cmd+Shift+Z` | Redo |
@@ -29,7 +28,6 @@ All keyboard shortcuts in ADKFlow.
 | `Ctrl+X` / `Cmd+X` | Cut selected nodes |
 | `Ctrl+V` / `Cmd+V` | Paste nodes |
 | `Delete` / `Backspace` | Delete selected nodes |
-| `Ctrl+D` / `Cmd+D` | Duplicate selected nodes |
 
 ## Navigation
 
@@ -40,7 +38,6 @@ All keyboard shortcuts in ADKFlow.
 | `Alt+Click (node)` | Zoom to fit node |
 | `Alt+Click (canvas)` | Return to previous viewport |
 | `Double-click (canvas)` | Fit view |
-| `Arrow keys` | Move selected nodes |
 
 ## Canvas
 
@@ -48,25 +45,6 @@ All keyboard shortcuts in ADKFlow.
 |----------|--------|
 | `Right-click` | Open context menu |
 | `Space+Drag` | Pan canvas |
-| `+` / `=` | Zoom in |
-| `-` | Zoom out |
-| `0` | Reset zoom to 100% |
-
-## Nodes
-
-| Shortcut | Action |
-|----------|--------|
-| `Enter` | Expand/collapse selected node |
-| `Tab` | Cycle through nodes |
-| `Shift+Tab` | Cycle through nodes (reverse) |
-
-## Workflow
-
-| Shortcut | Action |
-|----------|--------|
-| `F5` | Run workflow |
-| `Ctrl+Enter` / `Cmd+Enter` | Run workflow |
-| `Shift+Escape` | Cancel running workflow |
 
 ## Platform Differences
 

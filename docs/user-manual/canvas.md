@@ -115,8 +115,6 @@ If you've copied nodes, **Paste** appears in the context menu.
 
 | Shortcut | Action |
 |----------|--------|
-| **Arrow keys** | Move selected nodes |
-| **Tab** | Cycle through nodes |
 | **Escape** | Deselect all |
 
 ## Viewport State

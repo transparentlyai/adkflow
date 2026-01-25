@@ -18,8 +18,8 @@ adkflow dev [OPTIONS]
 
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
-| `--backend-port` | `-b` | `8000` | Backend server port |
-| `--frontend-port` | `-f` | `3000` | Frontend server port |
+| `--backend-port` | `-b` | `6000` | Backend server port |
+| `--frontend-port` | `-f` | `6006` | Frontend server port |
 
 **Examples:**
 
@@ -28,8 +28,8 @@ adkflow dev [OPTIONS]
 adkflow dev
 
 # Custom ports
-adkflow dev --backend-port 8080 --frontend-port 3001
-adkflow dev -b 8080 -f 3001
+adkflow dev --backend-port 8000 --frontend-port 3000
+adkflow dev -b 8000 -f 3000
 ```
 
 **Behavior:**
@@ -52,8 +52,8 @@ adkflow start [OPTIONS]
 
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
-| `--backend-port` | `-b` | `8000` | Backend server port |
-| `--frontend-port` | `-f` | `3000` | Frontend server port |
+| `--backend-port` | `-b` | `6000` | Backend server port |
+| `--frontend-port` | `-f` | `6006` | Frontend server port |
 | `--build/--no-build` | | `--build` | Build frontend before starting |
 
 **Examples:**
@@ -66,7 +66,7 @@ adkflow start
 adkflow start --no-build
 
 # Custom ports
-adkflow start -b 8080 -f 3001
+adkflow start -b 8000 -f 3000
 ```
 
 ---
@@ -83,13 +83,13 @@ adkflow backend [OPTIONS]
 
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
-| `--port` | `-p` | `8000` | Server port |
+| `--port` | `-p` | `6000` | Server port |
 
 **Examples:**
 
 ```bash
 adkflow backend
-adkflow backend --port 8080
+adkflow backend --port 8000
 ```
 
 ---
@@ -106,14 +106,14 @@ adkflow frontend [OPTIONS]
 
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
-| `--port` | `-p` | `3000` | Server port |
-| `--backend-port` | `-b` | `8000` | Backend port to connect to |
+| `--port` | `-p` | `6006` | Server port |
+| `--backend-port` | `-b` | `6000` | Backend port to connect to |
 
 **Examples:**
 
 ```bash
 adkflow frontend
-adkflow frontend --port 3001 --backend-port 8080
+adkflow frontend --port 3000 --backend-port 8000
 ```
 
 ---
@@ -197,7 +197,7 @@ adkflow run . --verbose
 adkflow run . --quiet
 
 # With webhook for events
-adkflow run . --callback-url http://localhost:3000/api/events
+adkflow run . --callback-url http://localhost:6006/api/events
 
 # Non-interactive (for scripts)
 adkflow run . --no-interactive

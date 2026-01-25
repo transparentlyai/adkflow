@@ -6,7 +6,7 @@ Guidelines for contributing to ADKFlow.
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.13+
 - Node.js 18+
 - [uv](https://github.com/astral-sh/uv) (recommended) or pip
 - npm
@@ -16,7 +16,7 @@ Guidelines for contributing to ADKFlow.
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/your-org/adkflow.git
+git clone https://github.com/transparentlyai/adkflow.git
 cd adkflow
 ```
 
@@ -42,7 +42,7 @@ npm install
 adkflow dev
 ```
 
-4. Open http://localhost:3000
+4. Open http://localhost:6006
 
 ## Project Structure
 

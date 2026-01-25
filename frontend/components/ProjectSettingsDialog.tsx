@@ -301,15 +301,30 @@ export default function ProjectSettingsDialog({
                           className="h-8 text-sm"
                         />
                       </div>
-                      <a
-                        href="https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                      >
-                        Set up ADC for local development{" "}
-                        <ExternalLink className="h-2.5 w-2.5" />
-                      </a>
+                      <div className="mt-2 space-y-2 rounded-md border border-border bg-muted/30 p-2.5">
+                        <p className="text-[11px] font-medium text-muted-foreground">
+                          First-time setup (skip if already done):
+                        </p>
+                        <div className="space-y-1.5">
+                          <code className="block rounded bg-muted px-2 py-1 text-[11px] font-mono">
+                            gcloud auth application-default login
+                          </code>
+                          <code className="block rounded bg-muted px-2 py-1 text-[11px] font-mono">
+                            gcloud auth application-default set-quota-project{" "}
+                            <span className="text-muted-foreground">
+                              YOUR_PROJECT_ID
+                            </span>
+                          </code>
+                        </div>
+                        <a
+                          href="https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
+                        >
+                          Learn more <ExternalLink className="h-2.5 w-2.5" />
+                        </a>
+                      </div>
                     </div>
                   )}
                 </div>

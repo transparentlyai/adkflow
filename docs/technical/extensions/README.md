@@ -115,7 +115,7 @@ __all__ = ["HelloWorldNode"]
 ### 4. Reload Extensions
 
 ```bash
-curl -X POST http://localhost:8000/api/extensions/reload
+curl -X POST http://localhost:6000/api/extensions/reload
 ```
 
 Your node appears in **Examples/Basic** menu.

@@ -90,6 +90,10 @@ Command-line interface.
 
 - [Commands Reference](./technical/cli/commands.md) - All CLI commands
 
+### [Custom Nodes](./custom-nodes/README.md)
+
+Comprehensive guide for creating custom nodes with the FlowUnit API. Covers extension locations, UI schemas, widget types, and best practices.
+
 ### [Contributing](./contributing.md)
 
 How to contribute to ADKFlow development.
@@ -100,8 +104,8 @@ How to contribute to ADKFlow development.
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | Next.js 15, React 18, TypeScript, ReactFlow, Tailwind CSS |
-| Backend | FastAPI, Python 3.11+, Pydantic v2 |
+| Frontend | Next.js 15, React 19, TypeScript, ReactFlow, Tailwind CSS |
+| Backend | FastAPI, Python 3.13+, Pydantic v2 |
 | CLI | Python Click, uv package manager |
 | Execution | adkflow-runner package |
 
@@ -123,5 +127,5 @@ adkflow/
 
 ## See Also
 
-- [GitHub Repository](https://github.com/your-org/adkflow)
+- [GitHub Repository](https://github.com/transparentlyai/adkflow)
 - [Google ADK Documentation](https://google.github.io/adk-docs/)

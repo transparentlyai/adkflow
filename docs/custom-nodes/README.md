@@ -234,13 +234,13 @@ After creating your node, reload extensions in ADKFlow:
 
 ```bash
 # Reload all extensions (global + project)
-curl -X POST http://localhost:8000/api/extensions/reload
+curl -X POST http://localhost:6000/api/extensions/reload
 
 # Reload only project extensions
-curl -X POST http://localhost:8000/api/extensions/reload?scope=project
+curl -X POST http://localhost:6000/api/extensions/reload?scope=project
 
 # Reload only global extensions
-curl -X POST http://localhost:8000/api/extensions/reload?scope=global
+curl -X POST http://localhost:6000/api/extensions/reload?scope=global
 ```
 
 Or simply restart the backend server.

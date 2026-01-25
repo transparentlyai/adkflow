@@ -21,7 +21,7 @@ When running with `./adkflow dev`, tracing is enabled automatically:
 ./adkflow dev
 ```
 
-Access the trace viewer at `http://localhost:3000/debug?tab=traces`
+Access the trace viewer at `http://localhost:6006/debug?tab=traces`
 
 ### View Traces
 
@@ -124,7 +124,7 @@ This setting is persisted to `manifest.json` and applies to future runs.
 
 ### Trace Explorer
 
-Access the Trace Explorer at `http://localhost:3000/debug?tab=traces` or click the **📊** icon in the Run Panel.
+Access the Trace Explorer at `http://localhost:6006/debug?tab=traces` or click the **📊** icon in the Run Panel.
 
 The Trace Explorer provides:
 

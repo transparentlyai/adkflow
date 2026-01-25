@@ -255,13 +255,13 @@ When running with `./adkflow dev`, debug routes are available:
 ### Get Current Config
 
 ```bash
-curl http://localhost:8000/api/debug/logging
+curl http://localhost:6000/api/debug/logging
 ```
 
 ### Update Config
 
 ```bash
-curl -X PUT http://localhost:8000/api/debug/logging \
+curl -X PUT http://localhost:6000/api/debug/logging \
   -H "Content-Type: application/json" \
   -d '{"global_level": "DEBUG", "categories": {"api": "DEBUG"}}'
 ```
@@ -269,13 +269,13 @@ curl -X PUT http://localhost:8000/api/debug/logging \
 ### List Categories
 
 ```bash
-curl http://localhost:8000/api/debug/logging/categories
+curl http://localhost:6000/api/debug/logging/categories
 ```
 
 ### Reset to Defaults
 
 ```bash
-curl -X POST http://localhost:8000/api/debug/logging/reset
+curl -X POST http://localhost:6000/api/debug/logging/reset
 ```
 
 ## Debug Panel UI

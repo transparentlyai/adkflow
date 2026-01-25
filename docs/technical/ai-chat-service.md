@@ -519,20 +519,20 @@ uv run pytest backend/tests/test_chat_service.py -v
 
 ```bash
 # Create session
-curl -X POST http://localhost:8000/api/chat/sessions \
+curl -X POST http://localhost:6000/api/chat/sessions \
   -H "Content-Type: application/json" \
   -d '{"sessionId": "test-1", "config": {"systemPrompt": "You are helpful."}}'
 
 # Send message (SSE stream)
-curl -N -X POST "http://localhost:8000/api/chat/sessions/test-1/messages" \
+curl -N -X POST "http://localhost:6000/api/chat/sessions/test-1/messages" \
   -H "Content-Type: application/json" \
   -d '{"content": "Hello, what can you do?"}'
 
 # Get session
-curl http://localhost:8000/api/chat/sessions/test-1
+curl http://localhost:6000/api/chat/sessions/test-1
 
 # Delete session
-curl -X DELETE http://localhost:8000/api/chat/sessions/test-1
+curl -X DELETE http://localhost:6000/api/chat/sessions/test-1
 ```
 
 ### Frontend Testing

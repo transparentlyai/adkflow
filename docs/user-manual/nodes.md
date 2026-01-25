@@ -92,12 +92,6 @@ Monitor execution.
 2. Navigate to the category
 3. Click the node type
 
-### From Keyboard
-
-1. Press **/** to open search (if available)
-2. Type the node name
-3. Press **Enter** to add
-
 ## Selecting Nodes
 
 | Action | How |

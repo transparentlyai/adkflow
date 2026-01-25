@@ -56,11 +56,11 @@ rm -rf frontend/node_modules backend/.venv
 
 Or manually:
 ```bash
-# Kill frontend (port 3000)
-lsof -ti:3000 | xargs kill -9
+# Kill frontend (port 6006)
+lsof -ti:6006 | xargs kill -9
 
-# Kill backend (port 8000)
-lsof -ti:8000 | xargs kill -9
+# Kill backend (port 6000)
+lsof -ti:6000 | xargs kill -9
 ```
 
 ### Backend fails to start
@@ -302,7 +302,7 @@ cd backend && python -m backend.src.main
 
 **API logs**:
 - Backend terminal shows API calls
-- Check http://localhost:8000/docs for API explorer
+- Check http://localhost:6000/docs for API explorer
 - Use Log Explorer with "api" category filter
 
 ### Report Issues

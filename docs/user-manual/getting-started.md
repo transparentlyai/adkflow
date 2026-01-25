@@ -5,7 +5,7 @@ Set up ADKFlow and create your first AI agent workflow.
 ## Prerequisites
 
 - **Node.js 18+** and npm
-- **Python 3.11+** and [uv](https://docs.astral.sh/uv/) package manager
+- **Python 3.13+** and [uv](https://docs.astral.sh/uv/) package manager
 - **Google API Key** (for AI Studio) or **Vertex AI** credentials
 
 ## Installation
@@ -64,7 +64,7 @@ This starts both frontend and backend with:
 
 Optimized for performance, debug tools are disabled.
 
-Open http://localhost:3000 in your browser.
+Open http://localhost:6006 in your browser.
 
 ### Stopping
 

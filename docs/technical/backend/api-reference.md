@@ -5,7 +5,7 @@ Complete REST API documentation for ADKFlow backend.
 ## Base URL
 
 ```
-http://localhost:8000/api
+http://localhost:6000/api
 ```
 
 ## Project Endpoints
