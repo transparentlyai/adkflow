@@ -13,6 +13,7 @@ describe("useWorkflowExecution - executeRunWorkflow", () => {
   const mockCanvasRef = {
     current: {
       clearErrorHighlights: vi.fn(),
+      clearAllMonitors: vi.fn(),
       highlightErrorNodes: vi.fn(),
       highlightWarningNodes: vi.fn(),
       saveFlow: vi.fn(),
@@ -74,6 +75,7 @@ describe("useWorkflowExecution - executeRunWorkflow", () => {
     });
 
     expect(mockCanvasRef.current.clearErrorHighlights).toHaveBeenCalled();
+    expect(mockCanvasRef.current.clearAllMonitors).toHaveBeenCalled();
     expect(validateWorkflow).toHaveBeenCalledWith("/path/to/project");
     expect(mockSetIsRunning).toHaveBeenCalledWith(true);
     expect(startRun).toHaveBeenCalledWith({
@@ -181,12 +183,8 @@ describe("useWorkflowExecution - executeRunWorkflow", () => {
   });
 
   it("should handle validation error", async () => {
-    (validateWorkflow as any).mockRejectedValue(
-      new Error("Validation failed"),
-    );
-    const consoleSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    (validateWorkflow as any).mockRejectedValue(new Error("Validation failed"));
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const { result } = renderHook(() => useWorkflowExecution(defaultProps));
 
@@ -211,9 +209,7 @@ describe("useWorkflowExecution - executeRunWorkflow", () => {
 
   it("should handle startRun error", async () => {
     (startRun as any).mockRejectedValue(new Error("Start failed"));
-    const consoleSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const { result } = renderHook(() => useWorkflowExecution(defaultProps));
 
@@ -242,9 +238,7 @@ describe("useWorkflowExecution - executeRunWorkflow", () => {
       activeTabId: null,
     };
 
-    const { result } = renderHook(() =>
-      useWorkflowExecution(propsWithNullTab),
-    );
+    const { result } = renderHook(() => useWorkflowExecution(propsWithNullTab));
 
     await act(async () => {
       await result.current.executeRunWorkflow();

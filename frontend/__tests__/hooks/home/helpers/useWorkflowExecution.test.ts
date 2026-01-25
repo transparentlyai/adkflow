@@ -13,6 +13,7 @@ describe("useWorkflowExecution", () => {
   const mockCanvasRef = {
     current: {
       clearErrorHighlights: vi.fn(),
+      clearAllMonitors: vi.fn(),
       highlightErrorNodes: vi.fn(),
       highlightWarningNodes: vi.fn(),
       saveFlow: vi.fn(),

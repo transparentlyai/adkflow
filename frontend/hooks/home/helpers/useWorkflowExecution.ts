@@ -53,6 +53,7 @@ export function useWorkflowExecution({
     if (!currentProjectPath || isRunning) return;
 
     canvasRef.current?.clearErrorHighlights();
+    canvasRef.current?.clearAllMonitors();
 
     try {
       const validation = await validateWorkflow(currentProjectPath);
